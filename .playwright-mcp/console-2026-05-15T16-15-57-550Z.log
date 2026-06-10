@@ -1,0 +1,4 @@
+[ 1590675ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://[::1]:5174/resources/js/Components/UI/AppSidebar.vue?t=1778863347677:0
+[ 1590676ms] [ERROR] [vite] Failed to reload /resources/js/Components/UI/AppSidebar.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://[::1]:5174/@vite/client:904
+[ 1614343ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://[::1]:5174/resources/js/Components/UI/AppSidebar.vue?t=1778863371681:0
+[ 1614344ms] [ERROR] [vite] Failed to reload /resources/js/Layouts/AppLayout.vue. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://[::1]:5174/@vite/client:904

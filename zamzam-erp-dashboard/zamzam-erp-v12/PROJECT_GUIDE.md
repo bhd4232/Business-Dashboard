@@ -1,0 +1,570 @@
+# ZamZam ERP Dashboard - Project Guide
+
+এই গাইডটি নতুন developer, maintainer, অথবা AI agent-কে project-এর বর্তমান অবস্থা দ্রুত বুঝতে সাহায্য করার জন্য। কাজ শুরু করার আগে এই ফাইল এবং `ERP_PHASE_ROADMAP.md` পড়ুন।
+
+## 1. Project Overview
+
+- Project type: China to Bangladesh wholesale ERP management app
+- Backend framework: Laravel 12
+- Admin panel: Filament 4
+- Frontend build tool: Vite
+- Styling stack: Tailwind CSS 4
+- Admin route: `/admin`
+- Public route: `/`
+- Main business focus: product inventory, purchase costing, sales invoice, supplier/customer due, accounts, reports, and audit trail
+
+## 2. Important Folders
+
+```text
+app/Models/                         Eloquent models
+app/Services/                       Business/report services
+app/Filament/Resources/             Filament admin resources
+app/Filament/Pages/                 Custom Filament pages
+app/Filament/Widgets/               Dashboard widgets
+app/Providers/Filament/             Admin panel setup
+
+database/migrations/                Database schema changes
+database/seeders/                   Seed data
+database/factories/                 Model factories
+
+routes/web.php                      Web routes and CSV exports
+resources/views/                    Blade views
+resources/css/                      App CSS
+resources/js/                       App JavaScript
+public/                             Public assets and built files
+storage/                            Runtime storage, logs, uploads
+```
+
+## 3. Current Core Modules
+
+### Inventory
+
+- Categories
+- Products
+- Stock Movements
+
+Products support:
+
+- name, description, SKU, barcode, unit, brand
+- cost price, sale price, legacy price
+- stock, reorder level, VAT rate
+- active/inactive status
+- product status: `available`, `coming_soon`
+- image upload
+- category relationship
+
+Stock behavior:
+
+- Stock is calculated from stock movements.
+- Opening, purchase, and return movements increase stock.
+- Sale movements reduce stock.
+- Adjustment movements use signed quantity.
+- Movements that would make product stock negative are blocked.
+- Product view includes stock movement history.
+
+### Purchasing
+
+- Suppliers
+- Purchases
+- Purchase Items
+- Supplier Payments
+
+Purchase behavior:
+
+- Purchases have statuses: `draft`, `received`, `cancelled`.
+- Stock increases only when purchase status is `received`.
+- Draft and cancelled purchases do not affect product stock.
+- Cancelling a received purchase removes related purchase stock movements.
+- Cancelling is blocked if stock would become negative.
+- Purchase can optionally update product cost price.
+- Supplier balance is synced from received purchase due minus supplier payments.
+
+### China to BD Purchase Costing
+
+The app includes dedicated China-to-Bangladesh wholesale purchase cost fields on the Purchase form.
+
+Fixed optional purchase cost fields:
+
+- Machine Purchase
+- Inspection
+- Freight to Ctg
+- Duty
+- C&F
+- Misc
+- Truck
+- Load & Unload
+- Spare Parts
+- CAM
+- Positive Feeder
+- Cylinder
+
+Important behavior:
+
+- These fields are optional.
+- They are purchase-level costs, not product dropdown items.
+- They are included in `total_amount` and `due_amount`.
+- They are stored directly on the `purchases` table.
+- The `China to BD Costs` section is collapsible.
+
+Custom purchase cost fields:
+
+- The `China to BD Costs` section has an `Add new field` button.
+- Clicking the button opens a modal/popup.
+- The popup form accepts `Field Name` and `Amount`.
+- Custom fields are stored in `purchases.custom_costs` as JSON.
+- Custom costs are included in purchase total and due calculations.
+- The `Custom Fields` block stays hidden until at least one custom field exists.
+- Custom fields show on View Purchase.
+- Purchase reports and CSV exports dynamically add custom cost columns based on labels used in the selected report date range.
+
+Related files:
+
+```text
+app/Models/Purchase.php
+app/Filament/Resources/Purchases/Schemas/PurchaseForm.php
+app/Filament/Resources/Purchases/Schemas/PurchaseInfolist.php
+app/Filament/Resources/Purchases/Tables/PurchasesTable.php
+database/migrations/2026_06_07_010000_add_china_to_bd_costs_to_purchases_table.php
+database/migrations/2026_06_07_020000_add_custom_costs_to_purchases_table.php
+```
+
+### Coming Soon Products
+
+The app has placeholder products for future China-to-BD purchase-related items.
+
+Placeholder product names:
+
+- Machine Purchase
+- Inspection
+- Freight to Ctg
+- Duty
+- C&F
+- Misc
+- Truck
+- Load & Unload
+- Spare Parts
+- CAM
+- Positive Feeder
+- Cylinder
+
+Important behavior:
+
+- They are created/ensured by `Product::ensureComingSoonPurchaseProducts()`.
+- They use product status `coming_soon`.
+- They are inactive so they do not appear in active product purchase dropdowns.
+- Product page can show them with Coming Soon status.
+- Dashboard can count Coming Soon products.
+
+Related files:
+
+```text
+app/Models/Product.php
+database/migrations/2026_06_07_000000_add_status_to_products_table.php
+database/seeders/DatabaseSeeder.php
+app/Filament/Resources/Products/
+app/Filament/Widgets/BusinessOverview.php
+```
+
+### Sales
+
+- Customers
+- Orders
+- Order Items
+- Printable invoice page
+- Customer Payments
+
+Sales behavior:
+
+- Orders are multi-product sales invoices.
+- Order items store product, quantity, unit price, and subtotal.
+- Order totals are calculated from items, discount, VAT, and paid amount.
+- Confirmed/completed orders create grouped sale stock movements.
+- Draft/cancelled orders do not affect stock.
+- Customer current balance is opening balance plus confirmed/completed invoice due minus customer payments.
+- Printable invoice route: `/admin/orders/{order}/print`
+
+### Accounts and Ledger
+
+- Accounts
+- Customer Payments
+- Supplier Payments
+- Expense Categories
+- Expenses
+- Transaction Ledger
+
+Money behavior:
+
+- Account balance = opening balance + ledger inflow - ledger outflow.
+- Customer payments create ledger entries with direction `in`.
+- Supplier payments create ledger entries with direction `out`.
+- Expenses create ledger entries with direction `out`.
+- Overpayments are blocked.
+- Supplier payments and expenses are blocked if account balance would become negative.
+- Transaction Ledger is intended as read-only history.
+
+### Reports and Dashboard
+
+Dashboard widget:
+
+- Today Sales
+- Today Purchases
+- Customer Payments
+- Supplier Payments
+- Today Expenses
+- Customer Due
+- Supplier Payable
+- Account Balance
+- Low Stock Items
+- Coming Soon Products
+
+Reports page:
+
+```text
+app/Filament/Pages/Reports.php
+resources/views/filament/pages/reports.blade.php
+app/Services/ReportService.php
+```
+
+Available report/export types:
+
+- `sales`
+- `purchases`
+- `profit`
+- `stock`
+- `low-stock`
+- `customer-dues`
+- `supplier-dues`
+- `expenses`
+- `ledger`
+
+Purchase report special behavior:
+
+- Shows China to BD cost total.
+- Dynamically shows custom cost field labels as columns.
+- CSV export includes fixed China-to-BD cost columns.
+- CSV export includes dynamic custom cost columns.
+
+CSV export route:
+
+```text
+GET /admin/reports/export/{type}
+```
+
+### Users, Roles, Permissions, Audit
+
+Roles:
+
+- `super_admin`
+- `manager`
+- `sales_staff`
+- `inventory_staff`
+- `accountant`
+
+Permission behavior:
+
+- Super Admin has full access.
+- Manager can work with sales, purchasing, inventory, accounts, and reports.
+- Sales Staff can work with sales, view inventory, and view reports but cannot export reports.
+- Inventory Staff can work with inventory, view purchasing, and view reports.
+- Accountant can work with accounts, view sales/purchasing, and export reports.
+- Inactive users cannot access the admin panel.
+- User and Audit Log resources are restricted to Super Admin.
+
+Audit behavior:
+
+- Core model create/update/delete events create audit log entries.
+- Audit logs store user, action, model type, model id, changed values, IP address, and user agent.
+- Sensitive user fields are not stored in audit payloads.
+
+## 4. Admin Panel
+
+Filament admin panel is configured in:
+
+```text
+app/Providers/Filament/AdminPanelProvider.php
+```
+
+Panel settings:
+
+- Panel ID: `admin`
+- Path: `/admin`
+- Login enabled
+- SPA mode enabled
+- Primary color: Amber
+- Sidebar collapsible on desktop
+- Resources auto-discovered from `app/Filament/Resources`
+
+## 5. Main Resources
+
+```text
+app/Filament/Resources/Categories/
+app/Filament/Resources/Products/
+app/Filament/Resources/StockMovements/
+app/Filament/Resources/Suppliers/
+app/Filament/Resources/Purchases/
+app/Filament/Resources/Customers/
+app/Filament/Resources/Orders/
+app/Filament/Resources/CustomerPayments/
+app/Filament/Resources/SupplierPayments/
+app/Filament/Resources/Accounts/
+app/Filament/Resources/ExpenseCategories/
+app/Filament/Resources/Expenses/
+app/Filament/Resources/TransactionLedgers/
+app/Filament/Resources/Users/
+app/Filament/Resources/AuditLogs/
+```
+
+## 6. Important Migrations
+
+Inventory and products:
+
+```text
+2026_05_25_122248_create_products_table.php
+2026_05_26_140736_create_categories_table.php
+2026_05_26_141301_add_category_id_to_products_table.php
+2026_05_28_213000_add_inventory_details_to_products_table.php
+2026_05_29_000000_create_stock_movements_table.php
+2026_05_29_010000_backfill_opening_stock_movements.php
+2026_06_07_000000_add_status_to_products_table.php
+```
+
+Purchasing:
+
+```text
+2026_05_29_020000_create_suppliers_table.php
+2026_05_29_021000_create_purchases_table.php
+2026_05_29_022000_create_purchase_items_table.php
+2026_06_07_010000_add_china_to_bd_costs_to_purchases_table.php
+2026_06_07_020000_add_custom_costs_to_purchases_table.php
+```
+
+Sales:
+
+```text
+2026_05_25_123544_create_orders_table.php
+2026_05_25_123604_create_order_items_table.php
+2026_05_26_163719_add_details_to_orders_table.php
+2026_05_30_000000_create_customers_table.php
+2026_05_30_001000_add_invoice_fields_to_orders_table.php
+2026_06_03_000000_add_profile_fields_to_customers_table.php
+```
+
+Accounts and audit:
+
+```text
+2026_06_02_010000_create_accounts_table.php
+2026_06_02_011000_create_expense_categories_table.php
+2026_06_02_012000_create_customer_payments_table.php
+2026_06_02_013000_create_supplier_payments_table.php
+2026_06_02_014000_create_expenses_table.php
+2026_06_02_015000_create_transaction_ledgers_table.php
+2026_06_03_010000_add_role_fields_to_users_table.php
+2026_06_03_011000_create_audit_logs_table.php
+```
+
+## 7. Local Setup
+
+From project root:
+
+```bash
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan db:seed
+```
+
+Run locally:
+
+```bash
+php artisan serve
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:8000
+http://localhost:8000/admin
+```
+
+Default seeded admin:
+
+```text
+Email: admin@zamzamint.com
+Password: password
+```
+
+Change the password before production use.
+
+## 8. Coolify Deployment with GitHub
+
+Recommended deployment flow:
+
+1. Push the Laravel project to GitHub.
+2. In Coolify, create a new Application from GitHub App.
+3. Select the repository and branch.
+4. Use build pack: `Nixpacks`.
+5. Expose port: `80`.
+6. If the repository root contains `zamzam-erp-v12`, set Base Directory to `zamzam-erp-v12`.
+7. Add MySQL or MariaDB resource in Coolify.
+8. Configure Laravel environment variables.
+
+Required production environment variables:
+
+```env
+APP_NAME="ZamZam ERP"
+APP_ENV=production
+APP_KEY=base64:YOUR_APP_KEY
+APP_DEBUG=false
+APP_URL=https://your-domain.com
+
+DB_CONNECTION=mysql
+DB_HOST=your-db-host
+DB_PORT=3306
+DB_DATABASE=your-db-name
+DB_USERNAME=your-db-user
+DB_PASSWORD=your-db-password
+
+SESSION_DRIVER=file
+CACHE_STORE=file
+QUEUE_CONNECTION=sync
+FILESYSTEM_DISK=public
+LOG_CHANNEL=stack
+MAIL_MAILER=log
+```
+
+Generate `APP_KEY` locally:
+
+```bash
+php artisan key:generate --show
+```
+
+Post-deployment command:
+
+```bash
+php artisan migrate --force && php artisan storage:link && php artisan optimize:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache
+```
+
+Persistent storage recommendation:
+
+```text
+/app/storage
+```
+
+At minimum, persist:
+
+```text
+/app/storage/app/public
+```
+
+## 9. Development Workflow
+
+### Add a new module
+
+1. Create migration.
+2. Create Eloquent model.
+3. Add relationships.
+4. Create Filament resource.
+5. Configure form, table, infolist, and pages.
+6. Add business logic in model/service if needed.
+7. Add tests.
+8. Run migrations and tests.
+9. Update `PROJECT_GUIDE.md` and `ERP_PHASE_ROADMAP.md`.
+
+### Add a new field
+
+1. Create a migration.
+2. Add field to model `$fillable`.
+3. Add cast if needed.
+4. Add form field.
+5. Add table/infolist/report/export display if relevant.
+6. Update calculations if the field affects money or stock.
+7. Add or update tests.
+8. Update documentation.
+
+### Add purchase cost behavior
+
+1. Decide if the field is fixed or custom.
+2. Fixed fields belong in `Purchase::CHINA_TO_BD_COST_FIELDS` and a migration column.
+3. Custom fields belong in `custom_costs` JSON.
+4. Update `Purchase::chinaToBdCostTotal()` if the cost affects totals.
+5. Ensure reports and CSV exports expose the field where relevant.
+6. Add tests in `PurchaseTest` and `ReportsTest`.
+
+## 10. Testing Checklist
+
+Before handoff:
+
+```bash
+php artisan test
+npm run build
+```
+
+Focused test commands:
+
+```bash
+php artisan test --filter=StockMovementTest
+php artisan test --filter=PurchaseTest
+php artisan test --filter=SalesOrderTest
+php artisan test --filter=AccountsAndPaymentsTest
+php artisan test --filter=ReportsTest
+php artisan test --filter=PhaseSixPermissionsTest
+```
+
+Manual admin smoke checks:
+
+1. Login to `/admin`.
+2. Create category and product.
+3. Create stock movements and confirm stock changes.
+4. Create supplier and purchase.
+5. Add China-to-BD costs and custom cost fields.
+6. Confirm purchase total and due calculations.
+7. Mark purchase received and confirm stock increases.
+8. Create customer and sales invoice.
+9. Confirm stock decreases for confirmed/completed sales.
+10. Add customer/supplier payments.
+11. Add expense and confirm account balance changes.
+12. Check dashboard metrics.
+13. Check purchase report and CSV export dynamic custom cost columns.
+14. Check user permissions and audit logs.
+
+## 11. Known Notes and Cleanup
+
+- Some historical migrations are no-op/compatibility migrations. Keep them unless a fresh migration squash is intentionally planned.
+- Product `price` is kept for legacy compatibility; `sale_price` is preferred for current UI.
+- Coming Soon placeholder products are inactive to avoid appearing in active product dropdowns.
+- Purchase fixed/custom costs are purchase-level costs, not product lines.
+- `storage:link` is needed for public uploads.
+- If deploying on Coolify, make sure migrations run after deployment.
+- Run rollback tests only on disposable databases before production rollback work.
+
+## 12. Quick File Map
+
+```text
+Product model             app/Models/Product.php
+Purchase model            app/Models/Purchase.php
+Order model               app/Models/Order.php
+Stock movement model      app/Models/StockMovement.php
+Report service            app/Services/ReportService.php
+
+Purchase form             app/Filament/Resources/Purchases/Schemas/PurchaseForm.php
+Purchase infolist         app/Filament/Resources/Purchases/Schemas/PurchaseInfolist.php
+Purchase table            app/Filament/Resources/Purchases/Tables/PurchasesTable.php
+Reports page              app/Filament/Pages/Reports.php
+Reports view              resources/views/filament/pages/reports.blade.php
+CSV exports               routes/web.php
+Dashboard widget          app/Filament/Widgets/BusinessOverview.php
+Admin panel provider      app/Providers/Filament/AdminPanelProvider.php
+Seeder                    database/seeders/DatabaseSeeder.php
+```
+
+## 13. Documentation Rule
+
+Every feature change should update:
+
+- `PROJECT_GUIDE.md` for current behavior and implementation notes
+- `ERP_PHASE_ROADMAP.md` for phase status, done criteria, and future work
+
+Do not leave business-critical behavior only in code or conversation history.

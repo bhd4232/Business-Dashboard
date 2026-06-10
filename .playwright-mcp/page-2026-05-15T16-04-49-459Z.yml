@@ -1,0 +1,219 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: Internal Server Error
+    - button "Copy as Markdown" [ref=e11] [cursor=pointer]:
+      - img [ref=e12]
+      - generic [ref=e15]: Copy as Markdown
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - heading "Illuminate\\Database\\QueryException" [level=1] [ref=e20]
+      - generic [ref=e22]: vendor\laravel\framework\src\Illuminate\Database\Connection.php:841
+      - paragraph [ref=e23]: "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'categories.deleted_at' in 'where clause' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: zamzam_erp, SQL: select * from `categories` where `is_active` = 1 and `parent_id` is null and `categories`.`deleted_at` is null order by `sort_order` asc, `sort_order` asc)"
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]: LARAVEL
+          - generic [ref=e28]: 13.9.0
+        - generic [ref=e29]:
+          - generic [ref=e30]: PHP
+          - generic [ref=e31]: 8.3.30
+      - generic [ref=e32]:
+        - img [ref=e33]
+        - text: UNHANDLED
+      - generic [ref=e36]: CODE 42S22
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - img [ref=e40]
+        - text: "500"
+      - generic [ref=e43]:
+        - img [ref=e44]
+        - text: GET
+      - generic [ref=e47]: http://127.0.0.1:8000/products
+      - button [ref=e48] [cursor=pointer]:
+        - img [ref=e49]
+  - generic [ref=e53]:
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - img [ref=e57]
+        - heading "Exception trace" [level=3] [ref=e60]
+        - link "1 previous exception" [ref=e61] [cursor=pointer]:
+          - /url: "#previous-exceptions"
+      - generic [ref=e62]:
+        - generic [ref=e64] [cursor=pointer]:
+          - img [ref=e65]
+          - generic [ref=e69]: 7 vendor frames
+          - button [ref=e70]:
+            - img [ref=e71]
+        - generic [ref=e75]:
+          - generic [ref=e76] [cursor=pointer]:
+            - generic [ref=e79]:
+              - code [ref=e83]:
+                - generic [ref=e84]: Illuminate\Database\Eloquent\Builder->get()
+              - generic [ref=e86]: app\Http\Controllers\Web\Admin\Procurement\ProductController.php:28
+            - button [ref=e88]:
+              - img [ref=e89]
+          - code [ref=e97]:
+            - generic [ref=e98]: 23 ->when($request->boolean('active_only', true), fn($q) => $q->active())
+            - generic [ref=e99]: 24 ->orderByDesc('created_at')
+            - generic [ref=e100]: 25 ->paginate(25)
+            - generic [ref=e101]: 26 ->withQueryString();
+            - generic [ref=e102]: "27"
+            - generic [ref=e103]: 28 $categories = Category::active()->root()->with('children')->orderBy('sort_order')->get();
+            - generic [ref=e104]: "29"
+            - generic [ref=e105]: 30 return Inertia::render('Procurement/Products/Index', [
+            - generic [ref=e106]: 31 'products' => $products,
+            - generic [ref=e107]: 32 'categories' => $categories,
+            - generic [ref=e108]: 33 'filters' => $request->only(['search', 'category_id', 'active_only']),
+            - generic [ref=e109]: 34 ]);
+            - generic [ref=e110]: "35 }"
+            - generic [ref=e111]: "36"
+            - generic [ref=e112]: "37 public function create(): Response"
+            - generic [ref=e113]: "38 {"
+            - generic [ref=e114]: 39 $categories = Category::active()->root()->with('children')->orderBy('sort_order')->get();
+            - generic [ref=e115]: "40"
+        - generic [ref=e117] [cursor=pointer]:
+          - img [ref=e118]
+          - generic [ref=e122]: 55 vendor frames
+          - button [ref=e123]:
+            - img [ref=e124]
+        - generic [ref=e129] [cursor=pointer]:
+          - generic [ref=e132]:
+            - code [ref=e136]:
+              - generic [ref=e137]: Illuminate\Foundation\Application->handleRequest(object(Illuminate\Http\Request))
+            - generic [ref=e139]: public\index.php:20
+          - button [ref=e141]:
+            - img [ref=e142]
+        - generic [ref=e147] [cursor=pointer]:
+          - img [ref=e148]
+          - generic [ref=e152]: 1 vendor frame
+          - button [ref=e153]:
+            - img [ref=e154]
+    - generic [ref=e158]:
+      - generic [ref=e159]:
+        - img [ref=e161]
+        - heading "Previous exception" [level=3] [ref=e164]
+      - generic [ref=e168] [cursor=pointer]:
+        - generic [ref=e169]:
+          - heading "PDOException" [level=4] [ref=e170]
+          - paragraph [ref=e171]: "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'categories.deleted_at' in 'where clause'"
+        - button [ref=e172]:
+          - img [ref=e173]
+    - generic [ref=e177]:
+      - generic [ref=e178]:
+        - generic [ref=e179]:
+          - img [ref=e181]
+          - heading "Queries" [level=3] [ref=e183]
+        - generic [ref=e185]: 1-5 of 5
+      - generic [ref=e186]:
+        - generic [ref=e187]:
+          - generic [ref=e188]:
+            - generic [ref=e189]:
+              - img [ref=e190]
+              - generic [ref=e192]: mysql
+            - code [ref=e196]:
+              - generic [ref=e197]: "select * from `users` where `id` = 1 limit 1"
+          - generic [ref=e198]: 28.79ms
+        - generic [ref=e199]:
+          - generic [ref=e200]:
+            - generic [ref=e201]:
+              - img [ref=e202]
+              - generic [ref=e204]: mysql
+            - code [ref=e208]:
+              - generic [ref=e209]: "select `roles`.*, `model_has_roles`.`model_id` as `pivot_model_id`, `model_has_roles`.`role_id` as `pivot_role_id`, `model_has_roles`.`model_type` as `pivot_model_type` from `roles` inner join `model_has_roles` on `roles`.`id` = `model_has_roles`.`role_id` where `model_has_roles`.`model_id` in (1) and `model_has_roles`.`model_type` = 'App\\Models\\User'"
+          - generic [ref=e210]: 1.77ms
+        - generic [ref=e211]:
+          - generic [ref=e212]:
+            - generic [ref=e213]:
+              - img [ref=e214]
+              - generic [ref=e216]: mysql
+            - code [ref=e220]:
+              - generic [ref=e221]: "select `permissions`.*, `model_has_permissions`.`model_id` as `pivot_model_id`, `model_has_permissions`.`permission_id` as `pivot_permission_id`, `model_has_permissions`.`model_type` as `pivot_model_type` from `permissions` inner join `model_has_permissions` on `permissions`.`id` = `model_has_permissions`.`permission_id` where `model_has_permissions`.`model_id` = 1 and `model_has_permissions`.`model_type` = 'App\\Models\\User'"
+          - generic [ref=e222]: 1.65ms
+        - generic [ref=e223]:
+          - generic [ref=e224]:
+            - generic [ref=e225]:
+              - img [ref=e226]
+              - generic [ref=e228]: mysql
+            - code [ref=e232]:
+              - generic [ref=e233]: "select `permissions`.*, `role_has_permissions`.`role_id` as `pivot_role_id`, `role_has_permissions`.`permission_id` as `pivot_permission_id` from `permissions` inner join `role_has_permissions` on `permissions`.`id` = `role_has_permissions`.`permission_id` where `role_has_permissions`.`role_id` in (1)"
+          - generic [ref=e234]: 1.88ms
+        - generic [ref=e235]:
+          - generic [ref=e236]:
+            - generic [ref=e237]:
+              - img [ref=e238]
+              - generic [ref=e240]: mysql
+            - code [ref=e244]:
+              - generic [ref=e245]: "select count(*) as aggregate from `products` where `is_active` = 1 and `products`.`deleted_at` is null"
+          - generic [ref=e246]: 1.62ms
+  - generic [ref=e248]:
+    - generic [ref=e249]:
+      - heading "Headers" [level=2] [ref=e250]
+      - generic [ref=e251]:
+        - generic [ref=e252]:
+          - generic [ref=e253]: host
+          - generic [ref=e255]: 127.0.0.1:8000
+        - generic [ref=e256]:
+          - generic [ref=e257]: connection
+          - generic [ref=e259]: keep-alive
+        - generic [ref=e260]:
+          - generic [ref=e261]: sec-ch-ua
+          - generic [ref=e263]: "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\""
+        - generic [ref=e264]:
+          - generic [ref=e265]: sec-ch-ua-mobile
+          - generic [ref=e267]: "?0"
+        - generic [ref=e268]:
+          - generic [ref=e269]: sec-ch-ua-platform
+          - generic [ref=e271]: "\"Windows\""
+        - generic [ref=e272]:
+          - generic [ref=e273]: upgrade-insecure-requests
+          - generic [ref=e275]: "1"
+        - generic [ref=e276]:
+          - generic [ref=e277]: user-agent
+          - generic [ref=e279]: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36
+        - generic [ref=e280]:
+          - generic [ref=e281]: accept
+          - generic [ref=e283]: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+        - generic [ref=e284]:
+          - generic [ref=e285]: sec-fetch-site
+          - generic [ref=e287]: none
+        - generic [ref=e288]:
+          - generic [ref=e289]: sec-fetch-mode
+          - generic [ref=e291]: navigate
+        - generic [ref=e292]:
+          - generic [ref=e293]: sec-fetch-user
+          - generic [ref=e295]: "?1"
+        - generic [ref=e296]:
+          - generic [ref=e297]: sec-fetch-dest
+          - generic [ref=e299]: document
+        - generic [ref=e300]:
+          - generic [ref=e301]: accept-encoding
+          - generic [ref=e303]: gzip, deflate, br, zstd
+        - generic [ref=e304]:
+          - generic [ref=e305]: accept-language
+          - generic [ref=e307]: en-US,en;q=0.9
+        - generic [ref=e308]:
+          - generic [ref=e309]: cookie
+          - generic [ref=e311]: XSRF-TOKEN=eyJpdiI6IjJEblJscEtVMGJQclRLZ2FzY1NyWmc9PSIsInZhbHVlIjoiamdVOE1INDhpNTVGZDRoOU9OS2w3VDFjc1hlc0FQaEg5VU1wMmplQk45TE5iWVg4R0o1UHcxaG1oRXU3dWNXaDhvU1dXcDVTRVUrRm9uN0hDc0o4N2hrdEZWelRBSDlKRnVNczdibVlueDFEcDFxdVR3K2NKU1pWSG5IZWgzUFEiLCJtYWMiOiJjNDRiZmVjY2E4OGUwM2M0NTRhNDA5OWJiNWQ4MTE2MjhjMDM0ODViNWUyYTk5YzFkNGM1NGYzMWRlZGM5NmQ1IiwidGFnIjoiIn0%3D; zamzam-erp-session=eyJpdiI6IllnTnNMV0I1bmNINVl5OU5jRjVRV2c9PSIsInZhbHVlIjoiTmxjbUtKTjNiY1NPZy9FMDdDSkl4S1RkRk0yTVNOblBrUEdYdFNVaDg2NVVNSmErUVZvSDBjbDNweStqa0VvZXBhc0dtSkp0dXRKRG5sY3NScnRQbUJJdmw0a1BkL1l2Z3JmcnR6cWxaelNZQk5tZVAzSVJDWDh0Q0NwYW9lbDkiLCJtYWMiOiIzZWVlYjgxZTBkODg4MzQzZDBkNzQ3NDRjZTQ5MjZmOTM3YTk0NjAwOWU5NGQ4N2JlZDY5YTc4MGFjMmFjZDYwIiwidGFnIjoiIn0%3D
+    - generic [ref=e312]:
+      - heading "Body" [level=2] [ref=e313]
+      - generic [ref=e314]: // No request body
+    - generic [ref=e315]:
+      - heading "Routing" [level=2] [ref=e316]
+      - generic [ref=e317]:
+        - generic [ref=e318]:
+          - generic [ref=e319]: controller
+          - generic [ref=e321]: App\Http\Controllers\Web\Admin\Procurement\ProductController@index
+        - generic [ref=e322]:
+          - generic [ref=e323]: route name
+          - generic [ref=e325]: products.index
+        - generic [ref=e326]:
+          - generic [ref=e327]: middleware
+          - generic [ref=e329]: web, auth
+    - generic [ref=e330]:
+      - heading "Routing parameters" [level=2] [ref=e331]
+      - generic [ref=e332]: // No routing parameters
+  - generic [ref=e335]:
+    - img [ref=e337]
+    - img [ref=e3375]

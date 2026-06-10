@@ -1,0 +1,186 @@
+- generic [ref=e34]:
+  - complementary [ref=e35]:
+    - generic [ref=e36]:
+      - img "zap icon" [ref=e39]
+      - generic [ref=e40]:
+        - paragraph [ref=e41]: ZamZam
+        - paragraph [ref=e42]: ERP v1.0
+    - navigation [ref=e43]:
+      - link "dashboard icon Dashboard" [ref=e44] [cursor=pointer]:
+        - /url: http://localhost:8001
+        - img "dashboard icon" [ref=e47]
+        - generic [ref=e48]: Dashboard
+      - generic [ref=e49]:
+        - button "procurement icon Procurement" [ref=e50]:
+          - img "procurement icon" [ref=e53]
+          - generic [ref=e54]: Procurement
+          - img [ref=e55]
+        - generic [ref=e57]:
+          - link "Suppliers" [ref=e58] [cursor=pointer]:
+            - /url: http://localhost:8001/suppliers
+            - generic [ref=e60]: Suppliers
+          - link "Products" [ref=e61] [cursor=pointer]:
+            - /url: http://localhost:8001/products
+            - generic [ref=e63]: Products
+          - link "Purchase Orders" [ref=e64] [cursor=pointer]:
+            - /url: http://localhost:8001/purchase-orders
+            - generic [ref=e66]: Purchase Orders
+          - link "Categories" [ref=e67] [cursor=pointer]:
+            - /url: http://localhost:8001/categories
+            - generic [ref=e69]: Categories
+      - generic [ref=e70]:
+        - button "inventory icon Inventory & Warehouse" [ref=e71]:
+          - img "inventory icon" [ref=e74]
+          - generic [ref=e75]: Inventory & Warehouse
+          - img [ref=e76]
+        - generic [ref=e78]:
+          - link "Warehouses" [ref=e79] [cursor=pointer]:
+            - /url: http://localhost:8001/warehouses
+            - generic [ref=e81]: Warehouses
+          - link "Stock" [ref=e82] [cursor=pointer]:
+            - /url: http://localhost:8001/stock
+            - generic [ref=e84]: Stock
+          - link "Low Stock" [ref=e85] [cursor=pointer]:
+            - /url: http://localhost:8001/stock/low-stock
+            - generic [ref=e87]: Low Stock
+          - link "Transfers" [ref=e88] [cursor=pointer]:
+            - /url: http://localhost:8001/stock-transfers
+            - generic [ref=e90]: Transfers
+          - link "Adjustments" [ref=e91] [cursor=pointer]:
+            - /url: http://localhost:8001/stock-adjustments
+            - generic [ref=e93]: Adjustments
+          - link "Barcodes" [ref=e94] [cursor=pointer]:
+            - /url: http://localhost:8001/barcodes
+            - generic [ref=e96]: Barcodes
+      - generic [ref=e97]:
+        - button "sales icon Sales & Orders" [ref=e98]:
+          - img "sales icon" [ref=e101]
+          - generic [ref=e102]: Sales & Orders
+          - img [ref=e103]
+        - generic [ref=e105]:
+          - link "Orders" [ref=e106] [cursor=pointer]:
+            - /url: http://localhost:8001/sales-orders
+            - generic [ref=e108]: Orders
+          - link "Customers" [ref=e109] [cursor=pointer]:
+            - /url: http://localhost:8001/customers
+            - generic [ref=e111]: Customers
+          - link "Invoices Soon" [ref=e112] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e114]: Invoices
+            - generic [ref=e115]: Soon
+      - generic [ref=e116]:
+        - button "shipping icon Shipping & Logistics" [ref=e117]:
+          - img "shipping icon" [ref=e120]
+          - generic [ref=e121]: Shipping & Logistics
+          - img [ref=e122]
+        - generic [ref=e124]:
+          - link "International (CN→BD)" [ref=e125] [cursor=pointer]:
+            - /url: http://localhost:8001/shipping/international
+            - generic [ref=e127]: International (CN→BD)
+          - link "Domestic Soon" [ref=e128] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e130]: Domestic
+            - generic [ref=e131]: Soon
+      - button "finance icon Accounts & Finance" [ref=e133]:
+        - img "finance icon" [ref=e136]
+        - generic [ref=e137]: Accounts & Finance
+        - img [ref=e138]
+      - link "reports icon Reports Soon" [ref=e140] [cursor=pointer]:
+        - /url: "#"
+        - img "reports icon" [ref=e143]
+        - generic [ref=e144]: Reports
+        - generic [ref=e145]: Soon
+      - link "settings icon Settings" [ref=e146] [cursor=pointer]:
+        - /url: http://localhost:8001/settings
+        - img "settings icon" [ref=e149]
+        - generic [ref=e150]: Settings
+    - generic [ref=e152]:
+      - generic [ref=e154]: Z
+      - generic [ref=e155]:
+        - paragraph [ref=e156]: ZamZam Admin
+        - paragraph [ref=e157]: admin@zamzam.com.bd
+      - button "Collapse sidebar" [ref=e158]:
+        - img [ref=e159]
+  - generic [ref=e161]:
+    - banner [ref=e162]:
+      - generic [ref=e164]:
+        - img [ref=e165]
+        - textbox "Search... (Ctrl+K)" [ref=e168]
+      - generic [ref=e169]:
+        - button "Switch to dark mode" [ref=e170]:
+          - img [ref=e171]
+        - button [ref=e173]:
+          - img [ref=e174]
+        - button [ref=e178]:
+          - img [ref=e179]
+        - button "Z ZamZam Admin" [ref=e182]:
+          - generic [ref=e183]: Z
+          - generic [ref=e184]: ZamZam Admin
+          - img [ref=e185]
+    - main [ref=e187]:
+      - generic [ref=e188]:
+        - generic [ref=e189]:
+          - generic [ref=e190]:
+            - img "sales icon" [ref=e192]
+            - generic [ref=e193]:
+              - heading "Sales Orders" [level=1] [ref=e194]
+              - paragraph [ref=e195]: Manage wholesale & retail sales orders
+          - generic [ref=e196]:
+            - button "Trash" [ref=e197]:
+              - img [ref=e198]
+              - text: Trash
+            - link "New Order" [ref=e201] [cursor=pointer]:
+              - /url: http://localhost:8001/sales-orders/create
+              - img [ref=e202]
+              - text: New Order
+        - generic [ref=e204]:
+          - generic [ref=e205]:
+            - img [ref=e206]
+            - textbox "Search order no, customer..." [ref=e209]
+          - combobox [ref=e210]:
+            - option "All Statuses" [selected]
+            - option "Draft"
+            - option "Confirmed"
+            - option "Processing"
+            - option "Picked"
+            - option "Dispatched"
+            - option "Delivered"
+            - option "Cancelled"
+            - option "Returned"
+          - combobox [ref=e211]:
+            - option "All Customers" [selected]
+            - option "Sumon (01730973337)"
+          - combobox [ref=e212]:
+            - option "All Sources" [selected]
+            - option "ERP"
+            - option "Storefront"
+            - option "WhatsApp"
+            - option "Messenger"
+            - option "WooCommerce"
+            - option "Reseller"
+          - combobox [ref=e213]:
+            - option "All Types" [selected]
+            - option "Wholesale"
+            - option "Retail"
+          - button "Reset" [ref=e214]
+        - table [ref=e216]:
+          - rowgroup [ref=e217]:
+            - row "Order No Customer Type Source Status Total Due Created Actions" [ref=e218]:
+              - columnheader "Order No" [ref=e219]
+              - columnheader "Customer" [ref=e220]
+              - columnheader "Type" [ref=e221]
+              - columnheader "Source" [ref=e222]
+              - columnheader "Status" [ref=e223]
+              - columnheader "Total" [ref=e224]
+              - columnheader "Due" [ref=e225]
+              - columnheader "Created" [ref=e226]
+              - columnheader "Actions" [ref=e227]
+          - rowgroup [ref=e228]:
+            - row "sales icon No sales orders found Create your first order" [ref=e229]:
+              - cell "sales icon No sales orders found Create your first order" [ref=e230]:
+                - img "sales icon" [ref=e232]
+                - paragraph [ref=e233]: No sales orders found
+                - link "Create your first order" [ref=e234] [cursor=pointer]:
+                  - /url: http://localhost:8001/sales-orders/create
+                  - img [ref=e235]
+                  - text: Create your first order

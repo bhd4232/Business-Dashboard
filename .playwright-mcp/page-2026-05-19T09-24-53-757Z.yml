@@ -1,0 +1,166 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img "zap icon" [ref=e8]
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: ZamZam
+        - paragraph [ref=e11]: ERP v1.0
+    - navigation [ref=e12]:
+      - link "dashboard icon Dashboard" [ref=e13] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000
+        - img "dashboard icon" [ref=e16]
+        - generic [ref=e17]: Dashboard
+      - generic [ref=e18]:
+        - button "procurement icon Procurement" [ref=e19]:
+          - img "procurement icon" [ref=e22]
+          - generic [ref=e23]: Procurement
+          - img [ref=e24]
+        - generic [ref=e26]:
+          - link "Suppliers" [ref=e27] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/suppliers
+            - generic [ref=e29]: Suppliers
+          - link "Products" [ref=e30] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/products
+            - generic [ref=e32]: Products
+          - link "Purchase Orders" [ref=e33] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/purchase-orders
+            - generic [ref=e35]: Purchase Orders
+          - link "Categories" [ref=e36] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/categories
+            - generic [ref=e38]: Categories
+      - generic [ref=e39]:
+        - button "inventory icon Inventory & Warehouse" [ref=e40]:
+          - img "inventory icon" [ref=e43]
+          - generic [ref=e44]: Inventory & Warehouse
+          - img [ref=e45]
+        - generic [ref=e47]:
+          - link "Warehouses" [ref=e48] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/warehouses
+            - generic [ref=e50]: Warehouses
+          - link "Stock" [ref=e51] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock
+            - generic [ref=e53]: Stock
+          - link "Low Stock" [ref=e54] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock/low-stock
+            - generic [ref=e56]: Low Stock
+          - link "Transfers" [ref=e57] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock-transfers
+            - generic [ref=e59]: Transfers
+          - link "Adjustments" [ref=e60] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock-adjustments
+            - generic [ref=e62]: Adjustments
+          - link "Barcodes" [ref=e63] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/barcodes
+            - generic [ref=e65]: Barcodes
+      - button "sales icon Sales & Orders" [ref=e67]:
+        - img "sales icon" [ref=e70]
+        - generic [ref=e71]: Sales & Orders
+        - img [ref=e72]
+      - generic [ref=e74]:
+        - button "shipping icon Shipping & Logistics" [ref=e75]:
+          - img "shipping icon" [ref=e78]
+          - generic [ref=e79]: Shipping & Logistics
+          - img [ref=e80]
+        - generic [ref=e82]:
+          - link "International (CN→BD)" [ref=e83] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/shipping/international
+            - generic [ref=e85]: International (CN→BD)
+          - link "Domestic Soon" [ref=e86] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e88]: Domestic
+            - generic [ref=e89]: Soon
+      - button "finance icon Accounts & Finance" [ref=e91]:
+        - img "finance icon" [ref=e94]
+        - generic [ref=e95]: Accounts & Finance
+        - img [ref=e96]
+      - link "reports icon Reports Soon" [ref=e98] [cursor=pointer]:
+        - /url: "#"
+        - img "reports icon" [ref=e101]
+        - generic [ref=e102]: Reports
+        - generic [ref=e103]: Soon
+      - link "settings icon Settings" [ref=e104] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/settings
+        - img "settings icon" [ref=e107]
+        - generic [ref=e108]: Settings
+    - generic [ref=e110]:
+      - generic [ref=e112]: Z
+      - generic [ref=e113]:
+        - paragraph [ref=e114]: ZamZam Admin
+        - paragraph [ref=e115]: admin@zamzam.com.bd
+      - button "Collapse sidebar" [ref=e116]:
+        - img [ref=e117]
+  - generic [ref=e119]:
+    - banner [ref=e120]:
+      - generic [ref=e122]:
+        - img [ref=e123]
+        - textbox "Search... (Ctrl+K)" [ref=e126]
+      - generic [ref=e127]:
+        - button "Switch to light mode" [ref=e128]:
+          - img [ref=e129]
+        - button [ref=e135]:
+          - img [ref=e136]
+        - button [ref=e140]:
+          - img [ref=e141]
+        - button "Z ZamZam Admin" [ref=e144]:
+          - generic [ref=e145]: Z
+          - generic [ref=e146]: ZamZam Admin
+          - img [ref=e147]
+    - main [ref=e149]:
+      - generic [ref=e150]:
+        - generic [ref=e151]:
+          - generic [ref=e152]:
+            - heading "International Shipments" [level=1] [ref=e153]
+            - paragraph [ref=e154]: China → Bangladesh shipment tracking
+          - link "New Shipment" [ref=e155] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/shipping/international/create
+            - img [ref=e156]
+            - text: New Shipment
+        - generic [ref=e158]:
+          - generic [ref=e159]:
+            - img [ref=e160]
+            - textbox "Shipment no. or carrier..." [ref=e163]
+          - combobox [ref=e164]:
+            - option "All Statuses" [selected]
+            - option "Booked"
+            - option "Loaded"
+            - option "Departed"
+            - option "In Transit"
+            - option "Arrived"
+            - option "Customs Clearing"
+            - option "Customs Cleared"
+            - option "Delivered to Warehouse"
+          - combobox [ref=e165]:
+            - option "All Types" [selected]
+            - option "Sea Freight"
+            - option "Air Freight"
+            - option "Rail Freight"
+            - option "Courier"
+          - button "Reset" [ref=e166]
+        - table [ref=e168]:
+          - rowgroup [ref=e169]:
+            - row "Shipment No. Type Carrier PO / Route ETA Status Actions" [ref=e170]:
+              - columnheader "Shipment No." [ref=e171]
+              - columnheader "Type" [ref=e172]
+              - columnheader "Carrier" [ref=e173]
+              - columnheader "PO / Route" [ref=e174]
+              - columnheader "ETA" [ref=e175]
+              - columnheader "Status" [ref=e176]
+              - columnheader "Actions" [ref=e177]
+          - rowgroup [ref=e178]:
+            - row "SH-2026-0001 Sea Al Baraka PO-2026-0002 HK → Chittagong 31 May 2026 Booked View Cost" [ref=e179]:
+              - cell "SH-2026-0001" [ref=e180]:
+                - link "SH-2026-0001" [ref=e181] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/shipping/international/2
+              - cell "Sea" [ref=e182]
+              - cell "Al Baraka" [ref=e183]
+              - cell "PO-2026-0002 HK → Chittagong" [ref=e184]:
+                - paragraph [ref=e185]: PO-2026-0002
+                - paragraph [ref=e186]: HK → Chittagong
+              - cell "31 May 2026" [ref=e187]
+              - cell "Booked" [ref=e188]
+              - cell "View Cost" [ref=e189]:
+                - generic [ref=e190]:
+                  - link "View" [ref=e191] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/shipping/international/2
+                  - link "Cost" [ref=e192] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/shipping/international/2/landing-cost

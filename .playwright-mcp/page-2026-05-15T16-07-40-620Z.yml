@@ -1,0 +1,145 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e8]: Z
+      - generic [ref=e9]: ZamZam ERP
+    - navigation [ref=e10]:
+      - link "Dashboard" [ref=e11] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000
+        - img [ref=e12]
+        - generic [ref=e17]: Dashboard
+      - generic [ref=e18]: Sales
+      - link "Orders" [ref=e19] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e20]
+        - generic [ref=e24]: Orders
+      - link "Customers" [ref=e25] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e26]
+        - generic [ref=e31]: Customers
+      - link "Invoices" [ref=e32] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e33]
+        - generic [ref=e36]: Invoices
+      - generic [ref=e37]: Procurement
+      - link "Suppliers" [ref=e38] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/suppliers
+        - img [ref=e39]
+        - generic [ref=e43]: Suppliers
+      - link "Products" [ref=e44] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/products
+        - img [ref=e45]
+        - generic [ref=e48]: Products
+      - link "Purchase Orders" [ref=e49] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/purchase-orders
+        - img [ref=e50]
+        - generic [ref=e53]: Purchase Orders
+      - generic [ref=e54]: Shipping
+      - link "International" [ref=e55] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e56]
+        - generic [ref=e60]: International
+      - link "Domestic" [ref=e61] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e62]
+        - generic [ref=e67]: Domestic
+      - generic [ref=e68]: Warehouse
+      - link "Warehouses" [ref=e69] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/warehouses
+        - img [ref=e70]
+        - generic [ref=e73]: Warehouses
+      - link "Stock" [ref=e74] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/stock
+        - img [ref=e75]
+        - generic [ref=e79]: Stock
+      - link "Low Stock" [ref=e80] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/stock/low-stock
+        - img [ref=e81]
+        - generic [ref=e83]: Low Stock
+      - link "Transfers" [ref=e84] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/stock-transfers
+        - img [ref=e85]
+        - generic [ref=e88]: Transfers
+      - link "Adjustments" [ref=e89] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/stock-adjustments
+        - img [ref=e90]
+        - generic [ref=e91]: Adjustments
+      - link "Barcodes" [ref=e92] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/barcodes
+        - img [ref=e93]
+        - generic [ref=e99]: Barcodes
+      - generic [ref=e100]: Finance
+      - link "Payments" [ref=e101] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e102]
+        - generic [ref=e104]: Payments
+      - link "Accounts" [ref=e105] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e106]
+        - generic [ref=e109]: Accounts
+      - generic [ref=e110]: Reports
+      - link "Reports" [ref=e111] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e112]
+        - generic [ref=e113]: Reports
+      - link "Settings" [ref=e114] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e115]
+        - generic [ref=e118]: Settings
+    - button [ref=e120]:
+      - img [ref=e121]
+  - generic [ref=e123]:
+    - banner [ref=e124]:
+      - generic [ref=e126]:
+        - img [ref=e127]
+        - textbox "Search... (Ctrl+K)" [ref=e130]
+      - generic [ref=e131]:
+        - button [ref=e132]:
+          - img [ref=e133]
+        - button [ref=e137]:
+          - img [ref=e138]
+        - button "Z ZamZam Admin" [ref=e141]:
+          - generic [ref=e142]: Z
+          - generic [ref=e143]: ZamZam Admin
+          - img [ref=e144]
+    - main [ref=e146]:
+      - generic [ref=e147]:
+        - generic [ref=e148]:
+          - generic [ref=e149]:
+            - heading "Stock Overview" [level=1] [ref=e150]
+            - paragraph [ref=e151]: "Total Value: ৳0"
+          - generic [ref=e152]:
+            - link "Low Stock" [ref=e153] [cursor=pointer]:
+              - /url: http://127.0.0.1:8000/stock/low-stock
+              - img [ref=e154]
+              - text: Low Stock
+            - link "Transfer" [ref=e156] [cursor=pointer]:
+              - /url: http://127.0.0.1:8000/stock-transfers/create
+              - img [ref=e157]
+              - text: Transfer
+        - generic [ref=e161]:
+          - generic [ref=e162]:
+            - img [ref=e163]
+            - textbox "Product name or SKU..." [ref=e166]
+          - combobox [ref=e167]:
+            - option "All Warehouses" [selected]
+            - option "Main Warehouse"
+            - option "Abdullah Al Mamun"
+            - option "Abdullah Al Mamun"
+            - option "Abdullah Al Mamun"
+          - button "Reset" [ref=e168]
+        - table [ref=e170]:
+          - rowgroup [ref=e171]:
+            - row "Product Warehouse Qty Reserved Avg Landing Cost Total Value Actions" [ref=e172]:
+              - columnheader "Product" [ref=e173]
+              - columnheader "Warehouse" [ref=e174]
+              - columnheader "Qty" [ref=e175]
+              - columnheader "Reserved" [ref=e176]
+              - columnheader "Avg Landing Cost" [ref=e177]
+              - columnheader "Total Value" [ref=e178]
+              - columnheader "Actions" [ref=e179]
+          - rowgroup [ref=e180]:
+            - row "No stock records found" [ref=e181]:
+              - cell "No stock records found" [ref=e182]:
+                - img [ref=e183]
+                - paragraph [ref=e187]: No stock records found

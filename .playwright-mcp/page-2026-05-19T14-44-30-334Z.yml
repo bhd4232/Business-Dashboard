@@ -1,0 +1,279 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img "zap icon" [ref=e8]
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: ZamZam
+        - paragraph [ref=e11]: ERP v1.0
+    - navigation [ref=e12]:
+      - link "dashboard icon Dashboard" [ref=e13] [cursor=pointer]:
+        - /url: http://localhost:8001
+        - img "dashboard icon" [ref=e16]
+        - generic [ref=e17]: Dashboard
+      - generic [ref=e18]:
+        - button "procurement icon Procurement" [ref=e19]:
+          - img "procurement icon" [ref=e22]
+          - generic [ref=e23]: Procurement
+          - img [ref=e24]
+        - generic [ref=e26]:
+          - link "Suppliers" [ref=e27] [cursor=pointer]:
+            - /url: http://localhost:8001/suppliers
+            - generic [ref=e29]: Suppliers
+          - link "Products" [ref=e30] [cursor=pointer]:
+            - /url: http://localhost:8001/products
+            - generic [ref=e32]: Products
+          - link "Purchase Orders" [ref=e33] [cursor=pointer]:
+            - /url: http://localhost:8001/purchase-orders
+            - generic [ref=e35]: Purchase Orders
+          - link "Categories" [ref=e36] [cursor=pointer]:
+            - /url: http://localhost:8001/categories
+            - generic [ref=e38]: Categories
+      - generic [ref=e39]:
+        - button "inventory icon Inventory & Warehouse" [ref=e40]:
+          - img "inventory icon" [ref=e43]
+          - generic [ref=e44]: Inventory & Warehouse
+          - img [ref=e45]
+        - generic [ref=e47]:
+          - link "Warehouses" [ref=e48] [cursor=pointer]:
+            - /url: http://localhost:8001/warehouses
+            - generic [ref=e50]: Warehouses
+          - link "Stock" [ref=e51] [cursor=pointer]:
+            - /url: http://localhost:8001/stock
+            - generic [ref=e53]: Stock
+          - link "Low Stock" [ref=e54] [cursor=pointer]:
+            - /url: http://localhost:8001/stock/low-stock
+            - generic [ref=e56]: Low Stock
+          - link "Transfers" [ref=e57] [cursor=pointer]:
+            - /url: http://localhost:8001/stock-transfers
+            - generic [ref=e59]: Transfers
+          - link "Adjustments" [ref=e60] [cursor=pointer]:
+            - /url: http://localhost:8001/stock-adjustments
+            - generic [ref=e62]: Adjustments
+          - link "Barcodes" [ref=e63] [cursor=pointer]:
+            - /url: http://localhost:8001/barcodes
+            - generic [ref=e65]: Barcodes
+      - generic [ref=e66]:
+        - button "sales icon Sales & Orders" [ref=e67]:
+          - img "sales icon" [ref=e70]
+          - generic [ref=e71]: Sales & Orders
+          - img [ref=e72]
+        - generic [ref=e74]:
+          - link "Orders" [ref=e75] [cursor=pointer]:
+            - /url: http://localhost:8001/sales-orders
+            - generic [ref=e77]: Orders
+          - link "Customers" [ref=e78] [cursor=pointer]:
+            - /url: http://localhost:8001/customers
+            - generic [ref=e80]: Customers
+          - link "Invoices Soon" [ref=e81] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e83]: Invoices
+            - generic [ref=e84]: Soon
+      - generic [ref=e85]:
+        - button "shipping icon Shipping & Logistics" [ref=e86]:
+          - img "shipping icon" [ref=e89]
+          - generic [ref=e90]: Shipping & Logistics
+          - img [ref=e91]
+        - generic [ref=e93]:
+          - link "International (CN→BD)" [ref=e94] [cursor=pointer]:
+            - /url: http://localhost:8001/shipping/international
+            - generic [ref=e96]: International (CN→BD)
+          - link "Domestic Soon" [ref=e97] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e99]: Domestic
+            - generic [ref=e100]: Soon
+      - button "finance icon Accounts & Finance" [ref=e102]:
+        - img "finance icon" [ref=e105]
+        - generic [ref=e106]: Accounts & Finance
+        - img [ref=e107]
+      - link "reports icon Reports Soon" [ref=e109] [cursor=pointer]:
+        - /url: "#"
+        - img "reports icon" [ref=e112]
+        - generic [ref=e113]: Reports
+        - generic [ref=e114]: Soon
+      - link "settings icon Settings" [ref=e115] [cursor=pointer]:
+        - /url: http://localhost:8001/settings
+        - img "settings icon" [ref=e118]
+        - generic [ref=e119]: Settings
+    - generic [ref=e121]:
+      - generic [ref=e123]: Z
+      - generic [ref=e124]:
+        - paragraph [ref=e125]: ZamZam Admin
+        - paragraph [ref=e126]: admin@zamzam.com.bd
+      - button "Collapse sidebar" [ref=e127]:
+        - img [ref=e128]
+  - generic [ref=e130]:
+    - banner [ref=e131]:
+      - generic [ref=e133]:
+        - img [ref=e134]
+        - textbox "Search... (Ctrl+K)" [ref=e137]
+      - generic [ref=e138]:
+        - button "Switch to dark mode" [ref=e139]:
+          - img [ref=e140]
+        - button [ref=e142]:
+          - img [ref=e143]
+        - button [ref=e147]:
+          - img [ref=e148]
+        - button "Z ZamZam Admin" [ref=e151]:
+          - generic [ref=e152]: Z
+          - generic [ref=e153]: ZamZam Admin
+          - img [ref=e154]
+    - main [ref=e156]:
+      - generic [ref=e157]:
+        - generic [ref=e158]:
+          - link "Sales Orders" [ref=e159] [cursor=pointer]:
+            - /url: http://localhost:8001/sales-orders
+            - img [ref=e160]
+            - generic [ref=e162]: Sales Orders
+          - generic [ref=e163]:
+            - img "sales-order icon" [ref=e165]
+            - heading "New Sales Order" [level=1] [ref=e166]
+        - generic [ref=e167]:
+          - generic [ref=e168]:
+            - generic [ref=e169]:
+              - img [ref=e170]
+              - heading "Order Information" [level=2] [ref=e173]
+            - generic [ref=e174]:
+              - generic [ref=e175]:
+                - generic [ref=e176]: Customer *
+                - combobox [ref=e177]:
+                  - option "Select customer"
+                  - option "Sumon — Future Shop (01730973337)" [selected]
+              - generic [ref=e178]:
+                - generic [ref=e179]: Order Type *
+                - generic [ref=e180]:
+                  - generic [ref=e181] [cursor=pointer]:
+                    - radio "Wholesale" [checked] [ref=e182]
+                    - text: Wholesale
+                  - generic [ref=e183] [cursor=pointer]:
+                    - radio "Retail" [ref=e184]
+                    - text: Retail
+              - generic [ref=e185]:
+                - generic [ref=e186]: Source
+                - combobox [ref=e187]:
+                  - option "Select source"
+                  - option "ERP" [selected]
+                  - option "Storefront"
+                  - option "WhatsApp"
+                  - option "Messenger"
+                  - option "WooCommerce"
+                  - option "Reseller"
+              - generic [ref=e188]:
+                - generic [ref=e189]: Price Tier
+                - combobox [ref=e190]:
+                  - option "No specific tier" [selected]
+              - generic [ref=e191]:
+                - generic [ref=e192]: Delivery Address
+                - textbox "Full delivery address..." [ref=e193]: House-59, Road-6/A, Sector-5
+              - generic [ref=e194]:
+                - generic [ref=e195]: City
+                - textbox "e.g. Dhaka" [ref=e196]: Dhaka North
+              - generic [ref=e197]:
+                - generic [ref=e198]: Area
+                - textbox "e.g. Mirpur" [ref=e199]: Uttara
+              - generic [ref=e200]:
+                - generic [ref=e201]: Discount (BDT)
+                - generic [ref=e202]:
+                  - generic: ৳
+                  - spinbutton [ref=e203]
+              - generic [ref=e204]:
+                - generic [ref=e205]: Discount (%)
+                - generic [ref=e206]:
+                  - spinbutton [ref=e207]
+                  - generic: "%"
+              - generic [ref=e208]:
+                - generic [ref=e209]: Delivery Charge (BDT)
+                - generic [ref=e210]:
+                  - generic: ৳
+                  - spinbutton [ref=e211]: "0"
+              - generic [ref=e212]:
+                - generic [ref=e213]: Paid Amount (BDT)
+                - generic [ref=e214]:
+                  - generic: ৳
+                  - spinbutton [ref=e215]: "0"
+              - generic [ref=e216]:
+                - generic [ref=e217]: Notes
+                - textbox "Customer-facing notes..." [ref=e218]
+              - generic [ref=e219]:
+                - generic [ref=e220]: Internal Notes
+                - textbox "Internal staff notes (not visible to customer)..." [ref=e221]
+          - generic [ref=e222]:
+            - generic [ref=e223]:
+              - generic [ref=e224]:
+                - img [ref=e225]
+                - heading "Order Items" [level=2] [ref=e229]
+              - button "Add Item" [ref=e230]:
+                - img [ref=e231]
+                - text: Add Item
+            - table [ref=e234]:
+              - rowgroup [ref=e235]:
+                - row "# Product Qty Unit Price (৳) Disc% Subtotal (৳)" [ref=e236]:
+                  - columnheader "#" [ref=e237]
+                  - columnheader "Product" [ref=e238]
+                  - columnheader "Qty" [ref=e239]
+                  - columnheader "Unit Price (৳)" [ref=e240]
+                  - columnheader "Disc%" [ref=e241]
+                  - columnheader "Subtotal (৳)" [ref=e242]
+                  - columnheader [ref=e243]
+              - rowgroup [ref=e244]:
+                - row "1 pearl Love Pearl Necklace Combo Gift Box ZAM-GF-LPC ৳ % ৳0.00" [ref=e308]:
+                  - cell "1" [ref=e246]
+                  - cell "pearl Love Pearl Necklace Combo Gift Box ZAM-GF-LPC" [ref=e309]:
+                    - generic [ref=e248]:
+                      - textbox "Type to search product..." [active] [ref=e249]: pearl
+                      - generic:
+                        - img
+                      - button "Love Pearl Necklace Combo Gift Box ZAM-GF-LPC" [ref=e311]:
+                        - generic [ref=e312]: Love Pearl Necklace Combo Gift Box
+                        - generic [ref=e314]: ZAM-GF-LPC
+                  - cell [ref=e255]:
+                    - spinbutton [ref=e256]: "1"
+                  - cell "৳" [ref=e257]:
+                    - generic [ref=e258]:
+                      - generic: ৳
+                      - spinbutton [ref=e259]: "0"
+                  - cell "%" [ref=e260]:
+                    - generic [ref=e261]:
+                      - spinbutton [ref=e262]: "0"
+                      - generic: "%"
+                  - cell "৳0.00" [ref=e263]
+                  - cell [ref=e264]:
+                    - button [ref=e265]:
+                      - img [ref=e266]
+                - row "2 ৳ % ৳0.00" [ref=e289]:
+                  - cell "2" [ref=e290]
+                  - cell [ref=e291]:
+                    - generic [ref=e292]:
+                      - textbox "Type to search product..." [ref=e293]
+                      - generic:
+                        - img
+                  - cell [ref=e294]:
+                    - spinbutton [ref=e295]: "1"
+                  - cell "৳" [ref=e296]:
+                    - generic [ref=e297]:
+                      - generic: ৳
+                      - spinbutton [ref=e298]: "0"
+                  - cell "%" [ref=e299]:
+                    - generic [ref=e300]:
+                      - spinbutton [ref=e301]: "0"
+                      - generic: "%"
+                  - cell "৳0.00" [ref=e302]
+                  - cell [ref=e303]:
+                    - button [ref=e304]:
+                      - img [ref=e305]
+            - generic [ref=e271]:
+              - generic [ref=e272]:
+                - generic [ref=e273]: Subtotal
+                - generic [ref=e274]: ৳0.00
+              - generic [ref=e275]:
+                - generic [ref=e276]: Total
+                - generic [ref=e277]: ৳0.00
+              - generic [ref=e278]:
+                - generic [ref=e279]: Paid
+                - generic [ref=e280]: ৳0.00
+              - generic [ref=e281]:
+                - generic [ref=e282]: Due
+                - generic [ref=e283]: ৳0.00
+          - generic [ref=e284]:
+            - link "Cancel" [ref=e285] [cursor=pointer]:
+              - /url: http://localhost:8001/sales-orders
+            - button "Save Draft" [ref=e286]

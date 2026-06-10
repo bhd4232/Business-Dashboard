@@ -1,0 +1,26 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e7]: Z
+    - heading "ZamZam ERP" [level=1] [ref=e8]
+    - paragraph [ref=e9]: China → Bangladesh Wholesale System
+  - generic [ref=e10]:
+    - heading "Sign In" [level=2] [ref=e11]
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: Email or Phone *
+        - textbox "example@email.com or 01XXXXXXXXX" [ref=e15]: admin@zamzam.com
+        - paragraph [ref=e31]:
+          - img [ref=e32]
+          - text: These credentials do not match our records.
+      - generic [ref=e16]:
+        - generic [ref=e17]: Password *
+        - generic [ref=e18]:
+          - textbox "••••••••" [ref=e19]
+          - button [ref=e20]:
+            - img [ref=e21]
+      - generic [ref=e25] [cursor=pointer]:
+        - checkbox "Remember me" [ref=e26]
+        - generic [ref=e27]: Remember me
+      - button "Sign In" [ref=e28]:
+        - generic [ref=e29]: Sign In
+  - paragraph [ref=e30]: ZamZam International © 2026

@@ -1,0 +1,214 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e7]: Z
+      - generic [ref=e8]:
+        - paragraph [ref=e9]: ZamZam
+        - paragraph [ref=e10]: ERP v1.0
+    - navigation [ref=e11]:
+      - link "Dashboard" [ref=e12] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000
+        - img [ref=e13]
+        - generic [ref=e18]: Dashboard
+      - generic [ref=e19]:
+        - button "Procurement" [ref=e20]:
+          - img [ref=e21]
+          - generic [ref=e24]: Procurement
+          - img [ref=e25]
+        - generic [ref=e27]:
+          - link "Suppliers" [ref=e28] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/suppliers
+            - generic [ref=e30]: Suppliers
+          - link "Products" [ref=e31] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/products
+            - generic [ref=e33]: Products
+          - link "Purchase Orders" [ref=e34] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/purchase-orders
+            - generic [ref=e36]: Purchase Orders
+          - link "Categories" [ref=e37] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/categories
+            - generic [ref=e39]: Categories
+      - generic [ref=e40]:
+        - button "Inventory & Warehouse" [ref=e41]:
+          - img [ref=e42]
+          - generic [ref=e45]: Inventory & Warehouse
+          - img [ref=e46]
+        - generic [ref=e48]:
+          - link "Warehouses" [ref=e49] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/warehouses
+            - generic [ref=e51]: Warehouses
+          - link "Stock" [ref=e52] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock
+            - generic [ref=e54]: Stock
+          - link "Low Stock" [ref=e55] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock/low-stock
+            - generic [ref=e57]: Low Stock
+          - link "Transfers" [ref=e58] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock-transfers
+            - generic [ref=e60]: Transfers
+          - link "Adjustments" [ref=e61] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock-adjustments
+            - generic [ref=e63]: Adjustments
+          - link "Barcodes" [ref=e64] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/barcodes
+            - generic [ref=e66]: Barcodes
+      - button "Sales & Orders" [ref=e68]:
+        - img [ref=e69]
+        - generic [ref=e73]: Sales & Orders
+        - img [ref=e74]
+      - button "Shipping & Logistics" [ref=e77]:
+        - img [ref=e78]
+        - generic [ref=e83]: Shipping & Logistics
+        - img [ref=e84]
+      - button "Accounts & Finance" [ref=e87]:
+        - img [ref=e88]
+        - generic [ref=e91]: Accounts & Finance
+        - img [ref=e92]
+      - link "Reports Soon" [ref=e94] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e95]
+        - generic [ref=e96]: Reports
+        - generic [ref=e97]: Soon
+      - link "Settings Soon" [ref=e98] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e99]
+        - generic [ref=e102]: Settings
+        - generic [ref=e103]: Soon
+    - generic [ref=e105]:
+      - generic [ref=e107]: Z
+      - generic [ref=e108]:
+        - paragraph [ref=e109]: ZamZam Admin
+        - paragraph [ref=e110]: admin@zamzam.com.bd
+      - button "Collapse sidebar" [ref=e111]:
+        - img [ref=e112]
+  - generic [ref=e114]:
+    - banner [ref=e115]:
+      - generic [ref=e117]:
+        - img [ref=e118]
+        - textbox "Search... (Ctrl+K)" [ref=e121]
+      - generic [ref=e122]:
+        - button [ref=e123]:
+          - img [ref=e124]
+        - button [ref=e128]:
+          - img [ref=e129]
+        - button "Z ZamZam Admin" [ref=e132]:
+          - generic [ref=e133]: Z
+          - generic [ref=e134]: ZamZam Admin
+          - img [ref=e135]
+    - main [ref=e137]:
+      - generic [ref=e138]:
+        - generic [ref=e139]:
+          - generic [ref=e140]:
+            - heading "📊 Dashboard" [level=1] [ref=e141]
+            - paragraph [ref=e142]: Good evening, ZamZam Admin — 15 May 2026
+          - generic [ref=e143]:
+            - button "Today" [ref=e144]
+            - button "This Week" [ref=e145]
+            - button "This Month" [ref=e146]
+            - button "This Year" [ref=e147]
+        - generic [ref=e148]:
+          - generic [ref=e149]:
+            - generic [ref=e150]:
+              - img [ref=e152]
+              - generic [ref=e155]: ▲ 12%
+            - paragraph [ref=e156]: ৳0
+            - paragraph [ref=e157]: Total Revenue
+            - paragraph [ref=e161]: vs last month
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - img [ref=e165]
+              - generic [ref=e169]: ▲ 8%
+            - paragraph [ref=e170]: "0"
+            - paragraph [ref=e171]: Purchase Orders
+            - paragraph [ref=e175]: this month
+          - generic [ref=e176]:
+            - img [ref=e179]
+            - paragraph [ref=e183]: "0"
+            - paragraph [ref=e184]: Total Products
+          - generic [ref=e185]:
+            - generic [ref=e186]:
+              - img [ref=e188]
+              - generic [ref=e190]: ▼ 5%
+            - paragraph [ref=e191]: "0"
+            - paragraph [ref=e192]: Low Stock Items
+            - paragraph [ref=e195]: need reorder
+          - generic [ref=e196]:
+            - img [ref=e199]
+            - paragraph [ref=e203]: "3"
+            - paragraph [ref=e204]: Active Suppliers
+          - generic [ref=e205]:
+            - img [ref=e208]
+            - paragraph [ref=e211]: "4"
+            - paragraph [ref=e212]: Warehouses
+        - generic [ref=e213]:
+          - generic [ref=e214]:
+            - generic [ref=e215]:
+              - generic [ref=e216]:
+                - heading "Revenue Trend" [level=2] [ref=e217]
+                - paragraph [ref=e218]: Last 30 days performance
+              - generic [ref=e219]:
+                - generic [ref=e220]: Revenue
+                - generic [ref=e222]: Profit
+            - generic [ref=e256]: Chart.js integration — Phase 4
+          - generic [ref=e257]:
+            - heading "Quick Access" [level=2] [ref=e258]
+            - generic [ref=e259]:
+              - link "New Purchase Order" [ref=e260] [cursor=pointer]:
+                - /url: http://127.0.0.1:8000/purchase-orders
+                - img [ref=e262]
+                - generic [ref=e265]: New Purchase Order
+                - img [ref=e266]
+              - link "Add Product" [ref=e268] [cursor=pointer]:
+                - /url: http://127.0.0.1:8000/products
+                - img [ref=e270]
+                - generic [ref=e273]: Add Product
+                - img [ref=e274]
+              - link "Check Stock" [ref=e276] [cursor=pointer]:
+                - /url: http://127.0.0.1:8000/stock
+                - img [ref=e278]
+                - generic [ref=e282]: Check Stock
+                - img [ref=e283]
+              - link "View Suppliers" [ref=e285] [cursor=pointer]:
+                - /url: http://127.0.0.1:8000/suppliers
+                - img [ref=e287]
+                - generic [ref=e292]: View Suppliers
+                - img [ref=e293]
+        - generic [ref=e295]:
+          - generic [ref=e296]:
+            - generic [ref=e297]:
+              - heading "Recent Purchase Orders" [level=2] [ref=e298]
+              - link "View all →" [ref=e299] [cursor=pointer]:
+                - /url: http://127.0.0.1:8000/purchase-orders
+            - generic [ref=e300]:
+              - img [ref=e301]
+              - paragraph [ref=e303]: No purchase orders yet
+              - link "Create your first PO →" [ref=e304] [cursor=pointer]:
+                - /url: http://127.0.0.1:8000/purchase-orders
+          - generic [ref=e305]:
+            - generic [ref=e306]:
+              - generic [ref=e307]:
+                - heading "⚠️ Stock Alerts" [level=2] [ref=e308]
+                - generic [ref=e309]: "0"
+              - generic [ref=e310]: All stock levels are healthy ✓
+            - generic [ref=e311]:
+              - heading "⏳ Pending Actions" [level=2] [ref=e312]
+              - generic [ref=e313]:
+                - link "POs awaiting review 0" [ref=e314] [cursor=pointer]:
+                  - /url: http://127.0.0.1:8000/purchase-orders
+                  - generic [ref=e315]: POs awaiting review
+                  - generic [ref=e316]: "0"
+                - generic [ref=e317] [cursor=pointer]:
+                  - generic [ref=e318]: Low stock items
+                  - generic [ref=e319]: "0"
+                - generic [ref=e320] [cursor=pointer]:
+                  - generic [ref=e321]: Pending shipments
+                  - generic [ref=e322]: "0"
+        - generic [ref=e323]:
+          - heading "🧩 Active Modules" [level=2] [ref=e324]
+          - generic [ref=e325]:
+            - generic [ref=e326]: Procurement
+            - generic [ref=e328]: Inventory
+            - generic [ref=e330]: Sales
+            - generic [ref=e332]: Shipping
+            - generic [ref=e334]: Finance
+            - generic [ref=e336]: Chat & AI

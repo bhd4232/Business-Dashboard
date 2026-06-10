@@ -1,0 +1,153 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.{js,vue}';
+@source '../../app/**/*.php';
+
+/* ── Dark mode via .dark class on <html> ──────────────────────────────────── */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Base theme — fonts + static brand tokens ─────────────────────────────── */
+@theme {
+    /* Typography */
+    --font-sans: 'Inter', 'Noto Sans Bengali', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    /* Brand Accent - BD Green (static, not user-switchable) */
+    --color-brand-600: #006a4e;
+    --color-brand-700: #005a42;
+}
+
+/* ── Runtime-switchable primary color tokens ──────────────────────────────── */
+/* These map Tailwind's primary-* utilities to CSS variables set by the theme store */
+@theme inline {
+    --color-primary-50:  var(--brand-50);
+    --color-primary-100: var(--brand-100);
+    --color-primary-500: var(--brand-500);
+    --color-primary-600: var(--brand-600);
+    --color-primary-700: var(--brand-700);
+}
+
+/* ── Per-theme CSS variable blocks ───────────────────────────────────────────
+   JS sets a .theme-{name} class on <html>; these blocks define the brand vars.
+   Default (:root) maps to indigo so the app works even before JS runs.
+────────────────────────────────────────────────────────────────────────────── */
+:root,
+.theme-indigo {
+    --brand-50:  #eef2ff;
+    --brand-100: #e0e7ff;
+    --brand-500: #6366f1;
+    --brand-600: #4f46e5;
+    --brand-700: #4338ca;
+}
+
+.theme-blue {
+    --brand-50:  #eff6ff;
+    --brand-100: #dbeafe;
+    --brand-500: #3b82f6;
+    --brand-600: #2563eb;
+    --brand-700: #1d4ed8;
+}
+
+.theme-violet {
+    --brand-50:  #f5f3ff;
+    --brand-100: #ede9fe;
+    --brand-500: #8b5cf6;
+    --brand-600: #7c3aed;
+    --brand-700: #6d28d9;
+}
+
+.theme-emerald {
+    --brand-50:  #ecfdf5;
+    --brand-100: #d1fae5;
+    --brand-500: #10b981;
+    --brand-600: #059669;
+    --brand-700: #047857;
+}
+
+.theme-orange {
+    --brand-50:  #fff7ed;
+    --brand-100: #ffedd5;
+    --brand-500: #f97316;
+    --brand-600: #ea580c;
+    --brand-700: #c2410c;
+}
+
+.theme-rose {
+    --brand-50:  #fff1f2;
+    --brand-100: #ffe4e6;
+    --brand-500: #f43f5e;
+    --brand-600: #e11d48;
+    --brand-700: #be123c;
+}
+
+.theme-sky {
+    --brand-50:  #f0f9ff;
+    --brand-100: #e0f2fe;
+    --brand-500: #0ea5e9;
+    --brand-600: #0284c7;
+    --brand-700: #0369a1;
+}
+
+.theme-amber {
+    --brand-50:  #fffbeb;
+    --brand-100: #fef3c7;
+    --brand-500: #f59e0b;
+    --brand-600: #d97706;
+    --brand-700: #b45309;
+}
+
+/* ── Dark mode base styles ────────────────────────────────────────────────── */
+.dark {
+    color-scheme: dark;
+}
+
+/* ── 3D icon CSS utility ──────────────────────────────────────────────────── */
+.icon-3d {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25))
+            drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+    transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.icon-3d:hover {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.30))
+            drop-shadow(0 2px 4px rgba(0, 0, 0, 0.20));
+    transform: translateY(-1px);
+}
+
+/* ── Page transition ──────────────────────────────────────────────────────── */
+.page-fade-enter-active,
+.page-fade-leave-active {
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.page-fade-enter-from,
+.page-fade-leave-to {
+    opacity: 0;
+    transform: translateY(4px);
+}
+
+/* ── Sidebar slide-down transition ───────────────────────────────────────── */
+.slide-down-enter-active,
+.slide-down-leave-active {
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    overflow: hidden;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+    max-height: 0;
+    opacity: 0;
+}
+
+.slide-down-enter-to,
+.slide-down-leave-from {
+    max-height: 400px;
+    opacity: 1;
+}
+
+/* ── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');

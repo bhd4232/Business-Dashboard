@@ -1,0 +1,308 @@
+- generic [ref=e1]:
+  - dialog [active] [ref=e37]:
+    - iframe [ref=e38]:
+      - generic [ref=f1e2]:
+        - generic [ref=f1e4]:
+          - generic [ref=f1e5]:
+            - img [ref=f1e7]
+            - generic [ref=f1e10]: Internal Server Error
+          - button "Copy as Markdown" [ref=f1e11] [cursor=pointer]:
+            - img [ref=f1e12]
+            - generic [ref=f1e15]: Copy as Markdown
+        - generic [ref=f1e18]:
+          - generic [ref=f1e19]:
+            - heading "Illuminate\\Database\\QueryException" [level=1] [ref=f1e20]
+            - generic [ref=f1e22]: vendor\laravel\framework\src\Illuminate\Database\Connection.php:841
+            - paragraph [ref=f1e23]: "SQLSTATE[42S02]: Base table or view not found: 1146 Table 'zamzam_erp.user_preferences' doesn't exist (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: zamzam_erp, SQL: select * from `user_preferences` where `user_preferences`.`user_id` = 1 and `user_preferences`.`user_id` is not null limit 1)"
+          - generic [ref=f1e24]:
+            - generic [ref=f1e25]:
+              - generic [ref=f1e26]:
+                - generic [ref=f1e27]: LARAVEL
+                - generic [ref=f1e28]: 13.9.0
+              - generic [ref=f1e29]:
+                - generic [ref=f1e30]: PHP
+                - generic [ref=f1e31]: 8.3.30
+            - generic [ref=f1e32]:
+              - img [ref=f1e33]
+              - text: UNHANDLED
+            - generic [ref=f1e36]: CODE 42S02
+          - generic [ref=f1e38]:
+            - generic [ref=f1e39]:
+              - img [ref=f1e40]
+              - text: "500"
+            - generic [ref=f1e43]:
+              - img [ref=f1e44]
+              - text: GET
+            - generic [ref=f1e47]: http://127.0.0.1:8000
+            - button [ref=f1e48] [cursor=pointer]:
+              - img [ref=f1e49]
+        - generic [ref=f1e53]:
+          - generic [ref=f1e54]:
+            - generic [ref=f1e55]:
+              - img [ref=f1e57]
+              - heading "Exception trace" [level=3] [ref=f1e60]
+              - link "1 previous exception" [ref=f1e61] [cursor=pointer]:
+                - /url: "#previous-exceptions"
+            - generic [ref=f1e62]:
+              - generic [ref=f1e64] [cursor=pointer]:
+                - img [ref=f1e65]
+                - generic [ref=f1e69]: 13 vendor frames
+                - button [ref=f1e70]:
+                  - img [ref=f1e71]
+              - generic [ref=f1e75]:
+                - generic [ref=f1e76] [cursor=pointer]:
+                  - generic [ref=f1e79]:
+                    - code [ref=f1e83]:
+                      - generic [ref=f1e84]: Illuminate\Database\Eloquent\Model->__get(string)
+                    - generic [ref=f1e86]: app\Http\Middleware\HandleInertiaRequests.php:62
+                  - button [ref=f1e88]:
+                    - img [ref=f1e89]
+                - code [ref=f1e97]:
+                  - generic [ref=f1e98]: 57 'name' => config('app.name'),
+                  - generic [ref=f1e99]: 58 'timezone' => config('app.timezone'),
+                  - generic [ref=f1e100]: 59 ],
+                  - generic [ref=f1e101]: "60"
+                  - generic [ref=f1e102]: 61 'userPreferences' => fn () => $user
+                  - generic [ref=f1e103]: 62 ? ($user->preferences?->only(['theme_color', 'accent_hex', 'dark_mode']) ?? [
+                  - generic [ref=f1e104]: 63 'theme_color' => 'indigo',
+                  - generic [ref=f1e105]: 64 'accent_hex' => null,
+                  - generic [ref=f1e106]: 65 'dark_mode' => false,
+                  - generic [ref=f1e107]: 66 ])
+                  - generic [ref=f1e108]: "67 : ["
+                  - generic [ref=f1e109]: 68 'theme_color' => 'indigo',
+                  - generic [ref=f1e110]: 69 'accent_hex' => null,
+                  - generic [ref=f1e111]: 70 'dark_mode' => false,
+                  - generic [ref=f1e112]: 71 ],
+                  - generic [ref=f1e113]: 72 ];
+                  - generic [ref=f1e114]: "73 }"
+                  - generic [ref=f1e115]: "74"
+              - generic [ref=f1e117] [cursor=pointer]:
+                - img [ref=f1e118]
+                - generic [ref=f1e122]: 65 vendor frames
+                - button [ref=f1e123]:
+                  - img [ref=f1e124]
+              - generic [ref=f1e129] [cursor=pointer]:
+                - generic [ref=f1e132]:
+                  - code [ref=f1e136]:
+                    - generic [ref=f1e137]: Illuminate\Foundation\Application->handleRequest(object(Illuminate\Http\Request))
+                  - generic [ref=f1e139]: public\index.php:20
+                - button [ref=f1e141]:
+                  - img [ref=f1e142]
+              - generic [ref=f1e147] [cursor=pointer]:
+                - img [ref=f1e148]
+                - generic [ref=f1e152]: 1 vendor frame
+                - button [ref=f1e153]:
+                  - img [ref=f1e154]
+          - generic [ref=f1e158]:
+            - generic [ref=f1e159]:
+              - img [ref=f1e161]
+              - heading "Previous exception" [level=3] [ref=f1e164]
+            - generic [ref=f1e168] [cursor=pointer]:
+              - generic [ref=f1e169]:
+                - heading "PDOException" [level=4] [ref=f1e170]
+                - paragraph [ref=f1e171]: "SQLSTATE[42S02]: Base table or view not found: 1146 Table 'zamzam_erp.user_preferences' doesn't exist"
+              - button [ref=f1e172]:
+                - img [ref=f1e173]
+          - generic [ref=f1e177]:
+            - generic [ref=f1e178]:
+              - generic [ref=f1e179]:
+                - img [ref=f1e181]
+                - heading "Queries" [level=3] [ref=f1e183]
+              - generic [ref=f1e185]: 1-10 of 12
+            - generic [ref=f1e186]:
+              - generic [ref=f1e187]:
+                - generic [ref=f1e188]:
+                  - generic [ref=f1e189]:
+                    - img [ref=f1e190]
+                    - generic [ref=f1e192]: mysql
+                  - code [ref=f1e196]:
+                    - generic [ref=f1e197]: "select * from `users` where `id` = 1 limit 1"
+                - generic [ref=f1e198]: 17.26ms
+              - generic [ref=f1e199]:
+                - generic [ref=f1e200]:
+                  - generic [ref=f1e201]:
+                    - img [ref=f1e202]
+                    - generic [ref=f1e204]: mysql
+                  - code [ref=f1e208]:
+                    - generic [ref=f1e209]: "select `roles`.*, `model_has_roles`.`model_id` as `pivot_model_id`, `model_has_roles`.`role_id` as `pivot_role_id`, `model_has_roles`.`model_type` as `pivot_model_type` from `roles` inner join `model_has_roles` on `roles`.`id` = `model_has_roles`.`role_id` where `model_has_roles`.`model_id` in (1) and `model_has_roles`.`model_type` = 'App\\Models\\User'"
+                - generic [ref=f1e210]: 1.28ms
+              - generic [ref=f1e211]:
+                - generic [ref=f1e212]:
+                  - generic [ref=f1e213]:
+                    - img [ref=f1e214]
+                    - generic [ref=f1e216]: mysql
+                  - code [ref=f1e220]:
+                    - generic [ref=f1e221]: "select `permissions`.*, `model_has_permissions`.`model_id` as `pivot_model_id`, `model_has_permissions`.`permission_id` as `pivot_permission_id`, `model_has_permissions`.`model_type` as `pivot_model_type` from `permissions` inner join `model_has_permissions` on `permissions`.`id` = `model_has_permissions`.`permission_id` where `model_has_permissions`.`model_id` = 1 and `model_has_permissions`.`model_type` = 'App\\Models\\User'"
+                - generic [ref=f1e222]: 1.66ms
+              - generic [ref=f1e223]:
+                - generic [ref=f1e224]:
+                  - generic [ref=f1e225]:
+                    - img [ref=f1e226]
+                    - generic [ref=f1e228]: mysql
+                  - code [ref=f1e232]:
+                    - generic [ref=f1e233]: "select `permissions`.*, `role_has_permissions`.`role_id` as `pivot_role_id`, `role_has_permissions`.`permission_id` as `pivot_permission_id` from `permissions` inner join `role_has_permissions` on `permissions`.`id` = `role_has_permissions`.`permission_id` where `role_has_permissions`.`role_id` in (1)"
+                - generic [ref=f1e234]: 1.24ms
+              - generic [ref=f1e235]:
+                - generic [ref=f1e236]:
+                  - generic [ref=f1e237]:
+                    - img [ref=f1e238]
+                    - generic [ref=f1e240]: mysql
+                  - code [ref=f1e244]:
+                    - generic [ref=f1e245]: "select count(*) as aggregate from `stock_items` where exists (select * from `products` where `stock_items`.`product_id` = `products`.`id` and `stock_items`.`quantity` <= `products`.`min_stock_alert` and `min_stock_alert` > 0 and `products`.`deleted_at` is null)"
+                - generic [ref=f1e246]: 1.26ms
+              - generic [ref=f1e247]:
+                - generic [ref=f1e248]:
+                  - generic [ref=f1e249]:
+                    - img [ref=f1e250]
+                    - generic [ref=f1e252]: mysql
+                  - code [ref=f1e256]:
+                    - generic [ref=f1e257]: "select * from `stock_items` where exists (select * from `products` where `stock_items`.`product_id` = `products`.`id` and `stock_items`.`quantity` <= `products`.`min_stock_alert` and `min_stock_alert` > 0 and `products`.`deleted_at` is null) limit 5"
+                - generic [ref=f1e258]: 0.65ms
+              - generic [ref=f1e259]:
+                - generic [ref=f1e260]:
+                  - generic [ref=f1e261]:
+                    - img [ref=f1e262]
+                    - generic [ref=f1e264]: mysql
+                  - code [ref=f1e268]:
+                    - generic [ref=f1e269]: "select count(*) as aggregate from `purchase_orders` where `status` in ('draft', 'confirmed') and `purchase_orders`.`deleted_at` is null"
+                - generic [ref=f1e270]: 0.88ms
+              - generic [ref=f1e271]:
+                - generic [ref=f1e272]:
+                  - generic [ref=f1e273]:
+                    - img [ref=f1e274]
+                    - generic [ref=f1e276]: mysql
+                  - code [ref=f1e280]:
+                    - generic [ref=f1e281]: "select * from `purchase_orders` where `purchase_orders`.`deleted_at` is null order by `created_at` desc limit 5"
+                - generic [ref=f1e282]: 0.75ms
+              - generic [ref=f1e283]:
+                - generic [ref=f1e284]:
+                  - generic [ref=f1e285]:
+                    - img [ref=f1e286]
+                    - generic [ref=f1e288]: mysql
+                  - code [ref=f1e292]:
+                    - generic [ref=f1e293]: "select * from `suppliers` where `suppliers`.`id` in (1, 2) and `suppliers`.`deleted_at` is null"
+                - generic [ref=f1e294]: 1.29ms
+              - generic [ref=f1e295]:
+                - generic [ref=f1e296]:
+                  - generic [ref=f1e297]:
+                    - img [ref=f1e298]
+                    - generic [ref=f1e300]: mysql
+                  - code [ref=f1e304]:
+                    - generic [ref=f1e305]: "select count(*) as aggregate from `suppliers` where `suppliers`.`deleted_at` is null"
+                - generic [ref=f1e306]: 0.58ms
+            - generic [ref=f1e307]:
+              - button [disabled] [ref=f1e308]:
+                - img [ref=f1e309]
+              - button [disabled] [ref=f1e312]:
+                - img [ref=f1e313]
+              - button "1" [ref=f1e316] [cursor=pointer]
+              - button "2" [ref=f1e318] [cursor=pointer]
+              - button [ref=f1e319] [cursor=pointer]:
+                - img [ref=f1e320]
+              - button [ref=f1e322] [cursor=pointer]:
+                - img [ref=f1e323]
+        - generic [ref=f1e327]:
+          - generic [ref=f1e328]:
+            - heading "Headers" [level=2] [ref=f1e329]
+            - generic [ref=f1e330]:
+              - generic [ref=f1e331]:
+                - generic [ref=f1e332]: host
+                - generic [ref=f1e334]: 127.0.0.1:8000
+              - generic [ref=f1e335]:
+                - generic [ref=f1e336]: connection
+                - generic [ref=f1e338]: keep-alive
+              - generic [ref=f1e339]:
+                - generic [ref=f1e340]: sec-ch-ua-platform
+                - generic [ref=f1e342]: "\"Windows\""
+              - generic [ref=f1e343]:
+                - generic [ref=f1e344]: x-xsrf-token
+                - generic [ref=f1e346]: eyJpdiI6ImppZzBzTlkwTCsydkxJTTlKRVo5a0E9PSIsInZhbHVlIjoidUIxL1YxWjM1QXdEM1hqcjRJWW5raHRMWHlxNWlNRmZtZDYxU3NHMTRra0xwYnNaREVRNnRoK2ZQd0hTZTJuUE54N3pKSG1kcG1abitlamp4MU1ESEJ2WXNrOHVLVFNzcVdZb3JNRy9jUGdlcGxQWjVlTjRHTURUbHFsN0lweEkiLCJtYWMiOiI4NTVlNTU2MjEyNjgzMjQ4ZDIxOTc4ODc3OTc3NWU1N2NkYjIyNjljMGRiZDNhODA2YmI1Y2QzMzQwMjI4Yjg3IiwidGFnIjoiIn0=
+              - generic [ref=f1e347]:
+                - generic [ref=f1e348]: x-inertia-version
+                - generic [ref=f1e350]: 23ba2d034009cfb081ce56ae257b70c8
+              - generic [ref=f1e351]:
+                - generic [ref=f1e352]: sec-ch-ua
+                - generic [ref=f1e354]: "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\""
+              - generic [ref=f1e355]:
+                - generic [ref=f1e356]: x-inertia
+                - generic [ref=f1e358]: "true"
+              - generic [ref=f1e359]:
+                - generic [ref=f1e360]: sec-ch-ua-mobile
+                - generic [ref=f1e362]: "?0"
+              - generic [ref=f1e363]:
+                - generic [ref=f1e364]: x-requested-with
+                - generic [ref=f1e366]: XMLHttpRequest
+              - generic [ref=f1e367]:
+                - generic [ref=f1e368]: user-agent
+                - generic [ref=f1e370]: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36
+              - generic [ref=f1e371]:
+                - generic [ref=f1e372]: accept
+                - generic [ref=f1e374]: text/html, application/xhtml+xml
+              - generic [ref=f1e375]:
+                - generic [ref=f1e376]: sec-fetch-site
+                - generic [ref=f1e378]: same-origin
+              - generic [ref=f1e379]:
+                - generic [ref=f1e380]: sec-fetch-mode
+                - generic [ref=f1e382]: cors
+              - generic [ref=f1e383]:
+                - generic [ref=f1e384]: sec-fetch-dest
+                - generic [ref=f1e386]: empty
+              - generic [ref=f1e387]:
+                - generic [ref=f1e388]: referer
+                - generic [ref=f1e390]: http://127.0.0.1:8000/login
+              - generic [ref=f1e391]:
+                - generic [ref=f1e392]: accept-encoding
+                - generic [ref=f1e394]: gzip, deflate, br, zstd
+              - generic [ref=f1e395]:
+                - generic [ref=f1e396]: accept-language
+                - generic [ref=f1e398]: en-US,en;q=0.9
+              - generic [ref=f1e399]:
+                - generic [ref=f1e400]: cookie
+                - generic [ref=f1e402]: XSRF-TOKEN=eyJpdiI6ImRDSFZRdnA0Z0M1UGtDS1B3UHpqVGc9PSIsInZhbHVlIjoibEdtN1JTaTJ4NVp4SHVBT3RRRS81am10eU9uUFdGbndTNGFFNFFMQkJUVmNYQi9GRGNGS2k1TUZoUVFlOXYyT3JRRy9SWWhMRG5jQUJNUFduSk9vR3VLc0l1QmJ3NSswSFdQbUd6TmlhU0RYZ1hpZ21PMTRJT0QzZExsSVlpcXUiLCJtYWMiOiJmNGJkZjNiYjNkYzcyZTFjNjQwMmE4OTY1YjMwYWFiYTk2ZTcwNGQ0OGRiYmY3OGU0YmIwMjkwOTcyN2Q2Y2U3IiwidGFnIjoiIn0%3D; zamzam-erp-session=eyJpdiI6Ii91Q1RmUkhxemdhNUpNN2lXRk9tV3c9PSIsInZhbHVlIjoiU1ZnSW4ySDNGOFlGdjlVNzVaWWFKRUtDN0hxbElVVkVTUnBQUUJ2TkVlV1VnSlhxTzl5cE5zalgzUjl3RHZrWWw0aW9id1pzblFGNXByd1h5Zm5KM3p2NjhVekIvcUNGc1BrbkhMQ1F3eXgvb2NhZ3krdS83S2hmQlNZdG9IcEoiLCJtYWMiOiIxNjc0OTgwMzQyZDIwNTg4MzZjMGVjZDljMDljNjExNDFjY2MyMGM3MTcxZWQxODA4NjAwOTI3OTA3ZjQ2MGQyIiwidGFnIjoiIn0%3D
+          - generic [ref=f1e403]:
+            - heading "Body" [level=2] [ref=f1e404]
+            - generic [ref=f1e405]: // No request body
+          - generic [ref=f1e406]:
+            - heading "Routing" [level=2] [ref=f1e407]
+            - generic [ref=f1e408]:
+              - generic [ref=f1e409]:
+                - generic [ref=f1e410]: controller
+                - generic [ref=f1e412]: App\Http\Controllers\Web\Admin\DashboardController@index
+              - generic [ref=f1e413]:
+                - generic [ref=f1e414]: route name
+                - generic [ref=f1e416]: dashboard
+              - generic [ref=f1e417]:
+                - generic [ref=f1e418]: middleware
+                - generic [ref=f1e420]: web, auth
+          - generic [ref=f1e421]:
+            - heading "Routing parameters" [level=2] [ref=f1e422]
+            - generic [ref=f1e423]: // No routing parameters
+        - generic [ref=f1e426]:
+          - img [ref=f1e428]
+          - img [ref=f1e3466]
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e7]: Z
+      - heading "ZamZam ERP" [level=1] [ref=e8]
+      - paragraph [ref=e9]: China → Bangladesh Wholesale System
+    - generic [ref=e10]:
+      - heading "Sign In" [level=2] [ref=e11]
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - generic [ref=e14]: Email or Phone *
+          - textbox "example@email.com or 01XXXXXXXXX" [ref=e15]: admin@zamzam.com.bd
+        - generic [ref=e16]:
+          - generic [ref=e17]: Password *
+          - generic [ref=e18]:
+            - textbox "••••••••" [ref=e19]
+            - button [ref=e20]:
+              - img [ref=e21]
+          - paragraph [ref=e34]:
+            - img [ref=e35]
+            - text: পাসওয়ার্ড দিন।
+        - generic [ref=e25] [cursor=pointer]:
+          - checkbox "Remember me" [ref=e26]
+          - generic [ref=e27]: Remember me
+        - button "Sign In" [ref=e28]:
+          - generic [ref=e29]: Sign In
+    - paragraph [ref=e30]: ZamZam International © 2026

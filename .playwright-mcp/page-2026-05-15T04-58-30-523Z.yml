@@ -1,0 +1,136 @@
+- generic [ref=e31]:
+  - complementary [ref=e32]:
+    - generic [ref=e34]:
+      - generic [ref=e36]: Z
+      - generic [ref=e37]: ZamZam ERP
+    - navigation [ref=e38]:
+      - link "Dashboard" [ref=e39] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000
+        - img [ref=e40]
+        - generic [ref=e45]: Dashboard
+      - generic [ref=e46]: বিক্রয়
+      - link "অর্ডার" [ref=e47] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e48]
+        - generic [ref=e52]: অর্ডার
+      - link "গ্রাহক" [ref=e53] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e54]
+        - generic [ref=e59]: গ্রাহক
+      - link "ইনভয়েস" [ref=e60] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e61]
+        - generic [ref=e64]: ইনভয়েস
+      - generic [ref=e65]: সরবরাহ
+      - link "সাপ্লায়ার" [ref=e66] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e67]
+        - generic [ref=e71]: সাপ্লায়ার
+      - link "ক্রয় আদেশ" [ref=e72] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e73]
+        - generic [ref=e76]: ক্রয় আদেশ
+      - generic [ref=e77]: শিপিং
+      - link "আন্তর্জাতিক" [ref=e78] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e79]
+        - generic [ref=e83]: আন্তর্জাতিক
+      - link "দেশীয় কুরিয়" [ref=e84] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e85]
+        - generic [ref=e90]: দেশীয় কুরিয়
+      - generic [ref=e91]: গুদাম
+      - link "স্টক" [ref=e92] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e93]
+        - generic [ref=e97]: স্টক
+      - generic [ref=e98]: হিসাব
+      - link "পেমেন্ট" [ref=e99] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e100]
+        - generic [ref=e102]: পেমেন্ট
+      - link "একাউন্টস" [ref=e103] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e104]
+        - generic [ref=e107]: একাউন্টস
+      - generic [ref=e108]: রিপোর্ট
+      - link "রিপোর্টস" [ref=e109] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e110]
+        - generic [ref=e111]: রিপোর্টস
+      - link "সেটিংস" [ref=e112] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e113]
+        - generic [ref=e116]: সেটিংস
+    - button [ref=e118]:
+      - img [ref=e119]
+  - generic [ref=e121]:
+    - banner [ref=e122]:
+      - generic [ref=e124]:
+        - img [ref=e125]
+        - textbox "খুঁজুন... (Ctrl+K)" [ref=e128]
+      - generic [ref=e129]:
+        - button [ref=e130]:
+          - img [ref=e131]
+        - button [ref=e135]:
+          - img [ref=e136]
+        - button "Z ZamZam Admin" [ref=e139]:
+          - generic [ref=e140]: Z
+          - generic [ref=e141]: ZamZam Admin
+          - img [ref=e142]
+    - main [ref=e144]:
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - generic [ref=e147]:
+            - heading "Dashboard" [level=1] [ref=e148]
+            - paragraph [ref=e149]: শুভ সকাল, ZamZam Admin
+          - combobox [ref=e151]:
+            - option "এই মাস" [selected]
+            - option "গত মাস"
+            - option "এই বছর"
+        - generic [ref=e152]:
+          - generic [ref=e154]:
+            - generic [ref=e155]:
+              - paragraph [ref=e156]: মোট গ্রাহক
+              - paragraph [ref=e157]: "0"
+            - img [ref=e159]
+          - generic [ref=e165]:
+            - generic [ref=e166]:
+              - paragraph [ref=e167]: এই মাসের অর্ডার
+              - paragraph [ref=e168]: "0"
+            - img [ref=e170]
+          - generic [ref=e175]:
+            - generic [ref=e176]:
+              - paragraph [ref=e177]: এই মাসের রাজস্ব
+              - paragraph [ref=e178]: ৳0
+            - img [ref=e180]
+          - generic [ref=e184]:
+            - generic [ref=e185]:
+              - paragraph [ref=e186]: পেন্ডিং পার্সেল
+              - paragraph [ref=e187]: "0"
+            - img [ref=e189]
+        - generic [ref=e193]:
+          - generic [ref=e194]:
+            - heading "রাজস্ব (শেষ ৩০ দিন)" [level=3] [ref=e195]
+            - generic [ref=e196]: Chart.js integration — Phase 4
+          - generic [ref=e197]:
+            - heading "দ্রুত অ্যাক্সেস" [level=3] [ref=e198]
+            - generic [ref=e199]:
+              - button "নতুন অর্ডার" [ref=e200]:
+                - img [ref=e202]
+                - generic [ref=e204]: নতুন অর্ডার
+              - button "নতুন গ্রাহক" [ref=e205]:
+                - img [ref=e207]
+                - generic [ref=e210]: নতুন গ্রাহক
+              - button "স্টক চেক" [ref=e211]:
+                - img [ref=e213]
+                - generic [ref=e217]: স্টক চেক
+              - button "পেমেন্ট নিন" [ref=e218]:
+                - img [ref=e220]
+                - generic [ref=e222]: পেমেন্ট নিন
+        - generic [ref=e223]:
+          - generic [ref=e224]:
+            - heading "সাম্প্রতিক অর্ডার" [level=3] [ref=e225]
+            - link "সব দেখুন →" [ref=e226] [cursor=pointer]:
+              - /url: "#"
+          - generic [ref=e227]: অর্ডার মডিউল Phase 4-এ যুক্ত হবে

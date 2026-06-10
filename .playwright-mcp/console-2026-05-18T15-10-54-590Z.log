@@ -1,0 +1,9 @@
+[    1063ms] [WARNING] The specified value "" does not conform to the required format.  The format is "#rrggbb" where rr, gg, bb are two-digit hexadecimal numbers. @ http://[::1]:5173/node_modules/.vite/deps/vue.runtime.esm-bundler-CMLZRQMs.js?v=f1384d1e:8282
+[   64752ms] [WARNING] [Vue warn]: Property "colorInputValue" was accessed during render but is not defined on instance. 
+  at <BaseTransition mode="out-in" appear=false persisted=false  ... > 
+  at <Transition name="page-fade" mode="out-in" > 
+  at <AppLayout> 
+  at <Index errors= {} auth= {user: Object} flash= {success: null, error: null, warning: null, info: null}  ... > 
+  at <Inertia initialPage= {component: Settings/Index, props: Object, url: /settings, version: 23ba2d034009cfb081ce56ae257b70c8, sharedProps: Array(6)} initialComponent= {__name: Index, props: Object, setup: , __hmrId: 9cb0e1b1, render: } resolveComponent=fn<resolveComponent>  ... > 
+  at <App> @ http://[::1]:5173/node_modules/.vite/deps/vue.runtime.esm-bundler-CMLZRQMs.js?v=f1384d1e:1752
+[   64754ms] [WARNING] The specified value "" does not conform to the required format.  The format is "#rrggbb" where rr, gg, bb are two-digit hexadecimal numbers. @ http://[::1]:5173/node_modules/.vite/deps/vue.runtime.esm-bundler-CMLZRQMs.js?v=f1384d1e:7586

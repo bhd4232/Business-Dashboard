@@ -1,0 +1,259 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img "zap icon" [ref=e8]
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: ZamZam
+        - paragraph [ref=e11]: ERP v1.0
+    - navigation [ref=e12]:
+      - link "dashboard icon Dashboard" [ref=e13] [cursor=pointer]:
+        - /url: http://localhost:8001
+        - img "dashboard icon" [ref=e16]
+        - generic [ref=e17]: Dashboard
+      - generic [ref=e18]:
+        - button "procurement icon Procurement" [ref=e19]:
+          - img "procurement icon" [ref=e22]
+          - generic [ref=e23]: Procurement
+          - img [ref=e24]
+        - generic [ref=e26]:
+          - link "Suppliers" [ref=e27] [cursor=pointer]:
+            - /url: http://localhost:8001/suppliers
+            - generic [ref=e29]: Suppliers
+          - link "Products" [ref=e30] [cursor=pointer]:
+            - /url: http://localhost:8001/products
+            - generic [ref=e32]: Products
+          - link "Purchase Orders" [ref=e33] [cursor=pointer]:
+            - /url: http://localhost:8001/purchase-orders
+            - generic [ref=e35]: Purchase Orders
+          - link "Categories" [ref=e36] [cursor=pointer]:
+            - /url: http://localhost:8001/categories
+            - generic [ref=e38]: Categories
+      - generic [ref=e39]:
+        - button "inventory icon Inventory & Warehouse" [ref=e40]:
+          - img "inventory icon" [ref=e43]
+          - generic [ref=e44]: Inventory & Warehouse
+          - img [ref=e45]
+        - generic [ref=e47]:
+          - link "Warehouses" [ref=e48] [cursor=pointer]:
+            - /url: http://localhost:8001/warehouses
+            - generic [ref=e50]: Warehouses
+          - link "Stock" [ref=e51] [cursor=pointer]:
+            - /url: http://localhost:8001/stock
+            - generic [ref=e53]: Stock
+          - link "Low Stock" [ref=e54] [cursor=pointer]:
+            - /url: http://localhost:8001/stock/low-stock
+            - generic [ref=e56]: Low Stock
+          - link "Transfers" [ref=e57] [cursor=pointer]:
+            - /url: http://localhost:8001/stock-transfers
+            - generic [ref=e59]: Transfers
+          - link "Adjustments" [ref=e60] [cursor=pointer]:
+            - /url: http://localhost:8001/stock-adjustments
+            - generic [ref=e62]: Adjustments
+          - link "Barcodes" [ref=e63] [cursor=pointer]:
+            - /url: http://localhost:8001/barcodes
+            - generic [ref=e65]: Barcodes
+      - generic [ref=e66]:
+        - button "sales icon Sales & Orders" [ref=e67]:
+          - img "sales icon" [ref=e70]
+          - generic [ref=e71]: Sales & Orders
+          - img [ref=e72]
+        - generic [ref=e74]:
+          - link "Orders" [ref=e75] [cursor=pointer]:
+            - /url: http://localhost:8001/sales-orders
+            - generic [ref=e77]: Orders
+          - link "Customers" [ref=e78] [cursor=pointer]:
+            - /url: http://localhost:8001/customers
+            - generic [ref=e80]: Customers
+          - link "Invoices Soon" [ref=e81] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e83]: Invoices
+            - generic [ref=e84]: Soon
+      - generic [ref=e85]:
+        - button "shipping icon Shipping & Logistics" [ref=e86]:
+          - img "shipping icon" [ref=e89]
+          - generic [ref=e90]: Shipping & Logistics
+          - img [ref=e91]
+        - generic [ref=e93]:
+          - link "International (CN→BD)" [ref=e94] [cursor=pointer]:
+            - /url: http://localhost:8001/shipping/international
+            - generic [ref=e96]: International (CN→BD)
+          - link "Domestic Soon" [ref=e97] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e99]: Domestic
+            - generic [ref=e100]: Soon
+      - button "finance icon Accounts & Finance" [ref=e102]:
+        - img "finance icon" [ref=e105]
+        - generic [ref=e106]: Accounts & Finance
+        - img [ref=e107]
+      - button "chat icon Chat & AI" [ref=e110]:
+        - img "chat icon" [ref=e113]
+        - generic [ref=e114]: Chat & AI
+        - img [ref=e115]
+      - link "reports icon Reports Soon" [ref=e117] [cursor=pointer]:
+        - /url: "#"
+        - img "reports icon" [ref=e120]
+        - generic [ref=e121]: Reports
+        - generic [ref=e122]: Soon
+      - link "settings icon Settings" [ref=e123] [cursor=pointer]:
+        - /url: http://localhost:8001/settings
+        - img "settings icon" [ref=e126]
+        - generic [ref=e127]: Settings
+    - generic [ref=e129]:
+      - generic [ref=e131]: Z
+      - generic [ref=e132]:
+        - paragraph [ref=e133]: ZamZam Admin
+        - paragraph [ref=e134]: admin@zamzam.com.bd
+      - button "Collapse sidebar" [ref=e135]:
+        - img [ref=e136]
+  - generic [ref=e138]:
+    - banner [ref=e139]:
+      - generic [ref=e141]:
+        - img [ref=e142]
+        - textbox "Search... (Ctrl+K)" [ref=e145]
+      - generic [ref=e146]:
+        - button "Switch to dark mode" [ref=e147]:
+          - img [ref=e148]
+        - button [ref=e150]:
+          - img [ref=e151]
+        - button [ref=e155]:
+          - img [ref=e156]
+        - button "Z ZamZam Admin" [ref=e159]:
+          - generic [ref=e160]: Z
+          - generic [ref=e161]: ZamZam Admin
+          - img [ref=e162]
+    - main [ref=e164]:
+      - generic [ref=e165]:
+        - generic [ref=e166]:
+          - link "Sales Orders" [ref=e167] [cursor=pointer]:
+            - /url: http://localhost:8001/sales-orders
+            - img [ref=e168]
+            - generic [ref=e170]: Sales Orders
+          - generic [ref=e171]:
+            - img "sales-order icon" [ref=e173]
+            - heading "New Sales Order" [level=1] [ref=e174]
+        - generic [ref=e175]:
+          - generic [ref=e176]:
+            - generic [ref=e177]:
+              - img [ref=e178]
+              - heading "Order Information" [level=2] [ref=e181]
+            - generic [ref=e182]:
+              - generic [ref=e183]:
+                - generic [ref=e184]: Customer *
+                - combobox [ref=e185]:
+                  - option "Select customer"
+                  - option "Sumon — Future Shop (01730973337)" [selected]
+              - generic [ref=e186]:
+                - generic [ref=e187]: Order Type *
+                - generic [ref=e188]:
+                  - generic [ref=e189] [cursor=pointer]:
+                    - radio "Wholesale" [checked] [ref=e190]
+                    - text: Wholesale
+                  - generic [ref=e191] [cursor=pointer]:
+                    - radio "Retail" [ref=e192]
+                    - text: Retail
+              - generic [ref=e193]:
+                - generic [ref=e194]: Source
+                - combobox [ref=e195]:
+                  - option "Select source"
+                  - option "ERP" [selected]
+                  - option "Storefront"
+                  - option "WhatsApp"
+                  - option "Messenger"
+                  - option "WooCommerce"
+                  - option "Reseller"
+              - generic [ref=e196]:
+                - generic [ref=e197]: Price Tier
+                - combobox [ref=e198]:
+                  - option "No specific tier" [selected]
+              - generic [ref=e199]:
+                - generic [ref=e200]: Delivery Address
+                - textbox "Full delivery address..." [ref=e201]: House-59, Road-6/A, Sector-5
+              - generic [ref=e202]:
+                - generic [ref=e203]: City
+                - textbox "e.g. Dhaka" [ref=e204]: Dhaka North
+              - generic [ref=e205]:
+                - generic [ref=e206]: Area
+                - textbox "e.g. Mirpur" [ref=e207]: Uttara
+              - generic [ref=e208]:
+                - generic [ref=e209]: Discount (BDT)
+                - generic [ref=e210]:
+                  - generic: ৳
+                  - spinbutton [ref=e211]
+              - generic [ref=e212]:
+                - generic [ref=e213]: Discount (%)
+                - generic [ref=e214]:
+                  - spinbutton [ref=e215]
+                  - generic: "%"
+              - generic [ref=e216]:
+                - generic [ref=e217]: Delivery Charge (BDT)
+                - generic [ref=e218]:
+                  - generic: ৳
+                  - spinbutton [ref=e219]: "0"
+              - generic [ref=e220]:
+                - generic [ref=e221]: Paid Amount (BDT)
+                - generic [ref=e222]:
+                  - generic: ৳
+                  - spinbutton [ref=e223]: "0"
+              - generic [ref=e224]:
+                - generic [ref=e225]: Notes
+                - textbox "Customer-facing notes..." [ref=e226]
+              - generic [ref=e227]:
+                - generic [ref=e228]: Internal Notes
+                - textbox "Internal staff notes (not visible to customer)..." [ref=e229]
+          - generic [ref=e230]:
+            - generic [ref=e231]:
+              - generic [ref=e232]:
+                - img [ref=e233]
+                - heading "Order Items" [level=2] [ref=e237]
+              - button "Add Item" [active] [ref=e238]:
+                - img [ref=e239]
+                - text: Add Item
+            - table [ref=e247]:
+              - rowgroup [ref=e248]:
+                - row "# Product Qty Unit Price (৳) Disc% Subtotal (৳)" [ref=e249]:
+                  - columnheader "#" [ref=e250]
+                  - columnheader "Product" [ref=e251]
+                  - columnheader "Qty" [ref=e252]
+                  - columnheader "Unit Price (৳)" [ref=e253]
+                  - columnheader "Disc%" [ref=e254]
+                  - columnheader "Subtotal (৳)" [ref=e255]
+                  - columnheader [ref=e256]
+              - rowgroup [ref=e257]:
+                - row "1 ৳ % ৳0.00" [ref=e258]:
+                  - cell "1" [ref=e259]
+                  - cell [ref=e260]:
+                    - generic [ref=e261]:
+                      - textbox "Type to search product..." [ref=e262]
+                      - generic:
+                        - img
+                  - cell [ref=e263]:
+                    - spinbutton [ref=e264]: "1"
+                  - cell "৳" [ref=e265]:
+                    - generic [ref=e266]:
+                      - generic: ৳
+                      - spinbutton [ref=e267]: "0"
+                  - cell "%" [ref=e268]:
+                    - generic [ref=e269]:
+                      - spinbutton [ref=e270]: "0"
+                      - generic: "%"
+                  - cell "৳0.00" [ref=e271]
+                  - cell [ref=e272]:
+                    - button [ref=e273]:
+                      - img [ref=e274]
+            - generic [ref=e279]:
+              - generic [ref=e280]:
+                - generic [ref=e281]: Subtotal
+                - generic [ref=e282]: ৳0.00
+              - generic [ref=e283]:
+                - generic [ref=e284]: Total
+                - generic [ref=e285]: ৳0.00
+              - generic [ref=e286]:
+                - generic [ref=e287]: Paid
+                - generic [ref=e288]: ৳0.00
+              - generic [ref=e289]:
+                - generic [ref=e290]: Due
+                - generic [ref=e291]: ৳0.00
+          - generic [ref=e243]:
+            - link "Cancel" [ref=e244] [cursor=pointer]:
+              - /url: http://localhost:8001/sales-orders
+            - button "Save Draft" [ref=e245]

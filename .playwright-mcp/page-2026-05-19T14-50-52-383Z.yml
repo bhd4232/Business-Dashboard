@@ -1,0 +1,224 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img "zap icon" [ref=e8]
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: ZamZam
+        - paragraph [ref=e11]: ERP v1.0
+    - navigation [ref=e12]:
+      - link "dashboard icon Dashboard" [ref=e13] [cursor=pointer]:
+        - /url: http://localhost:8001
+        - img "dashboard icon" [ref=e16]
+        - generic [ref=e17]: Dashboard
+      - generic [ref=e18]:
+        - button "procurement icon Procurement" [ref=e19]:
+          - img "procurement icon" [ref=e22]
+          - generic [ref=e23]: Procurement
+          - img [ref=e24]
+        - generic [ref=e26]:
+          - link "Suppliers" [ref=e27] [cursor=pointer]:
+            - /url: http://localhost:8001/suppliers
+            - generic [ref=e29]: Suppliers
+          - link "Products" [ref=e30] [cursor=pointer]:
+            - /url: http://localhost:8001/products
+            - generic [ref=e32]: Products
+          - link "Purchase Orders" [ref=e33] [cursor=pointer]:
+            - /url: http://localhost:8001/purchase-orders
+            - generic [ref=e35]: Purchase Orders
+          - link "Categories" [ref=e36] [cursor=pointer]:
+            - /url: http://localhost:8001/categories
+            - generic [ref=e38]: Categories
+      - generic [ref=e39]:
+        - button "inventory icon Inventory & Warehouse" [ref=e40]:
+          - img "inventory icon" [ref=e43]
+          - generic [ref=e44]: Inventory & Warehouse
+          - img [ref=e45]
+        - generic [ref=e47]:
+          - link "Warehouses" [ref=e48] [cursor=pointer]:
+            - /url: http://localhost:8001/warehouses
+            - generic [ref=e50]: Warehouses
+          - link "Stock" [ref=e51] [cursor=pointer]:
+            - /url: http://localhost:8001/stock
+            - generic [ref=e53]: Stock
+          - link "Low Stock" [ref=e54] [cursor=pointer]:
+            - /url: http://localhost:8001/stock/low-stock
+            - generic [ref=e56]: Low Stock
+          - link "Transfers" [ref=e57] [cursor=pointer]:
+            - /url: http://localhost:8001/stock-transfers
+            - generic [ref=e59]: Transfers
+          - link "Adjustments" [ref=e60] [cursor=pointer]:
+            - /url: http://localhost:8001/stock-adjustments
+            - generic [ref=e62]: Adjustments
+          - link "Barcodes" [ref=e63] [cursor=pointer]:
+            - /url: http://localhost:8001/barcodes
+            - generic [ref=e65]: Barcodes
+      - generic [ref=e66]:
+        - button "sales icon Sales & Orders" [ref=e67]:
+          - img "sales icon" [ref=e70]
+          - generic [ref=e71]: Sales & Orders
+          - img [ref=e72]
+        - generic [ref=e74]:
+          - link "Orders" [ref=e75] [cursor=pointer]:
+            - /url: http://localhost:8001/sales-orders
+            - generic [ref=e77]: Orders
+          - link "Customers" [ref=e78] [cursor=pointer]:
+            - /url: http://localhost:8001/customers
+            - generic [ref=e80]: Customers
+          - link "Invoices Soon" [ref=e81] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e83]: Invoices
+            - generic [ref=e84]: Soon
+      - generic [ref=e85]:
+        - button "shipping icon Shipping & Logistics" [ref=e86]:
+          - img "shipping icon" [ref=e89]
+          - generic [ref=e90]: Shipping & Logistics
+          - img [ref=e91]
+        - generic [ref=e93]:
+          - link "International (CN→BD)" [ref=e94] [cursor=pointer]:
+            - /url: http://localhost:8001/shipping/international
+            - generic [ref=e96]: International (CN→BD)
+          - link "Domestic Soon" [ref=e97] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e99]: Domestic
+            - generic [ref=e100]: Soon
+      - button "finance icon Accounts & Finance" [ref=e102]:
+        - img "finance icon" [ref=e105]
+        - generic [ref=e106]: Accounts & Finance
+        - img [ref=e107]
+      - link "reports icon Reports Soon" [ref=e109] [cursor=pointer]:
+        - /url: "#"
+        - img "reports icon" [ref=e112]
+        - generic [ref=e113]: Reports
+        - generic [ref=e114]: Soon
+      - link "settings icon Settings" [ref=e115] [cursor=pointer]:
+        - /url: http://localhost:8001/settings
+        - img "settings icon" [ref=e118]
+        - generic [ref=e119]: Settings
+    - generic [ref=e121]:
+      - generic [ref=e123]: Z
+      - generic [ref=e124]:
+        - paragraph [ref=e125]: ZamZam Admin
+        - paragraph [ref=e126]: admin@zamzam.com.bd
+      - button "Collapse sidebar" [ref=e127]:
+        - img [ref=e128]
+  - generic [ref=e130]:
+    - banner [ref=e131]:
+      - generic [ref=e133]:
+        - img [ref=e134]
+        - textbox "Search... (Ctrl+K)" [ref=e137]
+      - generic [ref=e138]:
+        - button "Switch to light mode" [ref=e139]:
+          - img [ref=e140]
+        - button [ref=e146]:
+          - img [ref=e147]
+        - button [ref=e151]:
+          - img [ref=e152]
+        - button "Z ZamZam Admin" [ref=e155]:
+          - generic [ref=e156]: Z
+          - generic [ref=e157]: ZamZam Admin
+          - img [ref=e158]
+    - main [ref=e160]:
+      - generic [ref=e161]:
+        - generic [ref=e162]:
+          - link "Sales Orders" [ref=e163] [cursor=pointer]:
+            - /url: http://localhost:8001/sales-orders
+            - img [ref=e164]
+            - text: Sales Orders
+          - generic [ref=e166]:
+            - generic [ref=e167]:
+              - img "sales icon" [ref=e169]
+              - generic [ref=e170]:
+                - generic [ref=e171]:
+                  - heading "SO-2026-0001" [level=1] [ref=e172]
+                  - generic [ref=e173]: confirmed
+                  - generic [ref=e174]: wholesale
+                - paragraph [ref=e175]: Sumon · 01730973337
+            - button "Cancel Order" [ref=e177]:
+              - img [ref=e178]
+              - text: Cancel Order
+        - generic [ref=e182]:
+          - generic [ref=e183]:
+            - generic [ref=e184]:
+              - heading "Order Information" [level=2] [ref=e185]
+              - generic [ref=e186]:
+                - generic [ref=e187]:
+                  - term [ref=e188]: Customer
+                  - definition [ref=e189]: Sumon
+                  - definition [ref=e190]: Future Shop
+                - generic [ref=e191]:
+                  - term [ref=e192]: Phone
+                  - definition [ref=e193]: "01730973337"
+                - generic [ref=e194]:
+                  - term [ref=e195]: Email
+                  - definition [ref=e196]: cfo@zamzamint.com
+                - generic [ref=e197]:
+                  - term [ref=e198]: Type
+                  - definition [ref=e199]: wholesale
+                - generic [ref=e200]:
+                  - term [ref=e201]: Source
+                  - definition [ref=e202]: erp
+                - generic [ref=e203]:
+                  - term [ref=e204]: Notes
+                  - definition [ref=e205]: Test order from script
+            - generic [ref=e206]:
+              - heading "Order Totals" [level=2] [ref=e207]
+              - generic [ref=e208]:
+                - generic [ref=e209]:
+                  - term [ref=e210]: Subtotal
+                  - definition [ref=e211]: ৳3,720
+                - generic [ref=e212]:
+                  - term [ref=e213]: Discount
+                  - definition [ref=e214]: −৳200
+                - generic [ref=e215]:
+                  - term [ref=e216]: Delivery
+                  - definition [ref=e217]: ৳100
+                - generic [ref=e218]:
+                  - term [ref=e219]: Total
+                  - definition [ref=e220]: ৳3,620
+                - generic [ref=e221]:
+                  - term [ref=e222]: Paid
+                  - definition [ref=e223]: ৳500
+                - generic [ref=e224]:
+                  - term [ref=e225]: Due
+                  - definition [ref=e226]: ৳3,120
+            - generic [ref=e227]:
+              - heading "Activity" [level=2] [ref=e228]
+              - generic [ref=e229]:
+                - generic [ref=e230]:
+                  - term [ref=e231]: Created At
+                  - definition [ref=e232]: 19 May 2026, 20:46
+                - generic [ref=e233]:
+                  - term [ref=e234]: Confirmed At
+                  - definition [ref=e235]: 19 May 2026, 20:50
+          - generic [ref=e237]:
+            - heading "Order Items 2 items" [level=2] [ref=e239]
+            - table [ref=e240]:
+              - rowgroup [ref=e241]:
+                - row "Product SKU Qty Unit Price Disc% Subtotal" [ref=e242]:
+                  - columnheader "Product" [ref=e243]
+                  - columnheader "SKU" [ref=e244]
+                  - columnheader "Qty" [ref=e245]
+                  - columnheader "Unit Price" [ref=e246]
+                  - columnheader "Disc%" [ref=e247]
+                  - columnheader "Subtotal" [ref=e248]
+              - rowgroup [ref=e249]:
+                - row "Love Pearl Necklace Combo Gift Box ZAM-GF-LPC 2 ৳1,500 0.00% ৳3,000" [ref=e250]:
+                  - cell "Love Pearl Necklace Combo Gift Box" [ref=e251]:
+                    - paragraph [ref=e252]: Love Pearl Necklace Combo Gift Box
+                  - cell "ZAM-GF-LPC" [ref=e253]
+                  - cell "2" [ref=e254]
+                  - cell "৳1,500" [ref=e255]
+                  - cell "0.00%" [ref=e256]
+                  - cell "৳3,000" [ref=e257]
+                - row "Love Pearl Necklace Combo Gift Box ZAM-GF-LPC 1 ৳800 10.00% ৳720" [ref=e258]:
+                  - cell "Love Pearl Necklace Combo Gift Box" [ref=e259]:
+                    - paragraph [ref=e260]: Love Pearl Necklace Combo Gift Box
+                  - cell "ZAM-GF-LPC" [ref=e261]
+                  - cell "1" [ref=e262]
+                  - cell "৳800" [ref=e263]
+                  - cell "10.00%" [ref=e264]
+                  - cell "৳720" [ref=e265]
+              - rowgroup [ref=e266]:
+                - row "Total ৳3,720" [ref=e267]:
+                  - cell "Total" [ref=e268]
+                  - cell "৳3,720" [ref=e269]

@@ -1,0 +1,87 @@
+name: Deploy ZamZam ERP
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, bcmath, pdo, pdo_mysql, xml, curl, zip, gd
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: zamzam-erp/package-lock.json
+
+      - name: Install PHP dependencies
+        working-directory: zamzam-erp
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Install Node dependencies
+        working-directory: zamzam-erp
+        run: npm ci
+
+      - name: Build frontend assets
+        working-directory: zamzam-erp
+        run: npm run build
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            
+            echo "=== Starting Deployment ==="
+            
+            # Project directory on server
+            cd /var/www/zamzam-erp
+            
+            # Pull latest code
+            git pull origin main
+            
+            # Go into Laravel project
+            cd zamzam-erp
+            
+            # Install/update PHP dependencies
+            composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+            
+            # Install Node dependencies and build
+            npm ci
+            npm run build
+            
+            # Run migrations
+            php artisan migrate --force
+            
+            # Clear and rebuild caches
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            php artisan event:cache
+            
+            # Restart queue workers
+            php artisan queue:restart
+            
+            # Fix storage permissions
+            chmod -R 775 storage bootstrap/cache
+            chown -R www-data:www-data storage bootstrap/cache
+            
+            echo "=== Deployment Complete ==="

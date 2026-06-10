@@ -1,0 +1,206 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: Internal Server Error
+    - button "Copy as Markdown" [ref=e11] [cursor=pointer]:
+      - img [ref=e12]
+      - generic [ref=e15]: Copy as Markdown
+  - generic [ref=e18]:
+    - generic [ref=e19]:
+      - heading "Illuminate\\Database\\QueryException" [level=1] [ref=e20]
+      - generic [ref=e22]: vendor\laravel\framework\src\Illuminate\Database\Connection.php:841
+      - paragraph [ref=e23]: "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'delivery_address' in 'field list' (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: zamzam_erp, SQL: select `id`, `name`, `business_name`, `phone`, `price_tier_id`, `delivery_address`, `city`, `area` from `customers` where `is_active` = 1 and `customers`.`deleted_at` is null order by `name` asc)"
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]: LARAVEL
+          - generic [ref=e28]: 13.9.0
+        - generic [ref=e29]:
+          - generic [ref=e30]: PHP
+          - generic [ref=e31]: 8.3.30
+      - generic [ref=e32]:
+        - img [ref=e33]
+        - text: UNHANDLED
+      - generic [ref=e36]: CODE 42S22
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - img [ref=e40]
+        - text: "500"
+      - generic [ref=e43]:
+        - img [ref=e44]
+        - text: GET
+      - generic [ref=e47]: http://localhost:8001/sales-orders/create
+      - button [ref=e48] [cursor=pointer]:
+        - img [ref=e49]
+  - generic [ref=e53]:
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - img [ref=e57]
+        - heading "Exception trace" [level=3] [ref=e60]
+        - link "1 previous exception" [ref=e61] [cursor=pointer]:
+          - /url: "#previous-exceptions"
+      - generic [ref=e62]:
+        - generic [ref=e64] [cursor=pointer]:
+          - img [ref=e65]
+          - generic [ref=e69]: 7 vendor frames
+          - button [ref=e70]:
+            - img [ref=e71]
+        - generic [ref=e75]:
+          - generic [ref=e76] [cursor=pointer]:
+            - generic [ref=e79]:
+              - code [ref=e83]:
+                - generic [ref=e84]: Illuminate\Database\Eloquent\Builder->get(array)
+              - generic [ref=e86]: app\Http\Controllers\Web\Admin\Sales\SalesOrderController.php:76
+            - button [ref=e88]:
+              - img [ref=e89]
+          - code [ref=e97]:
+            - generic [ref=e98]: "71 }"
+            - generic [ref=e99]: "72"
+            - generic [ref=e100]: "73 public function create(): Response"
+            - generic [ref=e101]: "74 {"
+            - generic [ref=e102]: 75 return Inertia::render('Sales/SalesOrders/Create', [
+            - generic [ref=e103]: 76 'customers' => Customer::active()->orderBy('name')->get(['id', 'name', 'business_name', 'phone', 'price_tier_id', 'delivery_address', 'city', 'area']),
+            - generic [ref=e104]: 77 'priceTiers' => PriceTier::active()->get(['id', 'name', 'code', 'discount_percent']),
+            - generic [ref=e105]: 78 'statuses' => self::STATUSES,
+            - generic [ref=e106]: 79 'sources' => self::SOURCES,
+            - generic [ref=e107]: 80 ]);
+            - generic [ref=e108]: "81 }"
+            - generic [ref=e109]: "82"
+            - generic [ref=e110]: "83 public function show(SalesOrder $salesOrder): Response"
+            - generic [ref=e111]: "84 {"
+            - generic [ref=e112]: 85 $salesOrder->load([
+            - generic [ref=e113]: 86 'customer:id,name,business_name,phone,email,address,city,area',
+            - generic [ref=e114]: 87 'priceTier:id,name,code',
+            - generic [ref=e115]: "88"
+        - generic [ref=e117] [cursor=pointer]:
+          - img [ref=e118]
+          - generic [ref=e122]: 55 vendor frames
+          - button [ref=e123]:
+            - img [ref=e124]
+        - generic [ref=e129] [cursor=pointer]:
+          - generic [ref=e132]:
+            - code [ref=e136]:
+              - generic [ref=e137]: Illuminate\Foundation\Application->handleRequest(object(Illuminate\Http\Request))
+            - generic [ref=e139]: public\index.php:20
+          - button [ref=e141]:
+            - img [ref=e142]
+    - generic [ref=e146]:
+      - generic [ref=e147]:
+        - img [ref=e149]
+        - heading "Previous exception" [level=3] [ref=e152]
+      - generic [ref=e156] [cursor=pointer]:
+        - generic [ref=e157]:
+          - heading "PDOException" [level=4] [ref=e158]
+          - paragraph [ref=e159]: "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'delivery_address' in 'field list'"
+        - button [ref=e160]:
+          - img [ref=e161]
+    - generic [ref=e165]:
+      - generic [ref=e166]:
+        - generic [ref=e167]:
+          - img [ref=e169]
+          - heading "Queries" [level=3] [ref=e171]
+        - generic [ref=e173]: 1-4 of 4
+      - generic [ref=e174]:
+        - generic [ref=e175]:
+          - generic [ref=e176]:
+            - generic [ref=e177]:
+              - img [ref=e178]
+              - generic [ref=e180]: mysql
+            - code [ref=e184]:
+              - generic [ref=e185]: "select * from `users` where `id` = 1 limit 1"
+          - generic [ref=e186]: 25.32ms
+        - generic [ref=e187]:
+          - generic [ref=e188]:
+            - generic [ref=e189]:
+              - img [ref=e190]
+              - generic [ref=e192]: mysql
+            - code [ref=e196]:
+              - generic [ref=e197]: "select `roles`.*, `model_has_roles`.`model_id` as `pivot_model_id`, `model_has_roles`.`role_id` as `pivot_role_id`, `model_has_roles`.`model_type` as `pivot_model_type` from `roles` inner join `model_has_roles` on `roles`.`id` = `model_has_roles`.`role_id` where `model_has_roles`.`model_id` in (1) and `model_has_roles`.`model_type` = 'App\\Models\\User'"
+          - generic [ref=e198]: 0.79ms
+        - generic [ref=e199]:
+          - generic [ref=e200]:
+            - generic [ref=e201]:
+              - img [ref=e202]
+              - generic [ref=e204]: mysql
+            - code [ref=e208]:
+              - generic [ref=e209]: "select `permissions`.*, `model_has_permissions`.`model_id` as `pivot_model_id`, `model_has_permissions`.`permission_id` as `pivot_permission_id`, `model_has_permissions`.`model_type` as `pivot_model_type` from `permissions` inner join `model_has_permissions` on `permissions`.`id` = `model_has_permissions`.`permission_id` where `model_has_permissions`.`model_id` = 1 and `model_has_permissions`.`model_type` = 'App\\Models\\User'"
+          - generic [ref=e210]: 0.74ms
+        - generic [ref=e211]:
+          - generic [ref=e212]:
+            - generic [ref=e213]:
+              - img [ref=e214]
+              - generic [ref=e216]: mysql
+            - code [ref=e220]:
+              - generic [ref=e221]: "select `permissions`.*, `role_has_permissions`.`role_id` as `pivot_role_id`, `role_has_permissions`.`permission_id` as `pivot_permission_id` from `permissions` inner join `role_has_permissions` on `permissions`.`id` = `role_has_permissions`.`permission_id` where `role_has_permissions`.`role_id` in (1)"
+          - generic [ref=e222]: 0.87ms
+  - generic [ref=e224]:
+    - generic [ref=e225]:
+      - heading "Headers" [level=2] [ref=e226]
+      - generic [ref=e227]:
+        - generic [ref=e228]:
+          - generic [ref=e229]: host
+          - generic [ref=e231]: localhost:8001
+        - generic [ref=e232]:
+          - generic [ref=e233]: connection
+          - generic [ref=e235]: keep-alive
+        - generic [ref=e236]:
+          - generic [ref=e237]: sec-ch-ua
+          - generic [ref=e239]: "\"Chromium\";v=\"148\", \"Google Chrome\";v=\"148\", \"Not/A)Brand\";v=\"99\""
+        - generic [ref=e240]:
+          - generic [ref=e241]: sec-ch-ua-mobile
+          - generic [ref=e243]: "?0"
+        - generic [ref=e244]:
+          - generic [ref=e245]: sec-ch-ua-platform
+          - generic [ref=e247]: "\"Windows\""
+        - generic [ref=e248]:
+          - generic [ref=e249]: upgrade-insecure-requests
+          - generic [ref=e251]: "1"
+        - generic [ref=e252]:
+          - generic [ref=e253]: user-agent
+          - generic [ref=e255]: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.0.0 Safari/537.36
+        - generic [ref=e256]:
+          - generic [ref=e257]: accept
+          - generic [ref=e259]: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+        - generic [ref=e260]:
+          - generic [ref=e261]: sec-fetch-site
+          - generic [ref=e263]: none
+        - generic [ref=e264]:
+          - generic [ref=e265]: sec-fetch-mode
+          - generic [ref=e267]: navigate
+        - generic [ref=e268]:
+          - generic [ref=e269]: sec-fetch-user
+          - generic [ref=e271]: "?1"
+        - generic [ref=e272]:
+          - generic [ref=e273]: sec-fetch-dest
+          - generic [ref=e275]: document
+        - generic [ref=e276]:
+          - generic [ref=e277]: accept-encoding
+          - generic [ref=e279]: gzip, deflate, br, zstd
+        - generic [ref=e280]:
+          - generic [ref=e281]: accept-language
+          - generic [ref=e283]: en-US,en;q=0.9
+        - generic [ref=e284]:
+          - generic [ref=e285]: cookie
+          - generic [ref=e287]: XSRF-TOKEN=eyJpdiI6IjVOOWFmdCtybEcyNUxuQVZPak96c0E9PSIsInZhbHVlIjoiWCs5WG1TSWtDM1V1TlhvYVVxcGVPck9UWEw2ekROczIzZVV1dWZMb0E2bjBjTDhUR1B6amJXTitJUjAxNUd5R1FvaGtsSDg3NUtLdGVLUkJYSEoxQUQraDNBMjh3ZXp1N0p3OGFCaG81blFlS0pwTUM0anE5MW92ZVJaQ3FnVTMiLCJtYWMiOiI5NWYyYjNjNjY2YmE4YTgyYzI4ZjlhZGZjYzAzYjVjN2EwZWU0ZTM5MmUyYzAzZTFhZDZiMWZlMDZiNThhNmYxIiwidGFnIjoiIn0%3D; zamzam-erp-session=eyJpdiI6IkI2NWRpUjB5akxocUlJZGpjdjN6eFE9PSIsInZhbHVlIjoiTkR1b2hqSlY3cnJwOVBOOElpR2YxOHAzT0hvWlZzZ1RyQitXQlZHV0xCNEVDMmlyT2cvaFhVdVRRMmNJQWJPVmc2V0wrTTFnR2s2RkFPSzdwOHg1YU90MTc0UXV5SkF2MHByOStsU1dzd1pNMU52eFlGVVNHektUcDl0SHpNaFoiLCJtYWMiOiIyYTI0OTBlOWNmNGNiZTU5NDM2YmNmNzM2NGFmNGY3MjljZGZlYzRmMjRlOGQ5ZTc0NzJjYjgyZjZiMDA5M2YzIiwidGFnIjoiIn0%3D
+    - generic [ref=e288]:
+      - heading "Body" [level=2] [ref=e289]
+      - generic [ref=e290]: // No request body
+    - generic [ref=e291]:
+      - heading "Routing" [level=2] [ref=e292]
+      - generic [ref=e293]:
+        - generic [ref=e294]:
+          - generic [ref=e295]: controller
+          - generic [ref=e297]: App\Http\Controllers\Web\Admin\Sales\SalesOrderController@create
+        - generic [ref=e298]:
+          - generic [ref=e299]: route name
+          - generic [ref=e301]: sales-orders.create
+        - generic [ref=e302]:
+          - generic [ref=e303]: middleware
+          - generic [ref=e305]: web, auth
+    - generic [ref=e306]:
+      - heading "Routing parameters" [level=2] [ref=e307]
+      - generic [ref=e308]: // No routing parameters
+  - generic [ref=e311]:
+    - img [ref=e313]
+    - img [ref=e3351]

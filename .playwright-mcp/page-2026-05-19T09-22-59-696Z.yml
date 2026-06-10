@@ -1,0 +1,205 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img "zap icon" [ref=e8]
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: ZamZam
+        - paragraph [ref=e11]: ERP v1.0
+    - navigation [ref=e12]:
+      - link "dashboard icon Dashboard" [ref=e13] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000
+        - img "dashboard icon" [ref=e16]
+        - generic [ref=e17]: Dashboard
+      - generic [ref=e18]:
+        - button "procurement icon Procurement" [ref=e19]:
+          - img "procurement icon" [ref=e22]
+          - generic [ref=e23]: Procurement
+          - img [ref=e24]
+        - generic [ref=e26]:
+          - link "Suppliers" [ref=e27] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/suppliers
+            - generic [ref=e29]: Suppliers
+          - link "Products" [ref=e30] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/products
+            - generic [ref=e32]: Products
+          - link "Purchase Orders" [ref=e33] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/purchase-orders
+            - generic [ref=e35]: Purchase Orders
+          - link "Categories" [ref=e36] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/categories
+            - generic [ref=e38]: Categories
+      - generic [ref=e39]:
+        - button "inventory icon Inventory & Warehouse" [ref=e40]:
+          - img "inventory icon" [ref=e43]
+          - generic [ref=e44]: Inventory & Warehouse
+          - img [ref=e45]
+        - generic [ref=e47]:
+          - link "Warehouses" [ref=e48] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/warehouses
+            - generic [ref=e50]: Warehouses
+          - link "Stock" [ref=e51] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock
+            - generic [ref=e53]: Stock
+          - link "Low Stock" [ref=e54] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock/low-stock
+            - generic [ref=e56]: Low Stock
+          - link "Transfers" [ref=e57] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock-transfers
+            - generic [ref=e59]: Transfers
+          - link "Adjustments" [ref=e60] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock-adjustments
+            - generic [ref=e62]: Adjustments
+          - link "Barcodes" [ref=e63] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/barcodes
+            - generic [ref=e65]: Barcodes
+      - button "sales icon Sales & Orders" [ref=e67]:
+        - img "sales icon" [ref=e70]
+        - generic [ref=e71]: Sales & Orders
+        - img [ref=e72]
+      - generic [ref=e74]:
+        - button "shipping icon Shipping & Logistics" [ref=e75]:
+          - img "shipping icon" [ref=e78]
+          - generic [ref=e79]: Shipping & Logistics
+          - img [ref=e80]
+        - generic [ref=e82]:
+          - link "International (CN→BD)" [ref=e83] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/shipping/international
+            - generic [ref=e85]: International (CN→BD)
+          - link "Domestic Soon" [ref=e86] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e88]: Domestic
+            - generic [ref=e89]: Soon
+      - button "finance icon Accounts & Finance" [ref=e91]:
+        - img "finance icon" [ref=e94]
+        - generic [ref=e95]: Accounts & Finance
+        - img [ref=e96]
+      - link "reports icon Reports Soon" [ref=e98] [cursor=pointer]:
+        - /url: "#"
+        - img "reports icon" [ref=e101]
+        - generic [ref=e102]: Reports
+        - generic [ref=e103]: Soon
+      - link "settings icon Settings" [ref=e104] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/settings
+        - img "settings icon" [ref=e107]
+        - generic [ref=e108]: Settings
+    - generic [ref=e110]:
+      - generic [ref=e112]: Z
+      - generic [ref=e113]:
+        - paragraph [ref=e114]: ZamZam Admin
+        - paragraph [ref=e115]: admin@zamzam.com.bd
+      - button "Collapse sidebar" [ref=e116]:
+        - img [ref=e117]
+  - generic [ref=e119]:
+    - banner [ref=e120]:
+      - generic [ref=e122]:
+        - img [ref=e123]
+        - textbox "Search... (Ctrl+K)" [ref=e126]
+      - generic [ref=e127]:
+        - button "Switch to light mode" [ref=e128]:
+          - img [ref=e129]
+        - button [ref=e135]:
+          - img [ref=e136]
+        - button [ref=e140]:
+          - img [ref=e141]
+        - button "Z ZamZam Admin" [ref=e144]:
+          - generic [ref=e145]: Z
+          - generic [ref=e146]: ZamZam Admin
+          - img [ref=e147]
+    - main [ref=e149]:
+      - generic [ref=e150]:
+        - generic [ref=e151]:
+          - generic [ref=e152]:
+            - heading "Suppliers" [level=1] [ref=e153]
+            - paragraph [ref=e154]: Manage Chinese suppliers
+          - generic [ref=e155]:
+            - button "Trash" [ref=e156]:
+              - img [ref=e157]
+              - text: Trash
+            - link "New Supplier" [ref=e160] [cursor=pointer]:
+              - /url: http://127.0.0.1:8000/suppliers/create
+              - img [ref=e161]
+              - text: New Supplier
+        - generic [ref=e163]:
+          - generic [ref=e164]:
+            - img [ref=e165]
+            - textbox "Search by name or WeChat ID..." [ref=e168]
+          - button "Reset" [ref=e169]
+        - table [ref=e171]:
+          - rowgroup [ref=e172]:
+            - row "Supplier City WeChat Rating Status Actions" [ref=e173]:
+              - columnheader "Supplier" [ref=e174]
+              - columnheader "City" [ref=e175]
+              - columnheader "WeChat" [ref=e176]
+              - columnheader "Rating" [ref=e177]
+              - columnheader "Status" [ref=e178]
+              - columnheader "Actions" [ref=e179]
+          - rowgroup [ref=e180]:
+            - row "Shenzhen Trading Co. 深圳贸易有限公司 Shenzhen, Guangdong shenzhen_trade Active View Edit" [ref=e181]:
+              - cell "Shenzhen Trading Co. 深圳贸易有限公司" [ref=e182]:
+                - generic [ref=e183]:
+                  - paragraph [ref=e184]: Shenzhen Trading Co.
+                  - paragraph [ref=e185]: 深圳贸易有限公司
+              - cell "Shenzhen, Guangdong" [ref=e186]
+              - cell "shenzhen_trade" [ref=e187]
+              - cell [ref=e188]:
+                - generic [ref=e189]:
+                  - img [ref=e190]
+                  - img [ref=e192]
+                  - img [ref=e194]
+                  - img [ref=e196]
+                  - img [ref=e198]
+              - cell "Active" [ref=e200]
+              - cell "View Edit" [ref=e201]:
+                - generic [ref=e202]:
+                  - link "View" [ref=e203] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/suppliers/1
+                  - link "Edit" [ref=e204] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/suppliers/1/edit
+                  - button [ref=e205]:
+                    - img [ref=e206]
+            - row "Guangzhou Yiwu Merchandise 广州义乌商品城 Guangzhou, Guangdong gy_merchandise Active View Edit" [ref=e209]:
+              - cell "Guangzhou Yiwu Merchandise 广州义乌商品城" [ref=e210]:
+                - generic [ref=e211]:
+                  - paragraph [ref=e212]: Guangzhou Yiwu Merchandise
+                  - paragraph [ref=e213]: 广州义乌商品城
+              - cell "Guangzhou, Guangdong" [ref=e214]
+              - cell "gy_merchandise" [ref=e215]
+              - cell [ref=e216]:
+                - generic [ref=e217]:
+                  - img [ref=e218]
+                  - img [ref=e220]
+                  - img [ref=e222]
+                  - img [ref=e224]
+                  - img [ref=e226]
+              - cell "Active" [ref=e228]
+              - cell "View Edit" [ref=e229]:
+                - generic [ref=e230]:
+                  - link "View" [ref=e231] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/suppliers/2
+                  - link "Edit" [ref=e232] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/suppliers/2/edit
+                  - button [ref=e233]:
+                    - img [ref=e234]
+            - row "Yiwu Small Goods Market 义乌小商品市场 Yiwu, Zhejiang yiwu_goods Active View Edit" [ref=e237]:
+              - cell "Yiwu Small Goods Market 义乌小商品市场" [ref=e238]:
+                - generic [ref=e239]:
+                  - paragraph [ref=e240]: Yiwu Small Goods Market
+                  - paragraph [ref=e241]: 义乌小商品市场
+              - cell "Yiwu, Zhejiang" [ref=e242]
+              - cell "yiwu_goods" [ref=e243]
+              - cell [ref=e244]:
+                - generic [ref=e245]:
+                  - img [ref=e246]
+                  - img [ref=e248]
+                  - img [ref=e250]
+                  - img [ref=e252]
+                  - img [ref=e254]
+              - cell "Active" [ref=e256]
+              - cell "View Edit" [ref=e257]:
+                - generic [ref=e258]:
+                  - link "View" [ref=e259] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/suppliers/3
+                  - link "Edit" [ref=e260] [cursor=pointer]:
+                    - /url: http://127.0.0.1:8000/suppliers/3/edit
+                  - button [ref=e261]:
+                    - img [ref=e262]

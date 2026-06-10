@@ -1,0 +1,771 @@
+﻿﻿Customer ID,Customer Type,Customer Name,Customer Phone,Customer Email,Customer Tag,Customer Source,District,Location,Created At,Last Order Date,Additional Information,Total Delivered Order Value,Order Frequency,SMS Count,Pending Orders,On Hold Orders,Approved Orders,Processing Orders,Shipped Orders,In-Transit Orders,Delivered Orders,Flagged Orders,Cancelled Orders
+C-5851976,E_COMMERCE_CUSTOMER,Abdullah Al Mamun,+8801728714614,mamun971647@gmail.com,REGULAR,MESSENGER,"1. Gazipur District
+2. Dhaka District
+3. Chattogram District
+4. Dhaka Suburb
+5. Dhaka Suburb
+6. Dhaka District
+7. Dhaka Suburb
+8. Dhaka Suburb
+9. Dhaka District
+10. Gazipur District
+11. Dhaka Suburb
+12. Dhaka Suburb
+13. Dhaka Suburb
+14. Chattogram District
+15. Dhaka District
+16. Gazipur District
+17. Gazipur District
+18. Dhaka District
+19. Dhaka Suburb
+20. Dhaka Suburb
+21. Dhaka District
+22. Gazipur District
+23. Dhaka District
+24. Dhaka Suburb
+25. Dhaka District
+26. Dhaka Suburb
+27. Gazipur District
+28. Dhaka Suburb
+29. Chattogram District
+30. Gazipur District
+31. Dhaka District
+32. Gazipur District
+33. Dhaka Suburb","1. 61/2, মাতবার বাড়ি রোড, ঝাজর, গাছা, গাজীপুর - 1704, Gazipur, BD
+2. Board Bazar, Dhaka, BD
+3. Charkumira Miji bari, Faridganj, Chandpur, Chittagong, BD
+4. Board Bazar, Gazipur, Dhaka, BD
+5. Board Bazar, Gazipur, Dhaka, BD
+6. 117/11 Japan Tower, 18 Muktar Bari Road, Tongi, Dhaka, BD
+7. Board Bazar, Gazipur, Dhaka, BD
+8. Board Bazar, Gazipur, Gazipur, Dhaka, BD
+9. 117/11 Japan Tower, 18 Muktar Bari Road, Tongi, Gazipur, Dhaka, BD
+10. 61/2, মাতবার বাড়ি রোড, ঝাজর, গাছা, গাজীপুর – 1704, Gazipur, BD
+11. Board Bazar, Gazipur, Gazipur, Dhaka, BD
+12. Board Bazar, Gazipur, Dhaka, BD
+13. Board Bazar, Gazipur, Gazipur, Dhaka, BD
+14. Charkumira Miji bari, Faridganj, Chandpur, Chittagong, BD
+15. 61/2, মাতবার বাড়ি রোড, ঝাজর, গাছা, গাজীপুর - 1704, Dhaka, BD
+16. 61/2, মাতবার বাড়ি রোড, ঝাজর, গাছা, গাজীপুর – 1704, Gazipur, BD
+17. 61/2, মাতবার বাড়ি রোড, ঝাজর, গাছা, গাজীপুর – 1704, Gazipur, BD
+18. Board Bazar, Dhaka, BD
+19. Board Bazar, Gazipur, Dhaka, BD
+20. Board Bazar, Gazipur, Dhaka, BD
+21. 117/11 Japan Tower, 18 Muktar Bari Road, Tongi, Dhaka, BD
+22. 61/2, মাতবার বাড়ি রোড, ঝাজর, গাছা, গাজীপুর – 1704, Gazipur, BD
+23. Board Bazar, Dhaka, BD
+24. Board Bazar, Gazipur, Dhaka, BD
+25. Board Bazar, Dhaka, BD
+26. Board Bazar, Gazipur, Gazipur, Dhaka, BD
+27. 61/2, মাতবার বাড়ি রোড, ঝাজর, গাছা, গাজীপুর – 1704, Gazipur, BD
+28. Board Bazar, Gazipur, Gazipur, Dhaka, BD
+29. Charkumira Miji bari, Faridganj, Chandpur, Chittagong, BD
+30. 61/2, মাতবার বাড়ি রোড, ঝাজর, গাছা, গাজীপুর – 1704, Gazipur, BD
+31. Board Bazar, Dhaka, BD
+32. 117/11 Japan Tower, 18 Muktar Bari Road, Tongi
+33. Board Bazar, Gazipur, Dhaka, BD","August 21st 2025, 6:31:09 pm","March 28th 2026, 3:59:33 pm",,0.00,28,1,0,0,0,0,0,0,1,3,24
+C-7706529,E_COMMERCE_CUSTOMER,FromZero,+8801724955420,,VIP,WHATSAPP,Barishal District,"Ansar Mansion, College Ave, Barisal City Corporation, Barishal","January 31st 2026, 12:42:52 pm","May 13th 2026, 4:26:17 pm",,175290.00,12,0,0,0,0,0,0,1,10,1,0
+C-9097988,E_COMMERCE_CUSTOMER,ইমরান,+8801812220008,,NEW,WHATSAPP,Gazipur District,"সাহাজউদ্দীন স্কুল এন্ড কলেজ, চেরাগ আলী, টংগী, গাজীপুর","May 13th 2026, 4:23:00 pm","May 13th 2026, 4:23:44 pm",,0.00,1,0,0,0,0,0,0,1,0,0,0
+C-9069441,E_COMMERCE_CUSTOMER,মো: শওকতুল ইসলাম,+8801869017541,,REGULAR,WHATSAPP,Noakhali District,"কালিকাপুর প্রাইমারি স্কুল, কালিকাপুর,  বিজবাগ, সেনবাগ, নোয়াখালী","May 11th 2026, 8:33:45 pm","May 11th 2026, 8:34:31 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-8687211,E_COMMERCE_CUSTOMER,Sumon Mia,+8801636876760,,REGULAR,OFFLINE,Magura District,Baharbag gopalgram magura Sadar,"April 13th 2026, 7:28:54 pm","May 12th 2026, 5:10:35 pm",,10320.00,2,0,0,0,1,0,0,0,1,0,0
+C-8771072,E_COMMERCE_CUSTOMER,Md. Lablu Sukder / Dreams Bazar,+8801322811149,,REGULAR,OTHER,Dhaka District,"Ajampur Railgate, Uttara, Dhaka","April 20th 2026, 5:38:43 pm","May 12th 2026, 7:40:02 pm",,92850.00,7,0,0,0,1,0,0,0,4,2,0
+C-8657754,E_COMMERCE_CUSTOMER,Shoriful Islam,+8801775220748,,REGULAR,OFFLINE,Dhaka District,"Khalpar, Uttara, Dhaka","April 11th 2026, 2:11:22 pm","May 12th 2026, 6:18:03 pm",,615740.00,11,0,0,0,1,0,0,0,9,1,0
+C-9064147,E_COMMERCE_CUSTOMER,তিহাম,+8801740222718,,REGULAR,WHATSAPP,Rajshahi District,"বাঘা উপজেলা স্বাস্থ্য কমপ্লেক্স, বাঘা,রাজশাহী","May 11th 2026, 3:22:54 pm","May 11th 2026, 3:23:44 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-6149851,E_COMMERCE_CUSTOMER,Love time bd,+8801302846667,,REGULAR,WHATSAPP,Dhaka District,Mirpur 1  e block 5 no rod 39/40 no house,"September 23rd 2025, 3:00:19 pm","May 12th 2026, 5:31:47 pm",,373400.00,19,0,0,0,0,0,0,1,17,0,1
+C-9081733,E_COMMERCE_CUSTOMER,Masud Rana,+8801680432266,,NEW,OFFLINE,Gazipur District,"Bou Bazar Road, Gazi bari mor, Tongi, Gazipur","May 12th 2026, 4:43:57 pm","May 12th 2026, 4:44:23 pm",,0.00,1,0,0,0,1,0,0,0,0,0,0
+C-8582120,E_COMMERCE_CUSTOMER,Shariful Islam,+8801610771245,,VIP,OFFLINE,Dhaka District,"৪৯/১-৪৯/২ সুগন্ধা পল্লী,বড়বাগ,মীরপুর -২, ঢাকা","April 5th 2026, 8:26:56 pm","May 12th 2026, 4:33:08 pm",,103900.00,5,0,0,0,3,0,0,0,2,0,0
+C-9050691,E_COMMERCE_CUSTOMER,সুমন দাস,+8801813089416,,REGULAR,WHATSAPP,Habiganj District,"জয়া শিল্পালয়, বগলা বাজার, হবিগঞ্জ সদর, হবিগঞ্জ","May 10th 2026, 5:33:34 pm","May 10th 2026, 5:36:54 pm",,4980.00,1,0,0,0,0,0,0,0,1,0,0
+C-8482398,E_COMMERCE_CUSTOMER,Mahadi Hasan,+8801642188327,,REGULAR,WHATSAPP,Dhaka District,"House: 9, Road-10, Block-H, Mirpur-2, Dhaka","March 28th 2026, 8:14:30 pm","May 11th 2026, 5:46:13 pm",,153000.00,5,0,0,0,1,0,0,0,4,0,0
+C-8481793,E_COMMERCE_CUSTOMER,Toma,+8801556629797,,REGULAR,WHATSAPP,Dhaka District,"Showarighat, Dhaka","March 28th 2026, 7:34:44 pm","May 10th 2026, 5:42:34 pm",,350110.00,11,0,0,0,2,0,0,0,9,0,0
+C-9031223,E_COMMERCE_CUSTOMER,আশরাফুল হক,+8801705598363,,REGULAR,WHATSAPP,Narayanganj District," গোপালদী বাজার, আড়াইহাজার, নারায়ণগঞ্জ ","May 9th 2026, 2:08:58 pm","May 9th 2026, 2:09:50 pm",,3840.00,1,0,0,0,0,0,0,0,1,0,0
+C-6263368,E_COMMERCE_CUSTOMER,Tanzirul Sunny,+8801558937184,,VIP,WHATSAPP,Bogura District,"Jan E Saba Housing,Road-5,House No-2 ,Bogura sadar","October 5th 2025, 5:46:03 pm","May 9th 2026, 4:14:09 pm",,1597160.00,26,0,0,0,0,0,0,4,22,0,0
+C-6243114,E_COMMERCE_CUSTOMER,ashiqur rahman,+8801930125153,,REGULAR,WHATSAPP,Chattogram District,"Alom badshah bari,
+Porir rasta, kumira, Sitakundu Chittagong","October 3rd 2025, 5:50:04 pm","May 9th 2026, 2:07:30 pm",,8940.00,2,0,0,0,0,0,0,0,2,0,0
+C-8984604,E_COMMERCE_CUSTOMER,Shoiab Chowdhuri / Chittagong Burmise Shop,+8801831091732,,REGULAR,WHATSAPP,Cox's Bazar District,"10 No., Sea-In Barmise Market, Sugandha Point, Hotel Motel Zone, Cox's Bazar","May 6th 2026, 2:35:56 pm","May 6th 2026, 2:36:50 pm",,20000.00,1,0,0,0,0,0,0,0,1,0,0
+C-6973337,E_COMMERCE_CUSTOMER,Al amin,+8801862197572,,REGULAR,WHATSAPP,Dhaka District,Dhaka Uttara sector#3 Road#7 House#32,"December 9th 2025, 12:30:10 pm","May 7th 2026, 12:44:13 pm",,65530.00,15,0,0,0,0,0,0,0,15,0,0
+C-8969116,E_COMMERCE_CUSTOMER,এম এ আলীম,+8801820565744,,REGULAR,WHATSAPP,Jashore District," ধলগ্রাম বাজার,বাঘারপাড়া,যশোর","May 5th 2026, 2:50:35 pm","May 5th 2026, 2:50:55 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7214848,E_COMMERCE_CUSTOMER,saiyed,+8801715577543,,REGULAR,WHATSAPP,Habiganj District,"olipur pg fix, saiyestagonj, hobigonj","December 27th 2025, 10:58:02 pm","May 5th 2026, 3:02:40 pm",,135600.00,10,0,0,0,0,0,0,0,10,0,0
+C-6584885,E_COMMERCE_CUSTOMER,Arif Azad,+8801618012726,,REGULAR,WHATSAPP,Dhaka District,"Bikrampur Bhaban, 338/3-D Floor 4 Room -B Uttar Goran, Khailgon, Dhaka-1219","November 9th 2025, 11:14:58 am","May 5th 2026, 3:06:08 pm",,516780.00,19,0,0,0,0,0,0,0,18,1,0
+C-8565479,E_COMMERCE_CUSTOMER,Noor E Mart,+8801716309316,,REGULAR,OFFLINE,Dhaka District,"Kanchkura, Uttarkhan, Dhaka","April 4th 2026, 2:11:06 pm","May 6th 2026, 5:59:49 pm",,5650.00,4,0,1,0,1,0,0,0,1,1,0
+C-8985597,E_COMMERCE_CUSTOMER,Rakibul Hasan,+8801799706948,,REGULAR,OFFLINE,Dhaka District,"House-19, Anha Palace, Road-08, Shekhertek, Dhaka-1207","May 6th 2026, 3:33:18 pm","May 6th 2026, 3:50:09 pm",,5200.00,2,0,1,0,0,0,0,0,1,0,0
+C-8955065,E_COMMERCE_CUSTOMER,নিয়ামুল হক,+8801914981097,,REGULAR,WHATSAPP,Narayanganj District,"নয়ামাটি, পাগলা,ফতুল্লা,নারায়ণগঞ্জ 
+","May 4th 2026, 4:09:33 pm","May 4th 2026, 4:10:39 pm",,3840.00,1,0,0,0,0,0,0,0,1,0,0
+C-8834207,E_COMMERCE_CUSTOMER,Miss Glow,+8801301401503,,REGULAR,WHATSAPP,Mymensingh District,"Saheb ali road,Natun bazar
+Mymensingh sador,Mymensingh ","April 25th 2026, 4:19:59 pm","May 5th 2026, 3:01:38 pm",,9600.00,2,0,0,0,0,0,0,0,2,0,0
+C-7566487,E_COMMERCE_CUSTOMER,Evan,+8801789856110,,REGULAR,WHATSAPP,Dhaka District,"House-40/A, Road-07, Sector-3, Uttara, Dhaka","January 20th 2026, 4:27:15 pm","May 4th 2026, 6:13:05 pm",,12500.00,2,0,0,0,0,0,0,0,2,0,0
+C-8688292,E_COMMERCE_CUSTOMER,Riajul Islam,+8801881904045,,REGULAR,WHATSAPP,Dhaka District,"Agamashi lane boro masjid, Najira bazar. Bongsal, dhaka","April 13th 2026, 9:05:33 pm","May 4th 2026, 2:03:24 pm",,56720.00,4,0,0,0,0,0,0,0,4,0,0
+C-8942599,E_COMMERCE_CUSTOMER,Sazib Hasan,+8801724309910,,NEW,OFFLINE,Dhaka District,"House-16, Road-6, Block-E, Section-12, Mirpur, Dhaka","May 3rd 2026, 6:52:53 pm","May 3rd 2026, 7:08:53 pm",,0.00,1,0,1,0,0,0,0,0,0,0,0
+C-8920927,E_COMMERCE_CUSTOMER,MD.Farhan bin Ibrahim ,+8801724416874,,REGULAR,WHATSAPP,Dhaka District,"New A.k.school, Shonir-Akhra, Donia, kadamtali, Dhaka -1236","May 2nd 2026, 11:51:03 am","May 2nd 2026, 11:51:58 am",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-8937450,E_COMMERCE_CUSTOMER,আবু সালেহ,+8801817784253,,NEW,WHATSAPP,Chattogram District," বাকের আলী ফকির টেক, ৩৮ নং ওয়ার্ড, বন্দর, চট্টগ্রাম","May 3rd 2026, 1:31:39 pm","May 3rd 2026, 1:34:00 pm",,0.00,1,0,1,0,0,0,0,0,0,0,0
+C-6554936,E_COMMERCE_CUSTOMER,Signature Gifts,+8801869651280,,REGULAR,WHATSAPP,Feni District,"Dr chisty Tower,Ssk Road,Feni. (Opposite of feni shilpokola Academy, beside Shwapno outlet)","November 6th 2025, 1:01:18 pm","April 30th 2026, 6:08:21 pm",,13200.00,3,0,0,0,0,0,0,0,3,0,0
+C-8479432,E_COMMERCE_CUSTOMER,UZZOL,+8801784905142,,REGULAR,WHATSAPP,Rangpur District,"rangpur sador rangpur  
+","March 28th 2026, 4:35:35 pm","April 30th 2026, 4:18:11 pm",,20500.00,3,0,0,0,0,0,0,2,1,0,0
+C-8896512,E_COMMERCE_CUSTOMER,MD Abu Sufian,+8801719192101,,NEW,OFFLINE,Dhaka District,"House-277/B, Road-05, Middle Faidabad, Dakshinkhan, Dhaka","April 30th 2026, 2:28:34 pm","April 30th 2026, 2:29:55 pm",,0.00,1,0,1,0,0,0,0,0,0,0,0
+C-8867211,E_COMMERCE_CUSTOMER,YAHIA,+8801741874773,,REGULAR,WHATSAPP,Sylhet District,"BOLAGANJ, COMPANIGANJ,  SYLHET","April 28th 2026, 10:37:44 am","April 28th 2026, 10:38:47 am",,3060.00,1,0,0,0,0,0,0,0,1,0,0
+C-8493397,E_COMMERCE_CUSTOMER,Fahad,+8801611221663,,REGULAR,OFFLINE,Dhaka District,"Rampura, Dhaka","March 29th 2026, 6:44:35 pm","March 29th 2026, 6:46:02 pm",,2390.00,1,0,0,0,0,0,0,0,1,0,0
+C-8857638,E_COMMERCE_CUSTOMER,Abdullah Al Maruf,+8801677568915,,REGULAR,WHATSAPP,Dhaka District,"405/a, West Shewrapara, Bondhan Road. Mirpur 1216, Dhaka. ","April 27th 2026, 2:56:02 pm","April 27th 2026, 2:58:42 pm",,6820.00,1,0,0,0,0,0,0,0,1,0,0
+C-8870187,E_COMMERCE_CUSTOMER,Abu Taher,+8801650208563,,NEW,LIVE_CHAT,Pabna District,"Salta, Faridpur","April 28th 2026, 2:47:03 pm","April 28th 2026, 2:47:18 pm",,0.00,1,0,0,0,1,0,0,0,0,0,0
+C-8280031,E_COMMERCE_CUSTOMER,Asif,+8801686171824,,REGULAR,OFFLINE,Dhaka District,"Mirpur-11, Dhaka","March 10th 2026, 5:01:26 pm","April 28th 2026, 2:39:27 pm",,500.00,2,0,1,0,0,0,0,0,1,0,0
+C-6728787,E_COMMERCE_CUSTOMER,Your choice office,+8801827176780,,REGULAR,WHATSAPP,Dhaka District,poshchim boxnagor ac mosjid shordar market demra Dhaka ,"November 21st 2025, 12:02:11 pm","April 28th 2026, 12:06:20 pm",,99600.00,3,0,0,0,0,0,0,0,3,0,0
+C-8557172,E_COMMERCE_CUSTOMER,Minhaj telecom,+8801727111188,,REGULAR,WHATSAPP,Meherpur District,গাংনী বাজার গাংনী মেহেরপুর,"April 3rd 2026, 7:25:38 pm","April 28th 2026, 10:05:49 am",,24180.00,5,0,1,0,1,0,0,0,3,0,0
+C-8836831,E_COMMERCE_CUSTOMER,Yeasir Arafat,+8801712612475,,REGULAR,WHATSAPP,Noakhali District,"Halima Dighirpar, Chatkhil, Noakhali","April 25th 2026, 7:43:58 pm","April 25th 2026, 7:45:05 pm",,1000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8541999,E_COMMERCE_CUSTOMER,মো: মাহবুব হাসান,+8801736464841,,REGULAR,WHATSAPP,Bogura District,"দুপচাচিয়া, ৫৮৮০ বগুড়া ","April 2nd 2026, 4:11:44 pm","April 27th 2026, 12:25:05 pm",,27450.00,3,0,0,0,0,0,0,0,3,0,0
+C-8829604,E_COMMERCE_CUSTOMER,Saifur,+8801676305239,,REGULAR,LIVE_CHAT,Chattogram District,"Diamond transport 
+Chittagong/riajudin bazar/jalsa super market ","April 25th 2026, 10:57:01 am","April 25th 2026, 11:00:03 am",,1296.00,1,0,0,0,0,0,0,0,1,0,0
+C-8698230,E_COMMERCE_CUSTOMER,মাহফুজ রাব্বি,+8801770704797,,REGULAR,WHATSAPP,Meherpur District,"গাংনী বাজার, গাংনি মেহেরপুর ","April 14th 2026, 7:06:46 pm","April 26th 2026, 6:18:55 pm",,50470.00,6,0,0,0,1,0,0,0,5,0,0
+C-7730903,E_COMMERCE_CUSTOMER,Shakil,+8801828076292,,VIP,LIVE_CHAT,Dhaka District,"K-195/1, Flat No. 3/A (2nd Floor), Amtola Mor, Khilkhet, Dhaka-1229","February 2nd 2026, 8:53:33 am","April 26th 2026, 4:35:35 pm",,2019740.00,15,0,0,0,0,0,0,0,14,0,1
+C-8833981,E_COMMERCE_CUSTOMER,জলি,+8801937449660,,REGULAR,WHATSAPP,Dhaka District,"মিরপুর ১২  ইস্টার্ন হাউসিং এইচ  ব্লক   ৬ নম্বর রোড  ২৩ নম্বর বাসা, Dhaka","April 25th 2026, 4:04:38 pm","April 25th 2026, 4:07:09 pm",,170.00,1,0,0,0,0,0,0,0,1,0,0
+C-8833746,E_COMMERCE_CUSTOMER,Rokibul Hasan / Dhaka Seller,+8801979899233,,REGULAR,OFFLINE,Dhaka District,"39/6/1, Chowdhuripara, Rampura, Dhaka","April 25th 2026, 3:49:29 pm","April 25th 2026, 3:50:09 pm",,22500.00,1,0,0,0,0,0,0,0,1,0,0
+C-8797966,E_COMMERCE_CUSTOMER,Adnan,+8801729791188,,REGULAR,OFFLINE,Dhaka District,"36/3/G/1, Ahmadbag Panir Pump, Boddho Mondir, Basabo, Dhaka","April 22nd 2026, 6:55:17 pm","April 22nd 2026, 6:58:08 pm",,37500.00,1,0,0,0,0,0,0,0,1,0,0
+C-8312946,E_COMMERCE_CUSTOMER,Ridoy,+8801999480079,,REGULAR,OFFLINE,Dhaka District,"Astar trade, 4th Floor, Bismillah Tower, Chawkbazar, Dhaka","March 12th 2026, 11:32:45 am","April 18th 2026, 2:53:26 pm",,136000.00,3,0,0,0,0,0,0,0,3,0,0
+C-8518662,E_COMMERCE_CUSTOMER,Tonmoy Ahmed,+8801303937817,,REGULAR,OFFLINE,Narayanganj District,"Borpa, Rupganj, Narayanganj","March 31st 2026, 6:41:48 pm","April 16th 2026, 7:51:03 pm",,5090.00,2,0,0,0,0,0,0,0,2,0,0
+C-8758632,E_COMMERCE_CUSTOMER,Siblu,+8801817101594,,REGULAR,LIVE_CHAT,Dhaka District,"Biswas Builders, Kachabazar, New Market, Dhaka","April 19th 2026, 6:12:47 pm","April 19th 2026, 7:07:09 pm",,418000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8806772,E_COMMERCE_CUSTOMER,Maruf Hasan Bulbul,+8801978387511,,REGULAR,OFFLINE,Dhaka District,"House-2, Road-13, Block-C, Banasri, Rampura, Dhaka","April 23rd 2026, 1:51:40 pm","April 23rd 2026, 2:00:27 pm",,110000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8811424,E_COMMERCE_CUSTOMER,Abdullah Al Mahbub,+8801926881576,,REGULAR,OFFLINE,Dhaka District,"Momotaj Tower, Chawkbazar, Dhaka","April 23rd 2026, 7:58:09 pm","April 23rd 2026, 8:08:26 pm",,400000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8686514,E_COMMERCE_CUSTOMER,Rafique Ullah,+8801881684828,,REGULAR,OFFLINE,Dhaka District,"Darunnazat Madrasah Gate, East Boxnagar, Sarulia, Demra, Dhaka","April 13th 2026, 6:19:10 pm","April 25th 2026, 8:56:03 pm",,7290.00,2,0,0,0,0,0,0,0,1,1,0
+C-8835724,E_COMMERCE_CUSTOMER,MD. Korban Ali,+8801620388735,,REGULAR,OFFLINE,Dhaka District,"House-4, Road-4, Kallyanpur, Mirpur, Dhaka","April 25th 2026, 6:10:52 pm","April 25th 2026, 6:15:44 pm",,45000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8568840,E_COMMERCE_CUSTOMER,AKM Mahmuduzzaman,+8801717659733,,REGULAR,OFFLINE,Dhaka District,"Opposite of chanda hotel, Begum bazar, Chawkbazar Dhaka.","April 4th 2026, 6:08:24 pm","April 25th 2026, 5:26:19 pm",,31500.00,2,0,0,0,0,0,0,0,2,0,0
+C-8528501,E_COMMERCE_CUSTOMER,Mini Global Corporation,+8801313303077,,REGULAR,OFFLINE,Dhaka District,"Planizer Tower, Kazibari, Chanpara, Uttarkhan, Dhaka-1230","April 1st 2026, 3:48:55 pm","April 25th 2026, 4:29:41 pm",,23640.00,2,0,0,0,0,0,0,0,2,0,0
+C-8571361,E_COMMERCE_CUSTOMER,Awalur Rashed Sobuj,+8801737743077,,REGULAR,OFFLINE,Dhaka District,"Amena Vila, Road-3, Adarshanagar, Middle Badda, Dhaka","April 4th 2026, 10:18:30 pm","April 25th 2026, 12:44:33 pm",,149830.00,3,0,0,0,1,0,0,0,2,0,0
+C-8596121,E_COMMERCE_CUSTOMER,Othentic Ponno / Sayedur Rahman,+8801878219269,,REGULAR,WHATSAPP,Dhaka District,"Sector-14, Uttara, Dhaka","April 6th 2026, 9:41:54 pm","April 24th 2026, 5:14:30 pm",,46750.00,2,0,0,0,0,0,0,0,2,0,0
+C-8808950,E_COMMERCE_CUSTOMER,দীপ্ত ভৌমিক,+8801726343104,,REGULAR,WHATSAPP,Magura District,মাগুরা সদর পুরাতন বাজার,"April 23rd 2026, 4:22:49 pm","April 23rd 2026, 4:36:39 pm",,21720.00,1,0,0,0,0,0,0,0,1,0,0
+C-8513426,E_COMMERCE_CUSTOMER,Nasir Khan,+8801740948494,,REGULAR,OFFLINE,Dhaka District,"Priyanka City, Road-5, House-8, Sector-12, Uttara, Dhaka","March 31st 2026, 12:01:35 pm","April 23rd 2026, 6:25:05 pm",,89690.00,6,0,0,0,0,0,0,0,6,0,0
+C-8539455,E_COMMERCE_CUSTOMER,Shifa,+8801560063957,,REGULAR,WHATSAPP,Gopalganj District,"Chandmari road Gopalgonj sadar 
+","April 2nd 2026, 1:21:32 pm","April 23rd 2026, 3:54:16 pm",,19940.00,2,0,0,0,0,0,0,0,2,0,0
+C-8784159,E_COMMERCE_CUSTOMER,রানু আক্তার,+8801745915289,,REGULAR,WHATSAPP,Sherpur District," সিংপারা, শেরপুর সদর","April 21st 2026, 5:25:35 pm","April 21st 2026, 6:26:13 pm",,5960.00,1,0,0,0,0,0,0,0,1,0,0
+C-8770419,E_COMMERCE_CUSTOMER,সিয়াম ইসলাম,+8801796004015,,REGULAR,WHATSAPP,Manikganj District,"সিদ্দিক নগর দরবার শরীফ থেকে রিসিভ করব, পূর্ব দাশরা, মানিকগঞ্জ","April 20th 2026, 4:49:38 pm","April 20th 2026, 8:12:11 pm",,560.00,1,0,0,0,0,0,0,0,1,0,0
+C-8785032,E_COMMERCE_CUSTOMER,Roni,+8801601001101,,REGULAR,WHATSAPP,Bagerhat District,"Bagerhat, Mollahat, Chaderhat","April 21st 2026, 6:35:04 pm","April 21st 2026, 6:56:38 pm",,4400.00,1,0,0,0,0,0,0,0,1,0,0
+C-8785283,E_COMMERCE_CUSTOMER,"মোঃ আল আমিন 
+",+8801866774063,,REGULAR,WHATSAPP,Gazipur District,"গাজীপুর, শ্রীপুর, মাওনা চৌরাস্তায়, নয়নপুর বাজার,  হামিম ডেনিম, ভাঙ্গা গেইট","April 21st 2026, 6:58:46 pm","April 21st 2026, 6:59:43 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-8686358,E_COMMERCE_CUSTOMER,Shakil ahmed,+8801995769731,,REGULAR,OTHER,Narayanganj District,d.i.t. Narayanganj,"April 13th 2026, 6:01:15 pm","April 20th 2026, 7:50:44 pm",,1000.00,2,0,0,0,0,0,0,0,1,1,0
+C-8760212,E_COMMERCE_CUSTOMER,Zayana,+8801328126217,,REGULAR,WHATSAPP,Rajshahi District,"Uposhohor mor,boalia,Rajshahi sadar,Rajshah","April 19th 2026, 8:20:19 pm","April 19th 2026, 8:20:55 pm",,4400.00,1,0,0,0,0,0,0,0,1,0,0
+C-8772701,E_COMMERCE_CUSTOMER,ABDULLAH,+8801836471103,,REGULAR,WHATSAPP,Munshiganj District,"শেখর নগর সোনালী ব্যাংকের নিচে, সিরাজদিখান, মুন্সিগঞ্জ","April 20th 2026, 7:48:41 pm","April 20th 2026, 7:49:39 pm",,1400.00,1,0,0,0,0,0,0,0,1,0,0
+C-8772624,E_COMMERCE_CUSTOMER,Md Sumon Mia,+8801648858454,,REGULAR,WHATSAPP,Dhaka District,"Uttar badda, Nilachol school er samne, Dhaka","April 20th 2026, 7:41:37 pm","April 20th 2026, 7:46:19 pm",,1270.00,1,0,0,0,0,0,0,0,1,0,0
+C-8746361,E_COMMERCE_CUSTOMER,Muhammad Rubel,+8801818323431,,REGULAR,WHATSAPP,Chattogram District,"Baroiarhat Mirsarai Chittagong 
+","April 18th 2026, 6:12:46 pm","April 18th 2026, 6:19:53 pm",,4200.00,1,0,0,0,0,0,0,0,1,0,0
+C-8746284,E_COMMERCE_CUSTOMER,ইকবাল,+8801742241664,,REGULAR,OFFLINE,Dhaka District,Keraniginj - kadomtoli - vangna - Dhaka tower,"April 18th 2026, 6:07:14 pm","April 18th 2026, 6:08:30 pm",,820.00,1,0,0,0,0,0,0,0,1,0,0
+C-6236602,E_COMMERCE_CUSTOMER,Aumit Muhuri,+8801975135877,,REGULAR,WHATSAPP,Chattogram District,"bainnapotti ma bobon teribazar kotwali chittagong 
+","October 2nd 2025, 10:45:06 pm","April 19th 2026, 3:18:15 pm",,74780.00,9,0,0,0,0,0,0,0,9,0,0
+C-8746167,E_COMMERCE_CUSTOMER,M Murad Rahman,+8801612747070,,REGULAR,OFFLINE,Faridpur District,"Sornokar Potti, Niltuli , Faridpur Sadar ,Faridpur ","April 18th 2026, 5:59:20 pm","April 18th 2026, 5:59:56 pm",,720.00,1,0,0,0,0,0,0,0,1,0,0
+C-8747554,E_COMMERCE_CUSTOMER,Tonmay Mahabubul,+8801869264828,,REGULAR,WHATSAPP,Dhaka District,"Konapara, Demra, Dhaka 1362, Adorshobagh, 15/20 Mohona Tower House","April 18th 2026, 8:00:35 pm","April 18th 2026, 8:01:24 pm",,3840.00,1,0,0,0,0,0,0,0,1,0,0
+C-8746126,E_COMMERCE_CUSTOMER,pinky,+8801758299881,,REGULAR,OFFLINE,Dhaka District,"Road - 16, house - 15,floor- 2nd, adabor(comfort housing),  Mohammadpur,  dhaka -1207","April 18th 2026, 5:56:02 pm","April 18th 2026, 5:58:33 pm",,900.00,1,0,0,0,0,0,0,0,1,0,0
+C-8606220,E_COMMERCE_CUSTOMER,Siam Mahmud,+8801608881296,,REGULAR,OTHER,Dhaka District,"Mokbul Hossain College er agayer goli, 
+Mohammadpur katasur 3 num road","April 7th 2026, 5:25:21 pm","April 18th 2026, 6:01:26 pm",,3000.00,3,0,0,0,0,0,0,0,2,1,0
+C-8491119,E_COMMERCE_CUSTOMER,Shuvo,+8801739237753,,REGULAR,OFFLINE,Dhaka District,"100, Rampura, Dhaka","March 29th 2026, 3:48:52 pm","April 16th 2026, 5:05:01 pm",,3700.00,3,0,0,0,0,0,0,0,2,1,0
+C-8545402,E_COMMERCE_CUSTOMER,Amanah Mart,+8801833374866,,REGULAR,WHATSAPP,Chattogram District,"Shop-01, 2nd Floor, System Imperial Complex, Chawkbazar, Chattogram","April 2nd 2026, 8:35:55 pm","April 15th 2026, 5:12:14 pm",,22080.00,3,0,0,0,0,0,0,0,2,1,0
+C-8534729,E_COMMERCE_CUSTOMER,Samia,+8801628405403,samiaafsari0@gmail.com,NEW,WEBSITE,"1. Noakhali District
+2. Narayanganj District","1. Nobab Foyjunnesa Hall , Noakhali Science and Technology University, Noakhali, Noakhali, BD
+2. Besides Madanganj Model Govt Primary School, Madanganj, Bandar, Narayanganj, BD","April 2nd 2026, 12:42:00 am","April 15th 2026, 4:50:38 pm",,0.00,2,0,0,0,0,0,0,0,0,0,2
+C-7324377,E_COMMERCE_CUSTOMER,MD Abdul Hakim,+8801688616252,,REGULAR,OFFLINE,Dhaka District,"House-27, Road-27, Sector-7, Uttara, Dhaka","January 4th 2026, 6:16:20 pm","April 15th 2026, 4:25:14 pm",,37000.00,2,0,0,0,0,0,0,0,2,0,0
+C-8703926,E_COMMERCE_CUSTOMER,মিলন,+8801633945265,,NEW,OTHER,Magura District,"কলেজ পাড়া, মহম্মদপুর, মাগুরা","April 15th 2026, 10:42:55 am","April 15th 2026, 10:44:06 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-8672532,E_COMMERCE_CUSTOMER,শান্ত,+8801752467151,,REGULAR,OTHER,Tangail District,"নলিন বাজার , ভূঞাপুর , টাঙ্গাইল ","April 12th 2026, 3:33:25 pm","April 12th 2026, 3:33:46 pm",,829.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005495,E_COMMERCE_CUSTOMER,Shakil,+8801834281761,,REGULAR,WEBSITE,Chandpur District,"সহদেবপুর, Kachua, Chandpur","September 8th 2025, 3:16:47 pm","April 8th 2026, 8:33:34 pm",,20500.00,2,0,0,0,0,0,0,0,1,1,0
+C-6367479,E_COMMERCE_CUSTOMER,মোঃ রাশেদুল ইসলাম,+8801988926495,,REGULAR,WHATSAPP,Barishal District,"বানারীপাড়া বালিকা বিদ্যালয়ের সামনে, বানারীপাড়া, বরিশাল","October 16th 2025, 2:17:17 pm","April 13th 2026, 7:37:50 pm",,7800.00,2,0,0,0,0,0,0,0,2,0,0
+C-8661176,E_COMMERCE_CUSTOMER,শাব্বির,+8801772467444,,REGULAR,WHATSAPP,Bogura District,"নন্দিগ্রাম, বগুড়া 
+","April 11th 2026, 6:08:59 pm","April 11th 2026, 6:10:04 pm",,820.00,1,0,0,0,0,0,0,0,1,0,0
+C-8568110,E_COMMERCE_CUSTOMER,Nazmul,+8801520104725,,REGULAR,WHATSAPP,Rangpur District,"Rangpur medical purbogate 
+","April 4th 2026, 5:09:59 pm","April 13th 2026, 5:01:26 pm",,72100.00,5,0,0,0,0,0,0,0,3,2,0
+C-8516231,E_COMMERCE_CUSTOMER,Hamja,+8801709143495,,REGULAR,WHATSAPP,Chandpur District,"Purbo Alonia, faridgonj, Chandpur. ","March 31st 2026, 3:40:47 pm","April 13th 2026, 1:41:43 pm",,41000.00,2,0,0,0,0,0,0,0,2,0,0
+C-8657193,E_COMMERCE_CUSTOMER,শ্রাবণ,+8801688699599,,REGULAR,OTHER,Dhaka District," বাংলাদেশ সুপ্রিম কোর্ট, ঢাকা (সোনালী ব্যাংক এর সামনে)","April 11th 2026, 1:30:36 pm","April 11th 2026, 1:33:00 pm",,2500.00,1,0,0,0,0,0,0,0,1,0,0
+C-8633712,E_COMMERCE_CUSTOMER,সারা সুপার শপ,+8801834741916,,REGULAR,WHATSAPP,Bogura District,"বগুড়া সেনানিবাস, শাজাহানপুর, বগুড়া","April 9th 2026, 5:07:03 pm","April 9th 2026, 5:15:06 pm",,5400.00,1,0,0,0,0,0,0,0,1,0,0
+C-8661640,E_COMMERCE_CUSTOMER,Tamanna Akhi,+8801758682853,,REGULAR,WHATSAPP,Dhaka District,"flat #12i, tower 2,sheltech Bithika,LAL khuti mosjid এর পাশে, মাজার রোড,মিরপুর","April 11th 2026, 6:52:13 pm","April 11th 2026, 6:52:36 pm",,960.00,1,0,0,0,0,0,0,0,1,0,0
+C-8657232,E_COMMERCE_CUSTOMER,Rabib,+8801873212308,,REGULAR,OTHER,Dhaka District,"১৪৫৬, দক্ষিণ দনিয়া, বায়তুল আমান জামে মসজিদ, কদমতলী,ঢাকা-১২৩৬","April 11th 2026, 1:34:00 pm","April 11th 2026, 1:34:57 pm",,1440.00,1,0,0,0,0,0,0,0,1,0,0
+C-8661246,E_COMMERCE_CUSTOMER,Humayun,+8801623268217,,REGULAR,WHATSAPP,Dhaka District,"Jahanara apartment.  Flat-12/A
+42-43, Siddheswari circular road, Dhaka-1217. 
+","April 11th 2026, 6:14:00 pm","April 11th 2026, 6:14:43 pm",,1420.00,1,0,0,0,0,0,0,0,1,0,0
+C-8623035,E_COMMERCE_CUSTOMER,JAHAN,+8801308290974,,REGULAR,OTHER,Kishoreganj District,"Bhairab,kishoregonj
+Chandiber moddo para sorkari hospital","April 8th 2026, 9:24:13 pm","April 9th 2026, 10:42:09 am",,800.00,1,0,0,0,0,0,0,0,1,0,0
+C-8619872,E_COMMERCE_CUSTOMER,Bengal Electronics (munna),+8801979715877,,REGULAR,WHATSAPP,Brahmanbaria District,"Nayanpur bazar, kasba, Brahmanbaria","April 8th 2026, 5:14:39 pm","April 11th 2026, 3:05:22 pm",,11420.00,2,0,0,0,0,0,0,0,2,0,0
+C-8657904,E_COMMERCE_CUSTOMER,Omid Hossen,+8801790770438,,REGULAR,OTHER,Dhaka District,"17/8, Block-A, Anandapur, Savar, Dhaka","April 11th 2026, 2:21:55 pm","April 11th 2026, 2:22:50 pm",,4200.00,1,0,0,0,0,0,0,0,1,0,0
+C-8604273,E_COMMERCE_CUSTOMER,Mi Shopon,+8801318244412,,REGULAR,OFFLINE,Narayanganj District,"Paradise city, East pagla, Kutubpur, Fotullah, Narayanganj","April 7th 2026, 3:14:56 pm","April 7th 2026, 3:17:00 pm",,6750.00,1,0,0,0,0,0,0,0,1,0,0
+C-8616547,E_COMMERCE_CUSTOMER,Saifullah Saif,+8801836333331,,REGULAR,OFFLINE,Dhaka District,"Ashkona, Dhaka","April 8th 2026, 1:43:44 pm","April 8th 2026, 1:47:25 pm",,12000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8635339,E_COMMERCE_CUSTOMER,MD Abdul Mun Im Dinar,+8801788422871,,REGULAR,OFFLINE,Dhaka District,"Pa-151, South Badda, Dhaka-1212","April 9th 2026, 7:12:14 pm","April 9th 2026, 7:14:33 pm",,10800.00,1,0,0,0,0,0,0,0,1,0,0
+C-8633654,E_COMMERCE_CUSTOMER,SmartOfferBD / MD Tanvir Ali,+8801773969203,,REGULAR,WHATSAPP,Kushtia District,"ঘোড়ামারা বাস স্ট্যান্ড, চাঁদ মার্কেট বাজার, ওয়ালটন শোরুম, mirpur, Kushtia","April 9th 2026, 5:01:59 pm","April 9th 2026, 5:05:17 pm",,8800.00,1,0,0,0,0,0,0,0,1,0,0
+C-8633244,E_COMMERCE_CUSTOMER,Jannat,+8801629826291,,REGULAR,WHATSAPP,Dhaka District,"House: 14-2B, Senapolli, khajurtak,  Kalartak, Saver Cantonment, Ahulia, Dhaka","April 9th 2026, 4:35:35 pm","April 9th 2026, 4:37:09 pm",,500.00,1,0,0,0,0,0,0,0,1,0,0
+C-8633867,E_COMMERCE_CUSTOMER,Tabin Al Taufiq,+8801535720196,,REGULAR,WHATSAPP,Dhaka District,"House no 141(2nd floor), Azimpur Road, Lalbagh, Dhaka 1205","April 9th 2026, 5:17:25 pm","April 9th 2026, 5:17:58 pm",,720.00,1,0,0,0,0,0,0,0,1,0,0
+C-8633851,E_COMMERCE_CUSTOMER,Sobuz,+8801601440499,,REGULAR,WHATSAPP,Dhaka District,"253/C Sadman vhila,West Agargaon, 60 feet,Bonolata, Road.02, Shere E Bangla Nagar, Dhaka- 1207","April 9th 2026, 5:16:08 pm","April 9th 2026, 5:16:43 pm",,750.00,1,0,0,0,0,0,0,0,1,0,0
+C-8620396,E_COMMERCE_CUSTOMER,Md. Jafar,+8801829299380,,REGULAR,WHATSAPP,Chattogram District,"Rob Mansion, Road 2, Sardar Bahadur Nagar, South Khulshi, Chittagong","April 8th 2026, 5:49:57 pm","April 8th 2026, 5:52:21 pm",,20400.00,1,0,0,0,0,0,0,0,1,0,0
+C-8620272,E_COMMERCE_CUSTOMER,Mariam,+8801337861145,,REGULAR,WHATSAPP,Dhaka District,"west Shewrapara mirpur dhaka torab ali mosjid goli 
+","April 8th 2026, 5:40:02 pm","April 9th 2026, 6:29:54 pm",,1390.00,2,0,0,0,0,0,0,0,2,0,0
+C-8591330,E_COMMERCE_CUSTOMER,নাসরিন সুরাইয়া,+8801918617269,,REGULAR,OTHER,Cumilla District,"Burichong, Burichang, Burichang, Burichang","April 6th 2026, 3:40:18 pm","April 6th 2026, 4:25:08 pm",,800.00,1,0,0,0,0,0,0,0,1,0,0
+C-8620794,E_COMMERCE_CUSTOMER,hrithik Roy,+8801786686509,,REGULAR,WHATSAPP,Khulna District,"gollamari sos school,jobbor shorok ,khulna","April 8th 2026, 6:24:20 pm","April 8th 2026, 6:25:01 pm",,1200.00,1,0,0,0,0,0,0,0,1,0,0
+C-8630969,E_COMMERCE_CUSTOMER,Shahin khan,+8801327841989,khanshaheen823@gmail.com,VIP,OFFLINE,Dhaka District,"House-59, Road-6/A, Sector-5, Uttara","April 9th 2026, 2:17:56 pm","April 9th 2026, 2:20:56 pm",Alternative: +8615906794456,0.00,1,0,0,0,1,0,0,0,0,0,0
+C-8591004,E_COMMERCE_CUSTOMER,"সোলেমানিয়া বুক হাউজ
+",+8801997818308,,REGULAR,WHATSAPP,Dhaka District,"দোকান-১১, ইসলামিয়া পুস্তক (নতুন) মার্কেট, বায়তুল মোকাররম, ঢাকা-১০০০","April 6th 2026, 3:20:50 pm","April 6th 2026, 3:21:33 pm",,12000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8518555,E_COMMERCE_CUSTOMER,"Moni(assistant teacher 28 no, balipara board govt primary school",+8801839802126,,REGULAR,OTHER,Pirojpur District,"balipara, zianagor, pirojpur ","March 31st 2026, 6:29:28 pm","April 8th 2026, 5:34:09 pm",,3200.00,3,0,0,0,0,0,0,0,2,0,1
+C-8618731,E_COMMERCE_CUSTOMER,Jahid Hasan,+8801756112443,,NEW,OFFLINE,Dhaka District,house-10/ Road-22/ sector -14/ uttara,"April 8th 2026, 4:05:03 pm","April 8th 2026, 4:05:54 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8607312,E_COMMERCE_CUSTOMER,Didarul Zidan,+8801719274679,,REGULAR,WHATSAPP,Pirojpur District,"Muslim Para, Pirojpur Sadar, Pirojpur","April 7th 2026, 6:52:07 pm","April 7th 2026, 6:53:19 pm",,1100.00,1,0,0,0,0,0,0,0,1,0,0
+C-8611131,E_COMMERCE_CUSTOMER,DINGII MART/MD EASIR AL IMRAN,+8801718217441,,NEW,OFFLINE,Dhaka District,"BATEN NAGAR, MAZAR ROAD, MIRPUR 1, DHAKA","April 8th 2026, 12:11:00 am","April 8th 2026, 12:12:34 am",,0.00,1,0,1,0,0,0,0,0,0,0,0
+C-8578969,E_COMMERCE_CUSTOMER,Md Yousuf,+8801988082380,,REGULAR,WHATSAPP,Dhaka District,"South Dhormosur, Rohitpur, Keranigonj, Dhaka","April 5th 2026, 4:07:02 pm","April 7th 2026, 4:42:20 pm",,99800.00,2,0,0,0,0,0,0,0,2,0,0
+C-8604644,E_COMMERCE_CUSTOMER,Asif,+8801856284087,,NEW,OFFLINE,Dhaka District,"Estearn Housing, Pallabi, Dhaka","April 7th 2026, 3:37:23 pm","April 7th 2026, 3:39:45 pm",,0.00,1,0,1,0,0,0,0,0,0,0,0
+C-6264721,E_COMMERCE_CUSTOMER,রায়হান,+8801750275551,,REGULAR,WHATSAPP,Chattogram District,"AH Shopping Complex, ফটিকছড়ি, বিবিরহাট ","October 5th 2025, 8:08:03 pm","April 6th 2026, 8:49:27 pm",,20530.00,4,0,0,0,0,0,0,0,4,0,0
+C-8578829,E_COMMERCE_CUSTOMER,Md Rabiul Awal Rony,+8801568248402,,REGULAR,WHATSAPP,Feni District,"Feni, Mohipal","April 5th 2026, 3:56:42 pm","April 5th 2026, 3:58:33 pm",,7760.00,1,0,0,0,0,0,0,0,1,0,0
+C-8567866,E_COMMERCE_CUSTOMER,বিপ্লব,+8801767540871,,REGULAR,OFFLINE,Rangpur District,"পাওটানাহাট, পীরগাছা, রংপুর","April 4th 2026, 4:51:39 pm","April 4th 2026, 7:37:14 pm",,115000.00,2,0,0,0,0,0,0,0,2,0,0
+C-8506899,E_COMMERCE_CUSTOMER,মোহাম্মদ নাজমুল হক,+8801751095286,,REGULAR,WHATSAPP,Natore District,"নলডাঙ্গা , নাটোর","March 30th 2026, 7:47:53 pm","March 30th 2026, 7:49:35 pm",,5980.00,1,0,0,0,0,0,0,0,1,0,0
+C-8489258,E_COMMERCE_CUSTOMER,Hridoy Paul,+8801627234751,,REGULAR,WHATSAPP,Dhaka District,"71 Tatibazar, Old dhaka
+","March 29th 2026, 1:13:57 pm","March 29th 2026, 1:18:29 pm",,7600.00,1,0,0,0,0,0,0,0,1,0,0
+C-8505857,E_COMMERCE_CUSTOMER,Hamza Anqur,+8801750999341,,REGULAR,WHATSAPP,Dhaka District,"1258/3 East Jurain , Comissioner Road, Near Miru Bazar , Dhaka - 1204
+","March 30th 2026, 6:18:58 pm","March 30th 2026, 6:20:26 pm",,8800.00,1,0,0,0,0,0,0,0,1,0,0
+C-8468784,E_COMMERCE_CUSTOMER,Daniel,+8801889917777,,REGULAR,WHATSAPP,Chattogram District,"House-156, East Nasirabad, 156 CDA Avenue, opposite Biman Office,2no. Gate, Chattogram.","March 27th 2026, 5:55:22 pm","March 27th 2026, 5:58:53 pm",,8940.00,1,0,0,0,0,0,0,0,1,0,0
+C-8476936,E_COMMERCE_CUSTOMER,Prince Oronno,+8801631182103,,REGULAR,WHATSAPP,Dhaka District,"Fakirchan community center, 
+Narinda, Wari, Dhaka. ","March 28th 2026, 1:41:00 pm","March 28th 2026, 1:42:40 pm",,990.00,1,0,0,0,0,0,0,0,1,0,0
+C-8370615,E_COMMERCE_CUSTOMER,মোঃ শহিদুল ইসলাম,+8801996033145,,REGULAR,WHATSAPP,Narail District,"চরকোটাকোল, লোহাগড়া, নড়াইল ","March 15th 2026, 3:08:39 pm","March 15th 2026, 3:09:27 pm",,270.00,1,0,0,0,0,0,0,0,1,0,0
+C-8370636,E_COMMERCE_CUSTOMER,শাহরিয়ার ইসলাম,+8801989584213,,REGULAR,WHATSAPP,Dhaka District,"ঢাকা,রায়েরবাগ,মুজাহিদ নগর, কদমতলী থানা পাশে, স্বপ্ন মহল ভবন,রাজধানী হাই স্কুল এর পাশে","March 15th 2026, 3:10:10 pm","March 15th 2026, 3:10:31 pm",,210.00,1,0,0,0,0,0,0,0,1,0,0
+C-8337161,E_COMMERCE_CUSTOMER,Saniyad,+8801612341163,,REGULAR,OTHER,Dhaka District,"1337 East Shewrapara, Kafrul, Dhaka","March 13th 2026, 4:26:30 pm","March 13th 2026, 4:28:18 pm",,2760.00,1,0,0,0,0,0,0,0,1,0,0
+C-8306910,E_COMMERCE_CUSTOMER,ইফতেখার উদ্দিন,+8801892589256,,REGULAR,WHATSAPP,Feni District,"পূর্ব কাছড় , ধর্মপুর , ফেনী সদর, ফেনী","March 12th 2026, 12:02:25 am","March 12th 2026, 12:03:01 am",,9000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8226306,E_COMMERCE_CUSTOMER, MD SADIKUR RAHMAN,+8801760911196,,REGULAR,WHATSAPP,Chattogram District,"জান্নাতুল বাকি মসজিদ মৌলুভী পাড়া আগ্রাবাদ, ডাবলমুরিং, চট্টগ্রাম","March 7th 2026, 8:07:37 pm","March 7th 2026, 8:08:24 pm",,5400.00,1,0,0,0,0,0,0,0,1,0,0
+C-8203497,E_COMMERCE_CUSTOMER,মিনহাজুল ইসলাম,+8801648008544,,REGULAR,WHATSAPP,Chandpur District,"বেলতলা থেকে দক্ষিণ পাশে, কলেজ রোড, ফরিদগঞ্জ , চাঁদপুর","March 6th 2026, 3:55:49 pm","March 6th 2026, 3:57:34 pm",,1200.00,1,0,0,0,0,0,0,0,1,0,0
+C-8206553,E_COMMERCE_CUSTOMER,শাহাদাত হুসাইন,+8801793775092,,REGULAR,WHATSAPP,Dhaka District,"12/H, সালাম ম্যানশন, রোড-৮/এ (পুরনো-১৫), পশ্চিম ধানমন্ডি, ঢাকা-১২০৯।","March 6th 2026, 6:56:18 pm","March 6th 2026, 6:57:21 pm",,400.00,1,0,0,0,0,0,0,0,1,0,0
+C-8203779,E_COMMERCE_CUSTOMER,মোঃ জাহিদ হাসান,+8801601881702,,REGULAR,WHATSAPP,Dhaka District,"bddl কোম্পানি, ৫ নাম্বার রোড, তালতলা রিয়াজববাগ, খিলগাঁও,  ঢাকা","March 6th 2026, 4:07:40 pm","March 6th 2026, 4:08:49 pm",,432.00,1,0,0,0,0,0,0,0,1,0,0
+C-8203686,E_COMMERCE_CUSTOMER,মাইন উদ্দিন,+8801701436417,,REGULAR,WHATSAPP,Dhaka District,"নরাইল স্টোর, জিরো পয়েন্ট, মুসলিম নগর, মাতুয়াইল, ডেমরা, ঢাকা - ১৩৬২","March 6th 2026, 4:03:48 pm","March 16th 2026, 1:43:49 pm",,10120.00,3,0,0,0,0,0,0,0,3,0,0
+C-8203437,E_COMMERCE_CUSTOMER,ইবরাহিম,+8801576677369,,REGULAR,WHATSAPP,Gopalganj District,"সদর, গোপালগঞ্জ ","March 6th 2026, 3:52:49 pm","March 6th 2026, 3:53:25 pm",,240.00,1,0,0,0,0,0,0,0,1,0,0
+C-8203621,E_COMMERCE_CUSTOMER,মোঃইব্রাহিম,+8801750961012,,REGULAR,WHATSAPP,Dhaka District,"শহীদবাগ স্কুলের পাশে, ঈদগা মাঠ , কালসি ডি ব্লক, মিরপুর, ঢাকা","March 6th 2026, 4:01:25 pm","March 6th 2026, 4:02:00 pm",,720.00,1,0,0,0,0,0,0,0,1,0,0
+C-8183776,E_COMMERCE_CUSTOMER,Abu Hasan,+8801781131227,,REGULAR,WHATSAPP,Barisal District,"কাশিপুর বরিশাল কাশিপুর নবজাগরণী সড়ক মুক্তারবাড়ি বাবুল মেরিটারী বারি বরিশাল 
+","March 5th 2026, 2:45:25 pm","March 5th 2026, 2:45:53 pm",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-8177609,E_COMMERCE_CUSTOMER,কোনাবাড়ি লাইব্রেরী,+8801782805959,,REGULAR,WHATSAPP,Gazipur District,"কোনাবাড়ি, গাজীপুর","March 5th 2026, 5:36:28 am","March 5th 2026, 5:37:29 am",,2750.00,1,0,0,0,0,0,0,0,1,0,0
+C-8163035,E_COMMERCE_CUSTOMER,lamiza,+8801304760545,,REGULAR,MESSENGER,Dhaka District,"jatrabari,Soni akhra ,hazi mosjid.","March 4th 2026, 12:04:50 pm","March 29th 2026, 3:34:52 pm",,1740.00,3,0,0,0,0,0,0,0,3,0,0
+C-8152770,E_COMMERCE_CUSTOMER,Sakib ahammed,+8801959475652,,REGULAR,WHATSAPP,Dhaka District,Loharbrij Kamrangir Char Dhaka,"March 3rd 2026, 6:40:01 pm","March 3rd 2026, 6:40:43 pm",,6000.00,1,0,0,0,0,0,0,0,1,0,0
+C-8132047,E_COMMERCE_CUSTOMER,রিপন,+8801740683625,,REGULAR,WHATSAPP,Brahmanbaria District,"বিজয়নগর, বাহ্মনবাড়িয়া","March 2nd 2026, 2:25:54 pm","March 2nd 2026, 2:27:33 pm",,4200.00,1,0,0,0,0,0,0,0,1,0,0
+C-8132024,E_COMMERCE_CUSTOMER,মোঃ তানজিদ ইসলাম,+8801987575788,,REGULAR,WHATSAPP,Dhaka Suburb," সপ্ন বিলাশ, মুজিবুর রহমান রোড, নিরিবিলি, সাভার","March 2nd 2026, 2:24:12 pm","March 2nd 2026, 2:24:51 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-8134077,E_COMMERCE_CUSTOMER,কাইয়ুম,+8801991079315,,REGULAR,WHATSAPP,Jhalokathi District,বরিশাল ঝালকাঠি নলছিটি মোল্লারহাট বাজার,"March 2nd 2026, 4:01:00 pm","March 2nd 2026, 4:03:57 pm",,585.00,1,0,0,0,0,0,0,0,1,0,0
+C-8102893,E_COMMERCE_CUSTOMER,Darun online shop,+8801735228855,,REGULAR,LIVE_CHAT,Khulna District,Khulna Sador,"February 28th 2026, 3:11:10 pm","February 28th 2026, 3:22:23 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-8119094,E_COMMERCE_CUSTOMER,আরমান,+8801603279064,,REGULAR,WHATSAPP,Jamalpur District,"কাহেত পাড়া বাজার, মেলান্দহ, জামালপুর","March 1st 2026, 4:25:13 pm","March 1st 2026, 4:26:57 pm",,2800.00,1,0,0,0,0,0,0,0,1,0,0
+C-8538741,E_COMMERCE_CUSTOMER,Shah Newaz,+8801790415225,,REGULAR,OFFLINE,Narayanganj District,"921, Hazi Hayder Ali Road, Jamtola, Narayanganj","April 2nd 2026, 12:30:44 pm","April 2nd 2026, 12:31:33 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-8526293,E_COMMERCE_CUSTOMER,NakshiWala / Protap Sheikh,+8801613996555,,REGULAR,OFFLINE,Dhaka District,"615, Monipur, Mirpur-2, Dhaka","April 1st 2026, 1:02:17 pm","April 1st 2026, 1:03:30 pm",,1470.00,1,0,0,0,0,0,0,0,1,0,0
+C-6412354,E_COMMERCE_CUSTOMER,Md. Saiful Islam,+8801914304913,,VIP,WHATSAPP,Khulna District,"Click BD office, Gollamari, Khulna","October 21st 2025, 2:38:26 pm","March 31st 2026, 12:59:49 pm",,183950.00,13,0,0,0,0,0,0,0,13,0,0
+C-7092532,E_COMMERCE_CUSTOMER,তামিম,+8801819493274,,REGULAR,WHATSAPP,Bogura District,"বগুড়া, শাজাহানপুর, বি ব্লক,কামারপাড়া ","December 18th 2025, 1:12:38 pm","March 31st 2026, 5:14:24 pm",,21850.00,7,0,0,0,0,0,0,0,7,0,0
+C-8516605,E_COMMERCE_CUSTOMER,Faisal,+8801673967367,bdgangchill@gmail.com,NEW,WEBSITE,Chattogram District,"Zannat Babhan, 6No. East Sholoshahar, Neyamat Ali Sufi Lane, KB Aman Ali Road, Noor Begum Jame Mosjid, Chawkbazar, Chattogram., Chittagong, BD","March 31st 2026, 4:01:53 pm","March 31st 2026, 4:02:07 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6656862,E_COMMERCE_CUSTOMER,Fahim,+8801764442465,,REGULAR,OFFLINE,Dhaka District,"Plot -18, avenue -06, block- H, uttara 17 , dhaka 1230 ( opposite of world university gate)","November 15th 2025, 12:24:18 pm","March 31st 2026, 2:22:01 pm",,19480.00,3,0,0,0,0,0,0,0,3,0,0
+C-8508122,E_COMMERCE_CUSTOMER,Rokonoddin,+8801402682520,,NEW,WHATSAPP,Narsingdi District,"Ruchir Mor, chormondolia, Monohordi, Narshingdi","March 30th 2026, 9:29:01 pm","March 30th 2026, 9:29:25 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-7239277,E_COMMERCE_CUSTOMER,Sabuj Airforce Soto Vi,+8801739440643,,NEW,WHATSAPP,Dhaka District,"Mirpur DOHS, Mirpur, Dhaka","December 29th 2025, 6:53:23 pm","March 29th 2026, 5:04:20 pm",,0.00,2,0,0,0,1,1,0,0,0,0,0
+C-6889378,E_COMMERCE_CUSTOMER,Abdullah,+8801728714615,brighthivedigital@gmail.com,REGULAR,WEBSITE,Dhaka District,"117/11 Japan Tower, 18 Muktar Bari Road, Tongi, Dhaka, BD","December 3rd 2025, 12:17:23 pm","March 28th 2026, 2:29:15 pm",,0.00,21,0,0,0,0,0,0,0,0,2,19
+C-8448376,E_COMMERCE_CUSTOMER,Abu Bakar,+8801720357535,,NEW,OFFLINE,Dhaka District,"Sabuj Gombuj, Ahalaia, Uttara, Dhaka","March 25th 2026, 8:31:01 pm","March 25th 2026, 8:34:10 pm",,0.00,1,0,0,0,1,0,0,0,0,0,0
+C-8396254,E_COMMERCE_CUSTOMER,Md. Nazimuddin Jisan,+8801323008955,,NEW,LIVE_CHAT,Dhaka District,"Shop#A-32, (Ground Floor), BNS Centre, Sector-07, Uttara, Dhaka-1230","March 17th 2026, 6:56:34 pm","March 17th 2026, 6:57:32 pm",,0.00,1,0,0,0,1,0,0,0,0,0,0
+C-8388314,E_COMMERCE_CUSTOMER,Sumon Vai,+8801730973337,,NEW,OFFLINE,Dhaka District,"House-59, Road-6/A, Sector-5, Uttara","March 16th 2026, 9:55:30 pm","March 16th 2026, 9:58:12 pm",,0.00,1,0,0,0,1,0,0,0,0,0,0
+C-8388295,E_COMMERCE_CUSTOMER,Mr. Raju Bank Manager,+8801712345679,,NEW,LIVE_CHAT,Dhaka District,"Manikdi, Dhaka","March 16th 2026, 9:53:31 pm","March 16th 2026, 9:54:34 pm",,0.00,1,0,0,0,1,0,0,0,0,0,0
+C-8319458,E_COMMERCE_CUSTOMER,Amit,+889873179934,amit.singh826@hotmail.com,NEW,WEBSITE,Dhaka District,"Dhanmondi Rd 1, Dhaka, BD","March 12th 2026, 4:52:21 pm","March 12th 2026, 4:52:25 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8303554,E_COMMERCE_CUSTOMER,Neha,+889343857210,neha.gupta724@live.com,NEW,WEBSITE,Dhaka District,"Dhanmondi Rd 1, Dhaka, BD","March 11th 2026, 8:46:05 pm","March 11th 2026, 8:46:10 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8237931,E_COMMERCE_CUSTOMER,Mujahid,+8801874647811,,NEW,OFFLINE,Gazipur District,"Banglabazar, Rajendrapur, Gazipur","March 8th 2026, 1:59:51 pm","March 8th 2026, 2:00:18 pm",,0.00,1,0,0,0,0,0,0,1,0,0,0
+C-8139538,E_COMMERCE_CUSTOMER,Shifat Hossain,+8801681695409,,NEW,LIVE_CHAT,Dhaka District,"Lakecity Concord shopping, Khilkhet, Dhaka","March 2nd 2026, 10:34:39 pm","March 8th 2026, 1:35:46 pm",,0.00,2,0,0,0,0,0,0,2,0,0,0
+C-8229729,E_COMMERCE_CUSTOMER,Suresh,+889399790097,suresh.reddy890@gmail.com,NEW,WEBSITE,Dhaka District,"Dhanmondi Rd 1, Dhaka, BD","March 7th 2026, 11:53:45 pm","March 7th 2026, 11:53:48 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8149235,E_COMMERCE_CUSTOMER,MD Ridoy Ahmed,+8801968017145,,REGULAR,WHATSAPP,Kushtia District,"Kumarkhali, Kustia","March 3rd 2026, 3:21:29 pm","March 3rd 2026, 3:29:16 pm",,3840.00,1,0,0,0,0,0,0,0,1,0,0
+C-8181710,E_COMMERCE_CUSTOMER,তারেক হোসেন,+8801718952879,,NEW,WHATSAPP,Chapai Nawabganj District,"শ্যামপুর চামাবাজার, কানসাট, শিবগঞ্জ, চাঁপাইনবাবগঞ্জ","March 5th 2026, 12:49:30 pm","March 5th 2026, 12:51:10 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-8121360,E_COMMERCE_CUSTOMER,Anwar,+8801558916626,,NEW,LIVE_CHAT,Chattogram District,"nasirabad, gec moor, Chittagong","March 1st 2026, 7:18:37 pm","March 1st 2026, 7:20:23 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-8073897,E_COMMERCE_CUSTOMER,Vikram Kumar,+889667377593,vikram.kumar530@gmail.com,NEW,WEBSITE,Dhaka District,"Dhanmondi Rd 1, Dhaka, Dhaka, BD","February 26th 2026, 7:07:16 pm","February 26th 2026, 7:07:20 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8073594,E_COMMERCE_CUSTOMER,Anita Verma,+889328806534,anita.verma589@outlook.com,NEW,WEBSITE,Dhaka District,"Dhanmondi Rd 1, Dhaka, Dhaka, BD","February 26th 2026, 6:50:48 pm","February 26th 2026, 6:50:54 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8064333,E_COMMERCE_CUSTOMER,Pooja Joshi,+889993879997,pooja.joshi68@gmail.com,NEW,WEBSITE,Dhaka District,"Dhanmondi Rd 1, Dhaka, Dhaka, BD","February 26th 2026, 7:02:23 am","February 26th 2026, 7:02:25 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8063343,E_COMMERCE_CUSTOMER,Anita Verma,+889330629719,anita.verma38@rediffmail.com,NEW,WEBSITE,Dhaka District,"Dhanmondi Rd 1, Dhaka, Dhaka, BD","February 26th 2026, 3:54:53 am","February 26th 2026, 3:54:58 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8016712,E_COMMERCE_CUSTOMER,Vikram Kumar,+889905301028,vikram.kumar887@hotmail.com,NEW,WEBSITE,Gazipur District,"123 Main St, Chicago, BD","February 23rd 2026, 8:09:25 am","February 23rd 2026, 8:09:27 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8016646,E_COMMERCE_CUSTOMER,Neha Gupta,+889850445471,neha.gupta809@yahoo.com,NEW,WEBSITE,Gazipur District,"123 Main St, Chicago, BD","February 23rd 2026, 7:48:47 am","February 23rd 2026, 7:48:50 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8014702,E_COMMERCE_CUSTOMER,Pooja Joshi,+889259674049,pooja.joshi208@yahoo.co.in,NEW,WEBSITE,Gazipur District,"123 Main St, Chicago, BD","February 23rd 2026, 12:42:54 am","February 23rd 2026, 12:42:58 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-8000833,E_COMMERCE_CUSTOMER,Suresh Reddy,+889654432309,suresh.reddy252@gmail.com,NEW,WEBSITE,Gazipur District,"123 Main St, Chicago, BD","February 22nd 2026, 4:40:07 am","February 22nd 2026, 4:40:10 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6329776,E_COMMERCE_CUSTOMER,Asha Chowdhury,+8801635378932,,REGULAR,WHATSAPP,Dhaka District,Block :A Road : 1 House : 11 Mirpur : 2 Dhaka -1216,"October 12th 2025, 2:20:22 pm","February 21st 2026, 4:30:31 pm",,33420.00,4,0,0,0,0,0,0,0,3,1,0
+C-7954402,E_COMMERCE_CUSTOMER,Samrat Ahmed,+8801315515587,,REGULAR,OTHER,Faridpur District,"Gozaria Hater Pase, Faridpur, Faridpur","February 19th 2026, 5:39:04 am","February 19th 2026, 5:39:53 am",,5040.00,1,0,0,0,0,0,0,0,1,0,0
+C-7944999,E_COMMERCE_CUSTOMER,Pooja Joshi,+889255595976,pooja.joshi757@hotmail.com,NEW,WEBSITE,Gazipur District,"123 Main St, Chicago, BD","February 18th 2026, 1:34:48 pm","February 18th 2026, 1:34:51 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-7832629,E_COMMERCE_CUSTOMER,আবদুল কাইয়ুম নাবিল,+8801843639451,,REGULAR,WHATSAPP,Lakshmipur District,"লক্ষীপুর জেলা, রায়পুর থানা, বাবুর হাট বাজার","February 9th 2026, 3:56:08 pm","February 9th 2026, 3:56:29 pm",,490.00,1,0,0,0,0,0,0,0,1,0,0
+C-7832667,E_COMMERCE_CUSTOMER,মাহিম,+8801305152973,,REGULAR,WHATSAPP,Rangpur District,"শানের হাট, ঘষপুর, পীরগঞ্জ, রংপুর","February 9th 2026, 3:58:43 pm","February 9th 2026, 3:58:58 pm",,490.00,1,0,0,0,0,0,0,0,1,0,0
+C-7832703,E_COMMERCE_CUSTOMER,মার্জিয়া,+8801774445624,,REGULAR,WHATSAPP,Mymensingh District,"নওমহল কাজি অফিস এর সামনে আল আরাবিয়া দাখিল মাদ্রাসা, কোতোয়ালি , ময়মনসিংহ","February 9th 2026, 4:00:14 pm","February 9th 2026, 4:00:30 pm",,490.00,1,0,0,0,0,0,0,0,1,0,0
+C-7126584,E_COMMERCE_CUSTOMER,Sourav,+8801719959466,,REGULAR,WHATSAPP,Dhaka District,"Bondhon Tower, khanka sharif pukurpar, Rayerbag, Kadamtaly, Dhaka
+","December 21st 2025, 11:00:53 am","February 15th 2026, 3:41:32 pm",Ramish Fariha Reseller,186200.00,4,0,0,0,0,0,0,0,4,0,0
+C-7764092,E_COMMERCE_CUSTOMER,Shahidur Rahman Sojid,+8801333356325,,REGULAR,OFFLINE,Dhaka District,"Muktijoddha road, Kacha Bazar, Ajompur, Sector-4, Uttara, Dhaka","February 4th 2026, 4:31:34 pm","February 14th 2026, 12:43:20 pm",,3900.00,2,0,0,0,0,0,0,0,2,0,0
+C-7818978,E_COMMERCE_CUSTOMER,Mow,+8801614753904,,REGULAR,WHATSAPP,Dhaka District,ঢাকা আগারগাঁও তালতলা বড় বাড়ি ,"February 8th 2026, 4:31:24 pm","February 8th 2026, 5:00:57 pm",,1000.00,2,0,0,0,0,0,0,0,1,0,1
+C-7158075,E_COMMERCE_CUSTOMER,Yeamin,+8801923019157,,REGULAR,OFFLINE,Dhaka District,"Majar Road, 2nd Colony, Mirpur-1","December 23rd 2025, 6:06:10 pm","February 10th 2026, 3:34:26 pm",,19320.00,4,0,0,0,0,0,0,0,4,0,0
+C-7789311,E_COMMERCE_CUSTOMER,Raisul Islam hamim,+8801936929888,,REGULAR,WHATSAPP,Dhaka District,"House number-191(chance-ll) ,goran 8 number,sahi masjid ,khilgaon ,Dhaka-1219","February 6th 2026, 2:14:42 pm","February 6th 2026, 2:15:12 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7786787,E_COMMERCE_CUSTOMER,দারুন অনলাইন শপ,+8801718461144,,REGULAR,LIVE_CHAT,Khulna District,খুলনা সদর ,"February 6th 2026, 10:06:34 am","February 6th 2026, 10:31:19 am",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-7788402,E_COMMERCE_CUSTOMER,Mahmudul Hasan,+8801705277481,,REGULAR,WHATSAPP,Mymensingh District,"Seed store, Bhaluka,Mymensingh ","February 6th 2026, 12:32:38 pm","February 6th 2026, 12:33:03 pm",,20000.00,1,0,0,0,0,0,0,0,1,0,0
+C-7807299,E_COMMERCE_CUSTOMER,Md Rakib Hossain,+8801816752297,,REGULAR,WHATSAPP,Dhaka District,"Haji barir mor,Bazar Road,Middle Badda","February 7th 2026, 6:32:34 pm","February 7th 2026, 6:32:59 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7787856,E_COMMERCE_CUSTOMER,Mojahid,+8801984154529,,REGULAR,WHATSAPP,Kishoreganj District,"Kuliarchar bazar, kuliarchar, Kishorganj","February 6th 2026, 11:47:34 am","February 6th 2026, 11:48:01 am",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-6263051,E_COMMERCE_CUSTOMER,Sabbir,+8801778899003,,REGULAR,OFFLINE,Dhaka District,"Mirpur-12, Dhaka","October 5th 2025, 5:22:08 pm","February 8th 2026, 6:24:32 pm",,38205.00,7,0,0,0,0,0,0,0,7,0,0
+C-7779769,E_COMMERCE_CUSTOMER,Jahangir Alam,+8801779260559,,REGULAR,OFFLINE,Dhaka District,"House-73/C, Road-12/B, Sector-10, Uttara, Dhaka","February 5th 2026, 6:26:19 pm","February 8th 2026, 3:22:46 pm",,56800.00,2,0,0,0,0,0,0,0,2,0,0
+C-7805020,E_COMMERCE_CUSTOMER,Harunur Rashid,+8801719251558,,REGULAR,OFFLINE,Dhaka District,"Darji Para, Khilkhet, Dhaka","February 7th 2026, 4:03:16 pm","February 7th 2026, 4:04:18 pm",,6600.00,1,0,0,0,0,0,0,0,1,0,0
+C-7747515,E_COMMERCE_CUSTOMER,ইসমাইল হোসেন,+8801745926442,,REGULAR,WHATSAPP,Jashore District,"যশোর সদর, যশোর","February 3rd 2026, 12:53:57 pm","February 3rd 2026, 12:55:39 pm",,3840.00,1,0,0,0,0,0,0,0,1,0,0
+C-7712918,E_COMMERCE_CUSTOMER,অনিক মজুমদার,+8801858722115,,REGULAR,WHATSAPP,Noakhali District,"খলিফার হাট,মাইজদী, নোয়াখালী","January 31st 2026, 8:21:01 pm","January 31st 2026, 8:21:31 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7762079,E_COMMERCE_CUSTOMER,Akhirur rahaman ananto,+8801910417892,,REGULAR,WHATSAPP,Jashore District,"Hedia madrasha bazar, Avoynogor, jeshore","February 4th 2026, 2:31:16 pm","February 4th 2026, 2:31:46 pm",,6600.00,1,0,0,0,0,0,0,0,1,0,0
+C-7731117,E_COMMERCE_CUSTOMER,chajid Sheikh,+8801709256819,,REGULAR,WHATSAPP,Gopalganj District,"Gopalgonj, Mukshudpur notun bza","February 2nd 2026, 9:30:32 am","February 2nd 2026, 9:30:56 am",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-6131105,E_COMMERCE_CUSTOMER,Jakir,+8801322409788,,REGULAR,WHATSAPP,Dhaka District,"Kalshi, Pallabi","September 21st 2025, 5:19:37 pm","February 6th 2026, 7:37:25 pm",,1100.00,2,0,0,0,0,0,0,0,2,0,0
+C-7766649,E_COMMERCE_CUSTOMER,Arif,+8801605109076,,REGULAR,OFFLINE,Dhaka District,"House-4, Road-9D, Chandrima Model Town, Mohammadpur, Dhaka","February 4th 2026, 7:19:33 pm","February 4th 2026, 7:21:47 pm",,640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7763148,E_COMMERCE_CUSTOMER,Robin Islam,+8801737666109,,REGULAR,OFFLINE,Dhaka District,"ট্রেন্ডি গেজেটি, পানির টাংকি রোড, মিরপুর-১০, ঢাকা","February 4th 2026, 3:49:55 pm","February 4th 2026, 3:51:08 pm",,2550.00,1,0,0,0,0,0,0,0,1,0,0
+C-7706168,E_COMMERCE_CUSTOMER,Alvi Gadget,+8801610667448,,REGULAR,WHATSAPP,Sylhet District,সিলেট সদর কালিঘাট,"January 31st 2026, 12:17:10 pm","January 31st 2026, 12:18:06 pm",,6300.00,1,0,0,0,0,0,0,0,1,0,0
+C-7704525,E_COMMERCE_CUSTOMER,মনিরুজ্জামান,+8801320338814,,REGULAR,WHATSAPP,Tangail District,"পারখী বাজার, কালিহাতী, টাঙ্গাইল","January 31st 2026, 10:03:19 am","January 31st 2026, 10:04:00 am",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7698125,E_COMMERCE_CUSTOMER,সাকিব,+8801793786160,,REGULAR,WHATSAPP,Dhaka District,"হাজারীবাগ জাউ চর খলিলের সিমেন্ট দোকান , ঢাকা","January 30th 2026, 6:31:31 pm","January 30th 2026, 6:32:34 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7733165,E_COMMERCE_CUSTOMER,Md Rony,+8801725159993,,NEW,WHATSAPP,Dhaka District,"Dhaka chowk bazar মৌলভীবাজার ট্রেড সেন্টার মার্কেট লিফটের ৯ তলা , chowk bazar,  Dhaka ","February 2nd 2026, 12:29:19 pm","February 2nd 2026, 1:41:28 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-7167266,E_COMMERCE_CUSTOMER,রবিউল ইসলাম,+8801772905008,,REGULAR,WHATSAPP,Bogura District,বগুড়া গেস্ট হাউজ তিন মাথা রেলগেট বগুড়া সদর,"December 24th 2025, 12:54:15 pm","February 2nd 2026, 8:51:33 am",,127100.00,4,0,0,0,0,0,0,0,4,0,0
+C-7659577,E_COMMERCE_CUSTOMER,Naima,+8801712584487,,REGULAR,LIVE_CHAT,Dhaka District,"Lakecity Concord Shopping Complex, 6th Floor, Khilkhet, Dhaka","January 27th 2026, 5:13:42 pm","January 27th 2026, 5:14:53 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-7676476,E_COMMERCE_CUSTOMER,মোঃ আশরাফ-উল-আলম ,+8801710148072,,REGULAR,WHATSAPP,Shariatpur District,"গংগানগর স্কুল রোড (গ্রামীণ ব্যাংকের সাথে), সদর, শরীয়তপুর","January 28th 2026, 10:32:54 pm","January 28th 2026, 10:34:00 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-7710572,E_COMMERCE_CUSTOMER,MD. Liakot Ali,+8801751456080,,REGULAR,OFFLINE,Dhaka District,"881, Purba Kazipara, Jamtola Kacha Bazar, Markajut Dirasa, Mirpur","January 31st 2026, 5:31:23 pm","January 31st 2026, 5:32:30 pm",,7740.00,1,0,0,0,0,0,0,0,1,0,0
+C-7671131,E_COMMERCE_CUSTOMER,Md.shamim,+8801954064256,,NEW,WHATSAPP,Gazipur District,Gajipur..kaliakur..condra jurapump,"January 28th 2026, 3:56:39 pm","January 28th 2026, 3:57:16 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6706793,E_COMMERCE_CUSTOMER,Himal Dhar,+8801852356327,,REGULAR,WHATSAPP,Chattogram District,"Sultanpur, Rqozan, Chittagong","November 19th 2025, 12:57:15 pm","January 28th 2026, 3:48:06 pm",,14300.00,4,0,0,0,0,0,0,0,3,1,0
+C-7660866,E_COMMERCE_CUSTOMER,Umme Habiba,+8801558944795,,NEW,OFFLINE,Dhaka District,"Uttara, Dhaka","January 27th 2026, 6:44:03 pm","January 27th 2026, 6:58:29 pm",,0.00,1,0,0,0,0,1,0,0,0,0,0
+C-7585894,E_COMMERCE_CUSTOMER,শিহাব শাহরিয়ার আনন্দ,+8801822908877,,REGULAR,WHATSAPP,Nilphamari District,বাস টার্মিনাল সৈয়দপুর নীলফামারি।,"January 21st 2026, 9:46:57 pm","January 21st 2026, 9:48:25 pm",,4200.00,1,0,0,0,0,0,0,0,1,0,0
+C-7584601,E_COMMERCE_CUSTOMER,Farhana,+8801798841076,,REGULAR,LIVE_CHAT,Dhaka District,21/22 showarighat road chawkbazar Dhaka romna transport er opposite a ,"January 21st 2026, 7:58:31 pm","January 21st 2026, 7:59:48 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-7582976,E_COMMERCE_CUSTOMER,ইউনুস,+8801723152453,,REGULAR,WHATSAPP,Pabna District,"এস এস কসমেটিকস, পারখিদির পুর বাজার, আটঘরিয়া, পাবনা।","January 21st 2026, 6:14:31 pm","January 21st 2026, 6:15:07 pm",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-7566855,E_COMMERCE_CUSTOMER,Abu Saeed,+8801744986022,,REGULAR,WHATSAPP,Rangpur District,"Mithipur, Pirganj, Rangpur","January 20th 2026, 4:47:19 pm","January 20th 2026, 4:48:00 pm",,10500.00,1,0,0,0,0,0,0,0,1,0,0
+C-7471553,E_COMMERCE_CUSTOMER,মুয়াজ,+8801864171559,,REGULAR,WHATSAPP,Rangpur District,"রংপুর সদর, রংপুর ","January 14th 2026, 1:07:43 pm","January 14th 2026, 1:08:54 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7611506,E_COMMERCE_CUSTOMER,Sabbir Rifat,+8801886607726,,REGULAR,WHATSAPP,Dhaka District,"Sajan Nibas, Lane 18/19, Purbachal road, Uttar badda, Dhaka","January 23rd 2026, 9:27:37 pm","January 23rd 2026, 9:28:47 pm",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-7623109,E_COMMERCE_CUSTOMER,Rahid,+8801898450752,,REGULAR,OFFLINE,Gazipur District,"Tangi Bazar, Gazipur","January 24th 2026, 7:50:59 pm","January 24th 2026, 7:55:00 pm",,21300.00,1,0,0,0,0,0,0,0,1,0,0
+C-7460321,E_COMMERCE_CUSTOMER,Tamal,+8801969769691,,REGULAR,WHATSAPP,Dhaka District,"Al Huda Masjid, Hazz Camp, Dhaka","January 13th 2026, 5:41:02 pm","January 24th 2026, 5:41:40 pm",,20780.00,2,0,0,0,0,0,0,0,2,0,0
+C-7445372,E_COMMERCE_CUSTOMER,তন্ময়,+8801647737783,,REGULAR,WHATSAPP,Khulna District,"জলমা,বটিয়াঘাটা, খুলনা","January 12th 2026, 6:35:35 pm","January 24th 2026, 4:54:31 pm",,2640.00,2,0,0,0,0,0,0,0,1,1,0
+C-7620016,E_COMMERCE_CUSTOMER,Abdullah Al Mamun,+8801973480640,,REGULAR,OFFLINE,Dhaka Suburb,"563, Adorsho School Road, Dhonia, Jatrabari, Dhaka-1236","January 24th 2026, 4:19:07 pm","January 24th 2026, 4:22:30 pm",,4920.00,1,0,0,0,0,0,0,0,1,0,0
+C-7534457,E_COMMERCE_CUSTOMER,Shawon Hossen,+8801332737602,,REGULAR,WHATSAPP,Khulna District,"Boikhali,Khalishpur,GPO-9000 er pase,Khulna","January 18th 2026, 2:50:34 pm","January 18th 2026, 2:52:27 pm",,4240.00,1,0,0,0,0,0,0,0,1,0,0
+C-7520303,E_COMMERCE_CUSTOMER,Kayes Mahamud,+8801303172287,,REGULAR,WHATSAPP,Gopalganj District,"Tungipara, Gopalganj
+","January 17th 2026, 3:43:33 pm","January 17th 2026, 3:44:04 pm",,5040.00,1,0,0,0,0,0,0,0,1,0,0
+C-7511824,E_COMMERCE_CUSTOMER,আল আমিন,+8801876966418,,REGULAR,WHATSAPP,Kishoreganj District,"কলিমপুর, আব্দুল্লাহপুর, অষ্টগ্রাম, কিশোরগঞ্জ ","January 16th 2026, 11:25:50 pm","January 16th 2026, 11:26:21 pm",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-7523445,E_COMMERCE_CUSTOMER,Masud Hossain,+8801761116664,,REGULAR,LIVE_CHAT,Dhaka District,"Shop No- 38, Floor-4, Ismail Mension, Elephent Road, Dhaka-1205","January 17th 2026, 6:37:49 pm","January 17th 2026, 6:39:04 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-7568297,E_COMMERCE_CUSTOMER,Ratan,+8801719128198,,REGULAR,WHATSAPP,Bogura District,"বগুড়া গেস্ট হাউজ, তিন মাথা রেল গেট, বগুড়া
+","January 20th 2026, 6:03:46 pm","January 20th 2026, 6:07:17 pm",,3780.00,1,0,0,0,0,0,0,0,1,0,0
+C-7524712,E_COMMERCE_CUSTOMER,Asma,+8801889299001,,REGULAR,WHATSAPP,Chattogram District,"kalurghat, Chandgoan, Chittagong","January 17th 2026, 7:53:21 pm","January 17th 2026, 7:54:41 pm",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-7446528,E_COMMERCE_CUSTOMER,Azhar Mart,+8801687331922,,REGULAR,WHATSAPP,Narsingdi District,"নিউ ব্রিটিশ বাংলা হাসপাতাল, হেমন্দ্র শাহার মোড়,নরসিংদী সদর,নরসিংদী 
+","January 12th 2026, 7:42:23 pm","January 23rd 2026, 9:43:19 am",,450.00,2,0,0,0,0,0,0,0,1,0,1
+C-7383811,E_COMMERCE_CUSTOMER,Ashraful Alam,+8801756977053,,REGULAR,WHATSAPP,Gazipur District,"Tusuka trousers ltd, konabari, Gazipur","January 8th 2026, 4:01:41 pm","January 22nd 2026, 8:41:39 am",,7400.00,2,0,0,0,0,0,0,0,2,0,0
+C-7522212,E_COMMERCE_CUSTOMER,মো সৌরভ ইসলাম সিয়াম,+8801845239948,,REGULAR,WHATSAPP,Dhaka District,"এমপি গোলি, হিরাঝিল, চিটাগাং রোড, সিদ্ধিরগঞ্জ, নারায়ণগঞ্জ","January 17th 2026, 5:22:31 pm","January 17th 2026, 5:22:55 pm",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-6672102,E_COMMERCE_CUSTOMER,sakib,+8801609709383,,REGULAR,WHATSAPP,Dhaka District,"unity garden 2, konapara, jatrabari, dhaka ","November 16th 2025, 3:55:30 pm","January 21st 2026, 10:56:11 am",,7920.00,2,0,0,0,0,0,0,0,2,0,0
+C-6047300,E_COMMERCE_CUSTOMER,লূৎফর রহমান রাকিব,+8801842017074,,REGULAR,OTHER,Dhaka District,উত্তরা হাজী ক্যাম্প ঢাকা,"September 13th 2025, 12:40:44 pm","September 13th 2025, 12:41:10 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-7459061,E_COMMERCE_CUSTOMER,MD.MANIK MIAH,+8801728034687,,REGULAR,WHATSAPP,Moulvibazar District,"SARKARKHANA BAZAR, FENCHUGONJ, SYLHET.","January 13th 2026, 4:33:29 pm","January 13th 2026, 4:34:48 pm",,5160.00,1,0,0,0,0,0,0,0,1,0,0
+C-7413873,E_COMMERCE_CUSTOMER,Omar Faruk,+8801746748916,,REGULAR,WHATSAPP,Natore District,"লক্ষীপুর হাট নাটোর সদর 
+","January 10th 2026, 5:12:21 pm","January 10th 2026, 5:13:15 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7406971,E_COMMERCE_CUSTOMER,আশরাফ,+8801827772721,,REGULAR,WHATSAPP,Dhaka District,দক্ষিণ যাত্রাবাড়ী বিবির বাগিচা এক নাম্বার গেট এর অপজিটে ,"January 10th 2026, 9:14:48 am","January 10th 2026, 9:15:31 am",,600.00,1,0,0,0,0,0,0,0,1,0,0
+C-7485907,E_COMMERCE_CUSTOMER,sobuj,+8801410613000,,REGULAR,WHATSAPP,Dhaka District,Dhaka badda hocanmarkat dhaka international school ar samna ,"January 15th 2026, 11:40:44 am","January 15th 2026, 11:42:35 am",,5160.00,1,0,0,0,0,0,0,0,1,0,0
+C-7418120,E_COMMERCE_CUSTOMER,আব্দুল মান্নান,+8801628968822,,REGULAR,WHATSAPP,Gazipur District,"দত্তপাড়া লেন মোল্লা রোড, হোসেন মার্কেট, টঙ্গী, গাজীপুর। পুরান চার তালা সামনে  নূর মদিনা মসজিদের সামনে","January 10th 2026, 9:41:05 pm","January 10th 2026, 9:42:14 pm",,600.00,1,0,0,0,0,0,0,0,1,0,0
+C-7458516,E_COMMERCE_CUSTOMER,আবরার,+8801836340922,,REGULAR,WHATSAPP,Chattogram District,"কোদাল বড় মাদ্রাসার সামনে রাস্তা হয়ে ভাঙ্গা স্কুলের পাশে, রাঙ্গুনিয়া, চট্টগ্রাম","January 13th 2026, 4:03:42 pm","January 13th 2026, 4:04:23 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-7428935,E_COMMERCE_CUSTOMER,রাসেল,+8801894427643,,REGULAR,WHATSAPP,Dhaka District,"বাসা#৬, বক্ল-ই, রোড- এভিনিউ ২, চন্দ্রিমা মডেল টাউন, মোহাম্মদপুর","January 11th 2026, 5:11:42 pm","January 13th 2026, 2:51:29 pm",,2400.00,2,0,0,0,0,0,0,0,2,0,0
+C-7404140,E_COMMERCE_CUSTOMER,Fahim Ahmed,+8801944783832,,REGULAR,WHATSAPP,Dhaka District,"113/A Abul Hasnat Road,Bongshal,Dhaka","January 9th 2026, 11:17:20 pm","January 9th 2026, 11:18:27 pm",,6400.00,1,0,0,0,0,0,0,0,1,0,0
+C-7426602,E_COMMERCE_CUSTOMER,Tanvir,+8801946363220,,REGULAR,WHATSAPP,Dhaka District,"Dhaka Mirpur 12, Block E, Kalshi Road, Line 5 , House 40","January 11th 2026, 3:08:58 pm","January 11th 2026, 3:10:21 pm",,2700.00,1,0,0,0,0,0,0,0,1,0,0
+C-7444330,E_COMMERCE_CUSTOMER,মোহাম্মদ এনায়েত,+8801992834181,,REGULAR,WHATSAPP,Gazipur District,"রেনেটা গেট, রাজেন্দ্রপুর, গাজীপুর
+","January 12th 2026, 5:31:47 pm","January 12th 2026, 5:32:18 pm",,600.00,1,0,0,0,0,0,0,0,1,0,0
+C-7461476,E_COMMERCE_CUSTOMER,ফজলে এলাহী সাঈদ,+8801761445532,,REGULAR,WHATSAPP,Mymensingh District,"আঞ্জুমান সুপার মার্কেট, ২য় তলা, ফুলপুর, ময়মনসিংহ","January 13th 2026, 6:47:18 pm","January 13th 2026, 6:49:48 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6195711,E_COMMERCE_CUSTOMER,Amanullah Nirob,+8801611521893,,REGULAR,WHATSAPP,Gaibandha District,Monglarpara barokona saghata Gaibandha,"September 28th 2025, 2:42:54 pm","January 17th 2026, 2:40:32 pm",,138850.00,6,0,0,0,0,0,0,0,5,0,1
+C-6685605,E_COMMERCE_CUSTOMER,Mithun,+8801672848004,,REGULAR,OFFLINE,Dhaka District,"170/2, Master Piece Tower, Bhuia Goli, Uttar Shamoly, Dhaka-1207","November 17th 2025, 4:45:30 pm","January 17th 2026, 2:35:48 pm",,1060.00,3,0,0,0,0,0,0,0,2,1,0
+C-6587422,E_COMMERCE_CUSTOMER,Fiaj Rahman,+8801690017320,,REGULAR,WHATSAPP,Dhaka District,"Johir bhaban,child care school, chandartek,kawla,Dhukkin khan,Dhaka","November 9th 2025, 3:02:41 pm","January 16th 2026, 12:47:14 pm",,129300.00,7,0,0,0,0,0,0,0,7,0,0
+C-7082615,E_COMMERCE_CUSTOMER,মেসার্স সিদ্দিকী স্টোর,+8801723401321,,REGULAR,WHATSAPP,Bhola District,"ভোলা যুগীর গোল চত্বর 
+","December 17th 2025, 5:12:29 pm","January 12th 2026, 3:44:38 pm",,10200.00,2,0,0,0,0,0,0,0,2,0,0
+C-7325812,E_COMMERCE_CUSTOMER,জুনাইদ  আহমদ,+8801323521414,,REGULAR,WHATSAPP,Nadia,"সিলেট, বন্দরবাজার, রংমহল টাওয়ার, নিচতলা, দোকানের নং 106","January 4th 2026, 7:45:33 pm","January 4th 2026, 7:52:19 pm",,5220.00,1,0,0,0,0,0,0,0,1,0,0
+C-7325153,E_COMMERCE_CUSTOMER,সাফওয়ান ইসলাম রিফাত,+8801329318649,,REGULAR,WHATSAPP,Dhaka Suburb,"হাশেম টাওয়ার, কাঠালতলা বাজার, জামগড়া, আশুলিয়া ","January 4th 2026, 7:00:49 pm","January 4th 2026, 7:01:32 pm",,6750.00,1,0,0,0,0,0,0,0,1,0,0
+C-7293950,E_COMMERCE_CUSTOMER,তন্নি,+8801648068941,,REGULAR,WHATSAPP,Barisal District,"পুরাতন জয়শ্রী, উজিরপুর, বরিশাল","January 2nd 2026, 7:07:40 pm","January 2nd 2026, 7:08:07 pm",,890.00,1,0,0,0,0,0,0,0,1,0,0
+C-7223227,E_COMMERCE_CUSTOMER,নাঈম,+8801790246050,,REGULAR,WHATSAPP,Mymensingh District,"ময়মনসিংহ সদর অম্বিকাগন্জ বাজার 
+","December 28th 2025, 5:00:20 pm","December 28th 2025, 5:05:21 pm",,3850.00,1,0,0,0,0,0,0,0,1,0,0
+C-7293891,E_COMMERCE_CUSTOMER,সিয়াম,+8801618252186,,REGULAR,WHATSAPP,Jashore District,"উওর পাড়া, নুরপুর, যশোর ","January 2nd 2026, 7:04:44 pm","January 2nd 2026, 7:05:36 pm",,800.00,1,0,0,0,0,0,0,0,1,0,0
+C-7351926,E_COMMERCE_CUSTOMER,Arafat Hossen,+8801839324447,,REGULAR,WHATSAPP,Bogura District,"Bogura Sadar
+","January 6th 2026, 2:50:15 pm","January 6th 2026, 2:51:18 pm",,5400.00,1,0,0,0,0,0,0,0,1,0,0
+C-7351883,E_COMMERCE_CUSTOMER,আলফাজ,+8801788974172,,REGULAR,WHATSAPP,Dhaka Suburb,"আছাদ ডেন্টাল, পুকুর পাড়, জিরাবো, সাভার ঢাকা ","January 6th 2026, 2:47:24 pm","January 6th 2026, 2:48:02 pm",,550.00,1,0,0,0,0,0,0,0,1,0,0
+C-7323078,E_COMMERCE_CUSTOMER,Arham,+8801342119709,,REGULAR,OFFLINE,Munshiganj District,"Holudia Bazar, Louhojong, Munshiganj","January 4th 2026, 4:59:35 pm","January 4th 2026, 5:05:53 pm",,4470.00,1,0,0,0,0,0,0,0,1,0,0
+C-7339332,E_COMMERCE_CUSTOMER,Rahat,+8801603129620,,REGULAR,WHATSAPP,Munshiganj District,"মুন্সীগঞ্জ সদর, শিপাহি পাড়া, সুজানগর ","January 5th 2026, 6:01:55 pm","January 5th 2026, 6:06:28 pm",,3000.00,1,0,0,0,0,0,0,0,1,0,0
+C-6165501,E_COMMERCE_CUSTOMER,Mohsin,+8801613280519,,REGULAR,WEBSITE,Dhaka District,"Mirpur Studiam 5 no gate, baitul atik mosjid, Mirpur 2, dhaka, Dhaka, BD","September 25th 2025, 3:35:32 am","January 1st 2026, 3:16:14 pm",,14100.00,2,0,0,0,0,0,0,0,2,0,0
+C-7223131,E_COMMERCE_CUSTOMER,রনি বেপারী,+8801770055633,,REGULAR,WHATSAPP,Shariatpur District,"আর এস ৪ নাওডোবা প্রজেক্ট 
+জাজিরা শরীয়তপুর।","December 28th 2025, 4:52:25 pm","December 29th 2025, 8:42:09 pm",,15250.00,2,0,0,0,0,0,0,0,2,0,0
+C-7127048,E_COMMERCE_CUSTOMER,Cosmetics world,+8801857902598,,REGULAR,WHATSAPP,Feni District,"Feni Garden city, College road,Feni
+","December 21st 2025, 11:36:52 am","December 21st 2025, 11:40:00 am",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-7187665,E_COMMERCE_CUSTOMER,নাহিদ ইসলাম,+8801960032926,,REGULAR,WHATSAPP,Jhenaidah District,"Jhenaidah, Kaligonj, Barobazae","December 25th 2025, 10:21:02 pm","December 25th 2025, 10:21:27 pm",Nirob Khan,700.00,1,0,0,0,0,0,0,0,1,0,0
+C-7192210,E_COMMERCE_CUSTOMER,হিমেল মাহবুব,+8801826766552,,REGULAR,WHATSAPP,Magura District,"মাগুরা পুলিশ লাইন, বাশতলা, মোল্লা টাওয়ারের ৩য় তলা।  মাগুরা সদর","December 26th 2025, 11:09:59 am","December 26th 2025, 11:11:20 am",Reseller,1120.00,1,0,0,0,0,0,0,0,1,0,0
+C-7096780,E_COMMERCE_CUSTOMER,ইসমাইল ইভান,+8801757553653,,REGULAR,WHATSAPP,Shariatpur District,"দক্ষিণ ডামুড্যা, ডামুড্যা, শরিয়তপুর","December 18th 2025, 6:44:05 pm","December 18th 2025, 6:46:11 pm",,5040.00,1,0,0,0,0,0,0,0,1,0,0
+C-6585048,E_COMMERCE_CUSTOMER,Pishop Bd,+8801346970585,,REGULAR,WHATSAPP,Patuakhali District,"বাউফল পাবলিক মাঠের পূর্ব পাশে,  জাহাঙ্গীর টাওয়ারে  নিচতলা, ৩ নং দোকান, বাউফল, পটুয়াখালী","November 9th 2025, 11:27:27 am","December 27th 2025, 3:37:02 pm",,27000.00,3,0,0,0,0,0,0,0,2,1,0
+C-7214535,E_COMMERCE_CUSTOMER,ঈশা ইসলাম রাব্বি,+8801756089796,,REGULAR,WHATSAPP,Rajshahi District,"বখতিয়ারাবাদ ( মালদাহ কলোনী), বোয়ালিয়া, রাজশাহী","December 27th 2025, 10:32:23 pm","December 27th 2025, 10:33:25 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-7082584,E_COMMERCE_CUSTOMER,মো কেফায়েত ইসলাম,+8801946634917,,REGULAR,WHATSAPP,Dhaka District,"দক্ষিনগাও বটতলা,  বাসাবো, সবুজবাগ, ঢাকা।
+","December 17th 2025, 5:10:03 pm","December 17th 2025, 5:10:39 pm",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-7210940,E_COMMERCE_CUSTOMER,Shaikot,+8801911182227,,REGULAR,OFFLINE,Dhaka District,"House-29, Road-3, Sector-10, Uttara, Dhaka","December 27th 2025, 6:20:54 pm","December 27th 2025, 6:23:33 pm",,1100.00,1,0,0,0,0,0,0,0,1,0,0
+C-7133259,E_COMMERCE_CUSTOMER,Abdur Rahman,+8801723586685,,REGULAR,WHATSAPP,Dhaka District,"Green road, Dhanmondi, Dhaka","December 21st 2025, 7:54:19 pm","December 27th 2025, 4:51:00 pm",,77400.00,2,0,0,0,0,0,0,0,2,0,0
+C-6719926,E_COMMERCE_CUSTOMER,সুরইয়া মিম,+8801719227822,,REGULAR,WHATSAPP,Rajshahi District,"বানেশ্বর বাজার, বেলপুকুর, রাজশাহী
+","November 20th 2025, 3:02:52 pm","December 25th 2025, 12:47:55 pm",,12370.00,2,0,0,0,0,0,0,0,2,0,0
+C-7179015,E_COMMERCE_CUSTOMER,মোঃ ইউনুস আলী,+8801560029174,,NEW,WHATSAPP,Satkhira District,"সাতক্ষীরা সদর , সাতক্ষীরা","December 25th 2025, 11:13:55 am","December 25th 2025, 11:15:08 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6330239,E_COMMERCE_CUSTOMER,Monirul Islam,+8801709250853,,REGULAR,WHATSAPP,Dhaka District,"House-62, Sat tara Mosjid, Oposit of Al hera hospital, Mirpur_10, Dhaka","October 12th 2025, 3:00:37 pm","December 13th 2025, 12:28:04 pm",,52100.00,2,0,0,0,0,0,0,0,2,0,0
+C-7023810,E_COMMERCE_CUSTOMER,Tamanna Ferdaous,+8801751222300,,NEW,WEBSITE,"1. Dhaka District
+2. Dhaka District
+3. Chandpur District
+4. Dhaka District","1. Charkumira, faridgonj,chandpur., Dhaka, BD
+2. Charkumira, faridgonj,chandpur., Dhaka, BD
+3. Charkumira, faridgonj,chandpur., Chandpur, BD
+4. Charkumira, faridgonj,chandpur., Dhaka, BD","December 13th 2025, 8:31:40 am","December 13th 2025, 9:16:51 am",,0.00,3,0,0,0,0,0,0,0,0,0,3
+C-6442138,E_COMMERCE_CUSTOMER,Md. Golam Mostofa,+8801952391631,vhobanipurteliveshion@gmail.com,REGULAR,WEBSITE,Mymensingh District,"Asim bazar,Fulbaria,Mymensingh,, Mymensingh, BD","October 24th 2025, 10:57:06 pm","December 13th 2025, 7:48:58 am",,2200.00,2,0,0,0,0,0,0,0,1,1,0
+C-6959239,E_COMMERCE_CUSTOMER,নোমান,+8801889013945,,REGULAR,WHATSAPP,Munshiganj District,"পাখিরমোর,, গজারিয়া,, মুন্সিগঞ্জ","December 8th 2025, 12:29:12 pm","December 8th 2025, 12:30:24 pm",,550.00,1,0,0,0,0,0,0,0,1,0,0
+C-6974908,E_COMMERCE_CUSTOMER,Rabiul hasan,+8801742432842,,REGULAR,OFFLINE,Dhaka District,"Uttara sector -13, Dhaka","December 9th 2025, 2:30:43 pm","December 9th 2025, 2:39:02 pm",,2520.00,1,0,0,0,0,0,0,0,1,0,0
+C-6961235,E_COMMERCE_CUSTOMER,Shawn,+8801609553422,,REGULAR,OFFLINE,Dhaka District,"Sector-5, Uttara, Dhaka","December 8th 2025, 3:07:32 pm","December 8th 2025, 3:08:23 pm",,600.00,1,0,0,0,0,0,0,0,1,0,0
+C-6905592,E_COMMERCE_CUSTOMER,রানা,+8801400883982,,REGULAR,OTHER,Jashore District,"ছোটনের মোড়, কোতোয়ালি,শঙ্করপুর, যশোর","December 4th 2025, 3:07:23 pm","December 4th 2025, 3:08:09 pm",,799.00,1,0,0,0,0,0,0,0,1,0,0
+C-6854428,E_COMMERCE_CUSTOMER,Jannnat ,+8801877492914,,REGULAR,OTHER,Cumilla District,"guripur Bazar, daudkandi, Cumilla","December 1st 2025, 5:51:53 pm","December 1st 2025, 5:53:03 pm",,420.00,1,0,0,0,0,0,0,0,1,0,0
+C-6888891,E_COMMERCE_CUSTOMER,test,+8801933396710,,REGULAR,WEBSITE,Dhaka District,"uttara dhaka 1230, Dhaka, BD","December 3rd 2025, 11:44:53 am","December 3rd 2025, 12:37:05 pm",,0.00,4,0,0,0,0,0,0,0,0,4,0
+C-6752439,E_COMMERCE_CUSTOMER,Semana Jabin Othoi,+8801817433307,,REGULAR,OTHER,Jashore District,"Jhenaidah Kotchandpur,Jessore","November 23rd 2025, 1:02:22 pm","November 23rd 2025, 1:03:39 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6752338,E_COMMERCE_CUSTOMER,প্রকাশ রায়,+8801823254974,,REGULAR,WHATSAPP,Rangpur,"গংগাচড়া বাজার, গংগাচড়া মডেল থানা, রংপুর","November 23rd 2025, 12:53:03 pm","November 23rd 2025, 12:54:23 pm",,4200.00,1,0,0,0,0,0,0,0,1,0,0
+C-6710736,E_COMMERCE_CUSTOMER,sohan khan,+8801614555461,,REGULAR,WHATSAPP,Tangail District,"Tangail sadar, katuli union,  abdulla para ","November 19th 2025, 6:39:28 pm","November 19th 2025, 6:40:10 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6697890,E_COMMERCE_CUSTOMER,মিরন সরদার,+8801620578200,,REGULAR,WHATSAPP,Barisal District,"চাখার, বানারীপাড়া, বরিশাল  ","November 18th 2025, 4:42:40 pm","November 18th 2025, 4:43:16 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6696688,E_COMMERCE_CUSTOMER,মোঃ লাতিফুল হাসিব লিপু,+8801750074990,,REGULAR,WHATSAPP,Nilphamari District,"মিন্টু কমিশনার এর বাড়ি, নয়াটোলা, সৈয়দপুর, নীলফামারী","November 18th 2025, 3:03:11 pm","November 18th 2025, 3:04:54 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6686123,E_COMMERCE_CUSTOMER,মো: জাহাঙ্গীর কবির,+8801612230023,,REGULAR,WHATSAPP,Bogura District,"জাহাঙ্গীরাবাদ ক্যান্টনমেন্ট পাড়া (মসজিদের পশ্চিম পাশে), শাকপালা, বগুড়া ","November 17th 2025, 5:29:29 pm","November 17th 2025, 5:30:18 pm",,4140.00,1,0,0,0,0,0,0,0,1,0,0
+C-6686488,E_COMMERCE_CUSTOMER,নুসরাত চৌধুরী,+8801856190573,,REGULAR,WHATSAPP,Chattogram District," চট্টগ্রাম, মিরসরাই, জোরারগঞ্জ আনসার ক্যাম্পের পশ্চিম পাশে রাস্তা দিয়ে সামান্য ভেতরে বাড়ি","November 17th 2025, 6:01:09 pm","November 17th 2025, 6:02:50 pm",Content Creator,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6684689,E_COMMERCE_CUSTOMER,Mohammad Shamsuddin,+8801821333326,,REGULAR,MESSENGER,Kishoreganj District,"Harua, Kishorganj Sadar 
+","November 17th 2025, 3:31:03 pm","November 17th 2025, 3:31:45 pm",,5160.00,1,0,0,0,0,0,0,0,1,0,0
+C-6672402,E_COMMERCE_CUSTOMER,Mx Shorif Islam,+8801703363904,,REGULAR,WHATSAPP,Sherpur District,"Factory Moor, Sherpur Sadar hospital, Sherpur","November 16th 2025, 4:17:26 pm","November 16th 2025, 4:18:09 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6672475,E_COMMERCE_CUSTOMER,সিহাব,+8801997656756,,REGULAR,WHATSAPP,Narayanganj District,"চেয়ারম্যান বাড়ির সামনে, দেলপারা ,নারায়ণগঞ্জ ","November 16th 2025, 4:22:39 pm","November 16th 2025, 4:23:17 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6672294,E_COMMERCE_CUSTOMER,Hadiya Heaven,+8801875847690,,REGULAR,WHATSAPP,Chattogram District,"Shop no 13,14/A block, 1st floor, gulzar tower, Chawkbazar, Chattogram","November 16th 2025, 4:08:18 pm","November 17th 2025, 3:19:51 pm",,6540.00,2,0,0,0,0,0,0,0,2,0,0
+C-6504879,E_COMMERCE_CUSTOMER,Azad,+8801921442102,,REGULAR,WHATSAPP,Khulna District,"118, Tootpara main road, opposite of Taltola hospital, Khulna Sadar, Khulna","November 1st 2025, 8:38:43 am","November 16th 2025, 4:19:35 pm",,5800.00,2,0,0,0,0,0,0,0,2,0,0
+C-6659642,E_COMMERCE_CUSTOMER,Arafa Binte Amir,+8801681540346,,REGULAR,WHATSAPP,Dhaka District,"rob villa,bank colony road,paterbagh,south donia,kodomtoli,shonir akhra,dhaka","November 15th 2025, 3:49:02 pm","November 15th 2025, 3:49:39 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6636042,E_COMMERCE_CUSTOMER,Rifat sarker,+8801603380959,,NEW,WHATSAPP,Kurigram District,"উলিপুর, কুড়িগ্রাম ","November 13th 2025, 4:48:33 pm","November 13th 2025, 4:48:51 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6195124,E_COMMERCE_CUSTOMER,Al Mamun Shuvo,+8801958444141,,REGULAR,OFFLINE,Dhaka District,"Kajla, Jatrabari, Dhaka","September 28th 2025, 1:39:02 pm","November 12th 2025, 5:19:44 pm",,23080.00,6,0,0,0,0,0,0,0,5,0,1
+C-6587310,E_COMMERCE_CUSTOMER,উজ্জ্বল মিয়া,+8801923015687,,REGULAR,WHATSAPP,Chattogram District,"মাস্টারহাট,কর্ণফুলী, চট্টগ্রাম","November 9th 2025, 2:54:10 pm","November 9th 2025, 2:56:36 pm",,5400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6585652,E_COMMERCE_CUSTOMER,Anwara,+8801622281465,,REGULAR,WHATSAPP,Chattogram District,"Karnaphuli, Chittagong","November 9th 2025, 12:20:04 pm","November 9th 2025, 12:20:37 pm",,860.00,1,0,0,0,0,0,0,0,1,0,0
+C-6586222,E_COMMERCE_CUSTOMER,selim,+8801711953468,,REGULAR,OTHER,Khulna District,"গোল্লা মারি,খুলনা সদর","November 9th 2025, 1:08:16 pm","November 9th 2025, 1:09:10 pm",,830.00,1,0,0,0,0,0,0,0,1,0,0
+C-6587190,E_COMMERCE_CUSTOMER,Maymuna,+8801936400410,,REGULAR,WHATSAPP,Dhaka District,"Dhaka Dukkhin Mughda , Garments Guli , House no 72 ","November 9th 2025, 2:41:13 pm","November 9th 2025, 2:43:18 pm",,20100.00,1,0,0,0,0,0,0,0,1,0,0
+C-6585088,E_COMMERCE_CUSTOMER,lens_cat optic bd,+8801303527210,,REGULAR,WHATSAPP,Sirajganj District,"ullapara bazer thana road, sirajgong ","November 9th 2025, 11:30:16 am","November 9th 2025, 11:31:31 am",,4140.00,1,0,0,0,0,0,0,0,1,0,0
+C-6546465,E_COMMERCE_CUSTOMER,Rakib,+8801602533399,,REGULAR,WHATSAPP,Dhaka District,111/9 Sheikdi Jatrabari Dhaka,"November 5th 2025, 4:09:47 pm","November 5th 2025, 4:11:24 pm",,37800.00,1,0,0,0,0,0,0,0,1,0,0
+C-6162904,E_COMMERCE_CUSTOMER,Murad,+8801920756500,,REGULAR,WEBSITE,Dhaka District,"Road no 13, House no 31/1, Shahanara Garden, Lakeview Society Gulshan Badda Link Road, Dhaka, BD","September 24th 2025, 7:43:12 pm","November 5th 2025, 4:32:23 pm",,29400.00,2,0,0,0,0,0,0,0,2,0,0
+C-6424038,E_COMMERCE_CUSTOMER,মো: মাহফুছ দেওয়ান,+8801966404768,,REGULAR,OTHER,Dhaka District,"ঢাকা, ইসলামপুর, লায়ন সিনেমার গলি","October 22nd 2025, 7:34:52 pm","October 22nd 2025, 7:35:17 pm",,800.00,1,0,0,0,0,0,0,0,1,0,0
+C-6466847,E_COMMERCE_CUSTOMER,সুমন খান,+8801987474305,,REGULAR,WHATSAPP,Gazipur District,"বউবাজার, আমবাগ, কোনাবাড়ি, গাজীপুর","October 27th 2025, 7:25:46 pm","October 27th 2025, 7:50:43 pm",,2200.00,1,0,0,0,0,0,0,0,1,0,0
+C-6430157,E_COMMERCE_CUSTOMER,সাদিয়া চৌধুরী,+8801302633246,,REGULAR,OTHER,Brahmanbaria District,"ছতুরপুর, বিজয়নগর, ব্রাহ্মণবাড়িয়া
+","October 23rd 2025, 2:38:30 pm","October 25th 2025, 5:41:30 pm",,0.00,2,0,0,0,0,0,0,0,2,0,0
+C-6464428,E_COMMERCE_CUSTOMER,MD Shakil,+8801303294098,,REGULAR,OFFLINE,Dhaka District,"Mohammadpur, Dhaka","October 27th 2025, 3:04:17 pm","October 27th 2025, 3:05:11 pm",,2650.00,1,0,0,0,0,0,0,0,1,0,0
+C-6301990,E_COMMERCE_CUSTOMER,মো: আব্দুল করিম,+8801772603975,,REGULAR,WHATSAPP,Jashore District,"বাঘারপাড়া, যশোর","October 9th 2025, 3:52:43 pm","October 27th 2025, 2:14:56 pm",,460.00,2,0,0,0,0,0,0,0,2,0,0
+C-6448806,E_COMMERCE_CUSTOMER,Jiaur,+8801312482962,,REGULAR,OTHER,Habiganj District,"ফাহাদ টেলিকম বনগাঁও,গদার বাজার, নবিগঞ্জ, হবিগঞ্জ","October 25th 2025, 5:52:15 pm","October 25th 2025, 5:53:48 pm",,860.00,1,0,0,0,0,0,0,0,1,0,0
+C-6448555,E_COMMERCE_CUSTOMER,Nayem,+8801620841480,,REGULAR,OTHER,Dhaka District,"uttar sanarpar chapra mosjid, 
+demra, dhaka
+","October 25th 2025, 5:18:14 pm","October 25th 2025, 5:18:39 pm",,700.00,1,0,0,0,0,0,0,0,1,0,0
+C-6423669,E_COMMERCE_CUSTOMER,papon das,+8801768291207,,REGULAR,OTHER,Brahmanbaria District,"jenodpur bazar, Nabinagar, Brahmanbaria ","October 22nd 2025, 6:51:02 pm","October 22nd 2025, 6:51:34 pm",,800.00,1,0,0,0,0,0,0,0,1,0,0
+C-6448828,E_COMMERCE_CUSTOMER,Md Shihab,+8801763942381,,NEW,OTHER,Gaibandha District,"চরকতোলা বাজার, গোবিন্দগঞ্জ, গাইবান্ধা","October 25th 2025, 5:54:59 pm","October 25th 2025, 5:55:19 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6430216,E_COMMERCE_CUSTOMER,হৃদয়,+8801774985853,,REGULAR,OTHER,Faridpur District,"কালামৃধা বাজার, ভাংগা, ফরিদপুর  ","October 23rd 2025, 2:45:10 pm","October 23rd 2025, 2:49:20 pm",,600.00,1,0,0,0,0,0,0,0,1,0,0
+C-6420499,E_COMMERCE_CUSTOMER,শাকিল আহম্মেদ,+8801300911103,,REGULAR,WHATSAPP,Bogura District,ফুলকোট থানা শাজাহান পুর জেলা বগুড়া।,"October 22nd 2025, 1:03:07 pm","October 22nd 2025, 1:03:53 pm",,2640.00,1,0,0,0,0,0,0,0,1,0,0
+C-6430186,E_COMMERCE_CUSTOMER,Mohammad Ashraful,+8801853038798,,REGULAR,WHATSAPP,Rajshahi District,"Max IT, 4th floor, Afroja Tower, Uposhor Newmarket, , Rajshahi 
+","October 23rd 2025, 2:41:47 pm","October 23rd 2025, 2:42:22 pm",,2400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6432737,E_COMMERCE_CUSTOMER,Milon,+8801322714140,,NEW,WHATSAPP,Dhaka District,"Alu bazar, Gulisthan, Dhaka
+","October 23rd 2025, 7:33:25 pm","October 23rd 2025, 7:33:58 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6403605,E_COMMERCE_CUSTOMER,মোঃ ইউসুফ,+8801812275624,,REGULAR,WHATSAPP,Chandpur District,"চান্দ্রাবাজার, ফরিদগঞ্জ, চাঁদপুর 
+","October 20th 2025, 3:02:27 pm","October 20th 2025, 3:03:04 pm",,2760.00,1,0,0,0,0,0,0,0,1,0,0
+C-6413931,E_COMMERCE_CUSTOMER,রাকিব মাহমুদ,+8801603641452,,REGULAR,WHATSAPP,Cumilla District,গৌরীপুর ঈদগাহ মাঠ দাউদকান্দি কুমিল্লা ,"October 21st 2025, 5:23:54 pm","October 21st 2025, 5:25:12 pm",,2690.00,1,0,0,0,0,0,0,0,1,0,0
+C-6424300,E_COMMERCE_CUSTOMER,Md Shahnawaz,+8801816181861,,REGULAR,OFFLINE,Dhaka District,"৮২/১২/১ Barontek , Near Rahmania Jame Mosjid, Balughat, ECB chattar","October 22nd 2025, 8:11:58 pm","October 22nd 2025, 8:14:48 pm",,4300.00,1,0,0,0,0,0,0,0,1,0,0
+C-6385333,E_COMMERCE_CUSTOMER,আবুজর,+8801885240423,,REGULAR,OTHER,Jashore District,"যশোর সদর, নালিয়া বাজার","October 18th 2025, 2:39:19 pm","October 18th 2025, 2:39:48 pm",,850.00,1,0,0,0,0,0,0,0,1,0,0
+C-6396675,E_COMMERCE_CUSTOMER,Raj telecom,+8801793478975,,REGULAR,WHATSAPP,Shariatpur District,Shariatpur naria vojeshwar bazar....standard bank er nic tola,"October 19th 2025, 6:51:15 pm","October 19th 2025, 6:54:50 pm",,2700.00,1,0,0,0,0,0,0,0,1,0,0
+C-6386455,E_COMMERCE_CUSTOMER,Rokibul islam,+8801611121231,,REGULAR,WHATSAPP,Narail District,"Kalabaria Bazaar, Kalia, Narail","October 18th 2025, 4:31:51 pm","October 18th 2025, 4:32:39 pm",,3020.00,1,0,0,0,0,0,0,0,1,0,0
+C-6241468,E_COMMERCE_CUSTOMER,Hamza Khan,+8801768115771,,REGULAR,WHATSAPP,Dhaka District,"2/2, R,K Mission Road, Room # 02 (2nd Floor) Motijheel C/A, Dhaka-1203","October 3rd 2025, 2:55:53 pm","October 20th 2025, 4:41:55 pm",,4400.00,2,0,0,0,0,0,0,0,2,0,0
+C-6387728,E_COMMERCE_CUSTOMER,মো: আশিকুর রহমান তানভীর,+8801629184068,,REGULAR,WHATSAPP,Kishoreganj District,"বত্রিশ,ইসলামপুর মসজিদের গলি,কিশোরগঞ্জ","October 18th 2025, 7:00:28 pm","October 18th 2025, 7:00:51 pm",,2400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6385291,E_COMMERCE_CUSTOMER,রাকিব,+8801745194000,,REGULAR,WHATSAPP,Rangpur District,"রংপুর সদর, রংপুর","October 18th 2025, 2:35:46 pm","October 18th 2025, 2:36:07 pm",,2200.00,1,0,0,0,0,0,0,0,1,0,0
+C-6367328,E_COMMERCE_CUSTOMER,ঊর্মি আহাম্মেদ,+8801811881681,,REGULAR,OTHER,Cumilla District,"নেয়ামতকান্দি মার্কেট, মুরাদনগর, কুমিল্লা ","October 16th 2025, 1:55:43 pm","October 16th 2025, 1:59:26 pm",,750.00,1,0,0,0,0,0,0,0,1,0,0
+C-6369056,E_COMMERCE_CUSTOMER,খায়রুল,+8801317529821,,REGULAR,OTHER,Bogura District,"জহুরুল নগর, বগুড়া সদর, বগুড়া","October 16th 2025, 5:14:06 pm","October 16th 2025, 5:21:49 pm",,4800.00,1,0,0,0,0,0,0,0,1,0,0
+C-6367906,E_COMMERCE_CUSTOMER,স্বাধীন হোসেন,+8801730538883,,REGULAR,WHATSAPP,Sirajganj District,"সরকারি আকবার আলী কলেজের অপজিটে সোনালী বেংকের পাশে, উল্লাপাড়া, সিরাজগঞ্জ","October 16th 2025, 3:05:52 pm","October 16th 2025, 3:07:40 pm",,7940.00,1,0,0,0,0,0,0,0,1,0,0
+C-6361107,E_COMMERCE_CUSTOMER,মুফতি শিহাব উদ্দিন,+8801926784200,,REGULAR,WHATSAPP,Faridpur District,"ফরিদপুর, নগরকান্দা, জুঙ্গুরদি, বাস স্ট্যান্ড মাদ্রাসা রোড","October 15th 2025, 6:43:07 pm","October 15th 2025, 6:45:30 pm",,3220.00,1,0,0,0,0,0,0,0,1,0,0
+C-6360537,E_COMMERCE_CUSTOMER,অলিউল্লাহ,+8801723443134,,REGULAR,WHATSAPP,Barguna District,"লেমুয়া কলেজে পূর্ব পাশে, লেমুয়া বাজার, পাথরঘাটা, বরগুনা","October 15th 2025, 5:38:37 pm","October 15th 2025, 5:39:19 pm",,2200.00,1,0,0,0,0,0,0,0,1,0,0
+C-6361010,E_COMMERCE_CUSTOMER,শারমিন আক্তার,+8801722732670,,REGULAR,WHATSAPP,Dhaka Suburb," বিউফোর্ড  টাওয়ার, অপজিট আল আমিন মাদ্রাসা, আশুলিয়া, Dhaka","October 15th 2025, 6:30:33 pm","October 15th 2025, 6:32:46 pm",,2400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6369502,E_COMMERCE_CUSTOMER,Sajib Rahman Army Vai,+8801717146343,,REGULAR,OFFLINE,Dhaka District,Mirpur 12,"October 16th 2025, 6:09:08 pm","October 16th 2025, 6:09:43 pm",,19500.00,1,0,0,0,0,0,0,0,1,0,0
+C-6350328,E_COMMERCE_CUSTOMER,Ridoy Siddik Sumon,+8801777015191,,REGULAR,WHATSAPP,Pabna District,"Molla Super Market (2nd floor), Kashinathpur bazar, Sathia, Pabna
+","October 14th 2025, 4:17:20 pm","October 14th 2025, 4:18:35 pm",,6600.00,1,0,0,0,0,0,0,0,1,0,0
+C-6350350,E_COMMERCE_CUSTOMER,সামি ভূইয়া,+8801915743966,,REGULAR,WHATSAPP,Brahmanbaria District,"মিরাসানি , বিজয়নগর , ব্রাহ্মণবাড়িয়া","October 14th 2025, 4:19:56 pm","October 14th 2025, 4:20:27 pm",,880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6361704,E_COMMERCE_CUSTOMER,মোঃ শাহাদাত হোসেন,+8801639781473,,REGULAR,WHATSAPP,Dhaka District,"বাসা ১/এ ,রোড ১৫, ডি.আই. টি, প্রজেক্ট মেরুল, বাড্ডা ,ঢাকা -১২১২","October 15th 2025, 8:02:28 pm","October 15th 2025, 8:02:53 pm",,2880.00,1,0,0,0,0,0,0,0,1,0,0
+C-6339721,E_COMMERCE_CUSTOMER,মোঃ রাসেলুর রায়হান,+8801817180385,,REGULAR,WHATSAPP,Bogura District,"বগুড়া শতরন্জি হাউজ এন্ড ক্রাফ্ট , শারা শো-রুম এর ২য় তলায়, জলেশ্বরীতলা বগুড়া, বগুড়া সদর, বগুড়া - ৫৮০০","October 13th 2025, 3:00:32 pm","October 13th 2025, 3:01:21 pm",,2400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6351732,E_COMMERCE_CUSTOMER,Tania Akter,+8801750921441,,REGULAR,OFFLINE,Gazipur District,"Bou Bazar, Tongi, Gazipur","October 14th 2025, 6:45:13 pm","October 14th 2025, 7:00:45 pm",,17600.00,1,0,0,0,0,0,0,0,1,0,0
+C-6339688,E_COMMERCE_CUSTOMER,সাইমা সেখ,+8801789489590,,REGULAR,WHATSAPP,Rajshahi District,"প্যারামেডিকেল গেট, লক্ষ্মীপুর, রাজপাড়া, রাজশাহী 
+","October 13th 2025, 2:58:14 pm","October 13th 2025, 2:58:55 pm",,2400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6330333,E_COMMERCE_CUSTOMER,খালেদ বিন শওকত,+8801815953682,,REGULAR,WHATSAPP,Chattogram District," চন্দ্রিমা আবাসিক, ৩ নং রোড, ৮৮ নং বাড়ি, মোস্তফা মঞ্জিল, চান্দগাঁও আবাসিক, চট্টগ্রাম।","October 12th 2025, 3:09:55 pm","October 12th 2025, 3:11:09 pm",,700.00,1,0,0,0,0,0,0,0,1,0,0
+C-6332205,E_COMMERCE_CUSTOMER,Mallik Nana,+8801711078025,,REGULAR,WHATSAPP,Dhaka District,"Johura Market, Sector-14, Uttora, Dhaka","October 12th 2025, 6:12:09 pm","October 12th 2025, 6:13:16 pm",,2260.00,1,0,0,0,0,0,0,0,1,0,0
+C-6333212,E_COMMERCE_CUSTOMER,নুর হাসনাত,+8801871527430,,REGULAR,WHATSAPP,Feni District,"ফেনী জেলা সদর থানা,  কোট বিল্ডিং, হাজারী রোড ছানু মিয়া সড়ক এর ভিতরে হারিছ ভূঞা টাওয়ারের নিচ তলা A -1","October 12th 2025, 8:15:05 pm","October 12th 2025, 8:16:33 pm",,1400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6330782,E_COMMERCE_CUSTOMER,MD Sahadat Hossen,+8801976025497,,REGULAR,WHATSAPP,Dhaka District,"Hazi Selim Tower, Chwakbazar, Dhaka ","October 12th 2025, 3:50:12 pm","October 12th 2025, 3:54:51 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6315148,E_COMMERCE_CUSTOMER,Imran Hossain,+8801917495539,,REGULAR,WHATSAPP,Barisal District,"Mohammadi len,Sagordi branch Road, barisal sadar barishal 
+","October 10th 2025, 11:09:17 pm","October 10th 2025, 11:11:35 pm",,2590.00,1,0,0,0,0,0,0,0,1,0,0
+C-6320684,E_COMMERCE_CUSTOMER,মারিয়াম সুলতানা,+8801852065542,,REGULAR,OTHER,Dhaka District,"west Shewrapara torab ali mosjid goli mirpur dhaka 
+","October 11th 2025, 3:10:49 pm","October 11th 2025, 3:11:12 pm",,260.00,1,0,0,0,0,0,0,0,1,0,0
+C-6306860,E_COMMERCE_CUSTOMER,Mohammad khairul,+8801611211484,,REGULAR,WEBSITE,Dhaka District,"327/1(ka) jafrabad sankar road dhanmondi Dhaka1207, Dhaka, BD","October 10th 2025, 1:43:20 am","October 10th 2025, 1:43:22 am",,2400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6318926,E_COMMERCE_CUSTOMER,MD Mehedi Hasan,+8801980609919,,REGULAR,WHATSAPP,Dhaka District, kushoura madrasha road.toperbari.dhamrai.dhaka,"October 11th 2025, 12:32:22 pm","October 11th 2025, 12:33:13 pm",,1440.00,1,0,0,0,0,0,0,0,1,0,0
+C-6288122,E_COMMERCE_CUSTOMER,MD JAHIDUL ISLAM SABUZ ,+8801641427677,,REGULAR,WHATSAPP,Dhaka District,"Uttora Sector 10, Road Number 13, Houses Number 23","October 8th 2025, 9:20:00 am","October 8th 2025, 9:20:42 am",,4300.00,1,0,0,0,0,0,0,0,1,0,0
+C-6291146,E_COMMERCE_CUSTOMER,MD Shakil Ahmed,+8801712974536,,REGULAR,WHATSAPP,Dhaka District,"Kumu Vila,1/23/D-05,Patawary goli,East Bashabo, Jarmani Goli, Dhaka.","October 8th 2025, 2:39:03 pm","October 8th 2025, 2:39:33 pm",,4300.00,1,0,0,0,0,0,0,0,1,0,0
+C-6259612,E_COMMERCE_CUSTOMER,নাহিদ আহমেদ,+8801941402755,,REGULAR,WHATSAPP,Brahmanbaria District,"ব্রাহ্মণবাড়িয়া,আশুগঞ্জ,তালশহর","October 5th 2025, 12:07:15 pm","October 5th 2025, 12:08:31 pm",,2200.00,1,0,0,0,0,0,0,0,1,0,0
+C-6271578,E_COMMERCE_CUSTOMER,নারগিস আক্তার,+8801869541460,,REGULAR,WHATSAPP,Lakshmipur District,"নিজ ভাওর , মস্তান নগর / জাহাঙ্গীর টাওয়ার যেকোনো জায়গায় থেকে রিসিভ করবো , চাটখিল , নোয়াখালী ","October 6th 2025, 3:41:36 pm","October 6th 2025, 3:43:09 pm",,2200.00,1,0,0,0,0,0,0,0,1,0,0
+C-6263352,E_COMMERCE_CUSTOMER,আলমগীর হোসেন,+8801840333032,,REGULAR,WHATSAPP,Rangpur District,"কালিগঞ্জ বাজার ,পীরগাছা, রংপুর","October 5th 2025, 5:44:21 pm","October 5th 2025, 5:44:59 pm",,2200.00,1,0,0,0,0,0,0,0,1,0,0
+C-6238635,E_COMMERCE_CUSTOMER,মো আসিফ সরকার,+8801341527741,,REGULAR,WHATSAPP,Nilphamari District,"হামুর বাজার, সৈয়দপুর, নীলফামারি","October 3rd 2025, 9:12:05 am","October 3rd 2025, 9:15:23 am",,2500.00,1,0,0,0,0,0,0,0,1,0,0
+C-6263855,E_COMMERCE_CUSTOMER,Tuhin,+8801885414591,,REGULAR,OFFLINE,Dhaka District,"Uttara-12, Dhaka","October 5th 2025, 6:31:17 pm","October 5th 2025, 6:33:07 pm",,3250.00,1,0,0,0,0,0,0,0,1,0,0
+C-6263662,E_COMMERCE_CUSTOMER,Ripon,+8801797189621,,REGULAR,OFFLINE,Dhaka District,"Saban Fectory road, baunia, turag, Dhaka","October 5th 2025, 6:12:50 pm","October 5th 2025, 6:15:39 pm",,2580.00,1,0,0,0,0,0,0,0,1,0,0
+C-6239897,E_COMMERCE_CUSTOMER,লানজু মিয়া,+8801764721608,,REGULAR,WHATSAPP,Kurigram District,কুড়িগ্রাম সদর ,"October 3rd 2025, 11:52:25 am","October 3rd 2025, 11:54:30 am",,10320.00,1,0,0,0,0,0,0,0,1,0,0
+C-6254563,E_COMMERCE_CUSTOMER,সুজন,+8801954999130,,REGULAR,WHATSAPP,Kurigram District,"উলিপুর সদর, কুড়িগ্রাম ","October 4th 2025, 7:57:54 pm","October 4th 2025, 7:58:11 pm",,230.00,1,0,0,0,0,0,0,0,1,0,0
+C-6245556,E_COMMERCE_CUSTOMER,Raihan,+8801624753906,,REGULAR,OTHER,Narayanganj District,Puran Bandar chowdhury bari Narayanganj ,"October 3rd 2025, 10:51:17 pm","October 3rd 2025, 10:52:19 pm",,1050.00,1,0,0,0,0,0,0,0,1,0,0
+C-6232722,E_COMMERCE_CUSTOMER,মামুনুর রশীদ,+8801857008963,,REGULAR,WHATSAPP,Cumilla District," শিমপুর, কোতোয়ালি, কুমিল্লা","October 2nd 2025, 3:25:50 pm","October 2nd 2025, 5:00:22 pm",,2640.00,2,0,0,0,0,0,0,0,1,0,1
+C-6253938,E_COMMERCE_CUSTOMER,Toha cosmetic& jewalry,+8801878218500,,REGULAR,WHATSAPP,Feni District,"Ftc market dagonbhuiya bazar, feni","October 4th 2025, 6:56:02 pm","October 4th 2025, 7:04:30 pm",,11500.00,1,0,0,0,0,0,0,0,1,0,0
+C-6216017,E_COMMERCE_CUSTOMER,তাহেরুল ইসলাম,+8801944617883,,REGULAR,WHATSAPP,Narayanganj District,"হিরনাল মসজিদ, দাউদপুর, রুপগঞ্জ, নারায়ণগঞ্জ।","September 30th 2025, 5:49:50 pm","September 30th 2025, 5:51:34 pm",,3960.00,1,0,0,0,0,0,0,0,1,0,0
+C-6232624,E_COMMERCE_CUSTOMER,গোবিন্দ দেব,+8801718599438,,REGULAR,WHATSAPP,Sunamganj District,তিয়া কসমেটিকস এন্ড গিফট কর্নার জগন্নাথপুর বাজার সুনামগঞ্জ,"October 2nd 2025, 3:16:54 pm","October 2nd 2025, 5:01:17 pm",,1100.00,2,0,0,0,0,0,0,0,1,0,1
+C-6241330,E_COMMERCE_CUSTOMER,Md. Ashikur Rahman Arnob,+8801629183834,,REGULAR,OTHER,Faridpur District,"Shaperd Tower, Purbo Khabaspur, Faridpur Sadar, Faridpur","October 3rd 2025, 2:44:44 pm","October 3rd 2025, 2:45:18 pm",,850.00,1,0,0,0,0,0,0,0,1,0,0
+C-6245618,E_COMMERCE_CUSTOMER,Md Mizanur Rahman,+8801303549985,,NEW,WHATSAPP,Chattogram District,"OR Nizam Road
+Road No-07, #House-85
+GEC, Nasirabad, Chottogram","October 3rd 2025, 10:58:52 pm","October 3rd 2025, 10:59:59 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6245582,E_COMMERCE_CUSTOMER,Rakib,+8801779716074,,NEW,OTHER,Dhaka District," romna, mogbazar, Dhaka","October 3rd 2025, 10:54:50 pm","October 3rd 2025, 10:55:23 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6232583,E_COMMERCE_CUSTOMER,মনির হোসেন,+8801970933255,,REGULAR,WHATSAPP,Dhaka District,"শনির আখড়া জাপানি বাজার কদমতলী ঢাকা 
+","October 2nd 2025, 3:13:29 pm","October 2nd 2025, 5:02:11 pm",,4300.00,2,0,0,0,0,0,0,0,1,0,1
+C-6222213,E_COMMERCE_CUSTOMER,ওয়াসিম আকাশ,+8801612859881,,REGULAR,WHATSAPP,Dhaka District,"যমুনা ফিউচার পার্ক, লেভেল ৪","October 1st 2025, 1:30:32 pm","October 1st 2025, 2:02:33 pm",,5000.00,1,0,0,0,0,0,0,0,1,0,0
+C-6220198,E_COMMERCE_CUSTOMER,Md abu Hanif,+8801337103899,,REGULAR,WEBSITE,Dhaka District,"সাত তারা মসজিদ সেনপাড়া ৫৭/১ মিরপুর ১০ ঢাকা, Dhaka, BD","October 1st 2025, 9:40:59 am","October 1st 2025, 9:41:01 am",,4800.00,1,0,0,0,0,0,0,0,1,0,0
+C-6234004,E_COMMERCE_CUSTOMER,Akm nazim uddin Opi,+8801814462750,,NEW,WHATSAPP,Dhaka District,"Rayerbag, kadamtali thana dhaka
+","October 2nd 2025, 5:27:17 pm","October 2nd 2025, 5:28:01 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6208058,E_COMMERCE_CUSTOMER,Md. Fazle Rabbe,+8801714459185,,REGULAR,WHATSAPP,Rajshahi District,"393/ Notun Bilsimla, Greater Road, Rajpara, GPO-6000-Rajshahi.","September 29th 2025, 7:51:03 pm","September 29th 2025, 7:51:34 pm",,1410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6207620,E_COMMERCE_CUSTOMER,Debashish,+8801717605999,,REGULAR,WHATSAPP,Rangpur District,"Rangpur,gangachara.","September 29th 2025, 7:02:40 pm","September 29th 2025, 7:03:12 pm",,2100.00,1,0,0,0,0,0,0,0,1,0,0
+C-6186464,E_COMMERCE_CUSTOMER,Ananya Chowdhury,+8801601311542,,REGULAR,WHATSAPP,Chattogram District,"A-Madani Road,Johir brothers, Panchlaish, Chittagong
+","September 27th 2025, 2:42:40 pm","September 27th 2025, 2:47:38 pm",,8300.00,1,0,0,0,0,0,0,0,1,0,0
+C-6178639,E_COMMERCE_CUSTOMER,মোঃ মুরাদ হোসেন,+8801671559867,,REGULAR,WHATSAPP,Nilphamari District,"ইসলাম বাগ, সৈয়দপুর , নীলফামারী 
+","September 26th 2025, 5:40:20 pm","September 26th 2025, 5:40:51 pm",,390.00,1,0,0,0,0,0,0,0,1,0,0
+C-6196206,E_COMMERCE_CUSTOMER,Anamul Hasan,+8801302206921,,REGULAR,WHATSAPP,Tangail District,"basail, Tangail ","September 28th 2025, 3:23:58 pm","September 28th 2025, 3:31:55 pm",,1260.00,1,0,0,0,0,0,0,0,1,0,0
+C-6167691,E_COMMERCE_CUSTOMER,আতিকা তাবাসসুম,+8801700563002,,REGULAR,OTHER,Dhaka District,"371/6, Ahammad nogor , Middle pike para, Mirpur 1 , 1216","September 25th 2025, 12:46:55 pm","September 25th 2025, 12:50:02 pm",,390.00,1,0,0,0,0,0,0,0,1,0,0
+C-6189395,E_COMMERCE_CUSTOMER,Sabbir,+8801762827592,,REGULAR,OFFLINE,Gazipur District,"Tongi, College Gate, Bonmala Rail Gate, Gazipur","September 27th 2025, 7:31:56 pm","September 27th 2025, 7:34:54 pm",,1150.00,1,0,0,0,0,0,0,0,1,0,0
+C-6161383,E_COMMERCE_CUSTOMER,মিঠুন,+8801738043492,,REGULAR,WHATSAPP,Moulvibazar District,"সাতগাঁও চা বাগান, শ্রীমঙ্গল","September 24th 2025, 5:18:23 pm","September 24th 2025, 5:18:51 pm",,390.00,1,0,0,0,0,0,0,0,1,0,0
+C-6185944,E_COMMERCE_CUSTOMER,Fahim,+8801811405376,,REGULAR,OFFLINE,Dhaka District,"New Market, Dhaka","September 27th 2025, 1:53:03 pm","September 27th 2025, 1:53:47 pm",,3150.00,1,0,0,0,0,0,0,0,1,0,0
+C-6180469,E_COMMERCE_CUSTOMER,Md Jakaria,+8801538361941,,REGULAR,WHATSAPP,Dhaka District,Dhaka,"September 26th 2025, 9:22:34 pm","September 26th 2025, 9:23:46 pm",,2500.00,1,0,0,0,0,0,0,0,1,0,0
+C-6164337,E_COMMERCE_CUSTOMER,Ali Hosain,+8801731476524,,REGULAR,WEBSITE,Jhenaidah District,"Nur Nabi siddique Road-24, in front of kanchonpur primary school. Hamdah, Jhenaidah, Jhenaidah, BD","September 24th 2025, 10:50:47 pm","September 24th 2025, 10:50:50 pm",,3750.00,1,0,0,0,0,0,0,0,1,0,0
+C-6162976,E_COMMERCE_CUSTOMER,চামিন,+8801622313617,,REGULAR,WHATSAPP,Chattogram District,"বাস স্টেশন , পটিয়া থানা , চট্টগ্রাম ","September 24th 2025, 7:49:38 pm","September 24th 2025, 7:50:49 pm",,390.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150641,E_COMMERCE_CUSTOMER,Israt,+8801719834156,,REGULAR,OTHER,Jamalpur District,"Jamalpur sadar,tulshipur","September 23rd 2025, 4:00:53 pm","September 23rd 2025, 4:01:10 pm",Content Creator Gift,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6148904,E_COMMERCE_CUSTOMER,শাফরিন হক,+8801818490259,,REGULAR,WHATSAPP,Cox's Bazar District,"দক্ষিণ খুনিয়া পালং, কক্সবাজার 
+","September 23rd 2025, 1:36:53 pm","September 23rd 2025, 1:37:57 pm",,1170.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150803,E_COMMERCE_CUSTOMER,Tanzim shova,+8801305810243,,REGULAR,OTHER,Dhaka District,"12/6 citadel sarmenor,pollobi, mirpur,( sare egaro bus stand goli poschim dike kaji office samne 2/3 basar pore amr basa) dhaka.","September 23rd 2025, 4:12:37 pm","September 23rd 2025, 4:12:59 pm",Content Creator Gift,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6029524,E_COMMERCE_CUSTOMER,,+88,,NEW,WEBSITE,Dhaka District,"Dhaka, BD","September 11th 2025, 11:33:12 am","September 25th 2025, 12:23:58 pm",,0.00,4,0,0,0,0,0,0,0,0,0,4
+C-6150677,E_COMMERCE_CUSTOMER,nijhum,+8801786867419,,REGULAR,OTHER,Chattogram District,"R F niketon,ukil bari,pachlaish,muradpur ,ctg ","September 23rd 2025, 4:03:08 pm","September 23rd 2025, 4:03:48 pm",Content Creator Gift,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150981,E_COMMERCE_CUSTOMER,Content Creator,+8801621512818,,REGULAR,OTHER,Dhaka District,Mirpur -1 ahmed nogor paikpara boshir uddin scl er samny ,"September 23rd 2025, 4:25:37 pm","September 23rd 2025, 4:26:47 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150835,E_COMMERCE_CUSTOMER,Nadia Sultana,+8801881147831,,REGULAR,OTHER,Dhaka District,Mirpur 11 lalmatiya tempustand 7number road. House no:127,"September 23rd 2025, 4:14:36 pm","September 23rd 2025, 4:15:11 pm",Content Creator Gift,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150570,E_COMMERCE_CUSTOMER,Riya,+8801771814291,,REGULAR,OTHER,Dhaka District,"Dhaka, khilgaon- 1219
+block-A, Road-3, House-31, Titas road leguna stan.","September 23rd 2025, 3:56:48 pm","September 23rd 2025, 3:57:19 pm",Content Creator,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150608,E_COMMERCE_CUSTOMER,ety ayesha,+8801873270108,,REGULAR,OTHER,Dhaka District,"Dhaka rayerbag, Mohammad bag, pakar matha","September 23rd 2025, 3:59:16 pm","September 23rd 2025, 3:59:41 pm",Content Creator Gift,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150905,E_COMMERCE_CUSTOMER,Content Creator,+8801748234547,,REGULAR,OTHER,Dhaka District,"৪৪/১ হায়দার ভবন, গোয়ালনগর লেন, রায়সাহেব বাজারের পাশে, পুরান ঢাকা","September 23rd 2025, 4:19:47 pm","September 23rd 2025, 4:20:05 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150923,E_COMMERCE_CUSTOMER,Sanjida Tumpa,+8801796661600,,REGULAR,OTHER,Dhaka District,"House 25/4, lift -7, Flat - A7
+Sukrabad Bazar, Dhanmondi
+","September 23rd 2025, 4:21:18 pm","September 23rd 2025, 4:22:11 pm",Content Creator Gift,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6150969,E_COMMERCE_CUSTOMER,Taposi,+8801764006955,,REGULAR,OTHER,Dhaka District,"Rajabari model highschool ,kamarpara ,turag ,uttara ","September 23rd 2025, 4:24:04 pm","September 23rd 2025, 4:24:19 pm",Content Creator Gift,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-6121648,E_COMMERCE_CUSTOMER,Foyez,+8801973744200,,REGULAR,WEBSITE,Dhaka District,"Shop no60, Khilgaon Paka Masjid Market, Khilgaon, Dhaka, BD","September 20th 2025, 6:53:44 pm","September 20th 2025, 6:53:46 pm",,390.00,1,0,0,0,0,0,0,0,1,0,0
+C-6117937,E_COMMERCE_CUSTOMER,গোলাম ফারুক,+8801751346390,,REGULAR,OTHER,Rajshahi District,"ইস্টেজ ফার্স্ট হোয়্যার হাউজের পশ্চিম পাশে, কেচুয়াতৈল, চন্দ্রিমা, রাজশাহী ","September 20th 2025, 1:53:36 pm","September 20th 2025, 1:54:27 pm",,390.00,1,0,0,0,0,0,0,0,1,0,0
+C-6093245,E_COMMERCE_CUSTOMER,মোঃ মোয়াজ আহমেদ জুব,+8801926025977,,REGULAR,WEBSITE,Shariatpur District,"নরিয়া বৈশাখি পাড়া শরিয়তপুর, ঢাকা","September 17th 2025, 9:44:59 pm","September 17th 2025, 9:45:01 pm",,390.00,1,0,0,0,0,0,0,0,1,0,0
+C-6001996,E_COMMERCE_CUSTOMER,Sharmila,+8801622781715,,REGULAR,WEBSITE,Sylhet District,"pollobi abasik elaka, pathantula,sylhet, Sylhet, BD","September 8th 2025, 7:30:55 am","September 8th 2025, 7:30:56 am",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6076935,E_COMMERCE_CUSTOMER,Proshun,+8801642086358,,REGULAR,WEBSITE,Dhaka District,"19/3 west panthapath. Square hospital er pashei, Dhaka, BD","September 16th 2025, 10:43:36 am","September 16th 2025, 10:43:38 am",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6071414,E_COMMERCE_CUSTOMER,শারমীন বর্না,+8801307383662,,REGULAR,OTHER,Natore District,"বলারীপাড়া ,  ট্রমা হাসপাতাল এর সামনে, নাটোর সদর, নাটোর","September 15th 2025, 5:57:02 pm","September 15th 2025, 5:57:26 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6082187,E_COMMERCE_CUSTOMER,himu,+8801632340861,,NEW,OTHER,Dhaka District,gabtoli ayasha Super market,"September 16th 2025, 6:56:34 pm","September 16th 2025, 6:57:30 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6045234,E_COMMERCE_CUSTOMER,শান্তা ফারহানা,+8801846881448,,REGULAR,OTHER,Dhaka District," ০৩ নং নাজিরা বাজার বাংলাদুয়ার, বংশাল , ঢাকা","September 13th 2025, 8:53:42 am","September 13th 2025, 8:54:00 am",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6065415,E_COMMERCE_CUSTOMER,রাশেদ আলম,+8801913408105,,REGULAR,MESSENGER,Dhaka District,"ঢাকা কামরাঙ্গীরচর হুজুর পাড়া নুরজাহান স্কুল রোড 
+","September 15th 2025, 7:45:26 am","September 15th 2025, 7:45:52 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6071533,E_COMMERCE_CUSTOMER,সোহেল রানা সোহেল রানা,+8801313543918,alaudinf92@gmail.com,NEW,WEBSITE,Gazipur District,"উপজেলা:কোনাবাড়ী ৪:ঠিকানা:কাশীমপুর my moon complex, Gazipur, Gazipur, BD","September 15th 2025, 6:07:52 pm","September 15th 2025, 6:07:54 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6045218,E_COMMERCE_CUSTOMER,সালমান ফারসি,+8801893366170,,REGULAR,OTHER,Gazipur District,"মাওনা চোরাস্তা ওভার ব্রিজ. শ্রীপুর, গাজিপুর","September 13th 2025, 8:51:34 am","September 13th 2025, 8:51:52 am",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6064763,E_COMMERCE_CUSTOMER,মোঃ আপন,+8801581322810,mdzahidhasanjoy1000@gmail.com,NEW,WEBSITE,Dhaka District,"আগারগাঁও তালতলা, ঢাকা, Dhaka, BD","September 15th 2025, 1:40:43 am","September 15th 2025, 1:40:45 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6060950,E_COMMERCE_CUSTOMER,Rashmin Remon,+8801675128905,,REGULAR,WHATSAPP,Dhaka District,"Road-10,lane -3,house-13,Block-c,mirpur-11,pallabi -1216","September 14th 2025, 5:40:51 pm","September 14th 2025, 5:41:46 pm",,8800.00,1,0,0,0,0,0,0,0,1,0,0
+C-6014873,E_COMMERCE_CUSTOMER,Tanjim Ahmed,+8801703888360,,REGULAR,WHATSAPP,Moulvibazar District, Moulvibazar shah Mostafa road ,"September 9th 2025, 3:54:41 pm","September 9th 2025, 3:55:24 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6037173,E_COMMERCE_CUSTOMER,সিয়াম,+8801985292967,,REGULAR,WEBSITE,Chuadanga District,"লোকনাথপুর,দামুরহুদা, চুয়াডাঙ্গা ","September 12th 2025, 10:28:32 am","September 12th 2025, 10:28:56 am",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6042131,E_COMMERCE_CUSTOMER,মি. জয়,+8801766271480,,REGULAR,OTHER,Gazipur District,"জয়েরটেক, কোনাবাড়ী, গাজীপুর","September 12th 2025, 8:05:24 pm","September 12th 2025, 8:05:43 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6040049,E_COMMERCE_CUSTOMER,সাদিয়া,+8801340433002,,REGULAR,OTHER,Bogura District,"নলঘড়িয়া, তালোড়া, দুপচাঁচিয়া, বগুড়া","September 12th 2025, 4:18:24 pm","September 12th 2025, 4:18:40 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6012523,E_COMMERCE_CUSTOMER,Shahin,+8801884783750,,REGULAR,WEBSITE,"1. Dhaka Suburb
+2. Kishoreganj District
+3. Kishoreganj District","1. Tinpotti borobazar, Kishoreganj sadar, pubali bank er niche, Dhaka, BD
+2. Tinpotti borobazar, Kishoreganj sadar, pubali bank er niche, Kishoreganj, BD
+3. Tinpotti borobazar, Kishoreganj sadar, pubali bank er niche, Kishoreganj, BD","September 9th 2025, 11:22:25 am","September 9th 2025, 11:24:00 am",,410.00,2,0,0,0,0,0,0,0,1,0,1
+C-5936121,E_COMMERCE_CUSTOMER,Sourov,+8801540586334,,REGULAR,WEBSITE,Chattogram District,"চট্টগ্রাম মা ও শিশু হাসপাতাল,, Chittagong, BD","August 31st 2025, 10:52:43 pm","September 13th 2025, 3:10:59 pm",,410.00,2,0,0,0,0,0,0,0,2,0,0
+C-5965549,E_COMMERCE_CUSTOMER,সাজ্জাদ ইসলাম,+8801866526823,,REGULAR,WEBSITE,Chattogram District,"মালেক মুনসির বাজার হারামিয়া সন্দ্বীপ চট্টগ্রাম, Chittagong, BD","September 4th 2025, 10:23:26 am","September 13th 2025, 1:37:53 pm",,820.00,2,0,0,0,0,0,0,0,2,0,0
+C-6021871,E_COMMERCE_CUSTOMER,Sk Sium parvez,+8801312252133,,REGULAR,WHATSAPP,Satkhira District,Satkhira songita mor,"September 10th 2025, 12:52:24 pm","September 10th 2025, 12:53:20 pm",,350.00,1,0,0,0,0,0,0,0,1,0,0
+C-6010069,E_COMMERCE_CUSTOMER,সালমান রহমান,+8801400469571,,REGULAR,OTHER,Mymensingh District,"গফরগাঁও, ময়মনসিংহ","September 8th 2025, 11:49:47 pm","September 8th 2025, 11:50:15 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005350,E_COMMERCE_CUSTOMER,MD. Mahadi,+8801736069803,,REGULAR,WHATSAPP,Bhola District,"পশু হাসপাতালের পূর্ব পাশে, দারুল কুরআন ইসলামিক একাডেমি, শরীফপাড়া, চরফ্যাশন, ভোলা","September 8th 2025, 3:02:44 pm","September 8th 2025, 3:03:39 pm",,1600.00,1,0,0,0,0,0,0,0,1,0,0
+C-5953116,E_COMMERCE_CUSTOMER,জিছান,+8801404309788,,REGULAR,WEBSITE,"1. Dhaka District
+2. Dhaka District","1. মেরুল বাড্ডা. পাকিজা টাওয়ার, Dhaka, BD
+2. মেরুল বাড্ডা ঢাকা.. জিলপার, Dhaka, BD","September 2nd 2025, 8:38:39 pm","September 12th 2025, 2:56:16 pm",,410.00,2,0,0,0,0,0,0,0,1,0,1
+C-6021996,E_COMMERCE_CUSTOMER,Tahrim Ahmed,+8801874188990,,REGULAR,WEBSITE,Habiganj District,"Thupkhana, aniyachong, Hobigonj 
+","September 10th 2025, 1:07:37 pm","September 10th 2025, 1:08:02 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6037164,E_COMMERCE_CUSTOMER,Hasibul Hasan Emon,+8801799362093,,REGULAR,WEBSITE,Gazipur District,"2no C&B Bazar,Mawna chowrasta, sreepur, Gazipur","September 12th 2025, 10:27:08 am","September 12th 2025, 10:27:25 am",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6041691,E_COMMERCE_CUSTOMER,আসিফ,+8801867968959,,NEW,OTHER,Gazipur District,"নাসের মার্কেট,  কোনাবাড়ী  কালিয়াকৈর গাজিপুর","September 12th 2025, 7:17:45 pm","September 12th 2025, 7:18:05 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6022488,E_COMMERCE_CUSTOMER,বৃষ্টি,+8801921306249,,REGULAR,WEBSITE,Narail District,"দক্ষিণ লঙ্কারচর  S.P.L school , লোহাগড়া, ইতনা ইউনিয়ন , নড়াইল ","September 10th 2025, 2:03:43 pm","September 10th 2025, 2:04:13 pm",,890.00,1,0,0,0,0,0,0,0,1,0,0
+C-6021346,E_COMMERCE_CUSTOMER,Md.Biplo miah,+8801909132623,,REGULAR,WEBSITE,Dhaka District,"T & T bazar anower a1 gate,Tongi, Dhaka, BD","September 10th 2025, 11:53:07 am","September 10th 2025, 11:53:08 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6019438,E_COMMERCE_CUSTOMER,Sabbir,+8801830192996,,REGULAR,WEBSITE,Dhaka District,"Tongi ashraf shetu shopping complex, Dhaka, BD","September 10th 2025, 2:12:06 am","September 10th 2025, 2:12:07 am",,430.00,1,0,0,0,0,0,0,0,1,0,0
+C-5953117,E_COMMERCE_CUSTOMER,জিছান,+8801404309788,,REGULAR,WEBSITE,"1. Dhaka District
+2. Dhaka District
+3. Dhaka District","1. মেরুল বাড্ডা. পাকিজা টাওয়ার, Dhaka, BD
+2. মেরুল বাড্ডা ঢাকা.. জিলপার, Dhaka, BD
+3. মেরুল বাড্ডা. পাকিজা টাওয়ার, Dhaka, BD","September 2nd 2025, 8:38:40 pm","September 5th 2025, 12:19:02 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005106,E_COMMERCE_CUSTOMER,Tanvir Ahmed,+8801731540636,,REGULAR,OTHER,Tangail District,"puran bus stand, Tangail sadar","September 8th 2025, 2:35:59 pm","September 8th 2025, 2:37:02 pm",,380.00,1,0,0,0,0,0,0,0,1,0,0
+C-6022015,E_COMMERCE_CUSTOMER,শিশির,+8801737967764,,REGULAR,WEBSITE,Madaripur District,"সুর্য নগর  বাজার , শিবচর, মাদারীপুর","September 10th 2025, 1:09:17 pm","September 10th 2025, 1:09:38 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6037187,E_COMMERCE_CUSTOMER,Tanvir,+8801997816735,,NEW,WEBSITE,Chattogram District,"Kotowali thana, Chittagong","September 12th 2025, 10:30:27 am","September 12th 2025, 11:09:11 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6037151,E_COMMERCE_CUSTOMER,সামিয়া জান্নাত,+8801971911109,,NEW,WEBSITE,Dhaka District,জুরাইন খন্দকার রোড ঢাকা -১২০৪ মুজাহিদ ফার্মেসীর সামনে,"September 12th 2025, 10:25:45 am","September 12th 2025, 10:26:26 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6012662,E_COMMERCE_CUSTOMER,Akash,+8801711137218,,REGULAR,WEBSITE,Khulna District,"88/2 Sattar Biswas Sorok, Khulna, BD","September 9th 2025, 11:39:13 am","September 9th 2025, 11:39:15 am",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6011352,E_COMMERCE_CUSTOMER,শাওন,+8801723997646,,REGULAR,WEBSITE,Lalmonirhat District,"লালমনিরহাটে, পাটগ্রাম, জনতার বাজার ধবলগুড়ি, Lalmonirhat, BD","September 9th 2025, 8:29:25 am","September 9th 2025, 8:29:27 am",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6010047,E_COMMERCE_CUSTOMER,মো: কোরবান আলী,+8801723077299,,REGULAR,OTHER,Gaibandha District,"সদর ডিসি অফিসের সামনে, গাইবান্ধা","September 8th 2025, 11:46:14 pm","September 8th 2025, 11:46:44 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6009855,E_COMMERCE_CUSTOMER,Md Jakaria,+8801327857238,,REGULAR,WEBSITE,Sirajganj District,"people Baria bager/sen para, sadar, Sirajganj, BD","September 8th 2025, 11:20:57 pm","September 8th 2025, 11:20:58 pm",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6010059,E_COMMERCE_CUSTOMER,আকতারুজ্জামান,+8801613547779,,REGULAR,OTHER,Dhaka District,"১৪৯,শান্তিবাগ, শাহাজানপুর, ঢাকা।","September 8th 2025, 11:48:21 pm","September 8th 2025, 11:48:50 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6014835,E_COMMERCE_CUSTOMER,Bijoy,+8801885758652,,REGULAR,WEBSITE,Sylhet District,"Bongobondhu Sheikh Mujibur Rahman Hall, Sylhet, BD","September 9th 2025, 3:49:25 pm","September 9th 2025, 3:49:26 pm",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6011272,E_COMMERCE_CUSTOMER,Sahadath,+8801572911286,,REGULAR,WEBSITE,Chattogram District,"Sholoshohor, in front of robi office, Chittagong, BD","September 9th 2025, 8:05:32 am","September 9th 2025, 8:05:33 am",,860.00,1,0,0,0,0,0,0,0,1,0,0
+C-6004783,E_COMMERCE_CUSTOMER,mohima chy,+8801849575734,,REGULAR,OTHER,Kushtia District,"kustia housing , plot A55, kustia","September 8th 2025, 1:58:12 pm","September 8th 2025, 1:59:09 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6011271,E_COMMERCE_CUSTOMER,Mst. Tania,+8801328816400,,REGULAR,WEBSITE,Thakurgaon District,"Haripur Govt. pilot School. Haripur Thakurgaon, Thakurgaon, BD","September 9th 2025, 8:05:27 am","September 9th 2025, 8:05:29 am",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6011893,E_COMMERCE_CUSTOMER,OYSHEE,+8801629595983,,REGULAR,WEBSITE,Rajshahi District,"রামচন্দ্রপুর মিরেচক সাধুর মোড় বোয়ালিয়া রাজশাহী, Rajshahi, BD","September 9th 2025, 10:13:40 am","September 9th 2025, 10:13:43 am",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-5851858,E_COMMERCE_CUSTOMER,test,+8890184923741,admin@zamzamintxyz.xyz,NEW,WEBSITE,"1. Dhaka District
+2. Dhaka District
+3. Dhaka District","1. kalshi, dhaka, Dhaka, BD
+2. ekjfhkej, Dhaka, BD
+3. kalshi, dhaka, Dhaka, BD","August 21st 2025, 6:19:17 pm","September 10th 2025, 10:59:34 pm",,0.00,5,0,0,0,0,0,0,0,0,0,5
+C-5988057,E_COMMERCE_CUSTOMER,MD SAHIN,+8801310507829,,REGULAR,WHATSAPP,Khulna District,KHULNA SADAR,"September 6th 2025, 4:57:51 pm","September 6th 2025, 4:59:05 pm",,1500.00,1,0,0,0,0,0,0,0,1,0,0
+C-5990944,E_COMMERCE_CUSTOMER,Syfur rahman,+8801614832625,,REGULAR,WEBSITE,Dhaka District,"Kishoreganj,Austagram,adampur bazar, Dhaka, BD","September 6th 2025, 10:19:05 pm","September 6th 2025, 10:19:07 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005254,E_COMMERCE_CUSTOMER,গোলাম আজম,+8801878980040,,REGULAR,OTHER,Dhaka District,"আর্দশ নগর, সুমন ভিলা, বাড্ডা, ঢাকা","September 8th 2025, 2:52:44 pm","September 8th 2025, 2:53:11 pm",,380.00,1,0,0,0,0,0,0,0,1,0,0
+C-6008163,E_COMMERCE_CUSTOMER,ফারজানা আক্তার,+8801611721034,,REGULAR,OTHER,Narsingdi District,"রায়পুরা(পলাশতলী সরকারি স্কুল), নরসিংদী ","September 8th 2025, 7:24:27 pm","September 8th 2025, 7:24:54 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-6010087,E_COMMERCE_CUSTOMER,মোঃ আবু নাঈম,+8801741625225,,REGULAR,OTHER,Rajshahi District,"হজের মোড়, পদ্মা আবাসিক, চন্দ্রিমা, রাজশাহী","September 8th 2025, 11:51:34 pm","September 8th 2025, 11:52:02 pm",,450.00,1,0,0,0,0,0,0,0,1,0,0
+C-5995455,E_COMMERCE_CUSTOMER,রিয়াদ,+8801618324249,,REGULAR,WHATSAPP,Netrokona District,"টিটিসি, নেত্রোকোণা","September 7th 2025, 1:46:25 pm","September 7th 2025, 1:47:26 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6003588,E_COMMERCE_CUSTOMER,Mehmet,+8801705198429,,REGULAR,WEBSITE,Barisal District,"Bhuiya sharak, Ansar Camp, Kashipur, Barishal, Barisal, BD","September 8th 2025, 11:39:15 am","September 8th 2025, 11:39:16 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6002984,E_COMMERCE_CUSTOMER,Rukia,+8801402824126,,REGULAR,WEBSITE,Barishal District,"Harta, wazirpur, Barisal, BD","September 8th 2025, 10:41:08 am","September 8th 2025, 10:41:10 am",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-5995477,E_COMMERCE_CUSTOMER,ইমরান,+8801639472310,,REGULAR,WHATSAPP,Jhenaidah District,"খামার মুন্দিয়া উত্তর পাড়া পুরানো মাদ্রাসা, দুলাল মুন্দিয়া, কালিগঞ্জ, ঝিনাইদাহ","September 7th 2025, 1:49:19 pm","September 7th 2025, 1:49:46 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005088,E_COMMERCE_CUSTOMER,পপি,+8801890608777,,REGULAR,OTHER,Chattogram District,"শেরশাহ বাংলা বাজার ডেবারপাড় [পূর্বাচল আইডিয়াল স্কুলের গেইটে, বায়েজিদ, চট্টগ্রাম ","September 8th 2025, 2:34:04 pm","September 8th 2025, 2:34:43 pm",,380.00,1,0,0,0,0,0,0,0,1,0,0
+C-5987814,E_COMMERCE_CUSTOMER,রিফাত,+8801611563442,,REGULAR,OTHER,Khulna District,"বাজুয়া বাজার, দাকোপ, খুলনা","September 6th 2025, 4:35:21 pm","September 6th 2025, 4:35:47 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005144,E_COMMERCE_CUSTOMER,আকাশ,+8801785719684,,REGULAR,OTHER,Munshiganj District,"হাসারা বাজার, শ্রীনগর, মুন্সিগঞ্জ","September 8th 2025, 2:40:54 pm","September 8th 2025, 2:41:37 pm",,380.00,1,0,0,0,0,0,0,0,1,0,0
+C-6015664,E_COMMERCE_CUSTOMER,মো: লিটন,+8801921021322,,REGULAR,WEBSITE,Dhaka District,"কাস্টমস হাউস পানগাঁও কেরানীগঞ্জ ঢাকা, Dhaka, BD","September 9th 2025, 5:07:31 pm","September 9th 2025, 5:07:33 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005047,E_COMMERCE_CUSTOMER,Md.Naim,+8801791828004,,REGULAR,OTHER,Narayanganj District,"akir fashion, Dahorga,Vulta,Gaucia, Narayanganj","September 8th 2025, 2:30:25 pm","September 8th 2025, 2:32:01 pm",,400.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005334,E_COMMERCE_CUSTOMER,আবিন্তা সরকার,+8801782068635,,REGULAR,OTHER,Rangpur District,"কুমেদপুর, পীরগঞ্জ, রংপুর","September 8th 2025, 3:01:06 pm","September 8th 2025, 3:01:31 pm",,380.00,1,0,0,0,0,0,0,0,1,0,0
+C-5962475,E_COMMERCE_CUSTOMER,Tawsif,+8801300279329,,REGULAR,WEBSITE,Faridpur District,"Bhanga college per, Faridpur, BD","September 3rd 2025, 9:18:25 pm","September 3rd 2025, 9:18:26 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-6022534,E_COMMERCE_CUSTOMER,রাহাত,+8801875567596,,NEW,WEBSITE,Dinajpur District,"দিনাজপুর, পার্বতীপুর,হলদিবাড়ি বড় মসজিদের সামনে। ","September 10th 2025, 2:12:12 pm","September 10th 2025, 2:12:42 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5995264,E_COMMERCE_CUSTOMER,Tamim,+8801717248580,,REGULAR,WEBSITE,Jashore District,"Panthopara,jashore Cantonment,jashore, Jessore, BD","September 7th 2025, 1:21:56 pm","September 7th 2025, 1:21:59 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6010251,E_COMMERCE_CUSTOMER,Anamul,+8801913481940,,REGULAR,WEBSITE,Dhaka District,"Hazi market, Pukur Paar. Baigertek. Dhaka cantt..Dhaka 1206, Dhaka, BD","September 9th 2025, 12:18:57 am","September 9th 2025, 12:18:58 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6020819,E_COMMERCE_CUSTOMER,রাফি,+8801872671415,,NEW,WEBSITE,Dhaka District,"শেরপুর, Dhaka, BD","September 10th 2025, 10:50:17 am","September 10th 2025, 10:50:19 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6005276,E_COMMERCE_CUSTOMER,Hasan,+8801976408988,,REGULAR,OTHER,Dhaka District,"Baunia, badaldi, turag Baunia bazar Dutch bangla bank 2nd flore a, Dhaka","September 8th 2025, 2:55:19 pm","September 8th 2025, 2:55:47 pm",,380.00,1,0,0,0,0,0,0,0,1,0,0
+C-6019607,E_COMMERCE_CUSTOMER,Saiful,+8801856183342,,NEW,WEBSITE,Noakhali District,"Basurhat, companigonj, Noakhali, Noakhali, BD","September 10th 2025, 4:25:43 am","September 10th 2025, 4:25:44 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6018986,E_COMMERCE_CUSTOMER,Nadim Prodhan,+8801607316430,prodhannadim149@gmail.com,NEW,WEBSITE,Dhaka District,"Mirpur 12 D block কালাপানি ইদগা মাঠ, Dhaka, Dhaka, BD","September 10th 2025, 12:23:54 am","September 10th 2025, 12:23:55 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6017255,E_COMMERCE_CUSTOMER,Asaduzzaman,+8801835936378,,NEW,WEBSITE,Brahmanbaria District,"Akhura, khrompur,Brahmanbaria, Brahmanbaria, BD","September 9th 2025, 7:56:13 pm","September 9th 2025, 7:56:15 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6005876,E_COMMERCE_CUSTOMER,Md Fahad Hossain,+8801830796579,,REGULAR,WEBSITE,Dhaka District,"Mirpur-11, near the metro station","September 8th 2025, 3:51:54 pm","September 8th 2025, 3:52:27 pm",,860.00,1,0,0,0,0,0,0,0,1,0,0
+C-5968848,E_COMMERCE_CUSTOMER,Ariful Islam,+8801990824256,,REGULAR,WEBSITE,Khulna District,"জেলা : বাগেরহাট, উপজেলা : মোড়েলগঞ্জ, ইউনিয়ন :১৫ নং মোড়েলগঞ্জ সদর ইউনিয়ন, গ্রাম :বিশারীঘাটা, Khulna, BD","September 4th 2025, 4:02:56 pm","September 4th 2025, 4:03:03 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5995576,E_COMMERCE_CUSTOMER,নাহিদ,+8801719932881,,REGULAR,WHATSAPP,Chattogram District,"কাঠগার মুসলিমাবাদ , পতেঙ্গা,চট্টগ্রাম","September 7th 2025, 2:01:02 pm","September 7th 2025, 2:01:46 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6000007,E_COMMERCE_CUSTOMER,Mahfuz,+8801600786464,,REGULAR,WEBSITE,Dhaka District,"রায়ের বাজার, জিয়া কলেজ, মুহাম্মদ পুর, ঢাকা, Dhaka, BD","September 7th 2025, 9:53:03 pm","September 7th 2025, 9:53:05 pm",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005009,E_COMMERCE_CUSTOMER,Rozario,+8801994517094,,REGULAR,OTHER,Dhaka District,"Khilbarirtek jamai goli, Vatara,  Dhaka ","September 8th 2025, 2:24:52 pm","September 8th 2025, 2:27:03 pm",,380.00,1,0,0,0,0,0,0,0,1,0,0
+C-5991538,E_COMMERCE_CUSTOMER,Shakila,+8801521446362,,REGULAR,WEBSITE,Mymensingh District,"Mymensingh medical intern ladies hostel, chorpara,Mymensingh sadar, Mymensingh, BD","September 6th 2025, 11:55:51 pm","September 6th 2025, 11:55:52 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5995421,E_COMMERCE_CUSTOMER,Sajadul islam,+8801884608004,,REGULAR,WEBSITE,Dhaka District,"A-88/11, radio colony, savar, Dhaka, BD","September 7th 2025, 1:40:57 pm","September 7th 2025, 1:41:00 pm",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-5995521,E_COMMERCE_CUSTOMER,তাহমিনা,+8801646225764,,REGULAR,WHATSAPP,Chattogram District,"কন্ট্রোলার মোড় জালালিয়া স্কুলের পাশে, পতেঙ্গা, চট্টগ্রাম ","September 7th 2025, 1:54:54 pm","September 7th 2025, 1:55:35 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5996447,E_COMMERCE_CUSTOMER,ফাহিম,+8801917202235,,REGULAR,WEBSITE,Dhaka District,"নীলাচল,রোড় নং ২ এভিনিউ ২ চন্দ্রিমা মডেল টাউন, মোহাম্মদপুর ঢাকা, Dhaka, BD","September 7th 2025, 3:26:56 pm","September 7th 2025, 3:26:57 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5981303,E_COMMERCE_CUSTOMER,Tamim,+8801331509673,,REGULAR,WEBSITE,Sylhet District,"থানা জুড়ী জেলা মেীলভীবাজার, Sylhet, BD","September 5th 2025, 10:55:41 pm","September 5th 2025, 10:55:42 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6015107,E_COMMERCE_CUSTOMER,SAUD,+8801757186094,,NEW,WHATSAPP,Narayanganj District,"GHARMORA, BANDAR, NARAYANGANJ","September 9th 2025, 4:15:34 pm","September 9th 2025, 4:16:08 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5984862,E_COMMERCE_CUSTOMER,Rowshon Zaman Shohag,+8801829520368,,REGULAR,WEBSITE,Bagerhat District,"গ্রাম- বানিয়াখালি চৌদ্দগড়, থানা- মোড়েলগঞ্জ, জেলা- বাগেরহাট / খুলনা, Bagerhat, BD","September 6th 2025, 12:16:04 pm","September 6th 2025, 12:16:06 pm",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6014772,E_COMMERCE_CUSTOMER,Sani,+8801320675527,,NEW,WEBSITE,Sylhet District,"Atgam bazar, zokigong, Sylhet, Sylhet, BD","September 9th 2025, 3:44:24 pm","September 9th 2025, 3:44:25 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5970762,E_COMMERCE_CUSTOMER,সিনথিয়া তাবাচ্ছুম,+8801850074366,,REGULAR,WEBSITE,Rangpur District,"পদাগন্ঞ্জ আলুর স্টোরের সামনে, ১ নং খোড়াগাছ, মিঠাপুকুর রংপুর, Rangpur, BD","September 4th 2025, 7:16:55 pm","September 4th 2025, 7:16:57 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5973683,E_COMMERCE_CUSTOMER,Al amin,+8801716219570,,REGULAR,WEBSITE,Dhaka District,"Magula bazar,dohar dhaka, Dhaka, BD","September 5th 2025, 6:15:05 am","September 5th 2025, 6:15:06 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-6005131,E_COMMERCE_CUSTOMER,মাহাবুর আলনুর,+8801400091891,,REGULAR,OTHER,Dhaka District,"নেভাল হেড কোয়ার্টার, বানানী কবরস্থান গেট, ঢাকা","September 8th 2025, 2:39:02 pm","September 8th 2025, 2:39:29 pm",,899.00,1,0,0,0,0,0,0,0,1,0,0
+C-5997052,E_COMMERCE_CUSTOMER,হুমায়ুন,+8801834612520,,REGULAR,WEBSITE,Chattogram District,"দারুল ইসলাম মাদ্রাসার সামনে, মুন্সীরঘাটা, রাউজান,
+চট্টগ্রাম","September 7th 2025, 4:25:04 pm","September 7th 2025, 4:28:06 pm",,899.00,1,0,0,0,0,0,0,0,1,0,0
+C-5974710,E_COMMERCE_CUSTOMER,Umme Nafisa,+8801616989847,,REGULAR,WEBSITE,Sirajganj District,"Fakir bari Road, Chandaikona Pabna Bazar, Near by Dhaka Bank, Chandaikona, Raiganj, Sirajganj, Sirajganj, BD","September 5th 2025, 10:31:35 am","September 5th 2025, 10:31:37 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5974822,E_COMMERCE_CUSTOMER,মো: শামীম মিয়া,+8801617299708,,REGULAR,WEBSITE,Dhaka Suburb,"গ্রাম: সুটিং বাড়ি থানা: আশুলিয়া জেলা: সাভার ঢাকা, Dhaka, BD","September 5th 2025, 10:43:58 am","September 5th 2025, 10:47:04 am",,410.00,2,0,0,0,0,0,0,0,1,0,1
+C-6011169,E_COMMERCE_CUSTOMER,"Hridoy,",+8801953199085,,NEW,WEBSITE,Jashore District,"নিজামপুর বাজার, শার্শা, যশোর","September 9th 2025, 7:25:28 am","September 9th 2025, 7:27:00 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-6010550,E_COMMERCE_CUSTOMER,সুরাইয়া,+8801724934256,,NEW,WEBSITE,Bagerhat District,"কাটিপাড়া, চিতলমারি, বাঘের হাট, Bagerhat, BD","September 9th 2025, 1:12:25 am","September 9th 2025, 1:12:26 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6010172,E_COMMERCE_CUSTOMER,Md.,+8801671945854,,NEW,WEBSITE,Dhaka Suburb,"Tiabari, Genda,, Dhaka, BD","September 9th 2025, 12:06:07 am","September 9th 2025, 12:06:09 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5995406,E_COMMERCE_CUSTOMER,Tanvir Ahmed,+8801816151986,,REGULAR,WHATSAPP,Dhaka District,"Azimpur chaina building goli, 154 no. House","September 7th 2025, 1:38:56 pm","September 7th 2025, 1:52:35 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5955993,E_COMMERCE_CUSTOMER,হাসান আহাম্মেদ,+8801676595807,,REGULAR,WEBSITE,Cumilla District,"রেসকোর্স ধানমণ্ডি রোড মসজিদ রোড ২, Comilla, BD","September 3rd 2025, 9:15:08 am","September 3rd 2025, 9:15:10 am",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5995538,E_COMMERCE_CUSTOMER,রিয়াদ মাহামুদ,+8801572913799,,REGULAR,WHATSAPP,Joypurhat District,"জয়পুরহাট, জেলা সদর, আমতলী ","September 7th 2025, 1:57:15 pm","September 7th 2025, 1:59:38 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5998025,E_COMMERCE_CUSTOMER,Rezaul,+8801682812375,,NEW,WEBSITE,Bhola District,"Bhola Sadar, Bhola, BD","September 7th 2025, 5:56:56 pm","September 7th 2025, 5:56:57 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5987844,E_COMMERCE_CUSTOMER,রোহান,+8801704958829,,REGULAR,OTHER,Kushtia District,"কুষ্টিয়া রাইনি বটতলা, সদর, কুষ্টিয়া","September 6th 2025, 4:37:22 pm","September 8th 2025, 2:57:20 pm",,410.00,2,0,0,0,0,0,0,0,1,0,1
+C-5970770,E_COMMERCE_CUSTOMER,আনোয়ার,+8801892573598,,REGULAR,WEBSITE,Dhaka District,"বংশাল ছিক্কাটুলি ছাতা মসজিদ, Dhaka, BD","September 4th 2025, 7:17:48 pm","September 4th 2025, 7:22:24 pm",,410.00,2,0,0,0,0,0,0,0,1,0,1
+C-5991817,E_COMMERCE_CUSTOMER,Mahmud Hasan,+8801744232283,,REGULAR,WEBSITE,Dhaka District,"section:6, block: D, road: 10, house: 3,Mirpur,Dhaka-1216, Dhaka, BD","September 7th 2025, 12:48:29 am","September 7th 2025, 12:48:31 am",,860.00,1,0,0,0,0,0,0,0,1,0,0
+C-6004791,E_COMMERCE_CUSTOMER,Rabeya,+8801615077558,,NEW,WEBSITE,Cox's Bazar District,"Palakata, sukkor er dokan, Cox's Bazar, BD","September 8th 2025, 1:59:24 pm","September 8th 2025, 1:59:26 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6004614,E_COMMERCE_CUSTOMER,Manik,+8801762223963,,NEW,WEBSITE,Dhaka District,"01762223963, Dhaka, BD","September 8th 2025, 1:34:46 pm","September 8th 2025, 1:34:47 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5979811,E_COMMERCE_CUSTOMER,Antor,+8801739803713,,REGULAR,WEBSITE,Dhaka District,"Fultola bazar,dohar,dhaka., Dhaka, BD","September 5th 2025, 7:41:58 pm","September 5th 2025, 7:41:59 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5992894,E_COMMERCE_CUSTOMER,Md Hasib,+8801994455882,,REGULAR,WEBSITE,Dhaka District,"Kashipur, Dhamrai, Dhaka, BD","September 7th 2025, 9:15:42 am","September 7th 2025, 9:15:43 am",,460.00,1,0,0,0,0,0,0,0,1,0,0
+C-6002084,E_COMMERCE_CUSTOMER,আখতারুজ্জামান,+880161354779,,NEW,WEBSITE,Dhaka District,"১৪৯,শান্তিবাগ, শাহাজানপুর,ঢাকা।, Dhaka, BD","September 8th 2025, 8:10:55 am","September 8th 2025, 8:10:56 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-6000455,E_COMMERCE_CUSTOMER,Shovon,+8801337338021,,NEW,WEBSITE,Dhaka Suburb,"Jamgora Chowrasta, Dhaka, BD","September 7th 2025, 10:57:46 pm","September 7th 2025, 10:59:06 pm",,0.00,2,0,0,0,0,0,0,0,0,0,2
+C-5999324,E_COMMERCE_CUSTOMER,Sanjeed,+8801522101281,,NEW,WEBSITE,Bogura District,"Rohomannogor bogura sodor bogura, Bogra, BD","September 7th 2025, 8:22:29 pm","September 7th 2025, 8:22:32 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5998903,E_COMMERCE_CUSTOMER,Nazmul,+8801700000000,,NEW,WEBSITE,Dhaka Suburb,"ইউনাইটেট কিংডম, Dhaka, BD","September 7th 2025, 7:30:54 pm","September 7th 2025, 7:30:55 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5984526,E_COMMERCE_CUSTOMER,ডেনি অপূর্ব বিশ্বাস,+8801683331971,,REGULAR,WEBSITE,Chattogram District,"Sagorika road,patan para,Christian Bari, parartoli,Chattogram, Chittagong, BD","September 6th 2025, 11:47:14 am","September 6th 2025, 11:47:16 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5963355,E_COMMERCE_CUSTOMER,Sojiv,+8801303327630,,REGULAR,WEBSITE,Brahmanbaria District,"Shekh Bari Rd, Brahmanbaria, BD","September 3rd 2025, 11:23:42 pm","September 3rd 2025, 11:23:43 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5980410,E_COMMERCE_CUSTOMER,মোঃ প্রিন্স রিমন,+8801701039051,,REGULAR,WEBSITE,Rajshahi District,"গ্রামঃ হাট কানপাড়া (ডাচ বাংলা ব্যাংক), পোষ্টঃ বখতিয়ারপুর, থানাঃ দূর্গাপুর, জেলাঃ রাজশাহী।, Rajshahi, BD","September 5th 2025, 9:00:57 pm","September 5th 2025, 9:00:58 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5978397,E_COMMERCE_CUSTOMER,Apurbo,+8801723912090,,REGULAR,WEBSITE,Dhaka District,"179/4 East Kafrul, Dhaka Cantonment, Dhaka, BD","September 5th 2025, 5:14:50 pm","September 5th 2025, 5:14:52 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5983503,E_COMMERCE_CUSTOMER,Farhana Sarker,+8801712858786,,REGULAR,WEBSITE,Dhaka District,"97/5, Maradia (Ayesha monjil) khilgaon, 1219, Dhaka, BD","September 6th 2025, 10:02:35 am","September 6th 2025, 10:02:37 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5977830,E_COMMERCE_CUSTOMER,Khandaker yemen Islam,+8801775263619,,REGULAR,WEBSITE,Dhaka District,"BGB 3 NO GATE PILKHANA, DHAKA, Dhaka, BD","September 5th 2025, 4:21:28 pm","September 5th 2025, 4:21:29 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5970908,E_COMMERCE_CUSTOMER,Suvra,+8801711010836,,REGULAR,WEBSITE,Dhaka District,"H 58,r 10 ,sector 6,uttara,dhaka, Dhaka, BD","September 4th 2025, 7:35:27 pm","September 4th 2025, 7:35:28 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5977918,E_COMMERCE_CUSTOMER,MD.Raisul Islam,+8801675496278,,REGULAR,WEBSITE,Narayanganj District,"146/2 Deobogh Pakka Road, Narayanganj., Narayanganj, BD","September 5th 2025, 4:28:08 pm","September 5th 2025, 4:28:10 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5971962,E_COMMERCE_CUSTOMER,রোমান,+8801957266507,,REGULAR,WEBSITE,Faridpur District,"ফরিদপুর সি এন্ড বি ঘাট কোতয়ালী থানা, Faridpur, BD","September 4th 2025, 9:59:54 pm","September 4th 2025, 9:59:56 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5995245,E_COMMERCE_CUSTOMER,Md Hasan,+8801732583312,,NEW,WEBSITE,Dhaka Suburb,"Gazipur Kaliakoir .boroybari.angina Bill .chearmen Khamar, Dhaka, BD","September 7th 2025, 1:19:55 pm","September 7th 2025, 1:19:58 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5954978,E_COMMERCE_CUSTOMER,Tamanna Lucky,+8801857671323,,REGULAR,WEBSITE,Kishoreganj District,"Dr. Israt Jahan Specialized Hospital, Bhoirab, Kishorgonj, Kishoreganj, BD","September 3rd 2025, 1:34:21 am","September 3rd 2025, 1:34:22 am",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5963427,E_COMMERCE_CUSTOMER,Shuvon,+8801734779455,,REGULAR,WEBSITE,Dhaka District,"Flat 5A,house 114,Road 2,Block A,Niketan, Gulshan -1,Dhaka -1212.., Dhaka, BD","September 3rd 2025, 11:32:24 pm","September 3rd 2025, 11:32:28 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5973712,E_COMMERCE_CUSTOMER,Mohammad Shafat Chowdhury,+8801531370767,,REGULAR,WEBSITE,Dhaka District,"Bangladesh Medical College 14/A, Dhanmondi,Dhaka, Dhaka, BD","September 5th 2025, 6:34:56 am","September 5th 2025, 6:34:58 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5979092,E_COMMERCE_CUSTOMER,MD SUJON AHMED,+8801792505365,,REGULAR,WEBSITE,Dhaka District,"1152/B MALIBAGH CHOWDHURY PARA DHAKA, Dhaka, BD","September 5th 2025, 6:19:57 pm","September 5th 2025, 6:19:58 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5980518,E_COMMERCE_CUSTOMER,Al Mamunur Rashid,+8801906472201,,REGULAR,WEBSITE,Dhaka District,"Delta Hospital, Tolarbag, Mirpur 1, Dhaka, BD","September 5th 2025, 9:16:47 pm","September 5th 2025, 9:16:49 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5991750,E_COMMERCE_CUSTOMER,Mahmud Hasan,+8801977372779,,NEW,WEBSITE,Dhaka District,"section:6, block: D, road: 10, house: 3,Mirpur,Dhaka-1216, Dhaka, BD","September 7th 2025, 12:38:11 am","September 7th 2025, 12:38:12 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5991341,E_COMMERCE_CUSTOMER,MD,+8801607507303,,NEW,WEBSITE,Chattogram District,"Halishahar Chittagong, Chittagong, BD","September 6th 2025, 11:20:21 pm","September 6th 2025, 11:20:23 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5991034,E_COMMERCE_CUSTOMER,Azhar,+8801745458985,,NEW,WEBSITE,Dhaka District,"ঢাকা মিরপুর ১৪মজুমদার মোড় তালিমগড় মসজিদ, Dhaka, BD","September 6th 2025, 10:32:00 pm","September 6th 2025, 10:32:03 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5947118,E_COMMERCE_CUSTOMER,Mohammad Abdullah Al Mamun,+8801611660010,,REGULAR,WEBSITE,Dhaka District,"Rajarbag police lines 2 no. Gate, Dhaka, BD","September 2nd 2025, 9:46:05 am","September 2nd 2025, 9:46:06 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5909593,E_COMMERCE_CUSTOMER,Rayhan,+8801615973565,,VIP,WEBSITE,Gazipur District,Duet gate Joydebpur gazipur,"August 28th 2025, 6:25:06 pm","September 6th 2025, 5:05:08 pm",,68000.00,2,0,0,0,0,0,0,0,2,0,0
+C-5987737,E_COMMERCE_CUSTOMER,শিহাব,+8801885825943,,NEW,OTHER,Narsingdi District,"মাধবদী, নরসিংদী 
+ ","September 6th 2025, 4:29:06 pm","September 6th 2025, 4:29:58 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5987791,E_COMMERCE_CUSTOMER,নাঈম,+8801333602189,,NEW,OTHER,Gazipur District,"ডিজাইন টেষ্ট অফিস, শ্রীপুর, গাজীপুর","September 6th 2025, 4:33:19 pm","September 6th 2025, 4:33:46 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5964094,E_COMMERCE_CUSTOMER,Dipokpondit,+8801626221063,,REGULAR,WEBSITE,Mymensingh District,"পুরোহিত পাড়া ,কোতোয়ালি ময়মনসিংহ, Mymensingh, BD","September 4th 2025, 1:21:18 am","September 4th 2025, 1:21:20 am",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5963087,E_COMMERCE_CUSTOMER,Tamim,+8801301156118,,REGULAR,WEBSITE,Lalmonirhat District,"Patgram Lalmonirhut Rongpur, Lalmonirhat, BD","September 3rd 2025, 10:46:29 pm","September 3rd 2025, 10:46:32 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5982684,E_COMMERCE_CUSTOMER,রনি,+8801932931382,,NEW,WEBSITE,Dhaka Suburb,"সাভার হেমায়েতপুর বাস স্ট্যান্ড পুলিশ বক্স, Dhaka, BD","September 6th 2025, 6:17:03 am","September 6th 2025, 6:17:05 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5980847,E_COMMERCE_CUSTOMER,test,+880198991827,,NEW,WEBSITE,Dhaka District,"Nai, Dhaka, BD","September 5th 2025, 9:57:10 pm","September 5th 2025, 9:57:11 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5962974,E_COMMERCE_CUSTOMER,md nazmul,+8801630173558,,REGULAR,WEBSITE,Chattogram District,"Milad vila ,house no-10,road -07, shapla abashik elaka halishaher,, Chittagong, BD","September 3rd 2025, 10:30:42 pm","September 3rd 2025, 10:30:44 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5966776,E_COMMERCE_CUSTOMER,Nusrat jahan,+8801915818861,,REGULAR,WEBSITE,Dhaka District,"15,A west end street, Central Road Dhanmondi, Dhaka, BD","September 4th 2025, 12:37:01 pm","September 4th 2025, 12:37:02 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5955073,E_COMMERCE_CUSTOMER,mithila,+8801571424070,,REGULAR,WEBSITE,Cumilla District,"mofiz uddin road,race course ,cumilla, Comilla, BD","September 3rd 2025, 2:11:10 am","September 3rd 2025, 2:11:12 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5957804,E_COMMERCE_CUSTOMER,Md joy,+8801806193687,,REGULAR,WEBSITE,Mymensingh District,"ময়মনসিংহ,শাংকি পাড়া, Mymensingh, BD","September 3rd 2025, 12:57:56 pm","September 3rd 2025, 12:57:58 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5969888,E_COMMERCE_CUSTOMER,Shahana akter,+8801711908180,,REGULAR,WEBSITE,Dhaka District,"271/5, South Kafrul, Kochukhet, Dhaka, Dhaka, BD","September 4th 2025, 5:39:52 pm","September 4th 2025, 5:39:53 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5978203,E_COMMERCE_CUSTOMER,Shawon,+8801315125432,,NEW,WEBSITE,Dhaka District,"Agargaon sorkari new koloni, Dhaka, BD","September 5th 2025, 4:54:01 pm","September 5th 2025, 4:54:03 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5956684,E_COMMERCE_CUSTOMER,মেহেদী হাসান,+8801765804061,,REGULAR,WHATSAPP,Cumilla District,"horischar Bazar, lalmai thana, cumilla","September 3rd 2025, 10:56:59 am","September 3rd 2025, 10:58:02 am",,3000.00,1,0,0,0,0,0,0,0,1,0,0
+C-5949597,E_COMMERCE_CUSTOMER,রিপন,+8801890291431,,REGULAR,WEBSITE,Dhaka District,"পুরান বাউশিয়া নায়াকান্দি গজারিয়া মুন্সিগঞ্জ, Dhaka, BD","September 2nd 2025, 2:41:51 pm","September 2nd 2025, 2:41:53 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5969583,E_COMMERCE_CUSTOMER,Abir Hasan,+8801838042966,,REGULAR,WEBSITE,Dhaka Suburb,"Kazi Nazrul Islam Hall, Jahangirnagar University, Dhaka, BD","September 4th 2025, 5:09:27 pm","September 4th 2025, 5:09:29 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5949315,E_COMMERCE_CUSTOMER,হাসান,+8801916853014,,REGULAR,WEBSITE,Dhaka District,"কামরাঙ্গীরচর । নুর সুপার মার্কেট, Dhaka, BD","September 2nd 2025, 2:05:53 pm","September 2nd 2025, 2:05:55 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5962898,E_COMMERCE_CUSTOMER,Muhammad,+8801919536310,,REGULAR,WEBSITE,Dhaka District,"House#2, Road#17, Block#D (Eidgah Math), Mirpur-12, Dhaka","September 3rd 2025, 10:18:56 pm","September 3rd 2025, 10:18:57 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5974856,E_COMMERCE_CUSTOMER,ইমরান,+8801730249375,,NEW,WEBSITE,Dhaka Suburb,"গাজিপুর সদর, আতুরী, Dhaka, BD","September 5th 2025, 10:47:54 am","September 5th 2025, 10:47:55 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5955419,E_COMMERCE_CUSTOMER,Md. Nayem Ahmed,+8801571508452,,REGULAR,WEBSITE,Natore District,"Chandpur, sonapur, dayarampur, bagatipara, natore., Natore, BD","September 3rd 2025, 6:20:47 am","September 3rd 2025, 6:20:48 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5973578,E_COMMERCE_CUSTOMER,Engr.Md Foysal Ahmed,+8801600333051,,NEW,WEBSITE,Gazipur District,"Gate No 2, Pran industrial park, Gorashal, Polash, Narsingdi, BD","September 5th 2025, 4:34:09 am","September 5th 2025, 4:34:11 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5970966,E_COMMERCE_CUSTOMER,সাজিদ আহমেদ,+8801626978083,,NEW,WEBSITE,Habiganj District,"মৌলভীবাজার সদর, Sylhet, BD","September 4th 2025, 7:42:57 pm","September 4th 2025, 7:42:58 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5956163,E_COMMERCE_CUSTOMER,Al amin Hossain,+8801843185955,,REGULAR,WEBSITE,Dhaka District,"29/19 Rupnagar Abashik Mirpur Dhaka-1216, Dhaka, BD","September 3rd 2025, 9:41:30 am","September 3rd 2025, 9:41:31 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5958179,E_COMMERCE_CUSTOMER,আরিফ,+8801616274282,,REGULAR,WEBSITE,Noakhali District,"নোয়াখালী সরকারি কলেজ রোড , মাইজদী, নোয়াখালী।, Noakhali, BD","September 3rd 2025, 1:37:15 pm","September 3rd 2025, 1:37:18 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5970486,E_COMMERCE_CUSTOMER,Md Manik,+8801770964865,,NEW,WEBSITE,Dhaka District,"Kaji office, gazipura, gazipur, Dhaka, Dhaka, BD","September 4th 2025, 6:46:27 pm","September 4th 2025, 6:46:29 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5948674,E_COMMERCE_CUSTOMER,ওমর ফারুক মোস্তফা বাদশা ভাই,+8801580678135,,REGULAR,WEBSITE,Chattogram District,"চাক্তাই, লোহার পুল, মিন্টু সাহেবের বিল্ডিং, বাদশা ভাই এর বাসা, চাক্তাই, কোতোয়ালি চট্টগ্রাম, বাংলাদেশ।, Chittagong, BD","September 2nd 2025, 12:49:59 pm","September 2nd 2025, 12:50:01 pm",,820.00,1,0,0,0,0,0,0,0,1,0,0
+C-5957725,E_COMMERCE_CUSTOMER,SULTAN,+8801724641711,,REGULAR,WEBSITE,Narayanganj District,"থানা রোড, বাড়ি মজলিস, সোনারগাঁ, নারায়ণগঞ্জ, Narayanganj, BD","September 3rd 2025, 12:48:58 pm","September 3rd 2025, 12:49:00 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5944020,E_COMMERCE_CUSTOMER,Md Tohidul,+8801314322731,,REGULAR,WEBSITE,Rangamati Hill District,"Banglacolony kaptai project Rangamati Bangladesh, Rangamati, BD","September 1st 2025, 8:36:02 pm","September 1st 2025, 8:36:03 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5957787,E_COMMERCE_CUSTOMER,Fahima ali,+8801918205754,,REGULAR,WEBSITE,Dhaka District,"35/b sharat gupto road narinda, wari, Dhaka, BD","September 3rd 2025, 12:56:34 pm","September 3rd 2025, 12:56:37 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5959058,E_COMMERCE_CUSTOMER,Md Hridoy,+8801788473645,,REGULAR,WEBSITE,Dhaka District,"Asrafabad. kamrangirchar. lohar bridge.er dhale, Dhaka, BD","September 3rd 2025, 3:18:05 pm","September 3rd 2025, 3:18:06 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5939936,E_COMMERCE_CUSTOMER,Md Robiul,+8801328079977,,REGULAR,WEBSITE,Dhaka District,"পাঠেরবাগ রোড আহলে হাদিস মসজিদ, Dhaka, BD","September 1st 2025, 1:07:18 pm","September 1st 2025, 1:07:19 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5954974,E_COMMERCE_CUSTOMER,Md Rubel Ahmed,+8801627832238,,REGULAR,WEBSITE,Dhaka District,"Aadossho tower,Mirpur 1 dhaka, Dhaka, BD","September 3rd 2025, 1:32:58 am","September 3rd 2025, 1:33:00 am",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5958204,E_COMMERCE_CUSTOMER,মোহাম্মদ নাসির হোসাইন (ইব্রাহিম),+8801322670190,,REGULAR,WEBSITE,Munshiganj District,"মুক্তারপুর ব্রিজ সংলগ্ন(চৌধুরী বাড়ি রোড) মুন্সিগঞ্জ, Munshiganj, BD","September 3rd 2025, 1:40:34 pm","September 3rd 2025, 1:40:37 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5956253,E_COMMERCE_CUSTOMER,Md Tuhin,+8801816563134,,REGULAR,WEBSITE,Dhaka District,"H#85, Road#03, Front of Chairmanbari Mosque, Banani, Dhaka, Dhaka, BD","September 3rd 2025, 9:55:13 am","September 3rd 2025, 9:55:15 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5957016,E_COMMERCE_CUSTOMER,Md. Tofazzal Hossain,+8801711420190,,REGULAR,WEBSITE,Dhaka District,"নভো টাওয়ার (১৪ তলা), তেজগাঁও শিল্পাঞ্চল, ঢাকা - ১২০৮।, Dhaka, BD","September 3rd 2025, 11:35:02 am","September 3rd 2025, 11:35:03 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5951148,E_COMMERCE_CUSTOMER,MUBASHERA MITHILA,+8801777019909,,REGULAR,LIVE_CHAT,Dhaka District,SONIR AKHRA AYSHA MOSAROF MARKET ER SAMNE 6 NUMBER ROAD POLAS PUR SCHOOL ER GOLI,"September 2nd 2025, 5:02:09 pm","September 2nd 2025, 5:02:47 pm",,0.00,1,0,0,0,0,0,0,0,1,0,0
+C-5964224,E_COMMERCE_CUSTOMER,সায়েম সিরাজ,+8801874045182,,NEW,WEBSITE,Dhaka District,"গুলশান ১ পুলিশ প্লাজা, Dhaka, BD","September 4th 2025, 1:49:25 am","September 4th 2025, 1:49:26 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5964203,E_COMMERCE_CUSTOMER,আব্দুল কাদের,+8801952736737,,NEW,WEBSITE,Dhaka District,"তেঘরিয়া বাস স্টান্ড,দক্ষিন কেরানিগঞ্জ,ঢাকা, Dhaka, BD","September 4th 2025, 1:44:01 am","September 4th 2025, 1:44:02 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5961747,E_COMMERCE_CUSTOMER,MD TAMIM,+8801761276960,,NEW,WEBSITE,Barisal District,"Bhola, chorfassion, Barisal, BD","September 3rd 2025, 7:41:16 pm","September 3rd 2025, 7:41:18 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5961429,E_COMMERCE_CUSTOMER,Hridoy,+8801737671010,,NEW,WEBSITE,Dhaka District,"Sobuj bagh thana basabo kodom tola, Dhaka, BD","September 3rd 2025, 7:04:20 pm","September 3rd 2025, 7:04:22 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5945638,E_COMMERCE_CUSTOMER,Muzahidul Islam,+8801967572466,,REGULAR,WEBSITE,Khulna District,"Rashid Residence, Musa Sorok, Nobopolli, Sonadanga, Khulna, BD","September 2nd 2025, 12:30:15 am","September 2nd 2025, 12:30:17 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5942323,E_COMMERCE_CUSTOMER,আবু জুনায়েদ আসাদ,+8801931471450,,REGULAR,WEBSITE,Chattogram District,"৯৮৭/বি,মেহেদীবাগ, চট্টগ্রাম, Chittagong, BD","September 1st 2025, 5:11:04 pm","September 1st 2025, 5:11:05 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5955312,E_COMMERCE_CUSTOMER,সাইফুল ইসলাম,+8801806600918,,NEW,WEBSITE,Cumilla District,"কুমিল্লার ক্যান্টনমেন্ট, ময়নামতি আকাবপুর, Comilla, BD","September 3rd 2025, 4:25:17 am","September 3rd 2025, 4:25:18 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5950246,E_COMMERCE_CUSTOMER,Mb imran,+8801818935723,,REGULAR,LIVE_CHAT,Dhaka District,"Staff Quarter, Demra, Dhaka","September 2nd 2025, 3:48:40 pm","September 2nd 2025, 3:51:03 pm",,799.00,1,0,0,0,0,0,0,0,1,0,0
+C-5938021,E_COMMERCE_CUSTOMER,rony,+8801853576181,,REGULAR,WEBSITE,Chattogram District,"gohira,Raozan, Chittagong, Chittagong, BD","September 1st 2025, 8:49:38 am","September 1st 2025, 8:49:43 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5958705,E_COMMERCE_CUSTOMER,Hussain,+8801322835758,,NEW,WEBSITE,Sylhet District,"Raynogor, Sylhet, BD","September 3rd 2025, 2:46:46 pm","September 3rd 2025, 2:46:47 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5936306,E_COMMERCE_CUSTOMER,Rasheduzzaman Rafi,+8801905943886,,REGULAR,WEBSITE,Bogura District,"Boubazar,Bogura Sadar,Bogura, Bogra, BD","August 31st 2025, 11:17:20 pm","August 31st 2025, 11:17:22 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5958327,E_COMMERCE_CUSTOMER,Nurul amin,+8801328685441,,NEW,WEBSITE,Kishoreganj District,"থানা কটিয়াদির জেলা কিশোরগঞ্জে বালিরা পার চৌরাস্তা বাজার, Kishoreganj, BD","September 3rd 2025, 1:59:37 pm","September 3rd 2025, 1:59:40 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5945925,E_COMMERCE_CUSTOMER,shabit,+8801868607648,,REGULAR,WEBSITE,Magura District,"thana ,magura,jala magura,colleg para,alaka, Magura, BD","September 2nd 2025, 1:25:12 am","September 2nd 2025, 1:25:13 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5934418,E_COMMERCE_CUSTOMER,Rajib,+8801608081451,,REGULAR,WEBSITE,Jamalpur District,"জামালপুর সদর থানা ভারুয়াখালী বাজার, Jamalpur, BD","August 31st 2025, 6:49:57 pm","August 31st 2025, 6:49:59 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5945244,E_COMMERCE_CUSTOMER,Abir,+8801987980902,,REGULAR,WEBSITE,Dhaka District,"House:42/1.road:tarminal Road, Bosila Dhaka, BD","September 1st 2025, 11:30:42 pm","September 1st 2025, 11:30:44 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5957350,E_COMMERCE_CUSTOMER,সৌরভ,+8801721018318,,NEW,WEBSITE,Dhaka District,"লেভেল-১৪, জাতীয় ক্রীড়াপরিষদ ভবন, পল্টন , ঢাকা, Dhaka, BD","September 3rd 2025, 12:08:56 pm","September 3rd 2025, 12:08:57 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5957174,E_COMMERCE_CUSTOMER,নয়ন,+8801973523651,,NEW,WEBSITE,Dhaka District,"দিঘি বরাব তারাবো পৌরসভা যাত্রামুড়া রুপগঞ্জ নারায়ণগঞ্জ, Dhaka, BD","September 3rd 2025, 11:52:27 am","September 3rd 2025, 11:52:29 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5957143,E_COMMERCE_CUSTOMER,Tasnim Marjan,+8801,,NEW,WEBSITE,Shariatpur District,"Jajira thana er samna, akkal mahmud munshi kandi, Shariatpur, BD","September 3rd 2025, 11:49:15 am","September 3rd 2025, 11:49:17 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5931018,E_COMMERCE_CUSTOMER,আমির হোসেন,+8801990591764,,REGULAR,MESSENGER,Khulna District,খুলনা জিরো পয়েন্ট,"August 31st 2025, 1:00:16 pm","August 31st 2025, 1:01:18 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5955332,E_COMMERCE_CUSTOMER,Adib rahman,+8801869544644,,NEW,WEBSITE,Dhaka District,"Dhaka pink coty model town road 2 block b house 5, Dhaka, BD","September 3rd 2025, 4:55:24 am","September 3rd 2025, 4:55:25 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5955222,E_COMMERCE_CUSTOMER,Nahid,+8801992420793,,NEW,WEBSITE,Khulna District,"Khulna Gpo 9000 ,Boikali bazar, Khulna, BD","September 3rd 2025, 3:20:02 am","September 3rd 2025, 3:20:03 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5936448,E_COMMERCE_CUSTOMER,Alamin khan,+8801715964804,,REGULAR,LIVE_CHAT,Mymensingh District,"Tarakanda bazar, Mymensingh","August 31st 2025, 11:35:15 pm","September 1st 2025, 7:12:06 am",,21000.00,1,0,0,0,0,0,0,0,1,0,0
+C-5942234,E_COMMERCE_CUSTOMER,MD SAMIUL HOSSAIN SAKIB,+8801310575140,,REGULAR,WEBSITE,Gazipur District,"Gazipur sadar, brri 2 no gate opposite side, Gazipur, BD","September 1st 2025, 5:02:07 pm","September 1st 2025, 5:02:14 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5911360,E_COMMERCE_CUSTOMER,Rishpita Das Mim,+8801534384549,,REGULAR,WEBSITE,Dhaka District,"24/c shirisdaslane Luxmibazar, Dhaka, BD","August 28th 2025, 10:34:51 pm","September 1st 2025, 7:23:45 am",,2050.00,2,0,0,0,0,0,0,0,1,0,1
+C-5909619,E_COMMERCE_CUSTOMER,Rifat,+8801731322482,,REGULAR,WEBSITE,Cumilla District,"ক্যান্টমেন্ট, কাবিলা, Comilla, BD","August 28th 2025, 6:28:43 pm","August 28th 2025, 6:28:45 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5946556,E_COMMERCE_CUSTOMER,অনিক,+8801316693069,,NEW,WEBSITE,Dhaka District,"শাহিনবাগ..নীলপদ্ম বিল্ডিং এর গেট এ এসে কল দিতে হবে, Dhaka, BD","September 2nd 2025, 7:52:59 am","September 2nd 2025, 7:53:00 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5946705,E_COMMERCE_CUSTOMER,অলি,+8801403518112,,NEW,WEBSITE,Dhaka Suburb,"জৈনাবাজার,শ্রীপুর গাজীপুর, Dhaka, BD","September 2nd 2025, 8:34:03 am","September 2nd 2025, 8:34:05 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5931056,E_COMMERCE_CUSTOMER,Sujan Ahmed,+8801726712771,,REGULAR,LIVE_CHAT,Tangail District,"Tangail, Ellenga, baganbari super market","August 31st 2025, 1:04:15 pm","August 31st 2025, 1:05:18 pm",,2400.00,1,0,0,0,0,0,0,0,1,0,0
+C-5931101,E_COMMERCE_CUSTOMER,মানিক হোসেন,+8801837917442,,REGULAR,LIVE_CHAT,Dhaka District,"Manik Hossain 01837917442 Ati Bazar mosjid market, keraniganj Dhaka","August 31st 2025, 1:07:57 pm","August 31st 2025, 1:08:45 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5945742,E_COMMERCE_CUSTOMER,Md Noyon,+8801303895717,,NEW,WEBSITE,Magura District,"magura, pti para, Magura, BD","September 2nd 2025, 12:46:59 am","September 2nd 2025, 12:47:01 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5945558,E_COMMERCE_CUSTOMER,মোহাম্মদ আব্দুল মান্নান,+8801616300334,,NEW,WEBSITE,Dhaka District,"বাসা নং 11/6,রোড নং 01,কল্যান পুর মিরপুর ঢাকা, Dhaka, BD","September 2nd 2025, 12:18:18 am","September 2nd 2025, 12:18:19 am",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5945212,E_COMMERCE_CUSTOMER,Tawhidul,+8801788568389,,NEW,WEBSITE,Chandpur District,"Banglabazar, motlob uttar, Chandpur, Chandpur, BD","September 1st 2025, 11:25:56 pm","September 1st 2025, 11:25:58 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5943995,E_COMMERCE_CUSTOMER,Mahfuz,+8801766009007,,NEW,WEBSITE,Chuadanga District,"Horihornagar, jibonnagar, Chuadanga, BD","September 1st 2025, 8:32:02 pm","September 1st 2025, 8:32:05 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5929736,E_COMMERCE_CUSTOMER,naeem chowdhury,+8801851481831,,REGULAR,WEBSITE,Sylhet District,"sylhet uposhohor ABC point, c block, road 42, building 2, elais mohol, Sylhet, BD","August 31st 2025, 10:43:43 am","August 31st 2025, 10:43:45 am",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5912229,E_COMMERCE_CUSTOMER,James,+8801978606280,,REGULAR,WEBSITE,Khulna District,"হাসানপুর, ক্ষেয়াঘাট, ডুমুরিয়া, খুলনা, Khulna, BD","August 29th 2025, 12:52:29 am","August 29th 2025, 12:52:30 am",,1230.00,1,0,0,0,0,0,0,0,1,0,0
+C-5942644,E_COMMERCE_CUSTOMER,Russell,+8801882038793,,NEW,WEBSITE,Munshiganj District,"হেঁশেল ঘর রেস্টুরেন্ট, মৃধাবাড়ি, শিয়ালদী, সিরাজদিখান, Munshiganj, BD","September 1st 2025, 5:43:52 pm","September 1st 2025, 5:43:53 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5941988,E_COMMERCE_CUSTOMER,আকাশ,+8801305188608,,NEW,WEBSITE,Dhaka Suburb,"Dinajpur Lily more, Dhaka, BD","September 1st 2025, 4:41:13 pm","September 1st 2025, 4:41:14 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5941826,E_COMMERCE_CUSTOMER,আব্দুল কাদের,+8801783879244,,NEW,WEBSITE,Chandpur District,"গাদ্দেরগাও রুপসা জমিদার বাড়ি, ১৫ নম্বর ইউনিয়ন ৮ নং ওয়ার্ড, ফরিদগঞ্জ, চাদপুর, Chandpur, BD","September 1st 2025, 4:28:52 pm","September 1st 2025, 4:28:54 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5941825,E_COMMERCE_CUSTOMER,মাচরু আহমদ,+8801730267674,,NEW,WEBSITE,Sylhet District,"সুরাইঘাট, খানাইঘাট, Sylhet, BD","September 1st 2025, 4:28:49 pm","September 1st 2025, 4:28:50 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5941766,E_COMMERCE_CUSTOMER,Msh sumon hossain,+8801732864690,,NEW,WEBSITE,Dhaka District,"Mes, Zia coloni, Dhaka cantonment, Cantonment Thana,Cmtd Gate Dhaka, Dhaka, BD","September 1st 2025, 4:23:13 pm","September 1st 2025, 4:23:14 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5921396,E_COMMERCE_CUSTOMER,মো: নাজমুল ইসলাম,+8801731806248,,REGULAR,WEBSITE,Habiganj District,"বাড়ি: রিচি,হবিগঞ্জ সদর, Habiganj, BD","August 30th 2025, 11:51:58 am","August 30th 2025, 11:52:01 am",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5895518,E_COMMERCE_CUSTOMER,Neshad,+8801972721873,,REGULAR,WEBSITE,Dinajpur District,"Dinajpur suhari, Dinajpur, BD","August 27th 2025, 1:24:13 am","September 1st 2025, 2:22:55 pm",,1230.00,2,0,0,0,0,0,0,0,2,0,0
+C-5940340,E_COMMERCE_CUSTOMER,Tamanna Firdaus,+8801774761117,,NEW,WEBSITE,Bhola District,"গ্রামীণ জনন উন্নয়ন সংস্থা, আলতাজের রহমান কলেজ রোড, ভোলা সদর ভোলা।, Bhola, BD","September 1st 2025, 1:59:21 pm","September 1st 2025, 1:59:22 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5916908,E_COMMERCE_CUSTOMER,Antor,+8801919849102,,REGULAR,WEBSITE,Barisal District,"Sodar road, Barishal, Barisal, BD","August 29th 2025, 4:27:08 pm","August 29th 2025, 4:27:09 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5930016,E_COMMERCE_CUSTOMER,Ome,+8801757063585,,REGULAR,WEBSITE,Tangail District,"Zilla sador road akur takur para, Tangail, BD","August 31st 2025, 11:10:54 am","August 31st 2025, 11:10:55 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5936276,E_COMMERCE_CUSTOMER,MD,+8801629647383,,NEW,WEBSITE,Barguna District,"IMAN ALI ROOD , PATHARGHATA, BARGUNA, Barguna, BD","August 31st 2025, 11:13:20 pm","August 31st 2025, 11:13:21 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5919146,E_COMMERCE_CUSTOMER,Md. Humayun Kabir Joni,+8801711705479,,REGULAR,WEBSITE,Netrokona District,"District Bar Association Building, Judge Court, Kurpar, Netrakona., Netrakona, BD","August 30th 2025, 1:04:19 am","August 30th 2025, 1:04:20 am",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5934640,E_COMMERCE_CUSTOMER,nazim,+8801978530460,,NEW,WEBSITE,Feni District,"ফাজিলপুর ফেনী, Feni, BD","August 31st 2025, 7:15:53 pm","August 31st 2025, 7:15:54 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5934330,E_COMMERCE_CUSTOMER,রাজিক,+8801740662890,,NEW,WEBSITE,Dhaka District,"তরগাঁও/কাপাসিয়া/গাজীপুর, Dhaka, BD","August 31st 2025, 6:34:58 pm","August 31st 2025, 6:34:59 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5922306,E_COMMERCE_CUSTOMER,Mahfuz ahamed sohan,+8801614618484,,REGULAR,WEBSITE,Tangail District,"Tangail sodor, Tangail, BD","August 30th 2025, 1:19:45 pm","August 30th 2025, 1:19:46 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5930686,E_COMMERCE_CUSTOMER,জিহাদ,+8801575541654,,NEW,WEBSITE,Chattogram District,"চট্টগ্রাম, থানা: ইপিজেড, গ্রাম: এম এম মেনশন, আলিশা পাড়া বন্দরটিলা, Chittagong, BD","August 31st 2025, 12:29:23 pm","August 31st 2025, 12:29:25 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5929437,E_COMMERCE_CUSTOMER,খাইরুল আমিন,+8801840960684,,NEW,WEBSITE,Gazipur District,"নাওজোড়,চেয়ারম্যান বাড়ি, Gazipur, BD","August 31st 2025, 10:09:03 am","August 31st 2025, 10:09:06 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5924966,E_COMMERCE_CUSTOMER,Mahmudur,+8801601747905,,NEW,WEBSITE,"1. Dhaka District
+2. Dhaka District","1. Mohakhali, Dhaka, BD
+2. Mohakhali Gp Ga 129, Hajaribari ,Dhaka 1212, Dhaka, BD","August 30th 2025, 5:29:28 pm","August 30th 2025, 5:32:19 pm",,0.00,2,0,0,0,0,0,0,0,0,0,2
+C-5924671,E_COMMERCE_CUSTOMER,Nur alom,+8801567910292,,NEW,WEBSITE,Dhaka District,"বরাইল আজিজার এর বাড়ি কাহালু বগুড়া, Dhaka, BD","August 30th 2025, 4:56:54 pm","August 30th 2025, 4:56:56 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5903737,E_COMMERCE_CUSTOMER,মো: ইব্রাহিম খলিল,+8801521387697,,REGULAR,WHATSAPP,Khagrachari Hill District,"ইব্রাহিম স্টোর, চেঙ্গীস্কয়ার, খাগড়াছড়ি সদর, খাগড়াছড়ি।","August 28th 2025, 12:56:35 am","August 28th 2025, 12:59:37 am",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5923280,E_COMMERCE_CUSTOMER,Kazi Asduzzaman,+8801818805614,,NEW,WEBSITE,Chattogram District,"Kishwan factory, chandronogor, Nasirabad, Chattogram, Chittagong, BD","August 30th 2025, 2:54:56 pm","August 30th 2025, 2:54:58 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5922136,E_COMMERCE_CUSTOMER,Sanny,+8801714758424,,NEW,WEBSITE,Sylhet District,"Sylheti, Modina market, Sylhet, BD","August 30th 2025, 1:05:57 pm","August 30th 2025, 1:05:58 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5893086,E_COMMERCE_CUSTOMER,Humayon Kabir ,+8801906453704,,REGULAR,MESSENGER,Dhaka District,"valum batholi, kalampur, Dhamrai, Dhaka ","August 26th 2025, 6:44:40 pm","August 26th 2025, 6:53:48 pm",,2500.00,1,0,0,0,0,0,0,0,1,0,0
+C-5920171,E_COMMERCE_CUSTOMER,Nayem,+8801701513626,,NEW,WEBSITE,Chattogram District,"Jamuna square Community Hall, Bahaddarhat 1 Kilometre, Chandgaon, Chittagong., Chittagong, BD","August 30th 2025, 9:22:07 am","August 30th 2025, 9:22:08 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5919008,E_COMMERCE_CUSTOMER,Sumaiya Akter Mahi,+8801949950243,,NEW,WEBSITE,Satkhira District,"Satkhira, Symnagar, Chondipur, Satkhira, BD","August 30th 2025, 12:08:39 am","August 30th 2025, 12:08:40 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5918489,E_COMMERCE_CUSTOMER,Mafejul,+8801999253779,,NEW,WEBSITE,Gazipur District,"Fulbaria Kaliakor Gazipur, Gazipur, BD","August 29th 2025, 9:17:17 pm","August 29th 2025, 9:17:19 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5911733,E_COMMERCE_CUSTOMER,Gsm mannan,+8801791377724,,NEW,WEBSITE,Dhaka District,"হাতিয়া জাহাজ মারা, Dhaka, BD","August 28th 2025, 11:29:34 pm","August 28th 2025, 11:29:40 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5905746,E_COMMERCE_CUSTOMER,ফাহিম,+8801969236622,,REGULAR,WEBSITE,Dhaka District,"ডাংগা বাজার,পলাশ,নরসিংদী, Dhaka, BD","August 28th 2025, 11:36:28 am","August 28th 2025, 11:36:29 am",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5909638,E_COMMERCE_CUSTOMER,Omor Faruq,+8801875989087,,REGULAR,WEBSITE,Dhaka District,Nadda Harez road,"August 28th 2025, 6:30:53 pm","August 28th 2025, 6:31:32 pm",,410.00,1,0,0,0,0,0,0,0,1,0,0
+C-5902222,E_COMMERCE_CUSTOMER,A.Razzak,+8801977556651,,REGULAR,WEBSITE,Dhaka District,"S4.r7.h36.uttra.dka, Dhaka, BD","August 27th 2025, 8:43:36 pm","August 27th 2025, 8:43:37 pm",,810.00,1,0,0,0,0,0,0,0,1,0,0
+C-5914307,E_COMMERCE_CUSTOMER,আফজাল,+8801919427071,,NEW,WEBSITE,Habiganj District,"ধর্মঘড়, মাধবপুর, হবিগঞ্জ, Habiganj, BD","August 29th 2025, 11:30:22 am","August 29th 2025, 11:30:23 am",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5909786,E_COMMERCE_CUSTOMER,মোঃ আইনুল ইসলাম,+8801730561285,,NEW,WEBSITE,Dhaka District,"Jessore benapole, Dhaka, BD","August 28th 2025, 6:48:12 pm","August 28th 2025, 6:48:13 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5884826,E_COMMERCE_CUSTOMER,Ibrahim,+8801923388376,,REGULAR,WEBSITE,Shariatpur District,"Dokkhin Noria, Noria, Shoriotpur","August 25th 2025, 5:48:34 pm","August 25th 2025, 5:50:55 pm",,3480.00,1,0,0,0,0,0,0,0,1,0,0
+C-5901958,E_COMMERCE_CUSTOMER,Naim,+8801613125035,,NEW,WEBSITE,Cumilla District,"Cumilla,chandina,bus stand, Comilla, BD","August 27th 2025, 8:04:07 pm","August 27th 2025, 8:04:08 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0
+C-5900367,E_COMMERCE_CUSTOMER,আরিফ,+8801605919149,,NEW,WEBSITE,Dhaka Suburb,"জামাল, Dhaka, BD","August 27th 2025, 4:53:52 pm","August 27th 2025, 4:53:53 pm",,0.00,1,0,0,0,0,0,0,0,0,0,1
+C-5884884,E_COMMERCE_CUSTOMER,নবী হোসেন,+8801312525921,,REGULAR,MESSENGER,Thakurgaon District,"ঠাকুরগাঁও জেলা 
+ভুল্লী থানা 
+মুন্সিরহাট বাজার","August 25th 2025, 5:54:39 pm","August 25th 2025, 5:55:21 pm",,3480.00,1,0,0,0,0,0,0,0,1,0,0
+C-5884432,E_COMMERCE_CUSTOMER,Mr. Karim,+8801756523643,,NEW,WHATSAPP,Chattogram District,"Nasirabad 2 No Gate, Baby Super, Byzid Thana,  Chottogram","August 25th 2025, 5:08:43 pm","August 25th 2025, 5:15:43 pm",,0.00,1,0,0,0,0,0,0,0,0,1,0

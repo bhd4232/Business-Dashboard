@@ -1,0 +1,168 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img "zap icon" [ref=e8]
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: ZamZam
+        - paragraph [ref=e11]: ERP v1.0
+    - navigation [ref=e12]:
+      - link "dashboard icon Dashboard" [ref=e13] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000
+        - img "dashboard icon" [ref=e16]
+        - generic [ref=e17]: Dashboard
+      - generic [ref=e18]:
+        - button "procurement icon Procurement" [ref=e19]:
+          - img "procurement icon" [ref=e22]
+          - generic [ref=e23]: Procurement
+          - img [ref=e24]
+        - generic [ref=e26]:
+          - link "Suppliers" [ref=e27] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/suppliers
+            - generic [ref=e29]: Suppliers
+          - link "Products" [ref=e30] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/products
+            - generic [ref=e32]: Products
+          - link "Purchase Orders" [ref=e33] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/purchase-orders
+            - generic [ref=e35]: Purchase Orders
+          - link "Categories" [ref=e36] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/categories
+            - generic [ref=e38]: Categories
+      - generic [ref=e39]:
+        - button "inventory icon Inventory & Warehouse" [ref=e40]:
+          - img "inventory icon" [ref=e43]
+          - generic [ref=e44]: Inventory & Warehouse
+          - img [ref=e45]
+        - generic [ref=e47]:
+          - link "Warehouses" [ref=e48] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/warehouses
+            - generic [ref=e50]: Warehouses
+          - link "Stock" [ref=e51] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock
+            - generic [ref=e53]: Stock
+          - link "Low Stock" [ref=e54] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock/low-stock
+            - generic [ref=e56]: Low Stock
+          - link "Transfers" [ref=e57] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock-transfers
+            - generic [ref=e59]: Transfers
+          - link "Adjustments" [ref=e60] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/stock-adjustments
+            - generic [ref=e62]: Adjustments
+          - link "Barcodes" [ref=e63] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/barcodes
+            - generic [ref=e65]: Barcodes
+      - button "sales icon Sales & Orders" [ref=e67]:
+        - img "sales icon" [ref=e70]
+        - generic [ref=e71]: Sales & Orders
+        - img [ref=e72]
+      - generic [ref=e74]:
+        - button "shipping icon Shipping & Logistics" [ref=e75]:
+          - img "shipping icon" [ref=e78]
+          - generic [ref=e79]: Shipping & Logistics
+          - img [ref=e80]
+        - generic [ref=e82]:
+          - link "International (CN→BD)" [ref=e83] [cursor=pointer]:
+            - /url: http://127.0.0.1:8000/shipping/international
+            - generic [ref=e85]: International (CN→BD)
+          - link "Domestic Soon" [ref=e86] [cursor=pointer]:
+            - /url: "#"
+            - generic [ref=e88]: Domestic
+            - generic [ref=e89]: Soon
+      - button "finance icon Accounts & Finance" [ref=e91]:
+        - img "finance icon" [ref=e94]
+        - generic [ref=e95]: Accounts & Finance
+        - img [ref=e96]
+      - link "reports icon Reports Soon" [ref=e98] [cursor=pointer]:
+        - /url: "#"
+        - img "reports icon" [ref=e101]
+        - generic [ref=e102]: Reports
+        - generic [ref=e103]: Soon
+      - link "settings icon Settings" [ref=e104] [cursor=pointer]:
+        - /url: http://127.0.0.1:8000/settings
+        - img "settings icon" [ref=e107]
+        - generic [ref=e108]: Settings
+    - generic [ref=e110]:
+      - generic [ref=e112]: Z
+      - generic [ref=e113]:
+        - paragraph [ref=e114]: ZamZam Admin
+        - paragraph [ref=e115]: admin@zamzam.com.bd
+      - button "Collapse sidebar" [ref=e116]:
+        - img [ref=e117]
+  - generic [ref=e119]:
+    - banner [ref=e120]:
+      - generic [ref=e122]:
+        - img [ref=e123]
+        - textbox "Search... (Ctrl+K)" [ref=e126]
+      - generic [ref=e127]:
+        - button "Switch to light mode" [ref=e128]:
+          - img [ref=e129]
+        - button [ref=e135]:
+          - img [ref=e136]
+        - button [ref=e140]:
+          - img [ref=e141]
+        - button "Z ZamZam Admin" [ref=e144]:
+          - generic [ref=e145]: Z
+          - generic [ref=e146]: ZamZam Admin
+          - img [ref=e147]
+    - main [ref=e149]:
+      - generic [ref=e150]:
+        - generic [ref=e151]:
+          - img "settings icon" [ref=e153]
+          - generic [ref=e154]:
+            - heading "Settings" [level=1] [ref=e155]
+            - paragraph [ref=e156]: Customize your appearance and preferences
+        - generic [ref=e157]:
+          - generic [ref=e158]:
+            - generic [ref=e159]:
+              - heading "Accent Color" [level=2] [ref=e160]
+              - paragraph [ref=e161]: Choose a primary color for the interface.
+              - generic [ref=e162]:
+                - button "Indigo" [ref=e163]:
+                  - img [ref=e164]
+                - button "Blue" [ref=e166]
+                - button "Violet" [ref=e167]
+                - button "Emerald" [ref=e168]
+                - button "Orange" [ref=e169]
+                - button "Rose" [ref=e170]
+                - button "Sky" [ref=e171]
+                - button "Amber" [ref=e172]
+              - generic [ref=e173]:
+                - generic [ref=e174]: Custom Color
+                - generic [ref=e175]:
+                  - textbox [ref=e177] [cursor=pointer]: "#6366f1"
+                  - textbox "#6366f1" [ref=e178]
+            - generic [ref=e180]:
+              - heading "Display Mode" [level=2] [ref=e181]
+              - paragraph [ref=e182]: Choose between light, dark, or system preference.
+              - generic [ref=e183]:
+                - button "☀️ Light" [ref=e184]:
+                  - generic [ref=e185]: ☀️
+                  - generic [ref=e186]: Light
+                - button "🌙 Dark" [ref=e187]:
+                  - generic [ref=e188]: 🌙
+                  - generic [ref=e189]: Dark
+                - button "💻 System" [ref=e190]:
+                  - generic [ref=e191]: 💻
+                  - generic [ref=e192]: System
+            - button "Save Preferences" [ref=e194]:
+              - img [ref=e195]
+              - text: Save Preferences
+          - generic [ref=e199]:
+            - generic [ref=e200]:
+              - heading "Live Preview" [level=2] [ref=e201]
+              - generic [ref=e230]:
+                - generic [ref=e231]: "50"
+                - generic [ref=e232]: "100"
+                - generic [ref=e233]: "500"
+                - generic [ref=e234]: "600"
+                - generic [ref=e235]: "700"
+            - generic [ref=e236]:
+              - heading "Current" [level=3] [ref=e237]
+              - generic [ref=e238]:
+                - generic [ref=e239]:
+                  - generic [ref=e240]: Theme
+                  - generic [ref=e241]: indigo
+                - generic [ref=e242]:
+                  - generic [ref=e243]: Mode
+                  - generic [ref=e244]: dark
