@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Purchases\Schemas;
 
 use App\Models\Product;
 use App\Models\Purchase;
+use App\Models\Supplier;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
@@ -36,7 +37,56 @@ class PurchaseForm
                         Select::make('supplier_id')
                             ->label('Supplier')
                             ->relationship('supplier', 'name', fn ($query) => $query->where('is_active', true))
-                            ->searchable()
+                            ->searchable(['name', 'phone', 'company_name'])
+                            ->preload()
+                            ->getOptionLabelFromRecordUsing(fn (Supplier $record): string => collect([
+                                $record->name,
+                                $record->phone ? "Phone: {$record->phone}" : null,
+                                $record->company_name ? "Company: {$record->company_name}" : null,
+                            ])->filter()->join(' | '))
+                            ->createOptionForm([
+                                TextInput::make('name')
+                                    ->label('Supplier Name')
+                                    ->required()
+                                    ->maxLength(255),
+
+                                TextInput::make('company_name')
+                                    ->label('Company Name')
+                                    ->maxLength(255),
+
+                                TextInput::make('phone')
+                                    ->label('Phone')
+                                    ->tel()
+                                    ->maxLength(255),
+
+                                TextInput::make('email')
+                                    ->label('Email')
+                                    ->email()
+                                    ->maxLength(255),
+
+                                TextInput::make('opening_balance')
+                                    ->numeric()
+                                    ->prefix('BDT')
+                                    ->default(0)
+                                    ->required(),
+
+                                Textarea::make('address')
+                                    ->label('Address')
+                                    ->rows(3)
+                                    ->columnSpanFull(),
+                            ])
+                            ->createOptionUsing(function (array $data): int {
+                                return Supplier::query()->create([
+                                    'name' => $data['name'],
+                                    'company_name' => $data['company_name'] ?? null,
+                                    'phone' => $data['phone'] ?? null,
+                                    'email' => $data['email'] ?? null,
+                                    'address' => $data['address'] ?? null,
+                                    'opening_balance' => $data['opening_balance'] ?? 0,
+                                    'current_balance' => $data['opening_balance'] ?? 0,
+                                    'is_active' => true,
+                                ])->getKey();
+                            })
                             ->required(),
 
                         DatePicker::make('purchase_date')
