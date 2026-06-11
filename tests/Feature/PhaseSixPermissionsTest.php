@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -49,6 +50,24 @@ class PhaseSixPermissionsTest extends TestCase
 
         $this->actingAs($user)->get('/admin/reports')->assertOk();
         $this->actingAs($user)->get('/admin/reports/export/sales')->assertForbidden();
+    }
+
+    public function test_custom_role_permissions_are_used(): void
+    {
+        UserRole::query()->create([
+            'name' => 'Purchase Viewer',
+            'slug' => 'purchase_viewer',
+            'permissions' => ['purchasing.view'],
+            'is_active' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'role' => 'purchase_viewer',
+            'is_active' => true,
+        ]);
+
+        $this->assertTrue($user->hasPermission('purchasing.view'));
+        $this->assertFalse($user->hasPermission('purchasing.create'));
     }
 
     public function test_inactive_user_cannot_access_admin_panel(): void

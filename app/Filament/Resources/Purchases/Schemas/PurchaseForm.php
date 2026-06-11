@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Purchases\Schemas;
 
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Supplier;
@@ -18,6 +19,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 
 class PurchaseForm
 {
@@ -122,7 +124,121 @@ class PurchaseForm
                                 Select::make('product_id')
                                     ->label('Product')
                                     ->relationship('product', 'name', fn ($query) => $query->where('is_active', true))
-                                    ->searchable()
+                                    ->searchable(['name', 'sku', 'barcode', 'brand'])
+                                    ->preload()
+                                    ->getOptionLabelFromRecordUsing(fn (Product $record): string => collect([
+                                        $record->name,
+                                        $record->sku ? "SKU: {$record->sku}" : null,
+                                        $record->brand ? "Brand: {$record->brand}" : null,
+                                    ])->filter()->join(' | '))
+                                    ->createOptionForm([
+                                        TextInput::make('name')
+                                            ->label('Product Name')
+                                            ->required()
+                                            ->maxLength(255),
+
+                                        Select::make('category_id')
+                                            ->label('Category')
+                                            ->relationship('category', 'name', fn ($query) => $query->where('is_active', true))
+                                            ->searchable()
+                                            ->preload()
+                                            ->createOptionForm([
+                                                TextInput::make('name')
+                                                    ->label('Category Name')
+                                                    ->required()
+                                                    ->maxLength(255),
+
+                                                Textarea::make('description')
+                                                    ->rows(3)
+                                                    ->columnSpanFull(),
+                                            ])
+                                            ->createOptionUsing(function (array $data): int {
+                                                $slug = Str::slug($data['name']);
+                                                $originalSlug = $slug;
+                                                $suffix = 2;
+
+                                                while (Category::query()->where('slug', $slug)->exists()) {
+                                                    $slug = "{$originalSlug}-{$suffix}";
+                                                    $suffix++;
+                                                }
+
+                                                return Category::query()->create([
+                                                    'name' => $data['name'],
+                                                    'slug' => $slug,
+                                                    'description' => $data['description'] ?? null,
+                                                    'is_active' => true,
+                                                ])->getKey();
+                                            })
+                                            ->required(),
+
+                                        TextInput::make('sku')
+                                            ->label('SKU')
+                                            ->required()
+                                            ->unique(Product::class, 'sku')
+                                            ->maxLength(255),
+
+                                        TextInput::make('barcode')
+                                            ->label('Barcode')
+                                            ->unique(Product::class, 'barcode')
+                                            ->maxLength(255),
+
+                                        TextInput::make('brand')
+                                            ->label('Brand')
+                                            ->maxLength(255),
+
+                                        TextInput::make('unit')
+                                            ->label('Unit')
+                                            ->default('pcs')
+                                            ->required()
+                                            ->maxLength(50),
+
+                                        TextInput::make('cost_price')
+                                            ->label('Cost Price')
+                                            ->numeric()
+                                            ->prefix('BDT')
+                                            ->default(0)
+                                            ->minValue(0)
+                                            ->required(),
+
+                                        TextInput::make('sale_price')
+                                            ->label('Sale Price')
+                                            ->numeric()
+                                            ->prefix('BDT')
+                                            ->default(0)
+                                            ->minValue(0)
+                                            ->required(),
+
+                                        TextInput::make('stock')
+                                            ->label('Opening Stock')
+                                            ->integer()
+                                            ->default(0)
+                                            ->minValue(0)
+                                            ->required(),
+                                    ])
+                                    ->createOptionUsing(function (array $data): int {
+                                        $openingStock = (int) ($data['stock'] ?? 0);
+
+                                        $product = Product::query()->create([
+                                            'name' => $data['name'],
+                                            'category_id' => $data['category_id'],
+                                            'sku' => $data['sku'],
+                                            'barcode' => $data['barcode'] ?? null,
+                                            'brand' => $data['brand'] ?? null,
+                                            'unit' => $data['unit'] ?? 'pcs',
+                                            'cost_price' => $data['cost_price'] ?? 0,
+                                            'sale_price' => $data['sale_price'] ?? 0,
+                                            'price' => $data['sale_price'] ?? 0,
+                                            'stock' => 0,
+                                            'reorder_level' => 0,
+                                            'vat_rate' => 0,
+                                            'is_active' => true,
+                                            'status' => Product::STATUS_AVAILABLE,
+                                        ]);
+
+                                        $product->setStockFromProductForm($openingStock);
+
+                                        return $product->getKey();
+                                    })
                                     ->live()
                                     ->required()
                                     ->afterStateUpdated(function (Get $get, Set $set, $state): void {

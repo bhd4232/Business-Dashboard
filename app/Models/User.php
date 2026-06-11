@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class User extends Authenticatable implements FilamentUser
@@ -151,6 +152,29 @@ class User extends Authenticatable implements FilamentUser
         ],
     ];
 
+    public const CUSTOM_PERMISSION_OPTIONS = [
+        'dashboard.view' => 'Dashboard: View',
+        'sales.view' => 'Sales: View',
+        'sales.create' => 'Sales: Create',
+        'sales.update' => 'Sales: Update',
+        'sales.delete' => 'Sales: Delete',
+        'purchasing.view' => 'Purchasing: View',
+        'purchasing.create' => 'Purchasing: Create',
+        'purchasing.update' => 'Purchasing: Update',
+        'purchasing.delete' => 'Purchasing: Delete',
+        'inventory.view' => 'Inventory: View',
+        'inventory.create' => 'Inventory: Create',
+        'inventory.update' => 'Inventory: Update',
+        'inventory.delete' => 'Inventory: Delete',
+        'accounts.view' => 'Accounts: View',
+        'accounts.create' => 'Accounts: Create',
+        'accounts.update' => 'Accounts: Update',
+        'accounts.delete' => 'Accounts: Delete',
+        'reports.view' => 'Reports: View',
+        'reports.export' => 'Reports: Export',
+        'users.manage' => 'Users: Manage',
+    ];
+
     public const MODEL_MODULES = [
         \App\Models\Customer::class => 'sales',
         \App\Models\Order::class => 'sales',
@@ -180,9 +204,40 @@ class User extends Authenticatable implements FilamentUser
             return false;
         }
 
-        $permissions = self::ROLE_PERMISSIONS[$this->effectiveRole()] ?? [];
+        $permissions = $this->rolePermissions();
 
         return in_array('*', $permissions, true) || in_array($permission, $permissions, true);
+    }
+
+    public static function roleOptions(): array
+    {
+        if (! Schema::hasTable('user_roles')) {
+            return self::ROLES;
+        }
+
+        return self::ROLES + UserRole::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->pluck('name', 'slug')
+            ->all();
+    }
+
+    public function rolePermissions(): array
+    {
+        $role = $this->effectiveRole();
+
+        if (array_key_exists($role, self::ROLE_PERMISSIONS)) {
+            return self::ROLE_PERMISSIONS[$role];
+        }
+
+        if (! Schema::hasTable('user_roles')) {
+            return [];
+        }
+
+        return UserRole::query()
+            ->where('slug', $role)
+            ->where('is_active', true)
+            ->value('permissions') ?? [];
     }
 
     public function effectiveRole(): string
@@ -192,7 +247,7 @@ class User extends Authenticatable implements FilamentUser
 
     public function canManageUsers(): bool
     {
-        return $this->isSuperAdmin();
+        return $this->isSuperAdmin() || $this->hasPermission('users.manage');
     }
 
     public function canEditPayments(): bool
