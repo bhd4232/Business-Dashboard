@@ -19,10 +19,12 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         User::query()->updateOrCreate(
-            ['email' => 'admin@zamzamint.com'],
+            ['email' => env('ADMIN_EMAIL', 'admin@zamzamint.com')],
             [
-                'name' => 'ZamZam Admin',
-                'password' => 'password',
+                'name' => env('ADMIN_NAME', 'ZamZam Admin'),
+                'password' => env('ADMIN_PASSWORD', 'password'),
+                'role' => 'super_admin',
+                'is_active' => true,
                 'email_verified_at' => now(),
             ],
         );
