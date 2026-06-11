@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Schemas;
 
 use App\Models\User;
 use App\Models\UserRole;
+use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -45,10 +46,14 @@ class UserForm
                                 CheckboxList::make('permissions')
                                     ->label('Permissions')
                                     ->options(User::CUSTOM_PERMISSION_OPTIONS)
+                                    ->default(['dashboard.view'])
                                     ->columns(2)
-                                    ->bulkToggleable()
-                                    ->required(),
+                                    ->bulkToggleable(),
                             ])
+                            ->createOptionAction(fn (Action $action): Action => $action
+                                ->label('Create role')
+                                ->icon('heroicon-o-plus')
+                                ->modalHeading('Create user role'))
                             ->createOptionUsing(function (array $data): string {
                                 $slug = Str::slug($data['name'], '_');
                                 $originalSlug = $slug;
