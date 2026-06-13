@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Suppliers\Schemas;
 
+use App\Filament\Forms\Components\EmailInput;
+use App\Filament\Forms\Components\PhoneInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -24,13 +26,9 @@ class SupplierForm
                             ->label('Company Name')
                             ->maxLength(255),
 
-                        TextInput::make('phone')
-                            ->tel()
-                            ->maxLength(255),
+                        PhoneInput::make(),
 
-                        TextInput::make('email')
-                            ->email()
-                            ->maxLength(255),
+                        EmailInput::make(),
 
                         Toggle::make('is_active')
                             ->label('Active')

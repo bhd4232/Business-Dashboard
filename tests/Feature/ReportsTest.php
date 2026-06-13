@@ -100,6 +100,7 @@ class ReportsTest extends TestCase
 
         $this->assertStringContainsString('Warehouse Charge', $content);
         $this->assertStringContainsString('China to BD Cost Total', $content);
+        $this->assertStringContainsString('Landed Cost Total', $content);
         $this->assertStringContainsString('PUR-REPORT-1', $content);
     }
 

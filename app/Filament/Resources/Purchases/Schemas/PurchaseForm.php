@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Purchases\Schemas;
 
+use App\Filament\Forms\Components\EmailInput;
+use App\Filament\Forms\Components\PhoneInput;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Purchase;
@@ -56,15 +58,9 @@ class PurchaseForm
                                     ->label('Company Name')
                                     ->maxLength(255),
 
-                                TextInput::make('phone')
-                                    ->label('Phone')
-                                    ->tel()
-                                    ->maxLength(255),
+                                PhoneInput::make(),
 
-                                TextInput::make('email')
-                                    ->label('Email')
-                                    ->email()
-                                    ->maxLength(255),
+                                EmailInput::make(),
 
                                 TextInput::make('opening_balance')
                                     ->numeric()
@@ -119,6 +115,8 @@ class PurchaseForm
                                 TableColumn::make('Quantity'),
                                 TableColumn::make('Unit Cost'),
                                 TableColumn::make('Subtotal'),
+                                TableColumn::make('Allocated Cost'),
+                                TableColumn::make('Landed Unit Cost'),
                             ])
                             ->schema([
                                 Select::make('product_id')
@@ -281,8 +279,20 @@ class PurchaseForm
                                     ->numeric()
                                     ->prefix('BDT')
                                     ->readOnly(),
+
+                                TextInput::make('allocated_cost')
+                                    ->label('Allocated Cost')
+                                    ->numeric()
+                                    ->prefix('BDT')
+                                    ->readOnly(),
+
+                                TextInput::make('landed_unit_cost')
+                                    ->label('Landed Unit Cost')
+                                    ->numeric()
+                                    ->prefix('BDT')
+                                    ->readOnly(),
                             ])
-                            ->columns(4)
+                            ->columns(6)
                             ->defaultItems(1)
                             ->addActionLabel('Add item')
                             ->reorderable(false)
@@ -362,6 +372,16 @@ class PurchaseForm
                             ->numeric()
                             ->prefix('BDT')
                             ->readOnly(),
+
+                        TextInput::make('landed_cost_total')
+                            ->label('Landed Cost Total')
+                            ->numeric()
+                            ->prefix('BDT')
+                            ->dehydrated(false)
+                            ->readOnly()
+                            ->afterStateHydrated(function (TextInput $component, ?Purchase $record): void {
+                                $component->state($record?->landedCostTotal() ?? 0);
+                            }),
 
                         TextInput::make('paid_amount')
                             ->numeric()
@@ -456,10 +476,12 @@ class PurchaseForm
             ->sum(fn (string $field): float => (float) ($get($prefix . $field) ?? 0));
         $customCostTotal = collect($get($prefix . 'custom_costs') ?? [])
             ->sum(fn (array $cost): float => (float) ($cost['amount'] ?? 0));
+        $landedCostTotal = $subtotal + $chinaToBdCostTotal + $customCostTotal;
         $total = max($subtotal + $chinaToBdCostTotal + $customCostTotal - (float) ($get($prefix . 'discount') ?? 0) + (float) ($get($prefix . 'vat') ?? 0), 0);
         $due = max($total - (float) ($get($prefix . 'paid_amount') ?? 0), 0);
 
         $set($prefix . 'subtotal', $subtotal);
+        $set($prefix . 'landed_cost_total', $landedCostTotal);
         $set($prefix . 'total_amount', $total);
         $set($prefix . 'due_amount', $due);
     }

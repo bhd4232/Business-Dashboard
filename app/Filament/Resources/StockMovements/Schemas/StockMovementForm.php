@@ -39,6 +39,14 @@ class StockMovementForm
                                 ? 'Use a signed non-zero value: positive adds stock, negative removes stock.'
                                 : 'Use a positive quantity. Sales are automatically counted as outgoing stock.'),
 
+                        TextInput::make('reason')
+                            ->label('Reason')
+                            ->maxLength(255)
+                            ->required(fn (Get $get): bool => $get('type') === 'adjustment')
+                            ->helperText(fn (Get $get): string => $get('type') === 'adjustment'
+                                ? 'Required when stock is manually adjusted.'
+                                : 'Optional context for this stock movement.'),
+
                         TextInput::make('reference_type')
                             ->label('Reference Type')
                             ->maxLength(255),

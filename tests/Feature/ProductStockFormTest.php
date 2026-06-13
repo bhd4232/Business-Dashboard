@@ -58,6 +58,7 @@ class ProductStockFormTest extends TestCase
             'quantity' => -4,
             'reference_type' => Product::class,
             'reference_id' => $product->id,
+            'reason' => 'Product form stock correction',
         ]);
     }
 }

@@ -35,6 +35,8 @@ class BusinessOverview extends StatsOverviewWidget
                 ->color('danger'),
             Stat::make('Customer Due', $this->money($summary['customer_due']))
                 ->icon(Heroicon::OutlinedUserGroup)
+                ->description((float) $summary['customer_due'] > 0 ? 'Follow-up required' : 'No customer due')
+                ->descriptionIcon((float) $summary['customer_due'] > 0 ? Heroicon::OutlinedExclamationTriangle : Heroicon::OutlinedCheckCircle)
                 ->color('warning'),
             Stat::make('Supplier Payable', $this->money($summary['supplier_due']))
                 ->icon(Heroicon::OutlinedBuildingStorefront)
@@ -44,6 +46,8 @@ class BusinessOverview extends StatsOverviewWidget
                 ->color('success'),
             Stat::make('Low Stock Items', $summary['low_stock_count'])
                 ->icon(Heroicon::OutlinedArchiveBox)
+                ->description($summary['low_stock_count'] > 0 ? 'Needs reorder now' : 'Stock levels healthy')
+                ->descriptionIcon($summary['low_stock_count'] > 0 ? Heroicon::OutlinedExclamationTriangle : Heroicon::OutlinedCheckCircle)
                 ->color($summary['low_stock_count'] > 0 ? 'danger' : 'success'),
             Stat::make('Coming Soon Products', $summary['coming_soon_count'])
                 ->icon(Heroicon::OutlinedClock)

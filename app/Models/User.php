@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\ValidatesEmailAddress;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,11 +16,13 @@ use Illuminate\Validation\ValidationException;
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, ValidatesEmailAddress;
 
     protected static function booted(): void
     {
         static::saving(function (User $user): void {
+            static::validateEmailAttribute($user, required: true);
+
             if (! $user->exists) {
                 return;
             }
@@ -172,6 +175,7 @@ class User extends Authenticatable implements FilamentUser
         'accounts.delete' => 'Accounts: Delete',
         'reports.view' => 'Reports: View',
         'reports.export' => 'Reports: Export',
+        'backups.manage' => 'Backups: Manage',
         'users.manage' => 'Users: Manage',
     ];
 
@@ -283,6 +287,11 @@ class User extends Authenticatable implements FilamentUser
     public function canExportReports(): bool
     {
         return $this->hasPermission('reports.export');
+    }
+
+    public function canManageBackups(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('backups.manage');
     }
 
     public function canPerformModelAbility(string $ability, string $modelClass): bool

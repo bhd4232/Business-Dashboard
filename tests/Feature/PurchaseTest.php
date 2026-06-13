@@ -55,8 +55,11 @@ class PurchaseTest extends TestCase
         $this->assertSame('150.00', $purchase->refresh()->subtotal);
         $this->assertSame('235.00', $purchase->total_amount);
         $this->assertSame('215.00', $purchase->due_amount);
+        $this->assertSame(240.0, $purchase->landedCostTotal());
+        $this->assertSame('90.00', PurchaseItem::query()->where('purchase_id', $purchase->id)->value('allocated_cost'));
+        $this->assertSame('80.00', PurchaseItem::query()->where('purchase_id', $purchase->id)->value('landed_unit_cost'));
         $this->assertSame(3, $product->refresh()->stock);
-        $this->assertSame('50.00', $product->cost_price);
+        $this->assertSame('80.00', $product->cost_price);
         $this->assertSame('315.00', $supplier->refresh()->current_balance);
         $this->assertDatabaseHas('stock_movements', [
             'product_id' => $product->id,
@@ -65,6 +68,55 @@ class PurchaseTest extends TestCase
             'reference_id' => $purchase->id,
             'quantity' => 3,
         ]);
+    }
+
+    public function test_purchase_landed_cost_is_distributed_by_item_subtotal(): void
+    {
+        $supplier = Supplier::query()->create(['name' => 'Landed Supplier']);
+        $firstProduct = Product::query()->create([
+            'name' => 'First Product',
+            'sku' => 'LANDED-001',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 0,
+        ]);
+        $secondProduct = Product::query()->create([
+            'name' => 'Second Product',
+            'sku' => 'LANDED-002',
+            'price' => 200,
+            'sale_price' => 200,
+            'stock' => 0,
+        ]);
+
+        $purchase = Purchase::query()->create([
+            'supplier_id' => $supplier->id,
+            'purchase_date' => now(),
+            'freight_to_ctg' => 30,
+            'duty' => 70,
+            'status' => 'received',
+            'update_cost_price' => true,
+        ]);
+
+        $firstItem = PurchaseItem::query()->create([
+            'purchase_id' => $purchase->id,
+            'product_id' => $firstProduct->id,
+            'quantity' => 2,
+            'unit_cost' => 50,
+        ]);
+        $secondItem = PurchaseItem::query()->create([
+            'purchase_id' => $purchase->id,
+            'product_id' => $secondProduct->id,
+            'quantity' => 1,
+            'unit_cost' => 100,
+        ]);
+
+        $this->assertSame(300.0, $purchase->refresh()->landedCostTotal());
+        $this->assertSame('50.00', $firstItem->refresh()->allocated_cost);
+        $this->assertSame('75.00', $firstItem->landed_unit_cost);
+        $this->assertSame('50.00', $secondItem->refresh()->allocated_cost);
+        $this->assertSame('150.00', $secondItem->landed_unit_cost);
+        $this->assertSame('75.00', $firstProduct->refresh()->cost_price);
+        $this->assertSame('150.00', $secondProduct->refresh()->cost_price);
     }
 
     public function test_coming_soon_purchase_products_can_be_ensured(): void

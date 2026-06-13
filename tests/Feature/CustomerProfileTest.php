@@ -29,4 +29,31 @@ class CustomerProfileTest extends TestCase
             'customer_source' => 'facebook',
         ]);
     }
+
+    public function test_customer_source_options_include_custom_sources(): void
+    {
+        Customer::query()->create([
+            'name' => 'TikTok Customer',
+            'customer_type' => 'regular',
+            'customer_source' => Customer::sourceKey('TikTok Shop'),
+        ]);
+
+        $this->assertSame('TikTok Shop', Customer::sourceKey('TikTok Shop'));
+        $this->assertSame('Tiktok Shop', Customer::sourceLabel('tiktok_shop'));
+        $this->assertSame('Facebook', Customer::sourceLabel('facebook'));
+        $this->assertArrayHasKey('TikTok Shop', Customer::sourceOptions());
+    }
+
+    public function test_customer_type_options_include_custom_types(): void
+    {
+        Customer::query()->create([
+            'name' => 'Corporate Customer',
+            'customer_type' => Customer::typeKey('Corporate Client'),
+        ]);
+
+        $this->assertSame('Corporate Client', Customer::typeKey('Corporate Client'));
+        $this->assertSame('Dealer Partner', Customer::typeLabel('dealer_partner'));
+        $this->assertSame('Regular', Customer::typeLabel('regular'));
+        $this->assertArrayHasKey('Corporate Client', Customer::typeOptions());
+    }
 }

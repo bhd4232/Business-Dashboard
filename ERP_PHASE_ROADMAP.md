@@ -1,42 +1,52 @@
-# ZamZam ERP - Phase Based Roadmap
+# ZamZam ERP - Phase-Based Master Roadmap
 
-এই roadmap অনুযায়ী project ধাপে ধাপে mature হবে। প্রতিটি phase শেষ করার আগে code, tests, manual flow, permissions, reports, and documentation verify করতে হবে।
+This roadmap defines how the ZamZam ERP project should mature phase by phase. Before marking any phase complete, code, tests, manual flows, permissions, reports, deployment impact, and documentation must be verified.
+
+Related planning documents:
+
+- `PROJECT_GUIDE.md` provides developer and maintainer onboarding context.
+- `business-dashboard-roadmap.md` keeps detailed correction notes and improvement planning.
+- `ECOMMERCE_PLAN.md` contains the detailed e-commerce specification for Phase 10 onward.
+
+---
 
 ## Phase 0: Project Stabilization
 
-Goal: Existing Laravel/Filament project stable করা, যাতে future ERP modules build করতে গিয়ে পুরনো blocker না থাকে।
+**Goal:** Stabilize the existing Laravel and Filament project so future ERP modules can be built without old blockers.
 
-Status: Done.
+**Status:** Done.
 
-Completed:
+**Completed:**
 
-- Laravel 12 + Filament 4 admin structure stabilized.
+- Laravel 12 and Filament 4 admin structure stabilized.
 - Product mass assignment issues fixed.
 - Core model relationships reviewed.
 - Historical no-op migrations documented.
 - Basic project guide and roadmap added.
 - Test workflow established.
 
-Done criteria:
+**Done Criteria:**
 
 - `php artisan test` passes.
 - Core admin panel loads.
-- New developer can understand project from docs.
+- A new developer can understand the project from the documentation.
+
+---
 
 ## Phase 1: Product and Inventory Foundation
 
-Goal: Product catalog and stock tracking foundation তৈরি করা।
+**Goal:** Build the product catalog and stock tracking foundation.
 
-Status: Done.
+**Status:** Done.
 
-Completed:
+**Completed:**
 
 - Category module.
 - Product module.
-- Product details: description, barcode, unit, brand, cost price, sale price, reorder level, VAT, image, active status.
+- Product details: description, barcode, unit, brand, cost price, sale price, reorder level, VAT, image, and active status.
 - Product status: `available`, `coming_soon`.
 - Coming Soon placeholder product support.
-- Product table filters: category, status, active/inactive, low stock, brand.
+- Product table filters: category, status, active/inactive, low stock, and brand.
 - Stock Movement module.
 - Stock recalculation from movements.
 - Opening stock backfill.
@@ -45,13 +55,13 @@ Completed:
 - Product view stock movement history.
 - Tests for stock movement behavior.
 
-Future polish:
+**Future Polish:**
 
-- Stock reconciliation command/report.
+- Stock reconciliation command or report.
 - Better stock movement approval flow.
 - More user-friendly validation messages.
 
-Done criteria:
+**Done Criteria:**
 
 - Product CRUD works.
 - Stock history is visible.
@@ -59,26 +69,28 @@ Done criteria:
 - Low stock products can be found.
 - `php artisan test --filter=StockMovementTest` passes.
 
+---
+
 ## Phase 2: Supplier, Purchase, and China-to-BD Costing
 
-Goal: Supplier purchase flow and China-to-BD wholesale purchase costing তৈরি করা।
+**Goal:** Build supplier purchase flow and China-to-Bangladesh wholesale purchase costing.
 
-Status: Mostly done and actively evolving.
+**Status:** Mostly done and actively evolving.
 
-Completed:
+**Completed:**
 
 - Supplier module.
 - Purchase module.
 - Purchase Items.
 - Purchase statuses: `draft`, `received`, `cancelled`.
 - Received purchases increase stock.
-- Draft/cancelled purchases do not affect stock.
-- Cancelling received purchase removes stock movement when safe.
+- Draft and cancelled purchases do not affect stock.
+- Cancelling a received purchase removes stock movement when safe.
 - Cancellation is blocked if stock would go negative.
 - Optional product cost price update from purchase item cost.
 - Supplier current balance syncs from received purchase due minus supplier payments.
 - Purchase form sections are collapsible.
-- China to BD fixed cost fields added:
+- China-to-BD fixed cost fields:
   - Machine Purchase
   - Inspection
   - Freight to Ctg
@@ -91,85 +103,91 @@ Completed:
   - CAM
   - Positive Feeder
   - Cylinder
-- Fixed cost fields are optional and included in total/due.
-- Add new custom cost field button added.
+- Fixed cost fields are optional and included in total and due.
+- Add new custom cost field button.
 - Custom field modal accepts field name and amount.
 - Custom fields stored in `purchases.custom_costs`.
-- Custom costs included in purchase total/due.
+- Custom costs included in purchase total and due.
 - Custom Fields UI remains hidden until custom fields exist.
 - View Purchase shows fixed and custom costs.
 - Purchase list exposes China-to-BD cost total and custom field summary.
 - Purchase report dynamically shows custom cost labels as columns.
 - Purchase CSV export includes fixed cost columns and dynamic custom cost columns.
 - Tests cover purchase totals, stock, supplier balance, custom costs, and reports.
+- Supplier field in purchase creation supports selecting existing suppliers and inline creation.
+- Product field in purchase items supports selecting existing products and inline creation.
 
-Important implementation notes:
+**Important Implementation Notes:**
 
 - Fixed purchase costs are columns on `purchases`.
 - Custom purchase costs are JSON in `purchases.custom_costs`.
-- Purchase custom costs are purchase-level costs, not product lines.
+- Purchase custom costs are purchase-level costs, not product-line costs.
 - Coming Soon placeholder products are inactive and should not appear in active product dropdowns.
 
-Future work:
+**Future Work:**
 
 - Per-product landed cost allocation.
-- Purchase LC/PI/CI document tracking.
-- Container/shipment tracking.
+- Purchase LC, PI, and CI document tracking.
+- Container and shipment tracking.
 - China supplier and local clearing agent separation.
 - Purchase expense category mapping.
 - Better purchase costing summary widget.
 
-Done criteria:
+**Done Criteria:**
 
 - Supplier CRUD works.
-- Purchase create/edit/view/list works.
+- Purchase create, edit, view, and list workflows work.
 - Fixed and custom China-to-BD costs save correctly.
 - Purchase totals include all purchase-level costs.
 - Received purchases update stock.
-- Purchase reports/export include dynamic custom fields.
+- Purchase reports and exports include dynamic custom fields.
 - `php artisan test --filter=PurchaseTest` passes.
 - `php artisan test --filter=ReportsTest` passes.
 
+---
+
 ## Phase 3: Sales and Order Management
 
-Goal: Customer sales/order flow production-ready করা।
+**Goal:** Make the customer sales and order flow production-ready.
 
-Status: Done.
+**Status:** Done.
 
-Completed:
+**Completed:**
 
 - Customer module.
 - Multi-product sales invoice workflow.
 - Order Items are the source of invoice lines.
 - Order totals from items, discount, VAT, and paid amount.
-- Confirmed/completed invoices create sale stock movements.
-- Draft/cancelled invoices do not affect stock.
+- Confirmed and completed invoices create sale stock movements.
+- Draft and cancelled invoices do not affect stock.
 - Customer current balance syncs from invoice due minus payments.
 - Printable invoice page at `/admin/orders/{order}/print`.
 - Tests for sales totals, stock sync, customer due, and insufficient stock blocking.
 
-Future work:
+**Future Work:**
 
 - PDF invoice export.
-- Return/refund workflow.
+- Return and refund workflow.
 - Delivery challan.
 - Customer credit limit.
 
-Done criteria:
+**Done Criteria:**
 
 - Multi-product sale works.
-- Stock decreases only for confirmed/completed invoices.
+- Stock decreases only for confirmed or completed invoices.
 - Customer due is visible.
 - Printable invoice works.
 - `php artisan test --filter=SalesOrderTest` passes.
 
+---
+
 ## Phase 4: Accounts and Payments
 
-Goal: Business cash flow, due, expense, payment tracking করা।
+**Goal:** Track business cash flow, due amounts, expenses, and payments.
 
-Status: Done.
+**Status:** Done.
 
-Completed:
+**Completed:**
 
 - Accounts module.
 - Customer Payments.
@@ -184,28 +202,30 @@ Completed:
 - Account view transaction history.
 - Tests for payments, expenses, ledger entries, balances, and admin pages.
 
-Future work:
+**Future Work:**
 
 - Bank reconciliation.
 - Transfer between accounts.
-- Cheque/payment status tracking.
-- Payment receipt print/export.
+- Cheque or payment status tracking.
+- Payment receipt print and export.
 
-Done criteria:
+**Done Criteria:**
 
-- Cash/bank balances are visible.
-- Customer/supplier due can be managed.
-- Every money movement creates ledger entry.
+- Cash and bank balances are visible.
+- Customer and supplier due can be managed.
+- Every money movement creates a ledger entry.
 - Negative account balance is blocked where needed.
 - `php artisan test --filter=AccountsAndPaymentsTest` passes.
 
+---
+
 ## Phase 5: Ledger, Dashboard, and Reporting
 
-Goal: Owner/admin can understand business health from dashboard and reports.
+**Goal:** Help the owner and admin understand business health from dashboard and reports.
 
-Status: Done, with future reporting improvements planned.
+**Status:** Done, with future reporting improvements planned.
 
-Completed:
+**Completed:**
 
 - `ReportService` centralizes report calculations.
 - Dashboard business overview widget.
@@ -222,11 +242,11 @@ Completed:
 - Expense report.
 - Account ledger report.
 - Purchase report includes China-to-BD cost total.
-- Purchase report/export includes dynamic custom cost fields.
+- Purchase report and export include dynamic custom cost fields.
 - Report export permission protection.
 - Tests for reports and CSV export.
 
-Future work:
+**Future Work:**
 
 - Daily summary report.
 - Monthly profit/loss report.
@@ -236,131 +256,144 @@ Future work:
 - PDF exports.
 - Charts for sales, purchase, due, and profit trends.
 
-Done criteria:
+**Done Criteria:**
 
 - Dashboard shows key metrics.
 - Reports match transaction data.
 - CSV export works for core reports.
-- Purchase dynamic custom fields appear in report/export.
+- Purchase dynamic custom fields appear in report and export.
 - `php artisan test --filter=ReportsTest` passes.
+
+---
 
 ## Phase 6: User, Role, Permission, and Audit
 
-Goal: ERP access secure and role-based করা।
+**Goal:** Make ERP access secure, role-based, and traceable.
 
-Status: Done.
+**Status:** Done.
 
-Completed:
+**Completed:**
 
 - User role fields.
 - User management resource.
-- Roles:
+- Default roles:
   - Super Admin
   - Manager
   - Sales Staff
   - Inventory Staff
   - Accountant
+- Custom user role model and table.
+- Role creation from the user management flow.
+- Default roles remain available while custom roles can be added with the plus action.
 - Gate-based resource access.
-- Reports view/export permission.
+- Reports view and export permission.
 - Inactive user block.
-- Audit logs for core business model create/update/delete.
+- Audit logs for core business model create, update, and delete actions.
 - Audit Log resource for Super Admin.
 - Audit detail view.
 - Self-deactivation protection.
 - Last active Super Admin protection.
-- Sensitive edit/delete restrictions for payments, stock movements, accounts, expenses, and order deletion.
+- Sensitive edit and delete restrictions for payments, stock movements, accounts, expenses, and order deletion.
 - Tests for permission and audit flows.
 
-Future work:
+**Future Work:**
 
 - More granular permission UI.
 - Approval workflow for high-risk actions.
-- Login/session audit.
+- Login and session audit.
 
-Done criteria:
+**Done Criteria:**
 
 - Different roles see permitted modules only.
 - Critical changes are traceable.
 - Report export is protected.
 - `php artisan test --filter=PhaseSixPermissionsTest` passes.
 
+---
+
 ## Phase 7: Business Automation
 
-Goal: Repetitive work automate করা।
+**Goal:** Automate repetitive business follow-up work.
 
-Status: Planned.
+**Status:** Planned.
 
-Ideas:
+**Ideas:**
 
 - Low stock notifications.
 - Due payment reminders.
-- Daily sales/purchase summary.
+- Daily sales and purchase summary.
 - Better sequential invoice and purchase numbers.
-- Product barcode generation/printing.
+- Product barcode generation and printing.
 - Stock adjustment approval.
 - Purchase arrival reminder.
 - Supplier payable reminders.
 
-Done criteria:
+**Done Criteria:**
 
 - Admin dashboard becomes actionable.
 - Manual follow-up decreases.
 - Automated jobs are tested and observable.
 
+---
+
 ## Phase 8: UI/UX Polish and Production Readiness
 
-Goal: ERP usable, clean, fast, and deployable করা।
+**Goal:** Make the ERP clean, usable, fast, and deployable.
 
-Status: In progress.
+**Status:** In progress.
 
-Completed:
+**Completed:**
 
 - Purchase form sections made collapsible.
 - China-to-BD cost UI added.
 - Custom Fields section hidden when empty.
 - Coolify deployment guidance documented in `PROJECT_GUIDE.md`.
+- Public login link added for admin access.
+- Node and Nixpacks deployment settings adjusted for production.
 
-Tasks:
+**Tasks:**
 
-- Decide Bengali/English language consistency.
+- Decide final language consistency for admin UI.
 - Clean remaining UI labels.
 - Improve empty states.
 - Polish print templates.
 - Optimize large tables.
-- Add backup/recovery plan.
-- Add production monitoring/logging notes.
+- Add backup and recovery plan.
+- Add production monitoring and logging notes.
 - Add database backup schedule.
 - Add deployment checklist for Coolify.
 
-Done criteria:
+**Done Criteria:**
 
-- Non-technical admin can use the system comfortably.
+- Non-technical admin users can use the system comfortably.
 - Deployment documentation exists.
 - Backup and recovery plan exists.
 - `npm run build` passes.
 
+---
+
 ## Phase 9: Production Operations
 
-Goal: Production hosting, backups, and maintenance process stable করা।
+**Goal:** Stabilize production hosting, backups, deployment, and maintenance process.
 
-Status: Planned.
+**Status:** Planned.
 
-Recommended deployment stack:
+**Recommended Deployment Stack:**
 
-- GitHub repository
-- Coolify application
-- Nixpacks build
-- MySQL/MariaDB database
-- Persistent storage for Laravel storage
-- HTTPS domain
+- GitHub repository.
+- Coolify application.
+- Nixpacks build.
+- MySQL or MariaDB database.
+- Persistent storage for Laravel storage.
+- HTTPS domain.
 
-Production checklist:
+**Production Checklist:**
 
 - `APP_ENV=production`
 - `APP_DEBUG=false`
 - Valid `APP_KEY`
 - Correct `APP_URL`
-- Database env vars set
+- Database environment variables set
 - `php artisan migrate --force`
 - `php artisan storage:link`
 - Laravel caches generated after deploy
@@ -368,24 +401,171 @@ Production checklist:
 - Database backup configured
 - Admin password changed
 
-Done criteria:
+**Done Criteria:**
 
 - GitHub push triggers deployment.
 - Database migrations run safely.
 - Uploads persist after redeploy.
 - Backups can be restored.
 
+---
+
+## Phase 10: E-Commerce Foundation
+
+**Goal:** Launch the public storefront structure, product catalog, core API, and basic SEO foundation.
+
+**Status:** Planned.
+
+**Tasks:**
+
+- Finalize frontend stack decision.
+- Add public route structure.
+- Build homepage and storefront layout.
+- Build category pages.
+- Build product catalog pages.
+- Add search, filters, sorting, and pagination.
+- Build product detail page.
+- Show stock availability and price clearly.
+- Add product and category API endpoints if needed.
+- Add SEO-friendly product and category URLs.
+- Add basic localization structure.
+
+**Done Criteria:**
+
+- Customers can browse products publicly.
+- Search and filters work.
+- Product details are visible.
+- Stock visibility is accurate.
+- Storefront is usable on mobile.
+
+---
+
+## Phase 11: Cart, Checkout, and Orders
+
+**Goal:** Allow customers to create carts, check out, place orders, and track order status.
+
+**Status:** Planned.
+
+**Tasks:**
+
+- Shopping cart for guest and logged-in customers.
+- Checkout flow.
+- Customer registration and login.
+- Customer address management.
+- Order placement.
+- Customer order history.
+- Order tracking by account or order number.
+- Email or SMS order notifications.
+- Cash on delivery.
+- Initial payment gateway integration.
+
+**Done Criteria:**
+
+- Customers can place an order from the storefront.
+- Orders are saved with customer, item, address, payment, and shipping details.
+- Customers can track their order.
+- Admin users can see incoming e-commerce orders.
+
+---
+
+## Phase 12: Admin E-Commerce Control
+
+**Goal:** Give admin users full control over e-commerce operations from the ERP panel.
+
+**Status:** Planned.
+
+**Tasks:**
+
+- E-commerce dashboard.
+- Order management dashboard.
+- Order status flow: pending, processing, shipped, delivered, cancelled, returned, refunded.
+- Banner and slider management.
+- Featured product management.
+- Discount and coupon management.
+- Shipping method and rate management.
+- Payment verification.
+- PDF invoice generation.
+- Admin audit trail for e-commerce actions.
+
+**Done Criteria:**
+
+- Admin users can manage the full e-commerce order lifecycle.
+- Payment verification is traceable.
+- Stock and invoice behavior are consistent with ERP rules.
+- Reports include e-commerce activity where relevant.
+
+---
+
+## Phase 13: Advanced E-Commerce Features
+
+**Goal:** Add stronger customer engagement, marketing, and support workflows.
+
+**Status:** Planned.
+
+**Tasks:**
+
+- Product reviews and ratings.
+- Wishlist.
+- Product comparison.
+- Related products.
+- Promotional campaigns.
+- Abandoned cart recovery.
+- Support ticket system.
+- Return and refund workflow.
+- Back-in-stock notifications.
+- Product variants such as size and color.
+- Analytics integration.
+
+**Done Criteria:**
+
+- Customers have useful account and engagement features.
+- Marketing features can be managed by admin users.
+- Returns and refunds are controlled and auditable.
+
+---
+
+## Phase 14: Scale and Optimization
+
+**Goal:** Prepare the ERP and e-commerce platform for higher production traffic and operational maturity.
+
+**Status:** Planned.
+
+**Tasks:**
+
+- CDN integration.
+- Redis cache optimization.
+- Database index optimization.
+- Image CDN and resize pipeline.
+- Load testing.
+- Monitoring setup.
+- Queue-based notifications.
+- Background job monitoring.
+- Backup restore testing.
+- Performance review of large reports and product listings.
+
+**Done Criteria:**
+
+- Storefront and admin panel perform reliably under expected traffic.
+- Background jobs are observable.
+- Backups are tested.
+- Performance bottlenecks are documented and addressed.
+
+---
+
 ## Recommended Immediate Next Work
 
 Priority:
 
 1. Run `npm run build` and fix any frontend build issue.
-2. Do manual purchase costing smoke test.
+2. Do a manual purchase costing smoke test.
 3. Add landed-cost allocation per product.
-4. Add shipment/container tracking.
+4. Add shipment and container tracking.
 5. Add PDF export for invoice and purchase report.
-6. Add backup/restore documentation.
+6. Add backup and restore documentation.
 7. Decide final production hosting and domain.
+8. Start Phase 10 e-commerce foundation after the ERP production readiness items are stable.
+
+---
 
 ## Development Rule for Every Phase
 
@@ -394,17 +574,21 @@ Every new module or business feature should follow this pattern:
 1. Migration.
 2. Model.
 3. Relationships.
-4. Filament Resource.
+4. Filament Resource or controller.
 5. Form schema.
 6. Table columns and filters.
-7. Infolist/view.
+7. Infolist, detail page, or view.
 8. Business logic or service.
-9. Report/export updates if relevant.
-10. Permission/audit checks if relevant.
+9. Report or export updates if relevant.
+10. Permission and audit checks if relevant.
 11. Automated tests.
 12. Manual verification.
 13. `PROJECT_GUIDE.md` update.
 14. `ERP_PHASE_ROADMAP.md` update.
+15. `ECOMMERCE_PLAN.md` update when the work affects e-commerce.
+16. Ask the user before pushing to confirm whether there are additional changes to include.
+
+---
 
 ## Phase Completion Checklist
 
@@ -413,9 +597,10 @@ Before marking any phase complete:
 - `php artisan test`
 - `npm run build`
 - Admin CRUD manual test
+- Customer-facing flow test if relevant
 - Data calculation check
-- Report/export check
-- Permission/security check
+- Report and export check
+- Permission and security check
 - Audit check if relevant
 - Deployment impact check
 - Documentation update

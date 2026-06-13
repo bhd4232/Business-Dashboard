@@ -7,6 +7,16 @@ use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
+use App\Models\Product;
+use App\Models\Supplier;
+use App\Models\SupplierPayment;
+use App\Models\StockMovement;
+use App\Filament\Resources\CustomerPayments\CustomerPaymentResource;
+use App\Filament\Resources\Expenses\ExpenseResource;
+use App\Filament\Resources\SupplierPayments\SupplierPaymentResource;
+use App\Filament\Resources\TransactionLedgers\TransactionLedgerResource;
 use App\Models\User;
 use App\Models\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -102,6 +112,172 @@ class PhaseSixPermissionsTest extends TestCase
         ]);
 
         $this->assertSame('Audit Category', AuditLog::query()->latest('id')->first()?->new_values['name']);
+    }
+
+    public function test_audit_log_records_stock_adjustment_reason(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $product = Product::query()->create([
+            'name' => 'Audited Stock Product',
+            'sku' => 'AUDIT-STOCK-001',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 0,
+        ]);
+
+        $this->actingAs($admin);
+
+        $movement = StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'adjustment',
+            'quantity' => 5,
+            'reason' => 'Physical stock count correction',
+        ]);
+
+        $auditLog = AuditLog::query()
+            ->where('auditable_type', StockMovement::class)
+            ->where('auditable_id', $movement->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame($admin->id, $auditLog->user_id);
+        $this->assertSame('created', $auditLog->action);
+        $this->assertSame('Physical stock count correction', $auditLog->new_values['reason']);
+    }
+
+    public function test_audit_log_records_customer_payment_edits(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $customer = Customer::query()->create([
+            'name' => 'Audit Customer',
+            'opening_balance' => 500,
+            'is_active' => true,
+        ]);
+        $account = Account::query()->create([
+            'name' => 'Audit Cash',
+            'opening_balance' => 100,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin);
+
+        $payment = CustomerPayment::query()->create([
+            'customer_id' => $customer->id,
+            'account_id' => $account->id,
+            'amount' => 100,
+            'payment_date' => now()->toDateString(),
+            'method' => 'cash',
+            'note' => 'Initial payment',
+        ]);
+
+        $payment->update([
+            'amount' => 80,
+            'note' => 'Edited after bank confirmation',
+        ]);
+
+        $auditLog = AuditLog::query()
+            ->where('action', 'updated')
+            ->where('auditable_type', CustomerPayment::class)
+            ->where('auditable_id', $payment->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame($admin->id, $auditLog->user_id);
+        $this->assertEquals(100, $auditLog->old_values['amount']);
+        $this->assertEquals(80, $auditLog->new_values['amount']);
+        $this->assertSame('Edited after bank confirmation', $auditLog->new_values['note']);
+    }
+
+    public function test_audit_log_records_supplier_payment_and_expense_changes(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $supplier = Supplier::query()->create([
+            'name' => 'Audit Supplier',
+            'opening_balance' => 500,
+            'is_active' => true,
+        ]);
+        $account = Account::query()->create([
+            'name' => 'Audit Bank',
+            'opening_balance' => 1000,
+            'is_active' => true,
+        ]);
+        $category = ExpenseCategory::query()->create([
+            'name' => 'Audit Expense',
+            'slug' => 'audit-expense',
+        ]);
+
+        $this->actingAs($admin);
+
+        $supplierPayment = SupplierPayment::query()->create([
+            'supplier_id' => $supplier->id,
+            'account_id' => $account->id,
+            'amount' => 150,
+            'payment_date' => now()->toDateString(),
+            'method' => 'bank',
+        ]);
+        $supplierPayment->update(['amount' => 120]);
+
+        $expense = Expense::query()->create([
+            'expense_category_id' => $category->id,
+            'account_id' => $account->id,
+            'amount' => 70,
+            'expense_date' => now()->toDateString(),
+            'note' => 'Original expense',
+        ]);
+        $expense->delete();
+
+        $supplierAudit = AuditLog::query()
+            ->where('action', 'updated')
+            ->where('auditable_type', SupplierPayment::class)
+            ->where('auditable_id', $supplierPayment->id)
+            ->latest('id')
+            ->firstOrFail();
+        $expenseAudit = AuditLog::query()
+            ->where('action', 'deleted')
+            ->where('auditable_type', Expense::class)
+            ->where('auditable_id', $expense->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertEquals(150, $supplierAudit->old_values['amount']);
+        $this->assertEquals(120, $supplierAudit->new_values['amount']);
+        $this->assertEquals(70, $expenseAudit->old_values['amount']);
+        $this->assertNull($expenseAudit->new_values);
+    }
+
+    public function test_sensitive_financial_delete_permissions_are_super_admin_only(): void
+    {
+        $accountant = User::factory()->create([
+            'role' => 'accountant',
+            'is_active' => true,
+        ]);
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($accountant);
+
+        $this->assertFalse(CustomerPaymentResource::canDeleteAny());
+        $this->assertFalse(SupplierPaymentResource::canDeleteAny());
+        $this->assertFalse(ExpenseResource::canDeleteAny());
+        $this->assertFalse(TransactionLedgerResource::canDeleteAny());
+
+        $this->actingAs($admin);
+
+        $this->assertTrue(CustomerPaymentResource::canDeleteAny());
+        $this->assertTrue(SupplierPaymentResource::canDeleteAny());
+        $this->assertTrue(ExpenseResource::canDeleteAny());
+        $this->assertFalse(TransactionLedgerResource::canDeleteAny());
     }
 
     public function test_current_user_cannot_deactivate_self(): void

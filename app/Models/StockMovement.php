@@ -19,6 +19,7 @@ class StockMovement extends Model
         'product_id',
         'type',
         'quantity',
+        'reason',
         'reference_type',
         'reference_id',
         'note',
@@ -121,6 +122,12 @@ class StockMovement extends Model
             if ((int) $movement->quantity === 0) {
                 throw ValidationException::withMessages([
                     'quantity' => 'Adjustment quantity must be a non-zero signed value.',
+                ]);
+            }
+
+            if (blank($movement->reason)) {
+                throw ValidationException::withMessages([
+                    'reason' => 'Please enter a reason for this stock adjustment.',
                 ]);
             }
         } elseif ((int) $movement->quantity <= 0) {

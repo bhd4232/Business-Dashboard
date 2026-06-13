@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Customers\Tables;
 
+use App\Models\Customer;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -9,8 +10,10 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class CustomersTable
 {
@@ -32,12 +35,14 @@ class CustomersTable
                 TextColumn::make('customer_type')
                     ->label('Type')
                     ->badge()
+                    ->formatStateUsing(fn (?string $state): ?string => Customer::typeLabel($state))
                     ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('customer_source')
                     ->label('Source')
                     ->badge()
+                    ->formatStateUsing(fn (?string $state): ?string => Customer::sourceLabel($state))
                     ->placeholder('-')
                     ->sortable()
                     ->toggleable(),
@@ -58,16 +63,21 @@ class CustomersTable
             ->filters([
                 SelectFilter::make('customer_type')
                     ->label('Customer type')
-                    ->options(\App\Models\Customer::TYPES),
+                    ->options(fn (): array => Customer::typeOptions()),
 
                 SelectFilter::make('customer_source')
                     ->label('Customer source')
-                    ->options(\App\Models\Customer::SOURCES),
+                    ->options(fn (): array => Customer::sourceOptions()),
 
                 TernaryFilter::make('is_active')
                     ->label('Active status')
                     ->trueLabel('Active customers')
                     ->falseLabel('Inactive customers'),
+
+                Filter::make('has_due')
+                    ->label('Has due')
+                    ->query(fn (Builder $query): Builder => $query->where('current_balance', '>', 0))
+                    ->toggle(),
             ])
             ->recordActions([
                 ViewAction::make(),

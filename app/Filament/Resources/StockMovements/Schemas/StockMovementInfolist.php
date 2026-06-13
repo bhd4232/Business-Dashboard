@@ -31,6 +31,10 @@ class StockMovementInfolist
                             ->badge()
                             ->color(fn (int $state): string => $state < 0 ? 'danger' : 'success'),
 
+                        TextEntry::make('reason')
+                            ->label('Adjustment Reason')
+                            ->placeholder('No reason'),
+
                         TextEntry::make('reference_type')
                             ->label('Reference Type')
                             ->placeholder('No reference'),

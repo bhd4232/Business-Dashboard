@@ -139,6 +139,8 @@ class Purchase extends Model
             $this->forceFill($changes)->saveQuietly();
         }
 
+        $this->syncLandedCosts($items);
+
         if ($this->status === 'received') {
             $this->syncStockMovements($items);
         } else {
@@ -178,6 +180,52 @@ class Purchase extends Model
             ->implode('; ') ?: '-';
     }
 
+    public function landedCostTotal(): float
+    {
+        return (float) $this->subtotal + $this->chinaToBdCostTotal();
+    }
+
+    public function landedCostPerUnitSummary(): string
+    {
+        return $this->items()
+            ->with('product')
+            ->get()
+            ->map(fn (PurchaseItem $item): string => ($item->product?->name ?? 'Product') . ': BDT ' . number_format((float) $item->landed_unit_cost, 2))
+            ->implode('; ') ?: '-';
+    }
+
+    protected function syncLandedCosts($items): void
+    {
+        $extraCostTotal = $this->chinaToBdCostTotal();
+        $subtotal = $items->sum(fn (PurchaseItem $item): float => (float) $item->subtotal);
+        $remainingAllocatedCost = round($extraCostTotal, 2);
+        $lastItemKey = $items->keys()->last();
+
+        foreach ($items as $key => $item) {
+            $allocatedCost = 0.0;
+
+            if ($subtotal > 0 && $extraCostTotal > 0) {
+                $allocatedCost = $key === $lastItemKey
+                    ? $remainingAllocatedCost
+                    : round($extraCostTotal * ((float) $item->subtotal / $subtotal), 2);
+            }
+
+            $remainingAllocatedCost = round($remainingAllocatedCost - $allocatedCost, 2);
+            $quantity = max((int) $item->quantity, 1);
+            $landedUnitCost = round(((float) $item->subtotal + $allocatedCost) / $quantity, 2);
+
+            if (
+                (float) $item->allocated_cost !== $allocatedCost ||
+                (float) $item->landed_unit_cost !== $landedUnitCost
+            ) {
+                $item->forceFill([
+                    'allocated_cost' => $allocatedCost,
+                    'landed_unit_cost' => $landedUnitCost,
+                ])->saveQuietly();
+            }
+        }
+    }
+
     protected function syncStockMovements($items): void
     {
         $quantitiesByProduct = $items
@@ -210,7 +258,7 @@ class Purchase extends Model
 
         if ($this->update_cost_price) {
             $items->each(function (PurchaseItem $item): void {
-                $item->product?->update(['cost_price' => $item->unit_cost]);
+                $item->product?->update(['cost_price' => $item->landed_unit_cost ?: $item->unit_cost]);
             });
         }
     }

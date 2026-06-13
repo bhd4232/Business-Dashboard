@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Customers\Schemas;
 
+use App\Models\Customer;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -20,10 +21,12 @@ class CustomerInfolist
                         TextEntry::make('email'),
                         TextEntry::make('customer_type')
                             ->label('Customer Type')
-                            ->badge(),
+                            ->badge()
+                            ->formatStateUsing(fn (?string $state): ?string => Customer::typeLabel($state)),
                         TextEntry::make('customer_source')
                             ->label('Customer Source')
                             ->badge()
+                            ->formatStateUsing(fn (?string $state): ?string => Customer::sourceLabel($state))
                             ->placeholder('Not set'),
                         IconEntry::make('is_active')->boolean(),
                     ])

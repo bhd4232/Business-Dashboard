@@ -13,12 +13,16 @@ class PurchaseItem extends Model
         'quantity',
         'unit_cost',
         'subtotal',
+        'allocated_cost',
+        'landed_unit_cost',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'unit_cost' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'allocated_cost' => 'decimal:2',
+        'landed_unit_cost' => 'decimal:2',
     ];
 
     protected static function booted(): void

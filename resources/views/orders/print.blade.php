@@ -5,38 +5,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Invoice {{ $order->order_number }}</title>
     <style>
+        @page {
+            margin: 16mm;
+            size: A4;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             color: #111827;
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 32px;
+            padding: 28px;
+            background: #f3f4f6;
         }
 
         .invoice {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
             margin: 0 auto;
             max-width: 900px;
+            min-height: 1120px;
+            padding: 40px;
         }
 
         .header,
         .meta,
-        .totals {
+        .summary {
             display: flex;
             justify-content: space-between;
             gap: 24px;
         }
 
+        .brand {
+            color: #6b7280;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
         h1 {
-            font-size: 28px;
+            font-size: 30px;
             margin: 0 0 8px;
         }
 
         h2 {
+            color: #374151;
             font-size: 16px;
             margin: 0 0 8px;
         }
 
         p {
             margin: 4px 0;
+        }
+
+        .muted {
+            color: #6b7280;
+        }
+
+        .status {
+            border: 1px solid #d1d5db;
+            border-radius: 999px;
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 8px;
+            padding: 5px 10px;
+            text-transform: uppercase;
+        }
+
+        .box {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            flex: 1;
+            padding: 16px;
         }
 
         table {
@@ -50,9 +95,11 @@
             border-bottom: 1px solid #e5e7eb;
             padding: 12px 8px;
             text-align: left;
+            vertical-align: top;
         }
 
         th {
+            background: #f9fafb;
             color: #4b5563;
             font-size: 12px;
             text-transform: uppercase;
@@ -62,19 +109,34 @@
             text-align: right;
         }
 
+        .summary {
+            align-items: flex-start;
+            margin-top: 28px;
+        }
+
+        .notes {
+            color: #4b5563;
+            max-width: 460px;
+        }
+
         .totals {
             margin-left: auto;
-            margin-top: 24px;
             max-width: 360px;
+            width: 100%;
         }
 
         .totals table {
             margin-top: 0;
         }
 
+        .totals td {
+            padding: 9px 0 9px 12px;
+        }
+
         .total-row td {
             border-bottom: 0;
-            font-size: 18px;
+            color: #111827;
+            font-size: 20px;
             font-weight: 700;
         }
 
@@ -87,13 +149,52 @@
             padding: 10px 14px;
         }
 
+        .footer {
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 48px;
+            padding-top: 16px;
+            text-align: center;
+        }
+
         @media print {
             body {
+                background: #ffffff;
+                padding: 0;
+            }
+
+            .invoice {
+                border: 0;
+                min-height: auto;
                 padding: 0;
             }
 
             .print-button {
                 display: none;
+            }
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 12px;
+            }
+
+            .invoice {
+                min-height: auto;
+                padding: 20px;
+            }
+
+            .header,
+            .meta,
+            .summary {
+                display: block;
+            }
+
+            .print-button,
+            .box,
+            .totals {
+                margin-top: 16px;
             }
         }
     </style>
@@ -102,17 +203,18 @@
     <main class="invoice">
         <div class="header">
             <div>
+                <div class="brand">{{ config('app.name', 'Business Dashboard') }}</div>
                 <h1>Invoice</h1>
-                <p><strong>{{ $order->order_number }}</strong></p>
-                <p>Status: {{ ucfirst($order->status) }}</p>
+                <p class="muted">Invoice No: <strong>{{ $order->order_number }}</strong></p>
+                <span class="status">{{ ucfirst($order->status) }}</span>
             </div>
             <button class="print-button" onclick="window.print()">Print</button>
         </div>
 
         <div class="meta" style="margin-top: 32px;">
-            <section>
+            <section class="box">
                 <h2>Bill To</h2>
-                <p>{{ $order->customer?->name ?? $order->customer_name }}</p>
+                <p><strong>{{ $order->customer?->name ?? $order->customer_name }}</strong></p>
                 @if ($order->customer?->phone)
                     <p>{{ $order->customer->phone }}</p>
                 @endif
@@ -123,9 +225,12 @@
                     <p>{{ $order->customer->address }}</p>
                 @endif
             </section>
-            <section>
+            <section class="box">
                 <h2>Sale Date</h2>
                 <p>{{ optional($order->order_date)->format('d M Y') }}</p>
+                <h2 style="margin-top: 16px;">Payment</h2>
+                <p class="muted">Paid: BDT {{ number_format((float) $order->paid_amount, 2) }}</p>
+                <p class="muted">Due: BDT {{ number_format((float) $order->due_amount, 2) }}</p>
             </section>
         </div>
 
@@ -141,7 +246,12 @@
             <tbody>
                 @foreach ($order->items as $item)
                     <tr>
-                        <td>{{ $item->product?->name }}</td>
+                        <td>
+                            <strong>{{ $item->product?->name ?? 'Product' }}</strong>
+                            @if ($item->product?->sku)
+                                <div class="muted">SKU: {{ $item->product->sku }}</div>
+                            @endif
+                        </td>
                         <td class="amount">{{ $item->quantity }}</td>
                         <td class="amount">BDT {{ number_format((float) $item->unit_price, 2) }}</td>
                         <td class="amount">BDT {{ number_format((float) $item->subtotal, 2) }}</td>
@@ -150,29 +260,46 @@
             </tbody>
         </table>
 
-        <div class="totals">
-            <table>
-                <tr>
-                    <td>Subtotal</td>
-                    <td class="amount">BDT {{ number_format((float) $order->subtotal, 2) }}</td>
-                </tr>
-                <tr>
-                    <td>Discount</td>
-                    <td class="amount">BDT {{ number_format((float) $order->discount, 2) }}</td>
-                </tr>
-                <tr>
-                    <td>VAT</td>
-                    <td class="amount">BDT {{ number_format((float) $order->vat, 2) }}</td>
-                </tr>
-                <tr>
-                    <td>Paid</td>
-                    <td class="amount">BDT {{ number_format((float) $order->paid_amount, 2) }}</td>
-                </tr>
-                <tr class="total-row">
-                    <td>Due</td>
-                    <td class="amount">BDT {{ number_format((float) $order->due_amount, 2) }}</td>
-                </tr>
-            </table>
+        <div class="summary">
+            <div class="notes">
+                @if ($order->note)
+                    <h2>Note</h2>
+                    <p>{{ $order->note }}</p>
+                @endif
+            </div>
+
+            <div class="totals">
+                <table>
+                    <tr>
+                        <td>Subtotal</td>
+                        <td class="amount">BDT {{ number_format((float) $order->subtotal, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Discount</td>
+                        <td class="amount">BDT {{ number_format((float) $order->discount, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td>VAT</td>
+                        <td class="amount">BDT {{ number_format((float) $order->vat, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Total</td>
+                        <td class="amount">BDT {{ number_format((float) $order->total_amount, 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td>Paid</td>
+                        <td class="amount">BDT {{ number_format((float) $order->paid_amount, 2) }}</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Due</td>
+                        <td class="amount">BDT {{ number_format((float) $order->due_amount, 2) }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            Thank you for your business.
         </div>
     </main>
 </body>

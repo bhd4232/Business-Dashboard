@@ -1,13 +1,13 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "bhd4232/business-dashboard",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Inventory, purchase costing, sales, accounts, and reporting dashboard for import and wholesale businesses.",
+    "keywords": ["laravel", "filament", "inventory-management", "business-dashboard", "sales-management", "purchase-management", "accounting", "erp-lite", "small-business", "wholesale"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "filament/filament": "4.0",
+        "filament/filament": "^4.11.4",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1"
     },

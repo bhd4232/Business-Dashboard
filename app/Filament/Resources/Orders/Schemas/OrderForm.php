@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources\Orders\Schemas;
 
+use App\Filament\Forms\Components\CustomerSourceSelect;
+use App\Filament\Forms\Components\CustomerTypeSelect;
+use App\Filament\Forms\Components\EmailInput;
+use App\Filament\Forms\Components\PhoneInput;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -45,27 +49,13 @@ class OrderForm
                                     ->required()
                                     ->maxLength(255),
 
-                                TextInput::make('phone')
-                                    ->label('Phone')
-                                    ->tel()
-                                    ->required()
-                                    ->maxLength(255),
+                                PhoneInput::make(required: true),
 
-                                Select::make('customer_type')
-                                    ->label('Customer Type')
-                                    ->options(Customer::TYPES)
-                                    ->default('regular')
-                                    ->required(),
+                                CustomerTypeSelect::make(),
 
-                                Select::make('customer_source')
-                                    ->label('Customer Source')
-                                    ->options(Customer::SOURCES)
-                                    ->searchable(),
+                                CustomerSourceSelect::make(),
 
-                                TextInput::make('email')
-                                    ->label('Email')
-                                    ->email()
-                                    ->maxLength(255),
+                                EmailInput::make(),
 
                                 Textarea::make('address')
                                     ->label('Address')

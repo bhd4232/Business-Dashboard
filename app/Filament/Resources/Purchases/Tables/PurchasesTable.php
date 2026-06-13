@@ -43,6 +43,18 @@ class PurchasesTable
                     ->money('BDT')
                     ->toggleable(),
 
+                TextColumn::make('landed_cost_total')
+                    ->label('Landed Cost')
+                    ->getStateUsing(fn (Purchase $record): float => $record->landedCostTotal())
+                    ->money('BDT')
+                    ->toggleable(),
+
+                TextColumn::make('landed_unit_costs')
+                    ->label('Landed Unit Costs')
+                    ->getStateUsing(fn (Purchase $record): string => $record->landedCostPerUnitSummary())
+                    ->wrap()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('custom_costs')
                     ->label('Custom Fields')
                     ->getStateUsing(fn (Purchase $record): string => $record->customCostsSummary())

@@ -30,6 +30,14 @@ class PurchaseInfolist
                 Section::make('Totals')
                     ->schema([
                         TextEntry::make('subtotal')->money('BDT'),
+                        TextEntry::make('china_to_bd_cost_total')
+                            ->label('China to BD Costs')
+                            ->state(fn (Purchase $record): float => $record->chinaToBdCostTotal())
+                            ->money('BDT'),
+                        TextEntry::make('landed_cost_total')
+                            ->label('Landed Cost Total')
+                            ->state(fn (Purchase $record): float => $record->landedCostTotal())
+                            ->money('BDT'),
                         TextEntry::make('discount')->money('BDT'),
                         TextEntry::make('vat')->money('BDT'),
                         TextEntry::make('total_amount')->money('BDT'),
@@ -54,8 +62,16 @@ class PurchaseInfolist
 
                                 TextEntry::make('subtotal')
                                     ->money('BDT'),
+
+                                TextEntry::make('allocated_cost')
+                                    ->label('Allocated Cost')
+                                    ->money('BDT'),
+
+                                TextEntry::make('landed_unit_cost')
+                                    ->label('Landed Unit Cost')
+                                    ->money('BDT'),
                             ])
-                            ->columns(4)
+                            ->columns(6)
                             ->contained(false)
                             ->columnSpanFull(),
                     ]),

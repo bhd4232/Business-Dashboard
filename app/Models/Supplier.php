@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ValidatesEmailAddress;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Supplier extends Model
 {
+    use ValidatesEmailAddress;
+
     protected $fillable = [
         'name',
         'phone',
@@ -26,6 +29,10 @@ class Supplier extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Supplier $supplier): void {
+            static::validateEmailAttribute($supplier);
+        });
+
         static::saved(function (Supplier $supplier): void {
             $supplier->syncCurrentBalance();
         });

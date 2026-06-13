@@ -3,6 +3,8 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Widgets\BusinessOverview;
+use App\Filament\Widgets\CustomerDueNotifications;
+use App\Filament\Widgets\LowStockProducts;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -111,6 +113,8 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 BusinessOverview::class,
+                LowStockProducts::class,
+                CustomerDueNotifications::class,
             ])
             ->middleware([
                 EncryptCookies::class,

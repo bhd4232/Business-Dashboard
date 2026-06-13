@@ -43,9 +43,9 @@ class ReportService
                 ->whereDate('transaction_date', '<=', $to->toDateString())
                 ->sum('amount'),
             'expenses_today' => $this->expensesQuery($from, $to)->sum('amount'),
-            'customer_due' => Customer::query()->sum('current_balance'),
+            'customer_due' => app(CustomerDueAlertService::class)->totalDue(),
             'supplier_due' => Supplier::query()->sum('current_balance'),
-            'low_stock_count' => Product::query()->whereColumn('stock', '<=', 'reorder_level')->count(),
+            'low_stock_count' => app(LowStockAlertService::class)->count(),
             'coming_soon_count' => Product::query()->where('status', Product::STATUS_COMING_SOON)->count(),
             'account_balance' => Account::query()->sum('current_balance'),
         ];
@@ -95,17 +95,16 @@ class ReportService
 
     public function lowStock(): Collection
     {
-        return Product::query()
-            ->with('category')
-            ->whereColumn('stock', '<=', 'reorder_level')
+        return app(LowStockAlertService::class)
+            ->query()
             ->orderBy('name')
             ->get();
     }
 
     public function customerDues(): Collection
     {
-        return Customer::query()
-            ->where('current_balance', '>', 0)
+        return app(CustomerDueAlertService::class)
+            ->query()
             ->orderByDesc('current_balance')
             ->get();
     }

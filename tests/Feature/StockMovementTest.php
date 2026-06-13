@@ -84,6 +84,7 @@ class StockMovementTest extends TestCase
             'product_id' => $product->id,
             'type' => 'adjustment',
             'quantity' => -3,
+            'reason' => 'Damaged stock removal',
         ]);
 
         $this->assertSame(2, $product->refresh()->stock);
@@ -94,6 +95,26 @@ class StockMovementTest extends TestCase
             'product_id' => $product->id,
             'type' => 'adjustment',
             'quantity' => -3,
+            'reason' => 'Second damaged stock removal',
+        ]);
+    }
+
+    public function test_adjustment_requires_reason(): void
+    {
+        $product = Product::query()->create([
+            'name' => 'Adjustment Reason Product',
+            'sku' => 'TEST-004',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 0,
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'adjustment',
+            'quantity' => 3,
         ]);
     }
 }

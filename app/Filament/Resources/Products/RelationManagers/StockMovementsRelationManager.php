@@ -42,6 +42,13 @@ class StockMovementsRelationManager extends RelationManager
                     ->badge()
                     ->color(fn (int $state): string => $state < 0 ? 'danger' : 'success'),
 
+                TextColumn::make('reason')
+                    ->label('Reason')
+                    ->limit(40)
+                    ->placeholder('-')
+                    ->searchable()
+                    ->toggleable(),
+
                 TextColumn::make('reference_type')
                     ->label('Reference')
                     ->placeholder('Manual')

@@ -131,6 +131,7 @@ class Product extends Model
                 'quantity' => $targetStock,
                 'reference_type' => self::class,
                 'reference_id' => $this->getKey(),
+                'reason' => 'Opening stock setup',
                 'note' => 'Opening stock from product form',
             ]);
 
@@ -143,6 +144,7 @@ class Product extends Model
             'quantity' => $targetStock - $currentStock,
             'reference_type' => self::class,
             'reference_id' => $this->getKey(),
+            'reason' => 'Product form stock correction',
             'note' => 'Stock adjustment from product form',
         ]);
     }
