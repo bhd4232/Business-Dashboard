@@ -50,6 +50,9 @@ class PhaseSixPermissionsTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/users/create')
             ->assertOk()
+            ->assertSee('selectFormComponent')
+            ->assertSee('options:', false)
+            ->assertSee('createOption')
             ->assertSee('Super Admin')
             ->assertSee('Sales Staff')
             ->assertSee('Inventory Staff');

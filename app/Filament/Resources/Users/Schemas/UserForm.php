@@ -37,6 +37,7 @@ class UserForm
                             ->default('sales_staff')
                             ->selectablePlaceholder(false)
                             ->searchable()
+                            ->preload()
                             ->createOptionForm([
                                 TextInput::make('name')
                                     ->label('Role Name')
