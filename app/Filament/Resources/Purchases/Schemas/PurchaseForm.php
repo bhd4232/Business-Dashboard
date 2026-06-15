@@ -106,6 +106,32 @@ class PurchaseForm
                     ->columns(2)
                     ->collapsible(),
 
+                Section::make('Document Tracking')
+                    ->schema([
+                        TextInput::make('lc_number')
+                            ->label('LC Number')
+                            ->maxLength(255),
+
+                        DatePicker::make('lc_date')
+                            ->label('LC Date'),
+
+                        TextInput::make('pi_number')
+                            ->label('PI Number')
+                            ->maxLength(255),
+
+                        DatePicker::make('pi_date')
+                            ->label('PI Date'),
+
+                        TextInput::make('ci_number')
+                            ->label('CI Number')
+                            ->maxLength(255),
+
+                        DatePicker::make('ci_date')
+                            ->label('CI Date'),
+                    ])
+                    ->columns(3)
+                    ->collapsible(),
+
                 Section::make('Items')
                     ->schema([
                         Repeater::make('items')

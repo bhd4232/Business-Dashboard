@@ -5,6 +5,10 @@ namespace App\Providers\Filament;
 use App\Filament\Widgets\BusinessOverview;
 use App\Filament\Widgets\CustomerDueNotifications;
 use App\Filament\Widgets\LowStockProducts;
+use App\Filament\Widgets\SalesPurchaseTrend;
+use App\Filament\Widgets\TopBusinessPerformers;
+use App\Services\CompanySettingsService;
+use App\Services\ProductSetupService;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -34,6 +38,10 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->spa()
+            ->brandName(fn (): string => (string) app(CompanySettingsService::class)->profile()['name'])
+            ->brandLogo(fn (): ?string => app(CompanySettingsService::class)->logoUrl())
+            ->darkModeBrandLogo(fn (): ?string => app(CompanySettingsService::class)->darkLogoUrl())
+            ->brandLogoHeight('2.25rem')
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -104,6 +112,24 @@ class AdminPanelProvider extends PanelProvider
                     </style>
                 HTML),
             )
+            ->renderHook(
+                PanelsRenderHook::CONTENT_BEFORE,
+                function (): HtmlString {
+                    $setup = app(ProductSetupService::class);
+
+                    if (! $setup->demoMode()) {
+                        return new HtmlString('');
+                    }
+
+                    $notice = e($setup->demoNotice());
+
+                    return new HtmlString(<<<HTML
+                        <div style="margin: 0 1rem 1rem; border: 1px solid rgb(245 158 11 / .35); background: rgb(254 243 199 / .95); color: #92400e; border-radius: 8px; padding: .75rem 1rem; font-size: .875rem; font-weight: 800;">
+                            {$notice}
+                        </div>
+                    HTML);
+                },
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -113,6 +139,8 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 BusinessOverview::class,
+                SalesPurchaseTrend::class,
+                TopBusinessPerformers::class,
                 LowStockProducts::class,
                 CustomerDueNotifications::class,
             ])

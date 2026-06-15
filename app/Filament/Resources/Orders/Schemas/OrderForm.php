@@ -125,7 +125,7 @@ class OrderForm
                                             return;
                                         }
 
-                                        $unitPrice = (float) ($product->sale_price ?? $product->price ?? 0);
+                                        $unitPrice = $product->selling_price;
 
                                         $set('unit_price', $unitPrice);
                                         $set('subtotal', (int) ($get('quantity') ?? 0) * $unitPrice);
@@ -241,14 +241,14 @@ class OrderForm
 
     protected static function setOrderTotals(Get $get, Set $set, string $prefix = ''): void
     {
-        $items = $get($prefix . 'items') ?? [];
+        $items = $get($prefix.'items') ?? [];
         $subtotal = collect($items)
             ->sum(fn (array $item): float => (int) ($item['quantity'] ?? 0) * (float) ($item['unit_price'] ?? 0));
-        $total = max($subtotal - (float) ($get($prefix . 'discount') ?? 0) + (float) ($get($prefix . 'vat') ?? 0), 0);
-        $due = max($total - (float) ($get($prefix . 'paid_amount') ?? 0), 0);
+        $total = max($subtotal - (float) ($get($prefix.'discount') ?? 0) + (float) ($get($prefix.'vat') ?? 0), 0);
+        $due = max($total - (float) ($get($prefix.'paid_amount') ?? 0), 0);
 
-        $set($prefix . 'subtotal', $subtotal);
-        $set($prefix . 'total_amount', $total);
-        $set($prefix . 'due_amount', $due);
+        $set($prefix.'subtotal', $subtotal);
+        $set($prefix.'total_amount', $total);
+        $set($prefix.'due_amount', $due);
     }
 }

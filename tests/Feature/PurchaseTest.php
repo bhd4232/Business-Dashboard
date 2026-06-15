@@ -119,6 +119,34 @@ class PurchaseTest extends TestCase
         $this->assertSame('150.00', $secondProduct->refresh()->cost_price);
     }
 
+    public function test_purchase_tracks_lc_pi_and_ci_documents(): void
+    {
+        $supplier = Supplier::query()->create(['name' => 'Document Supplier']);
+
+        $purchase = Purchase::query()->create([
+            'supplier_id' => $supplier->id,
+            'purchase_date' => '2026-06-13',
+            'lc_number' => 'LC-2026-001',
+            'lc_date' => '2026-06-14',
+            'pi_number' => 'PI-2026-001',
+            'pi_date' => '2026-06-15',
+            'ci_number' => 'CI-2026-001',
+            'ci_date' => '2026-06-16',
+            'status' => 'draft',
+        ]);
+
+        $this->assertDatabaseHas('purchases', [
+            'id' => $purchase->id,
+            'lc_number' => 'LC-2026-001',
+            'pi_number' => 'PI-2026-001',
+            'ci_number' => 'CI-2026-001',
+        ]);
+
+        $this->assertSame('2026-06-14', $purchase->refresh()->lc_date->toDateString());
+        $this->assertSame('2026-06-15', $purchase->pi_date->toDateString());
+        $this->assertSame('2026-06-16', $purchase->ci_date->toDateString());
+    }
+
     public function test_coming_soon_purchase_products_can_be_ensured(): void
     {
         Product::ensureComingSoonPurchaseProducts();

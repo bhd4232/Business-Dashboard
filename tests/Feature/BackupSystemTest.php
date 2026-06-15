@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Admin\BackupDownloadController;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Services\AppBackupService;
@@ -43,7 +45,7 @@ class BackupSystemTest extends TestCase
         Storage::fake('local');
 
         foreach (range(1, 12) as $index) {
-            $path = DatabaseBackupService::DIRECTORY . "/database-backup-20260613-120{$index}-testing.sqlite";
+            $path = DatabaseBackupService::DIRECTORY."/database-backup-20260613-120{$index}-testing.sqlite";
             Storage::disk('local')->put($path, "backup {$index}");
             touch(Storage::disk('local')->path($path), now()->subMinutes(12 - $index)->timestamp);
         }
@@ -99,7 +101,7 @@ class BackupSystemTest extends TestCase
     public function test_backup_download_requires_backup_permission(): void
     {
         Storage::fake('local');
-        Storage::disk('local')->put(DatabaseBackupService::DIRECTORY . '/database-backup-20260613-120000-testing.sqlite', 'backup');
+        Storage::disk('local')->put(DatabaseBackupService::DIRECTORY.'/database-backup-20260613-120000-testing.sqlite', 'backup');
 
         $accountant = User::factory()->create([
             'role' => 'accountant',
@@ -117,6 +119,15 @@ class BackupSystemTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/backups/download/database-backup-20260613-120000-testing.sqlite')
             ->assertOk();
+
+        $auditLog = AuditLog::query()
+            ->where('action', 'backup_downloaded')
+            ->where('auditable_type', BackupDownloadController::class)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame($admin->id, $auditLog->user_id);
+        $this->assertSame('database-backup-20260613-120000-testing.sqlite', $auditLog->new_values['filename']);
     }
 
     public function test_full_app_backup_creates_zip_with_app_files_and_database_backup(): void
@@ -127,7 +138,7 @@ class BackupSystemTest extends TestCase
         File::ensureDirectoryExists(dirname($databasePath));
         File::ensureDirectoryExists($fixturePath);
         File::put($databasePath, 'sqlite database contents');
-        File::put($fixturePath . '/marker.txt', 'app file contents');
+        File::put($fixturePath.'/marker.txt', 'app file contents');
 
         Config::set('database.connections.app_backup_test', [
             'driver' => 'sqlite',
@@ -142,12 +153,12 @@ class BackupSystemTest extends TestCase
         Storage::disk('local')->assertExists($backup['relative_path']);
         $this->assertStringEndsWith('.zip', $backup['name']);
 
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $zip->open($backup['path']);
 
         $this->assertNotFalse($zip->locateName('storage/framework/testing/app-backup-fixture/marker.txt'));
         $this->assertSame('app file contents', $zip->getFromName('storage/framework/testing/app-backup-fixture/marker.txt'));
-        $this->assertNotFalse($zip->locateName('database/' . basename(app(DatabaseBackupService::class)->all()[0]['name'])));
+        $this->assertNotFalse($zip->locateName('database/'.basename(app(DatabaseBackupService::class)->all()[0]['name'])));
 
         $zip->close();
     }

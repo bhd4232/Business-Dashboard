@@ -60,11 +60,11 @@ class ProductInfolist
                     ->schema([
                         TextEntry::make('cost_price')
                             ->label('Cost Price')
-                            ->formatStateUsing(fn ($state) => $state === null ? 'Not set' : 'BDT ' . number_format((float) $state, 2)),
+                            ->formatStateUsing(fn ($state) => $state === null ? 'Not set' : 'BDT '.number_format((float) $state, 2)),
 
                         TextEntry::make('sale_price')
                             ->label('Sale Price')
-                            ->formatStateUsing(fn ($state, $record) => 'BDT ' . number_format((float) ($state ?? $record->price), 2)),
+                            ->formatStateUsing(fn ($state, $record) => 'BDT '.number_format((float) $record->selling_price, 2)),
 
                         TextEntry::make('stock')
                             ->label('Current Stock')
@@ -78,7 +78,7 @@ class ProductInfolist
 
                         TextEntry::make('vat_rate')
                             ->label('VAT Rate')
-                            ->formatStateUsing(fn ($state) => number_format((float) $state, 2) . '%'),
+                            ->formatStateUsing(fn ($state) => number_format((float) $state, 2).'%'),
                     ])
                     ->columns(2),
 

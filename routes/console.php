@@ -1,8 +1,13 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
 use App\Models\User;
+use App\Services\DatabaseBackupService;
+use Database\Seeders\DemoDataSeeder;
+use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -33,3 +38,37 @@ Artisan::command('admin:ensure-super {--email=} {--password=} {--name=ZamZam Adm
 
     return 0;
 })->purpose('Create or reset an active Super Admin user');
+
+Artisan::command('backup:database {--connection=}', function (DatabaseBackupService $backups) {
+    $backup = $backups->create($this->option('connection') ?: null);
+
+    $this->info("Database backup created: {$backup['name']}");
+
+    return 0;
+})->purpose('Create a private database backup');
+
+Artisan::command('demo:refresh {--database=}', function () {
+    $database = $this->option('database') ?: database_path('demo.sqlite');
+
+    File::ensureDirectoryExists(dirname($database));
+
+    if (! File::exists($database)) {
+        File::put($database, '');
+    }
+
+    Config::set('database.connections.demo.database', $database);
+    DB::purge('demo');
+
+    $this->call('migrate:fresh', [
+        '--database' => 'demo',
+        '--seed' => true,
+        '--seeder' => DemoDataSeeder::class,
+        '--force' => true,
+    ]);
+
+    DB::purge('demo');
+
+    $this->info("Demo database refreshed: {$database}");
+
+    return 0;
+})->purpose('Refresh an isolated demo SQLite database with demo ERP data');

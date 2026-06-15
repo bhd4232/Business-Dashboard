@@ -23,6 +23,32 @@ class PurchaseInfolist
                     ])
                     ->columns(2),
 
+                Section::make('Document Tracking')
+                    ->schema([
+                        TextEntry::make('lc_number')
+                            ->label('LC Number')
+                            ->placeholder('Not set'),
+                        TextEntry::make('lc_date')
+                            ->label('LC Date')
+                            ->date()
+                            ->placeholder('Not set'),
+                        TextEntry::make('pi_number')
+                            ->label('PI Number')
+                            ->placeholder('Not set'),
+                        TextEntry::make('pi_date')
+                            ->label('PI Date')
+                            ->date()
+                            ->placeholder('Not set'),
+                        TextEntry::make('ci_number')
+                            ->label('CI Number')
+                            ->placeholder('Not set'),
+                        TextEntry::make('ci_date')
+                            ->label('CI Date')
+                            ->date()
+                            ->placeholder('Not set'),
+                    ])
+                    ->columns(3),
+
                 Section::make('China to BD Costs')
                     ->schema(self::chinaToBdCostEntries())
                     ->columns(3),

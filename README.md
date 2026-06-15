@@ -1,66 +1,162 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Business Dashboard
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Business Dashboard is a Laravel and Filament based inventory, purchase costing, sales, accounts, and reporting system for small businesses, importers, and wholesale operations.
 
-## About Laravel
+It helps teams manage products, stock movements, customers, suppliers, sales orders, purchases, expenses, payments, dues, backups, and reports from one admin panel.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Product, category, stock, and low-stock management
+- Sales orders with invoice print and PDF export
+- Customer due and payment tracking
+- Supplier, purchase, landed cost, and payment tracking
+- China-to-Bangladesh/import costing fields and custom purchase costs
+- Cash/bank accounts, expenses, and transaction ledger
+- Role-based access control with custom roles
+- Company profile, logo, currency, timezone, and date-format settings
+- Audit logs for sensitive business changes
+- CSV import/export for products, customers, and suppliers
+- CSV/PDF business reports
+- Database backup management
+- Demo data seeder for product walkthroughs
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Tech Stack
 
-## Learning Laravel
+- Laravel 12
+- PHP 8.2+
+- Filament 4
+- Vite 6
+- Tailwind CSS 4
+- Node 20
+- PHPUnit
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Requirements
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- PHP 8.2 or newer
+- Composer
+- Node.js 20
+- MySQL, MariaDB, or SQLite for local development
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Installation
 
-## Laravel Sponsors
+```bash
+composer install
+npm ci
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+npm run build
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+For local development, run:
 
-### Premium Partners
+```bash
+php artisan serve
+npm run dev
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+Open the Filament admin panel at:
 
-## Contributing
+```txt
+/admin
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Environment
 
-## Code of Conduct
+Set these values before seeding or deploying:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```env
+APP_NAME="Business Dashboard"
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost
 
-## Security Vulnerabilities
+ADMIN_NAME="Super Admin"
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+`ADMIN_PASSWORD` is required by the database seeder. Do not use weak default passwords in production.
 
-## License
+## Seed Data
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Create the first admin user:
+
+```bash
+php artisan db:seed
+```
+
+Load demo business data:
+
+```bash
+php artisan db:seed --class=DemoDataSeeder
+```
+
+## Reports
+
+Available report exports include:
+
+- Sales report
+- Purchase report
+- Product profit report
+- Stock report
+- Low stock report
+- Customer due report
+- Supplier due report
+- Expense report
+- Account transaction report
+
+## Security Notes
+
+- Keep `.env` out of git.
+- Set a strong `ADMIN_PASSWORD` before seeding.
+- Only trusted users should receive `super_admin`.
+- Financial delete actions are restricted.
+- Review deployment secrets before enabling automatic production deploys.
+
+## Deployment
+
+Recommended production flow:
+
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan migrate --force
+php artisan storage:link
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan queue:restart
+```
+
+Required GitHub Actions secrets for the included deploy workflow:
+
+```txt
+SERVER_HOST
+SERVER_USER
+SERVER_SSH_KEY
+SERVER_PORT
+DEPLOY_PATH
+```
+
+## Documentation
+
+- [Project Guide](PROJECT_GUIDE.md)
+- [ERP Phase Roadmap](ERP_PHASE_ROADMAP.md)
+- [Business Dashboard Roadmap](business-dashboard-roadmap.md)
+- [Audit Report](business_dashboard_audit_report.md)
+- [Deployment Guide](docs/deployment.md)
+- [Roles and Permissions](docs/roles-and-permissions.md)
+- [Import and Export Guide](docs/import-export.md)
+- [Backup and Restore Guide](docs/backup-restore.md)
+
+## Roadmap
+
+The recommended product path is:
+
+1. Clean single-business installable product
+2. Business-ready version tested with real users
+3. White-label sellable product
+4. SaaS version with multi-tenancy and subscription billing

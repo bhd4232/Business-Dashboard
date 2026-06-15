@@ -1,18 +1,88 @@
 <x-filament-panels::page>
     <style>
         .zz-reports {
+            --zz-card-bg: #ffffff;
+            --zz-card-border: #e5e7eb;
+            --zz-card-shadow: 0 14px 30px rgb(15 23 42 / 0.08);
+            --zz-title: #111827;
+            --zz-text: #374151;
+            --zz-muted: #64748b;
+            --zz-field-bg: #ffffff;
+            --zz-field-border: #cbd5e1;
+            --zz-secondary-bg: #f8fafc;
+            --zz-secondary-hover: #fff7ed;
+            --zz-summary-bg: #f8fafc;
+            --zz-summary-border: #e5e7eb;
+            --zz-icon-bg: #fffbeb;
+            --zz-icon-border: #fde68a;
+            --zz-switch-title: #64748b;
+            --zz-link-bg: #ffffff;
+            --zz-link-border: #e5e7eb;
+            --zz-link-hover-bg: #fff7ed;
+            --zz-link-active-bg: #fffbeb;
+            --zz-table-header-bg: #f8fafc;
+            --zz-pill-bg: #f8fafc;
+            --zz-pill-border: #e2e8f0;
+            --zz-table-head-bg: #f8fafc;
+            --zz-table-border: #e5e7eb;
+            --zz-row-hover: #f8fafc;
+            --zz-status-text: #047857;
+            --zz-status-bg: #d1fae5;
+            --zz-blue-text: #1d4ed8;
+            --zz-blue-bg: #dbeafe;
+            --zz-warn-text: #92400e;
+            --zz-warn-bg: #fef3c7;
+            --zz-out-text: #be123c;
+            --zz-out-bg: #ffe4e6;
+
             display: grid;
             gap: 18px;
+        }
+
+        .dark .zz-reports {
+            --zz-card-bg: #17181c;
+            --zz-card-border: #2b2d33;
+            --zz-card-shadow: 0 14px 30px rgb(0 0 0 / 0.18);
+            --zz-title: #f7f8fb;
+            --zz-text: #e5e7eb;
+            --zz-muted: #a8adb8;
+            --zz-field-bg: #222329;
+            --zz-field-border: #3a3d45;
+            --zz-secondary-bg: #222329;
+            --zz-secondary-hover: #26282f;
+            --zz-summary-bg: #101827;
+            --zz-summary-border: #283244;
+            --zz-icon-bg: #262111;
+            --zz-icon-border: #43351a;
+            --zz-switch-title: #8f95a3;
+            --zz-link-bg: #202127;
+            --zz-link-border: #30333b;
+            --zz-link-hover-bg: #24262d;
+            --zz-link-active-bg: #2b210f;
+            --zz-table-header-bg: #151d2b;
+            --zz-pill-bg: #202733;
+            --zz-pill-border: #354052;
+            --zz-table-head-bg: #1d1f25;
+            --zz-table-border: #25272d;
+            --zz-row-hover: #1d2027;
+            --zz-status-text: #7ee6b8;
+            --zz-status-bg: #063c2c;
+            --zz-blue-text: #93c5fd;
+            --zz-blue-bg: #172b4d;
+            --zz-warn-text: #fcd34d;
+            --zz-warn-bg: #46320b;
+            --zz-out-text: #fda4af;
+            --zz-out-bg: #4c1720;
         }
 
         .zz-report-bar,
         .zz-report-card,
         .zz-report-switcher,
         .zz-report-table-card {
-            background: #17181c;
-            border: 1px solid #2b2d33;
+            background: var(--zz-card-bg);
+            border: 1px solid var(--zz-card-border);
             border-radius: 10px;
-            box-shadow: 0 14px 30px rgb(0 0 0 / 0.18);
+            box-shadow: var(--zz-card-shadow);
         }
 
         .zz-report-bar {
@@ -27,7 +97,7 @@
         .zz-report-label {
             display: block;
             margin-bottom: 7px;
-            color: #a8adb8;
+            color: var(--zz-muted);
             font-size: 12px;
             font-weight: 700;
             letter-spacing: .04em;
@@ -39,9 +109,9 @@
             width: 100%;
             height: 40px;
             padding: 0 12px;
-            color: #f7f8fb;
-            background: #222329;
-            border: 1px solid #3a3d45;
+            color: var(--zz-title);
+            background: var(--zz-field-bg);
+            border: 1px solid var(--zz-field-border);
             border-radius: 8px;
             outline: none;
         }
@@ -75,14 +145,14 @@
         }
 
         .zz-button-secondary {
-            color: #f7f8fb;
-            background: #222329;
-            border-color: #3a3d45;
+            color: var(--zz-title);
+            background: var(--zz-secondary-bg);
+            border-color: var(--zz-field-border);
         }
 
         .zz-button-secondary:hover {
             color: #f59e0b;
-            background: #26282f;
+            background: var(--zz-secondary-hover);
             border-color: #f59e0b;
         }
 
@@ -93,14 +163,21 @@
             gap: 14px;
             min-height: 72px;
             padding: 12px 14px;
-            background: #101827;
-            border: 1px solid #283244;
+            background: var(--zz-summary-bg);
+            border: 1px solid var(--zz-summary-border);
             border-radius: 10px;
+        }
+
+        .zz-export-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-end;
         }
 
         .zz-active-summary strong {
             display: block;
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-size: 26px;
             line-height: 1;
         }
@@ -108,7 +185,7 @@
         .zz-active-summary span {
             display: block;
             margin-top: 4px;
-            color: #a8adb8;
+            color: var(--zz-muted);
             font-size: 13px;
         }
 
@@ -134,8 +211,8 @@
             height: 38px;
             flex: 0 0 auto;
             color: #fbbf24;
-            background: #262111;
-            border: 1px solid #43351a;
+            background: var(--zz-icon-bg);
+            border: 1px solid var(--zz-icon-border);
             border-radius: 9px;
         }
 
@@ -150,7 +227,7 @@
         }
 
         .zz-kpi-label {
-            color: #a8adb8;
+            color: var(--zz-muted);
             font-size: 12px;
             font-weight: 700;
             letter-spacing: .04em;
@@ -160,7 +237,7 @@
         .zz-kpi-value {
             margin-top: 5px;
             overflow: hidden;
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-size: 17px;
             font-weight: 800;
             line-height: 1.25;
@@ -180,7 +257,7 @@
 
         .zz-switch-group-title {
             margin-bottom: 9px;
-            color: #8f95a3;
+            color: var(--zz-switch-title);
             font-size: 12px;
             font-weight: 800;
             letter-spacing: .04em;
@@ -194,9 +271,9 @@
             min-height: 44px;
             margin-top: 8px;
             padding: 9px 10px;
-            color: #e5e7eb;
-            background: #202127;
-            border: 1px solid #30333b;
+            color: var(--zz-text);
+            background: var(--zz-link-bg);
+            border: 1px solid var(--zz-link-border);
             border-radius: 9px;
             font-size: 14px;
             font-weight: 800;
@@ -206,14 +283,14 @@
 
         .zz-report-link:hover {
             color: #fbbf24;
-            background: #24262d;
+            background: var(--zz-link-hover-bg);
             border-color: #f59e0b;
             transform: translateY(-1px);
         }
 
         .zz-report-link.is-active {
             color: #fbbf24;
-            background: #2b210f;
+            background: var(--zz-link-active-bg);
             border-color: #f59e0b;
         }
 
@@ -227,8 +304,8 @@
             justify-content: space-between;
             gap: 16px;
             padding: 16px;
-            background: #151d2b;
-            border-bottom: 1px solid #2b3445;
+            background: var(--zz-table-header-bg);
+            border-bottom: 1px solid var(--zz-card-border);
         }
 
         .zz-title-wrap {
@@ -240,7 +317,7 @@
 
         .zz-report-title {
             margin: 0;
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-size: 18px;
             font-weight: 850;
             line-height: 1.25;
@@ -248,7 +325,7 @@
 
         .zz-report-desc {
             margin: 5px 0 0;
-            color: #a8adb8;
+            color: var(--zz-muted);
             font-size: 13px;
         }
 
@@ -264,9 +341,9 @@
             align-items: center;
             min-height: 30px;
             padding: 0 10px;
-            color: #d4d7de;
-            background: #202733;
-            border: 1px solid #354052;
+            color: var(--zz-text);
+            background: var(--zz-pill-bg);
+            border: 1px solid var(--zz-pill-border);
             border-radius: 8px;
             font-size: 12px;
             font-weight: 800;
@@ -281,15 +358,15 @@
             width: 100%;
             min-width: 820px;
             border-collapse: collapse;
-            color: #e5e7eb;
+            color: var(--zz-text);
             font-size: 14px;
         }
 
         .zz-table th {
             padding: 11px 14px;
-            color: #9ca3af;
-            background: #1d1f25;
-            border-bottom: 1px solid #30333b;
+            color: var(--zz-muted);
+            background: var(--zz-table-head-bg);
+            border-bottom: 1px solid var(--zz-card-border);
             font-size: 11px;
             font-weight: 850;
             letter-spacing: .05em;
@@ -299,16 +376,16 @@
 
         .zz-table td {
             padding: 12px 14px;
-            border-bottom: 1px solid #25272d;
+            border-bottom: 1px solid var(--zz-table-border);
             vertical-align: middle;
         }
 
         .zz-table tbody tr:hover {
-            background: #1d2027;
+            background: var(--zz-row-hover);
         }
 
         .zz-code {
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-weight: 800;
         }
 
@@ -323,31 +400,31 @@
             align-items: center;
             min-height: 24px;
             padding: 0 8px;
-            background: #063c2c;
-            color: #7ee6b8;
+            background: var(--zz-status-bg);
+            color: var(--zz-status-text);
             border-radius: 7px;
             font-size: 12px;
             font-weight: 850;
         }
 
         .zz-status-blue {
-            color: #93c5fd;
-            background: #172b4d;
+            color: var(--zz-blue-text);
+            background: var(--zz-blue-bg);
         }
 
         .zz-status-warn {
-            color: #fcd34d;
-            background: #46320b;
+            color: var(--zz-warn-text);
+            background: var(--zz-warn-bg);
         }
 
         .zz-status-out {
-            color: #fda4af;
-            background: #4c1720;
+            color: var(--zz-out-text);
+            background: var(--zz-out-bg);
         }
 
         .zz-empty {
             padding: 28px 14px !important;
-            color: #9ca3af;
+            color: var(--zz-muted);
             text-align: center;
         }
 
@@ -419,10 +496,16 @@
                     <strong>{{ number_format($this->activeReportCount()) }}</strong>
                     <span>Rows</span>
                 </div>
-                <a href="{{ $this->exportUrl($reportType) }}" class="zz-button zz-button-secondary">
-                    <x-filament::icon icon="heroicon-m-arrow-down-tray" />
-                    Export CSV
-                </a>
+                <div class="zz-export-actions">
+                    <a href="{{ $this->exportUrl($reportType) }}" class="zz-button zz-button-secondary">
+                        <x-filament::icon icon="heroicon-m-arrow-down-tray" />
+                        CSV
+                    </a>
+                    <a href="{{ $this->exportPdfUrl($reportType) }}" class="zz-button zz-button-secondary">
+                        <x-filament::icon icon="heroicon-m-document-arrow-down" />
+                        PDF
+                    </a>
+                </div>
             </div>
         </form>
 

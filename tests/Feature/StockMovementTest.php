@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Services\StockMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -62,6 +63,29 @@ class StockMovementTest extends TestCase
         $this->assertSame(2, $sale->refresh()->quantity);
         $this->assertSame(-2, $sale->signed_quantity);
         $this->assertSame(3, $product->refresh()->stock);
+    }
+
+    public function test_stock_movement_service_projects_stock(): void
+    {
+        $product = Product::query()->create([
+            'name' => 'Service Product',
+            'sku' => 'SERVICE-001',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 0,
+        ]);
+
+        StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'opening',
+            'quantity' => 5,
+        ]);
+
+        $service = app(StockMovementService::class);
+
+        $this->assertSame(3, $service->projectedStockFor($product->id, 'sale', 2));
+        $this->assertSame(-2, $service->signedQuantityFor('sale', 2));
+        $this->assertSame(2, $service->normalizeQuantity('sale', -2));
     }
 
     public function test_adjustment_keeps_signed_quantity_and_cannot_make_stock_negative(): void

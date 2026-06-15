@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table): void {
             if (! Schema::hasColumn('users', 'role')) {
-                $table->string('role')->default('super_admin')->after('password');
+                $table->string('role')->default('sales_staff')->after('password');
             }
 
             if (! Schema::hasColumn('users', 'is_active')) {

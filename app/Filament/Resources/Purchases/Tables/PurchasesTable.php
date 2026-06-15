@@ -33,6 +33,21 @@ class PurchasesTable
                     ->date()
                     ->sortable(),
 
+                TextColumn::make('lc_number')
+                    ->label('LC')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('pi_number')
+                    ->label('PI')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('ci_number')
+                    ->label('CI')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('total_amount')
                     ->money('BDT')
                     ->sortable(),

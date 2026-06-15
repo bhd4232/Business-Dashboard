@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\CustomerPayments\CustomerPaymentResource;
+use App\Filament\Resources\Expenses\ExpenseResource;
+use App\Filament\Resources\SupplierPayments\SupplierPaymentResource;
+use App\Filament\Resources\TransactionLedgers\TransactionLedgerResource;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\Category;
@@ -10,13 +14,9 @@ use App\Models\CustomerPayment;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Product;
+use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
-use App\Models\StockMovement;
-use App\Filament\Resources\CustomerPayments\CustomerPaymentResource;
-use App\Filament\Resources\Expenses\ExpenseResource;
-use App\Filament\Resources\SupplierPayments\SupplierPaymentResource;
-use App\Filament\Resources\TransactionLedgers\TransactionLedgerResource;
 use App\Models\User;
 use App\Models\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -78,6 +78,18 @@ class PhaseSixPermissionsTest extends TestCase
 
         $this->assertTrue($user->hasPermission('purchasing.view'));
         $this->assertFalse($user->hasPermission('purchasing.create'));
+    }
+
+    public function test_user_without_role_does_not_become_super_admin(): void
+    {
+        $user = User::factory()->make([
+            'role' => null,
+            'is_active' => true,
+        ]);
+
+        $this->assertSame('sales_staff', $user->effectiveRole());
+        $this->assertFalse($user->isSuperAdmin());
+        $this->assertFalse($user->canManageUsers());
     }
 
     public function test_inactive_user_cannot_access_admin_panel(): void

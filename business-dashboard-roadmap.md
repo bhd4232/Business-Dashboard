@@ -745,20 +745,22 @@ Estimated priority: **Start immediately**
 
 Goal: Make the app usable by real businesses.
 
+Status: **Completed**
+
 Tasks:
 
-1. Product CSV import/export
-2. Customer CSV import/export
-3. Supplier CSV import/export
-4. Purchase landed cost calculation
-5. Stock adjustment reason and audit
-6. Payment edit audit
-7. Low stock notifications
-8. Customer due notifications
-9. Backup system
-10. Better report filters
-11. PDF invoice/export
-12. Professional dashboard widgets
+1. Product CSV import/export - Completed
+2. Customer CSV import/export - Completed
+3. Supplier CSV import/export - Completed
+4. Purchase landed cost calculation - Completed
+5. Stock adjustment reason and audit - Completed
+6. Payment edit audit - Completed
+7. Low stock notifications - Completed
+8. Customer due notifications - Completed
+9. Backup system - Completed
+10. Better report filters - Completed
+11. PDF invoice/export - Completed
+12. Professional dashboard widgets - Completed
 
 Estimated priority: **After Phase 1**
 
@@ -766,20 +768,22 @@ Estimated priority: **After Phase 1**
 
 Goal: Make it ready to sell to clients.
 
+Status: **Completed**
+
 Tasks:
 
-1. Installer page
-2. Company settings
-3. Logo upload
-4. Currency settings
-5. Date/time format settings
-6. White-label branding
-7. Onboarding wizard
-8. Demo mode
-9. Documentation website
-10. Landing page
-11. Pricing page
-12. License/activation system
+1. Installer page - Completed
+2. Company settings - Completed
+3. Logo upload - Completed
+4. Currency settings - Completed
+5. Date/time format settings - Completed
+6. White-label branding - Completed
+7. Onboarding wizard - Completed
+8. Demo mode - Completed
+9. Documentation website - Completed
+10. Landing page - Completed
+11. Pricing page - Completed
+12. License/activation system - Completed
 
 Estimated priority: **After real business testing**
 

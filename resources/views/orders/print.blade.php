@@ -200,10 +200,14 @@
     </style>
 </head>
 <body>
+    @php($company = $company ?? ['name' => config('app.name', 'Business Dashboard'), 'currency' => 'BDT'])
     <main class="invoice">
         <div class="header">
             <div>
-                <div class="brand">{{ config('app.name', 'Business Dashboard') }}</div>
+                <div class="brand">{{ $company['name'] }}</div>
+                @if (! empty($company['logo_url']))
+                    <img src="{{ $company['logo_url'] }}" alt="{{ $company['name'] }}" style="max-height: 56px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">
+                @endif
                 <h1>Invoice</h1>
                 <p class="muted">Invoice No: <strong>{{ $order->order_number }}</strong></p>
                 <span class="status">{{ ucfirst($order->status) }}</span>
@@ -227,10 +231,10 @@
             </section>
             <section class="box">
                 <h2>Sale Date</h2>
-                <p>{{ optional($order->order_date)->format('d M Y') }}</p>
+                <p>{{ optional($order->order_date)->format($company['date_format'] ?? 'd M Y') }}</p>
                 <h2 style="margin-top: 16px;">Payment</h2>
-                <p class="muted">Paid: BDT {{ number_format((float) $order->paid_amount, 2) }}</p>
-                <p class="muted">Due: BDT {{ number_format((float) $order->due_amount, 2) }}</p>
+                <p class="muted">Paid: {{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->paid_amount, 2) }}</p>
+                <p class="muted">Due: {{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->due_amount, 2) }}</p>
             </section>
         </div>
 
@@ -253,8 +257,8 @@
                             @endif
                         </td>
                         <td class="amount">{{ $item->quantity }}</td>
-                        <td class="amount">BDT {{ number_format((float) $item->unit_price, 2) }}</td>
-                        <td class="amount">BDT {{ number_format((float) $item->subtotal, 2) }}</td>
+                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $item->unit_price, 2) }}</td>
+                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $item->subtotal, 2) }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -272,33 +276,36 @@
                 <table>
                     <tr>
                         <td>Subtotal</td>
-                        <td class="amount">BDT {{ number_format((float) $order->subtotal, 2) }}</td>
+                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->subtotal, 2) }}</td>
                     </tr>
                     <tr>
                         <td>Discount</td>
-                        <td class="amount">BDT {{ number_format((float) $order->discount, 2) }}</td>
+                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->discount, 2) }}</td>
                     </tr>
                     <tr>
                         <td>VAT</td>
-                        <td class="amount">BDT {{ number_format((float) $order->vat, 2) }}</td>
+                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->vat, 2) }}</td>
                     </tr>
                     <tr>
                         <td>Total</td>
-                        <td class="amount">BDT {{ number_format((float) $order->total_amount, 2) }}</td>
+                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->total_amount, 2) }}</td>
                     </tr>
                     <tr>
                         <td>Paid</td>
-                        <td class="amount">BDT {{ number_format((float) $order->paid_amount, 2) }}</td>
+                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->paid_amount, 2) }}</td>
                     </tr>
                     <tr class="total-row">
                         <td>Due</td>
-                        <td class="amount">BDT {{ number_format((float) $order->due_amount, 2) }}</td>
+                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->due_amount, 2) }}</td>
                     </tr>
                 </table>
             </div>
         </div>
 
         <div class="footer">
+            @if (! empty($company['address'])){{ $company['address'] }} | @endif
+            @if (! empty($company['phone'])){{ $company['phone'] }} | @endif
+            @if (! empty($company['email'])){{ $company['email'] }} | @endif
             Thank you for your business.
         </div>
     </main>

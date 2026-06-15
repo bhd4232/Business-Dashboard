@@ -1,13 +1,57 @@
 <x-filament-panels::page>
     <style>
         .zz-backups {
+            --zz-card-bg: #ffffff;
+            --zz-card-border: #e5e7eb;
+            --zz-header-bg: #f8fafc;
+            --zz-header-border: #e5e7eb;
+            --zz-title: #111827;
+            --zz-text: #374151;
+            --zz-muted: #64748b;
+            --zz-field-bg: #ffffff;
+            --zz-field-border: #cbd5e1;
+            --zz-secondary-bg: #f8fafc;
+            --zz-secondary-hover: #fff7ed;
+            --zz-modal-backdrop: rgb(15 23 42 / .42);
+            --zz-modal-shadow: 0 24px 70px rgb(15 23 42 / .24);
+            --zz-guide-bg: #f8fafc;
+            --zz-table-head-bg: #f8fafc;
+            --zz-table-row-border: #e5e7eb;
+            --zz-warning-text: #92400e;
+            --zz-warning-bg: #fef3c7;
+            --zz-ready-text: #047857;
+            --zz-ready-bg: #d1fae5;
+
             display: grid;
             gap: 18px;
         }
 
+        .dark .zz-backups {
+            --zz-card-bg: #17181c;
+            --zz-card-border: #2b2d33;
+            --zz-header-bg: #101827;
+            --zz-header-border: #283244;
+            --zz-title: #f7f8fb;
+            --zz-text: #e5e7eb;
+            --zz-muted: #a8adb8;
+            --zz-field-bg: #222329;
+            --zz-field-border: #3a3d45;
+            --zz-secondary-bg: #222329;
+            --zz-secondary-hover: #26282f;
+            --zz-modal-backdrop: rgb(0 0 0 / .62);
+            --zz-modal-shadow: 0 24px 70px rgb(0 0 0 / .46);
+            --zz-guide-bg: #121923;
+            --zz-table-head-bg: #1d1f25;
+            --zz-table-row-border: #25272d;
+            --zz-warning-text: #fcd34d;
+            --zz-warning-bg: #46320b;
+            --zz-ready-text: #7ee6b8;
+            --zz-ready-bg: #063c2c;
+        }
+
         .zz-backup-card {
-            background: #17181c;
-            border: 1px solid #2b2d33;
+            background: var(--zz-card-bg);
+            border: 1px solid var(--zz-card-border);
             border-radius: 10px;
             overflow: hidden;
         }
@@ -18,8 +62,13 @@
             justify-content: space-between;
             gap: 16px;
             padding: 16px;
-            background: #101827;
-            border-bottom: 1px solid #283244;
+            background: var(--zz-header-bg);
+            border-bottom: 1px solid var(--zz-header-border);
+        }
+
+        .zz-backup-footer {
+            border-top: 1px solid var(--zz-header-border);
+            border-bottom: 0;
         }
 
         .zz-backup-copy {
@@ -28,14 +77,14 @@
 
         .zz-backup-title {
             margin: 0;
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-size: 18px;
             font-weight: 850;
         }
 
         .zz-backup-desc {
             margin: 5px 0 0;
-            color: #a8adb8;
+            color: var(--zz-muted);
             font-size: 13px;
         }
 
@@ -76,14 +125,14 @@
         }
 
         .zz-button-secondary {
-            color: #f7f8fb;
-            background: #222329;
-            border-color: #3a3d45;
+            color: var(--zz-title);
+            background: var(--zz-secondary-bg);
+            border-color: var(--zz-field-border);
         }
 
         .zz-button-secondary:hover {
             color: #f59e0b;
-            background: #26282f;
+            background: var(--zz-secondary-hover);
             border-color: #f59e0b;
         }
 
@@ -104,13 +153,13 @@
         }
 
         .zz-field label {
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-size: 13px;
             font-weight: 800;
         }
 
         .zz-help {
-            color: #9ca3af;
+            color: var(--zz-muted);
             font-size: 12px;
             line-height: 1.45;
         }
@@ -118,9 +167,9 @@
         .zz-input,
         .zz-textarea {
             width: 100%;
-            color: #f7f8fb;
-            background: #222329;
-            border: 1px solid #3a3d45;
+            color: var(--zz-title);
+            background: var(--zz-field-bg);
+            border: 1px solid var(--zz-field-border);
             border-radius: 8px;
             outline: none;
         }
@@ -142,7 +191,7 @@
             display: inline-flex;
             align-items: center;
             gap: 9px;
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-size: 14px;
             font-weight: 800;
         }
@@ -158,16 +207,16 @@
             align-items: center;
             min-height: 28px;
             padding: 0 10px;
-            color: #fcd34d;
-            background: #46320b;
+            color: var(--zz-warning-text);
+            background: var(--zz-warning-bg);
             border-radius: 8px;
             font-size: 12px;
             font-weight: 850;
         }
 
         .zz-status-pill.is-ready {
-            color: #7ee6b8;
-            background: #063c2c;
+            color: var(--zz-ready-text);
+            background: var(--zz-ready-bg);
         }
 
         .zz-modal-backdrop {
@@ -178,18 +227,18 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            background: rgb(0 0 0 / .62);
+            background: var(--zz-modal-backdrop);
         }
 
         .zz-modal {
             width: min(980px, 100%);
             max-height: min(88vh, 860px);
             overflow: hidden;
-            color: #e5e7eb;
-            background: #17181c;
-            border: 1px solid #343741;
+            color: var(--zz-text);
+            background: var(--zz-card-bg);
+            border: 1px solid var(--zz-card-border);
             border-radius: 12px;
-            box-shadow: 0 24px 70px rgb(0 0 0 / .46);
+            box-shadow: var(--zz-modal-shadow);
         }
 
         .zz-modal-body {
@@ -201,16 +250,16 @@
             display: grid;
             gap: 10px;
             padding: 16px;
-            color: #d4d7de;
-            background: #121923;
-            border-bottom: 1px solid #283244;
+            color: var(--zz-text);
+            background: var(--zz-guide-bg);
+            border-bottom: 1px solid var(--zz-header-border);
             font-size: 13px;
             line-height: 1.55;
         }
 
         .zz-guide h3 {
             margin: 0;
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-size: 15px;
             font-weight: 850;
         }
@@ -230,15 +279,15 @@
         .zz-table {
             width: 100%;
             border-collapse: collapse;
-            color: #e5e7eb;
+            color: var(--zz-text);
             font-size: 14px;
         }
 
         .zz-table th {
             padding: 11px 14px;
-            color: #9ca3af;
-            background: #1d1f25;
-            border-bottom: 1px solid #30333b;
+            color: var(--zz-muted);
+            background: var(--zz-table-head-bg);
+            border-bottom: 1px solid var(--zz-card-border);
             font-size: 11px;
             font-weight: 850;
             letter-spacing: .05em;
@@ -248,18 +297,18 @@
 
         .zz-table td {
             padding: 12px 14px;
-            border-bottom: 1px solid #25272d;
+            border-bottom: 1px solid var(--zz-table-row-border);
             vertical-align: middle;
         }
 
         .zz-code {
-            color: #f7f8fb;
+            color: var(--zz-title);
             font-weight: 800;
         }
 
         .zz-empty {
             padding: 28px 14px !important;
-            color: #9ca3af;
+            color: var(--zz-muted);
             text-align: center;
         }
 
@@ -364,7 +413,7 @@
                                 </div>
                             </div>
 
-                            <div class="zz-backup-header" style="border-top: 1px solid #283244; border-bottom: 0;">
+                            <div class="zz-backup-header zz-backup-footer">
                                 <p class="zz-backup-desc">The JSON is encrypted before saving to the database.</p>
                                 <button type="submit" class="zz-button">
                                     <x-filament::icon icon="heroicon-m-check" />

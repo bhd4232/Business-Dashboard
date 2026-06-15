@@ -217,6 +217,15 @@ class Reports extends Page
         ]);
     }
 
+    public function exportPdfUrl(string $type): string
+    {
+        return route('reports.export.pdf', [
+            'type' => $type,
+            'date_from' => $this->dateFrom,
+            'date_to' => $this->dateTo,
+        ]);
+    }
+
     public function money(float|int|string|null $amount): string
     {
         return 'BDT ' . number_format((float) $amount, 2);

@@ -16,20 +16,7 @@ class Product extends Model
         self::STATUS_COMING_SOON => 'Coming Soon',
     ];
 
-    public const COMING_SOON_PURCHASE_PRODUCTS = [
-        'Machine Purchase',
-        'Inspection',
-        'Freight to Ctg',
-        'Duty',
-        'C&F',
-        'Misc',
-        'Truck',
-        'Load & Unload',
-        'Spare Parts',
-        'CAM',
-        'Positive Feeder',
-        'Cylinder',
-    ];
+    public const COMING_SOON_PURCHASE_PRODUCTS = Purchase::CHINA_TO_BD_COST_FIELDS;
 
     protected $fillable = [
         'name',
@@ -78,6 +65,11 @@ class Product extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function getSellingPriceAttribute(): float
+    {
+        return (float) ($this->sale_price ?? $this->price ?? 0);
+    }
+
     public static function ensureComingSoonPurchaseProducts(): void
     {
         foreach (self::COMING_SOON_PURCHASE_PRODUCTS as $name) {
@@ -102,7 +94,7 @@ class Product extends Model
 
     protected static function comingSoonSku(string $name): string
     {
-        $baseSku = 'CS-' . Str::upper(Str::slug($name));
+        $baseSku = 'CS-'.Str::upper(Str::slug($name));
         $sku = $baseSku;
         $suffix = 2;
 

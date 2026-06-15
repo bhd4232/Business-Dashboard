@@ -7,8 +7,8 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -56,7 +56,7 @@ class ProductsTable
 
                 TextColumn::make('sale_price')
                     ->label('Sale Price')
-                    ->getStateUsing(fn ($record) => $record->sale_price ?? $record->price)
+                    ->getStateUsing(fn ($record) => $record->selling_price)
                     ->money('BDT'),
 
                 TextColumn::make('cost_price')

@@ -4,18 +4,20 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Concerns\ValidatesEmailAddress;
+use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class User extends Authenticatable implements FilamentUser
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, ValidatesEmailAddress;
 
     protected static function booted(): void
@@ -33,7 +35,7 @@ class User extends Authenticatable implements FilamentUser
                 ]);
             }
 
-            $wasSuperAdmin = ($user->getOriginal('role') ?: 'super_admin') === 'super_admin';
+            $wasSuperAdmin = $user->getOriginal('role') === 'super_admin';
             $willRemainActiveSuperAdmin = $user->effectiveRole() === 'super_admin' && $user->is_active !== false;
 
             if ($wasSuperAdmin && ! $willRemainActiveSuperAdmin && static::activeSuperAdminCount($user->getKey()) === 0) {
@@ -176,25 +178,26 @@ class User extends Authenticatable implements FilamentUser
         'reports.view' => 'Reports: View',
         'reports.export' => 'Reports: Export',
         'backups.manage' => 'Backups: Manage',
+        'settings.manage' => 'Settings: Manage',
         'users.manage' => 'Users: Manage',
     ];
 
     public const MODEL_MODULES = [
-        \App\Models\Customer::class => 'sales',
-        \App\Models\Order::class => 'sales',
-        \App\Models\CustomerPayment::class => 'sales',
-        \App\Models\Supplier::class => 'purchasing',
-        \App\Models\Purchase::class => 'purchasing',
-        \App\Models\SupplierPayment::class => 'purchasing',
-        \App\Models\Product::class => 'inventory',
-        \App\Models\Category::class => 'inventory',
-        \App\Models\StockMovement::class => 'inventory',
-        \App\Models\Account::class => 'accounts',
-        \App\Models\Expense::class => 'accounts',
-        \App\Models\ExpenseCategory::class => 'accounts',
-        \App\Models\TransactionLedger::class => 'accounts',
+        Customer::class => 'sales',
+        Order::class => 'sales',
+        CustomerPayment::class => 'sales',
+        Supplier::class => 'purchasing',
+        Purchase::class => 'purchasing',
+        SupplierPayment::class => 'purchasing',
+        Product::class => 'inventory',
+        Category::class => 'inventory',
+        StockMovement::class => 'inventory',
+        Account::class => 'accounts',
+        Expense::class => 'accounts',
+        ExpenseCategory::class => 'accounts',
+        TransactionLedger::class => 'accounts',
         self::class => 'users',
-        \App\Models\AuditLog::class => 'users',
+        AuditLog::class => 'users',
     ];
 
     public function isSuperAdmin(): bool
@@ -215,7 +218,7 @@ class User extends Authenticatable implements FilamentUser
 
     public static function roleOptions(): array
     {
-        if (! Schema::hasTable('user_roles')) {
+        if (! self::userRolesTableExists()) {
             return self::ROLES;
         }
 
@@ -234,7 +237,7 @@ class User extends Authenticatable implements FilamentUser
             return self::ROLE_PERMISSIONS[$role];
         }
 
-        if (! Schema::hasTable('user_roles')) {
+        if (! self::userRolesTableExists()) {
             return [];
         }
 
@@ -246,7 +249,7 @@ class User extends Authenticatable implements FilamentUser
 
     public function effectiveRole(): string
     {
-        return $this->getAttribute('role') ?: 'super_admin';
+        return $this->getAttribute('role') ?: 'sales_staff';
     }
 
     public function canManageUsers(): bool
@@ -294,6 +297,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->isSuperAdmin() || $this->hasPermission('backups.manage');
     }
 
+    public function canManageSettings(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('settings.manage');
+    }
+
     public function canPerformModelAbility(string $ability, string $modelClass): bool
     {
         if ($this->isSuperAdmin()) {
@@ -332,5 +340,10 @@ class User extends Authenticatable implements FilamentUser
             ->where('is_active', true)
             ->when($excludingUserId, fn ($query) => $query->whereKeyNot($excludingUserId))
             ->count();
+    }
+
+    protected static function userRolesTableExists(): bool
+    {
+        return Cache::remember('schema.user_roles.exists', 3600, fn (): bool => Schema::hasTable('user_roles'));
     }
 }

@@ -127,7 +127,7 @@ Related planning documents:
 **Future Work:**
 
 - Per-product landed cost allocation.
-- Purchase LC, PI, and CI document tracking.
+- Purchase LC, PI, and CI document tracking. **Done:** Reference number and date fields are available in purchase form, view, and table.
 - Container and shipment tracking.
 - China supplier and local clearing agent separation.
 - Purchase expense category mapping.
@@ -350,6 +350,8 @@ Related planning documents:
 - Coolify deployment guidance documented in `PROJECT_GUIDE.md`.
 - Public login link added for admin access.
 - Node and Nixpacks deployment settings adjusted for production.
+- Frontend production build verified with Vite 7.
+- Node dependency audit cleaned with safe package upgrades and overrides.
 
 **Tasks:**
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Purchase;
 use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Traversable;
 
 class ReportExportService
 {
@@ -14,21 +15,13 @@ class ReportExportService
 
     public function download(string $type, ?string $dateFrom = null, ?string $dateTo = null): StreamedResponse
     {
-        [$from, $to] = $this->reports->dateRange($dateFrom, $dateTo);
-
-        $exports = $this->exports($from, $to);
-
-        abort_unless(array_key_exists($type, $exports), 404);
-
-        $export = $exports[$type];
+        $export = $this->export($type, $dateFrom, $dateTo);
 
         return response()->streamDownload(function () use ($export): void {
             $handle = fopen('php://output', 'w');
-            $headings = is_callable($export['headings']) ? $export['headings']() : $export['headings'];
+            fputcsv($handle, $export['headings']);
 
-            fputcsv($handle, $headings);
-
-            foreach ($export['rows']() as $row) {
+            foreach ($export['rows'] as $row) {
                 fputcsv($handle, $row);
             }
 
@@ -38,13 +31,34 @@ class ReportExportService
         ]);
     }
 
+    public function export(string $type, ?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        [$from, $to] = $this->reports->dateRange($dateFrom, $dateTo);
+
+        $exports = $this->exports($from, $to);
+
+        abort_unless(array_key_exists($type, $exports), 404);
+
+        $export = $exports[$type];
+        $headings = is_callable($export['headings']) ? $export['headings']() : $export['headings'];
+        $rows = $export['rows']();
+
+        return [
+            ...$export,
+            'headings' => $headings,
+            'rows' => $rows instanceof Collection ? $rows->values() : $rows,
+            'date_from' => $from,
+            'date_to' => $to,
+        ];
+    }
+
     protected function exports($from, $to): array
     {
         return [
             'sales' => [
                 'filename' => 'sales-report.csv',
                 'headings' => ['Date', 'Invoice', 'Customer', 'Total Amount', 'Paid Amount', 'Due Amount', 'Status'],
-                'rows' => fn () => $this->reports->sales($from, $to)->map(fn ($order): array => [
+                'rows' => fn () => $this->reports->salesForExport($from, $to)->map(fn ($order): array => [
                     optional($order->order_date)->toDateString(),
                     $order->order_number,
                     $order->customer?->name,
@@ -74,10 +88,10 @@ class ReportExportService
                     ];
                 },
                 'rows' => function () use ($from, $to) {
-                    $purchases = $this->reports->purchases($from, $to);
+                    $purchases = $this->reports->purchasesForExport($from, $to);
                     $customCostLabels = $this->purchaseCustomCostLabels($purchases);
 
-                    return $purchases->map(fn ($purchase): array => [
+                    return $this->reports->purchasesForExport($from, $to)->map(fn ($purchase): array => [
                         optional($purchase->purchase_date)->toDateString(),
                         $purchase->purchase_number,
                         $purchase->supplier?->name,
@@ -100,7 +114,7 @@ class ReportExportService
             'profit' => [
                 'filename' => 'product-profit-report.csv',
                 'headings' => ['Date', 'Invoice', 'Product', 'Quantity', 'Revenue', 'Cost', 'Profit'],
-                'rows' => fn () => $this->reports->profit($from, $to)->map(fn (array $row): array => [
+                'rows' => fn () => $this->reports->profitForExport($from, $to)->map(fn (array $row): array => [
                     $row['date'],
                     $row['invoice'],
                     $row['product'],
@@ -113,33 +127,33 @@ class ReportExportService
             'stock' => [
                 'filename' => 'stock-report.csv',
                 'headings' => ['SKU', 'Product', 'Category', 'Stock', 'Reorder Level', 'Cost Price', 'Sale Price'],
-                'rows' => fn () => $this->reports->stock()->map(fn ($product): array => [
+                'rows' => fn () => $this->reports->stockForExport()->map(fn ($product): array => [
                     $product->sku,
                     $product->name,
                     $product->category?->name,
                     $product->stock,
                     $product->reorder_level,
                     $product->cost_price,
-                    $product->sale_price ?? $product->price,
+                    $product->selling_price,
                 ]),
             ],
             'low-stock' => [
                 'filename' => 'low-stock-report.csv',
                 'headings' => ['SKU', 'Product', 'Category', 'Stock', 'Reorder Level', 'Cost Price', 'Sale Price'],
-                'rows' => fn () => $this->reports->lowStock()->map(fn ($product): array => [
+                'rows' => fn () => $this->reports->lowStockForExport()->map(fn ($product): array => [
                     $product->sku,
                     $product->name,
                     $product->category?->name,
                     $product->stock,
                     $product->reorder_level,
                     $product->cost_price,
-                    $product->sale_price ?? $product->price,
+                    $product->selling_price,
                 ]),
             ],
             'customer-dues' => [
                 'filename' => 'customer-due-report.csv',
                 'headings' => ['Customer', 'Phone', 'Current Balance'],
-                'rows' => fn () => $this->reports->customerDues()->map(fn ($customer): array => [
+                'rows' => fn () => $this->reports->customerDuesForExport()->map(fn ($customer): array => [
                     $customer->name,
                     $customer->phone,
                     $customer->current_balance,
@@ -148,7 +162,7 @@ class ReportExportService
             'supplier-dues' => [
                 'filename' => 'supplier-due-report.csv',
                 'headings' => ['Supplier', 'Phone', 'Company', 'Current Balance'],
-                'rows' => fn () => $this->reports->supplierDues()->map(fn ($supplier): array => [
+                'rows' => fn () => $this->reports->supplierDuesForExport()->map(fn ($supplier): array => [
                     $supplier->name,
                     $supplier->phone,
                     $supplier->company_name,
@@ -158,7 +172,7 @@ class ReportExportService
             'expenses' => [
                 'filename' => 'expense-report.csv',
                 'headings' => ['Date', 'Expense Number', 'Category', 'Account', 'Amount'],
-                'rows' => fn () => $this->reports->expenses($from, $to)->map(fn ($expense): array => [
+                'rows' => fn () => $this->reports->expensesForExport($from, $to)->map(fn ($expense): array => [
                     optional($expense->expense_date)->toDateString(),
                     $expense->expense_number,
                     $expense->category?->name,
@@ -169,7 +183,7 @@ class ReportExportService
             'ledger' => [
                 'filename' => 'account-transaction-report.csv',
                 'headings' => ['Date', 'Account', 'Type', 'Direction', 'Amount', 'Note'],
-                'rows' => fn () => $this->reports->ledger($from, $to)->map(fn ($entry): array => [
+                'rows' => fn () => $this->reports->ledgerForExport($from, $to)->map(fn ($entry): array => [
                     optional($entry->transaction_date)->toDateString(),
                     $entry->account?->name,
                     $entry->type,
@@ -181,9 +195,9 @@ class ReportExportService
         ];
     }
 
-    protected function purchaseCustomCostLabels(Collection $purchases): array
+    protected function purchaseCustomCostLabels(iterable $purchases): array
     {
-        return $purchases
+        return collect($purchases instanceof Traversable ? iterator_to_array($purchases, false) : $purchases)
             ->flatMap(fn ($purchase): array => collect($purchase->custom_costs ?? [])
                 ->pluck('label')
                 ->filter()

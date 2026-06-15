@@ -94,7 +94,7 @@ class ProductCsvService
             fclose($handle);
 
             throw ValidationException::withMessages([
-                'csv' => 'Missing required CSV columns: ' . implode(', ', $missingHeadings),
+                'csv' => 'Missing required CSV columns: '.implode(', ', $missingHeadings),
             ]);
         }
 
@@ -194,7 +194,7 @@ class ProductCsvService
             return null;
         }
 
-        $slug = Str::slug($name) ?: 'category-' . substr(md5($name), 0, 10);
+        $slug = Str::slug($name) ?: 'category-'.substr(md5($name), 0, 10);
 
         return Category::query()->firstOrCreate(
             ['slug' => $slug],
@@ -216,7 +216,7 @@ class ProductCsvService
             $product->brand,
             $product->unit,
             $product->cost_price,
-            $product->sale_price ?? $product->price,
+            $product->selling_price,
             $product->stock,
             $product->reorder_level,
             $product->vat_rate,
@@ -306,7 +306,7 @@ class ProductCsvService
 
         if (! array_key_exists($status, Product::STATUSES)) {
             throw ValidationException::withMessages([
-                'status' => 'Status must be one of: ' . implode(', ', array_keys(Product::STATUSES)),
+                'status' => 'Status must be one of: '.implode(', ', array_keys(Product::STATUSES)),
             ]);
         }
 

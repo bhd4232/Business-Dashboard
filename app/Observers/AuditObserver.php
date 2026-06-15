@@ -3,9 +3,9 @@
 namespace App\Observers;
 
 use App\Models\AuditLog;
+use App\Services\AuditLogService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Auth;
 
 class AuditObserver
 {
@@ -48,16 +48,7 @@ class AuditObserver
             return;
         }
 
-        AuditLog::query()->create([
-            'user_id' => Auth::id(),
-            'action' => $action,
-            'auditable_type' => $model::class,
-            'auditable_id' => $model->getKey(),
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
-            'ip_address' => request()?->ip(),
-            'user_agent' => request()?->userAgent(),
-        ]);
+        app(AuditLogService::class)->record($action, $model, $oldValues, $newValues);
     }
 
     private function sanitize(array $values): array
