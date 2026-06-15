@@ -102,10 +102,21 @@ class PhaseSixPermissionsTest extends TestCase
             'is_active' => true,
         ]);
 
+        UserRole::query()->create([
+            'name' => 'Report Operator',
+            'slug' => 'report_operator',
+            'permissions' => ['dashboard.view', 'reports.view', 'reports.export'],
+            'is_active' => true,
+        ]);
+
         $this->actingAs($admin)
             ->get('/admin/user-roles')
             ->assertOk()
-            ->assertSee('User Roles');
+            ->assertSee('User Roles')
+            ->assertSee('Dashboard: View')
+            ->assertSee('Reports: View')
+            ->assertSee('aria-hidden="true">+</span>1', false)
+            ->assertSee('Reports: Export');
 
         $this->actingAs($admin)
             ->get('/admin/user-roles/create')

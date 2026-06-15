@@ -7,6 +7,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Table;
 
 class UserRolesTable
@@ -23,11 +24,8 @@ class UserRolesTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('permissions')
-                    ->badge()
-                    ->formatStateUsing(fn (array|string|null $state): string => is_array($state)
-                        ? count($state) . ' permissions'
-                        : '0 permissions'),
+                ViewColumn::make('permissions')
+                    ->view('filament.tables.columns.permissions-preview'),
 
                 IconColumn::make('is_active')
                     ->label('Active')
