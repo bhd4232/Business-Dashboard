@@ -40,6 +40,21 @@ class PhaseSixPermissionsTest extends TestCase
             ->assertSee('Users');
     }
 
+    public function test_user_create_form_renders_role_options(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/users/create')
+            ->assertOk()
+            ->assertSee('Super Admin')
+            ->assertSee('Sales Staff')
+            ->assertSee('Inventory Staff');
+    }
+
     public function test_sales_staff_cannot_access_users_or_accounts(): void
     {
         $user = User::factory()->create([
