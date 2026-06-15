@@ -95,6 +95,25 @@ class PhaseSixPermissionsTest extends TestCase
         $this->assertFalse($user->hasPermission('purchasing.create'));
     }
 
+    public function test_super_admin_can_manage_custom_user_roles(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/user-roles')
+            ->assertOk()
+            ->assertSee('User Roles');
+
+        $this->actingAs($admin)
+            ->get('/admin/user-roles/create')
+            ->assertOk()
+            ->assertSee('Role Details')
+            ->assertSee('Permissions');
+    }
+
     public function test_user_without_role_does_not_become_super_admin(): void
     {
         $user = User::factory()->make([
