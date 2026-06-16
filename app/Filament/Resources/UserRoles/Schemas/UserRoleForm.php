@@ -31,14 +31,7 @@ class UserRoleForm
                             ->required()
                             ->maxLength(255)
                             ->alphaDash()
-                            ->unique(UserRole::class, 'slug', ignoreRecord: true)
-                            ->rules([
-                                fn (): \Closure => function (string $attribute, mixed $value, \Closure $fail): void {
-                                    if (array_key_exists((string) $value, User::ROLES)) {
-                                        $fail('This role key is reserved for a built-in role.');
-                                    }
-                                },
-                            ]),
+                            ->unique(UserRole::class, 'slug', ignoreRecord: true),
 
                         Toggle::make('is_active')
                             ->label('Active')

@@ -2,11 +2,11 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
-use App\Filament\Forms\Components\RoleSelect;
 use App\Models\User;
 use App\Models\UserRole;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
@@ -32,10 +32,12 @@ class UserForm
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
 
-                        RoleSelect::make('role')
+                        Select::make('role')
                             ->options(fn (): array => User::roleOptions())
-                            ->default('sales_staff')
+                            ->default(fn (): ?string => User::defaultRole())
                             ->selectablePlaceholder(false)
+                            ->searchable()
+                            ->preload()
                             ->createOptionForm([
                                 TextInput::make('name')
                                     ->label('Role Name')
