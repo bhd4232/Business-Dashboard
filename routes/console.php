@@ -49,6 +49,8 @@ Artisan::command('backup:database {--connection=}', function (DatabaseBackupServ
 
 Artisan::command('demo:refresh {--database=}', function () {
     $database = $this->option('database') ?: database_path('demo.sqlite');
+    $originalDefault = config('database.default');
+    $originalDemoPath = config('database.connections.demo.database');
 
     File::ensureDirectoryExists(dirname($database));
 
@@ -59,12 +61,18 @@ Artisan::command('demo:refresh {--database=}', function () {
     Config::set('database.connections.demo.database', $database);
     DB::purge('demo');
 
-    $this->call('migrate:fresh', [
-        '--database' => 'demo',
-        '--seed' => true,
-        '--seeder' => DemoDataSeeder::class,
-        '--force' => true,
-    ]);
+    try {
+        $this->call('migrate:fresh', [
+            '--database' => 'demo',
+            '--seed' => true,
+            '--seeder' => DemoDataSeeder::class,
+            '--force' => true,
+        ]);
+    } finally {
+        Config::set('database.default', $originalDefault);
+        Config::set('database.connections.demo.database', $originalDemoPath);
+        DB::setDefaultConnection($originalDefault);
+    }
 
     DB::purge('demo');
 

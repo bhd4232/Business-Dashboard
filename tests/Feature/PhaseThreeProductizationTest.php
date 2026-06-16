@@ -24,7 +24,10 @@ class PhaseThreeProductizationTest extends TestCase
 
     public function test_installer_creates_first_admin_and_settings(): void
     {
-        $this->post('/install', [
+        $csrfToken = 'test-token';
+
+        $this->withSession(['_token' => $csrfToken])->post('/install', [
+            '_token' => $csrfToken,
             'company_name' => 'Install Ready ERP',
             'company_email' => 'owner@example.com',
             'company_phone' => '+8801700000000',
@@ -111,12 +114,18 @@ class PhaseThreeProductizationTest extends TestCase
             'is_active' => true,
         ]);
 
+        $staffCsrfToken = 'staff-test-token';
+
         $this->actingAs($staff)
-            ->post('/install')
+            ->withSession(['_token' => $staffCsrfToken])
+            ->post('/install', ['_token' => $staffCsrfToken])
             ->assertStatus(423);
 
+        $adminCsrfToken = 'admin-test-token';
+
         $this->actingAs($admin)
-            ->post('/install')
+            ->withSession(['_token' => $adminCsrfToken])
+            ->post('/install', ['_token' => $adminCsrfToken])
             ->assertRedirect('/admin/login');
     }
 }

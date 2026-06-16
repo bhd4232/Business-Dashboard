@@ -54,41 +54,59 @@ class DemoDataSeederTest extends TestCase
 
     public function test_demo_refresh_command_uses_isolated_database(): void
     {
+        $mainPath = database_path('test-main.sqlite');
         $demoPath = database_path('test-demo.sqlite');
 
-        File::delete($demoPath);
-
-        User::query()->create([
-            'name' => 'Main Admin',
-            'email' => 'main@example.com',
-            'password' => 'password',
-            'role' => 'super_admin',
-            'is_active' => true,
-        ]);
-
-        Artisan::call('demo:refresh', [
-            '--database' => $demoPath,
-        ]);
-
-        $this->assertDatabaseHas('users', ['email' => 'main@example.com']);
-        $this->assertDatabaseMissing('users', ['email' => 'demo@example.com']);
-
         $originalDefault = config('database.default');
+        $originalMainConnection = config('database.connections.main_isolated');
         $originalDemoPath = config('database.connections.demo.database');
 
-        Config::set('database.default', 'demo');
-        Config::set('database.connections.demo.database', $demoPath);
-        DB::purge('demo');
+        File::delete([$mainPath, $demoPath]);
+        File::put($mainPath, '');
 
         try {
-            $this->assertSame(1, User::query()->where('email', 'demo@example.com')->count());
-            $this->assertSame(10, Product::query()->where('sku', 'like', 'DEMO-%')->where('status', Product::STATUS_AVAILABLE)->count());
-            $this->assertSame(10, Order::query()->whereDate('order_date', today())->where('order_number', 'like', 'INV-DEMO-%')->count());
+            Config::set('database.connections.main_isolated', array_merge(
+                config('database.connections.sqlite'),
+                ['database' => $mainPath],
+            ));
+            Config::set('database.default', 'main_isolated');
+            DB::setDefaultConnection('main_isolated');
+            DB::purge('main_isolated');
+
+            Artisan::call('migrate:fresh', [
+                '--database' => 'main_isolated',
+                '--force' => true,
+            ]);
+
+            User::query()->create([
+                'name' => 'Main Admin',
+                'email' => 'main@example.com',
+                'password' => 'password',
+                'role' => 'super_admin',
+                'is_active' => true,
+            ]);
+
+            Artisan::call('demo:refresh', [
+                '--database' => $demoPath,
+            ]);
+
+            $this->assertDatabaseHas('users', ['email' => 'main@example.com'], 'main_isolated');
+            $this->assertDatabaseMissing('users', ['email' => 'demo@example.com'], 'main_isolated');
+
+            Config::set('database.connections.demo.database', $demoPath);
+            DB::purge('demo');
+
+            $this->assertSame(1, User::on('demo')->where('email', 'demo@example.com')->count());
+            $this->assertSame(10, Product::on('demo')->where('sku', 'like', 'DEMO-%')->where('status', Product::STATUS_AVAILABLE)->count());
+            $this->assertSame(10, Order::on('demo')->whereDate('order_date', today())->where('order_number', 'like', 'INV-DEMO-%')->count());
         } finally {
             Config::set('database.default', $originalDefault);
+            Config::set('database.connections.main_isolated', $originalMainConnection);
             Config::set('database.connections.demo.database', $originalDemoPath);
+            DB::setDefaultConnection($originalDefault);
+            DB::purge('main_isolated');
             DB::purge('demo');
-            File::delete($demoPath);
+            File::delete([$mainPath, $demoPath]);
         }
     }
 }
