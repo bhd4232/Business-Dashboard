@@ -20,7 +20,8 @@ jobs:
 
       - name: Install PHP dependencies for tests
         run: |
-          composer install --prefer-dist --no-interaction --no-progress
+          composer install --prefer-dist --no-interaction --no-progress --no-scripts
+          php artisan package:discover --ansi
 
       - name: Run tests
         run: |
