@@ -21,14 +21,15 @@ jobs:
           coverage: none
 
       - name: Install PHP dependencies for tests
-        run: |
-          composer install --prefer-dist --no-interaction --no-progress --no-scripts
-          php artisan package:discover --ansi
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
 
-      - name: Prepare test environment
+      - name: Prepare Laravel test environment
         run: |
           cp .env.example .env
           php artisan key:generate --ansi
+
+      - name: Discover Laravel packages
+        run: php artisan package:discover --ansi
 
       - name: Run tests
         run: |
