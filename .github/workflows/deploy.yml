@@ -17,11 +17,18 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
+          extensions: dom, fileinfo, filter, intl, mbstring, pdo_sqlite, sqlite3, xml, zip
+          coverage: none
 
       - name: Install PHP dependencies for tests
         run: |
           composer install --prefer-dist --no-interaction --no-progress --no-scripts
           php artisan package:discover --ansi
+
+      - name: Prepare test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
 
       - name: Run tests
         run: |
@@ -38,7 +45,8 @@ jobs:
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
             git pull origin main
-            composer install --no-dev --prefer-dist --no-interaction --no-progress
+            composer install --no-dev --prefer-dist --no-interaction --no-progress --no-scripts
+            php artisan package:discover --ansi
             npm ci
             npm run build
             php artisan down --retry=60 || true
