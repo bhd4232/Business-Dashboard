@@ -65,6 +65,22 @@ class PhaseSixPermissionsTest extends TestCase
         $this->assertSame('sales_staff', User::defaultRole());
     }
 
+    public function test_role_options_keep_builtin_roles_when_only_custom_roles_are_seeded(): void
+    {
+        UserRole::query()->delete();
+        UserRole::query()->create([
+            'name' => 'Store Viewer',
+            'slug' => 'store_viewer',
+            'permissions' => ['dashboard.view'],
+            'is_active' => true,
+        ]);
+
+        $this->assertSame([
+            ...User::ROLES,
+            'store_viewer' => 'Store Viewer',
+        ], User::roleOptions());
+    }
+
     public function test_sales_staff_cannot_access_users_or_accounts(): void
     {
         $user = User::factory()->create([

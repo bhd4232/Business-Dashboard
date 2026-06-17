@@ -222,13 +222,13 @@ class User extends Authenticatable implements FilamentUser
             return self::ROLES;
         }
 
-        $roles = UserRole::query()
+        $customRoles = UserRole::query()
             ->where('is_active', true)
             ->orderBy('name')
             ->pluck('name', 'slug')
             ->all();
 
-        return $roles !== [] ? $roles : self::ROLES;
+        return array_merge(self::ROLES, $customRoles);
     }
 
     public static function defaultRole(): ?string
