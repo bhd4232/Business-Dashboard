@@ -57,6 +57,14 @@ class PhaseSixPermissionsTest extends TestCase
             ->assertSee('Inventory Staff');
     }
 
+    public function test_role_options_fall_back_to_builtin_roles_when_custom_roles_are_empty(): void
+    {
+        UserRole::query()->delete();
+
+        $this->assertSame(User::ROLES, User::roleOptions());
+        $this->assertSame('sales_staff', User::defaultRole());
+    }
+
     public function test_sales_staff_cannot_access_users_or_accounts(): void
     {
         $user = User::factory()->create([

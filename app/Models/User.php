@@ -219,14 +219,16 @@ class User extends Authenticatable implements FilamentUser
     public static function roleOptions(): array
     {
         if (! self::userRolesTableExists()) {
-            return [];
+            return self::ROLES;
         }
 
-        return UserRole::query()
+        $roles = UserRole::query()
             ->where('is_active', true)
             ->orderBy('name')
             ->pluck('name', 'slug')
             ->all();
+
+        return $roles !== [] ? $roles : self::ROLES;
     }
 
     public static function defaultRole(): ?string
