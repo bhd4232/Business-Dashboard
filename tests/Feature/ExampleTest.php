@@ -18,4 +18,16 @@ class ExampleTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    public function test_health_version_reports_role_marker(): void
+    {
+        $this->get('/health/version')
+            ->assertOk()
+            ->assertJson([
+                'app' => 'zamzam-erp',
+                'marker' => 'roles-built-in-v2',
+                'has_sales_staff_role' => true,
+            ])
+            ->assertJsonPath('role_option_keys.2', 'sales_staff');
+    }
 }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ReportPdfController;
 use App\Http\Controllers\Admin\SupplierCsvController;
 use App\Http\Controllers\InstallController;
 use App\Models\Order;
+use App\Models\User;
 use App\Services\CompanySettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,23 @@ Route::get('/', function () {
 Route::view('/pricing', 'marketing.pricing')->name('marketing.pricing');
 
 Route::view('/docs', 'marketing.docs')->name('marketing.docs');
+
+Route::get('/health/version', function () {
+    $roleOptions = User::roleOptions();
+
+    return response()
+        ->json([
+            'app' => 'zamzam-erp',
+            'marker' => 'roles-built-in-v2',
+            'commit' => env('SOURCE_COMMIT')
+                ?: env('COOLIFY_GIT_COMMIT_SHA')
+                ?: env('GIT_COMMIT')
+                ?: null,
+            'role_option_keys' => array_keys($roleOptions),
+            'has_sales_staff_role' => array_key_exists('sales_staff', $roleOptions),
+        ])
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+})->name('health.version');
 
 Route::get('/install', [InstallController::class, 'create'])->name('install.create');
 Route::post('/install', [InstallController::class, 'store'])->name('install.store');

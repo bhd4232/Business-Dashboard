@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
@@ -355,6 +354,6 @@ class User extends Authenticatable implements FilamentUser
 
     protected static function userRolesTableExists(): bool
     {
-        return Cache::remember('schema.user_roles.exists', 3600, fn (): bool => Schema::hasTable('user_roles'));
+        return Schema::hasTable('user_roles');
     }
 }
