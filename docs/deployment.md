@@ -31,14 +31,16 @@ DB_PASSWORD=...
 
 ADMIN_NAME="Super Admin"
 ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=strong-random-password
+ADMIN_PASSWORD=
 
-QUEUE_CONNECTION=database
-SESSION_DRIVER=database
-CACHE_STORE=database
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+CACHE_STORE=file
 ```
 
-Never commit `.env` or production credentials.
+Never commit `.env` or production credentials. `ADMIN_PASSWORD` must be at least 12 characters and include uppercase and lowercase letters, numbers, and symbols.
+
+For small single-server or SQLite installs, keep `SESSION_DRIVER=file`, `CACHE_STORE=file`, and `QUEUE_CONNECTION=sync`. For higher traffic MySQL deployments, use Redis where available, or database queue/cache with a dedicated queue worker.
 
 ## First Deploy
 
@@ -58,7 +60,7 @@ php artisan view:cache
 Create or reset the admin user later with:
 
 ```bash
-php artisan admin:ensure-super --email=admin@example.com --password="strong-random-password"
+php artisan admin:ensure-super --email=admin@example.com --password="..."
 ```
 
 ## GitHub Actions Deploy
@@ -119,6 +121,8 @@ Add this cron entry:
 
 ## Queue Worker
 
+If `QUEUE_CONNECTION=sync`, no queue worker is required.
+
 For database queues:
 
 ```bash
@@ -131,7 +135,7 @@ Use Supervisor or your hosting panel to keep the worker alive.
 
 - `APP_ENV=production`
 - `APP_DEBUG=false`
-- Strong `ADMIN_PASSWORD`
+- Strong `ADMIN_PASSWORD` with uppercase and lowercase letters, numbers, and symbols
 - Company profile, currency, timezone, and logo configured
 - HTTPS enabled
 - `.env` not committed

@@ -145,9 +145,11 @@ This makes the project useful for import, wholesale, gadget, and inventory-heavy
 
 ## 4. Main Problems to Fix
 
-### 4.1 README Is Still Default Laravel README
+### 4.1 README Documentation
 
-The current README does not describe this project. It still contains default Laravel framework content.
+Status: **Completed**
+
+The README now describes this project as a Laravel + Filament business dashboard for inventory, purchase costing, sales, accounts, backups, and reporting.
 
 Recommended README structure:
 
@@ -168,11 +170,13 @@ A Laravel + Filament business management dashboard for inventory, sales, purchas
 ## Roadmap
 ```
 
-Priority: **High**
+Priority: **Completed**
 
-### 4.2 Project Positioning Is Not Clear
+### 4.2 Project Positioning
 
-The app has many features, but the product identity is not clear.
+Status: **Completed**
+
+The product identity is now documented as an installable business dashboard for import/wholesale businesses.
 
 Recommended positioning options:
 
@@ -184,11 +188,13 @@ Recommended choice:
 
 > **Inventory, Purchase Costing & Sales Management System for Import/Wholesale Businesses**
 
-Priority: **High**
+Priority: **Completed**
 
-### 4.3 Route File Is Too Heavy
+### 4.3 Report Export Route Structure
 
-The report export logic is currently inside `routes/web.php`. This works, but it is not ideal for long-term maintenance.
+Status: **Completed**
+
+Report export logic now lives behind controller/service classes instead of being embedded in `routes/web.php`.
 
 Recommended structure:
 
@@ -213,11 +219,13 @@ Route::middleware('auth')
     ->name('reports.export');
 ```
 
-Priority: **High**
+Priority: **Completed**
 
 ### 4.4 Default Admin Password Risk
 
-The database seeder uses admin credentials from environment variables, but any weak fallback password should be removed before production.
+Status: **Completed**
+
+The database seeder uses admin credentials from environment variables, does not include a weak fallback password, and validates admin password strength before creating the Super Admin user.
 
 Recommended approach:
 
@@ -234,9 +242,19 @@ Also add:
 - Production checklist
 - `.env.example` documentation
 
-Priority: **High**
+Current implementation:
+
+- `ADMIN_PASSWORD` is required for the database seeder
+- `ADMIN_PASSWORD` must be at least 12 characters
+- Uppercase letters, lowercase letters, numbers, and symbols are required
+- `admin:ensure-super` uses the same password validation
+- `.env.example`, README, and deployment docs document the requirement
+
+Priority: **Completed**
 
 ### 4.5 Public Repo Privacy Check Needed
+
+Status: **Initial tracked-file scan completed on 2026-06-19**
 
 Because the repository is public, check for sensitive data.
 
@@ -252,7 +270,19 @@ Check these items:
 - Hardcoded credentials
 - Client-specific branding
 
-Priority: **High**
+Current scan result:
+
+- `.env` is ignored and not tracked
+- No tracked database dumps, private keys, access tokens, or archive backups were found
+- No high-confidence live API keys were found in tracked files
+- Composer security audit was cleared after updating `guzzlehttp/guzzle` and `guzzlehttp/psr7`
+- `storage/app/private` is tracked only through `.gitignore`
+- Documentation contains placeholder credentials only, such as `DB_PASSWORD=...`
+- Demo/test email addresses are present and appear to be sample data
+
+Repeat this scan before every public release or GitHub push.
+
+Priority: **Recurring High**
 
 ---
 
@@ -586,6 +616,17 @@ Priority: **Medium/High**
 
 Testing is needed before production use.
 
+Current status: **MVP coverage completed**
+
+Latest verification on 2026-06-19:
+
+```txt
+php artisan test
+115 tests, 407 assertions, passing
+```
+
+Keep adding tests for new SaaS, tenant, billing, and integration work.
+
 Minimum tests to add:
 
 | Test | Priority |
@@ -621,6 +662,21 @@ Priority: **High**
 ---
 
 ## 8. Deployment Checklist
+
+Current status: **Local release dry run completed; server-specific staging deploy pending**
+
+Deployment documentation exists in `docs/deployment.md`. Local release checks were completed on 2026-06-19:
+
+- `composer validate --strict` passed
+- `composer audit --abandoned=ignore` found no security vulnerability advisories
+- `npm run build` passed
+- `php artisan config:cache`, `route:cache`, and `view:cache` passed
+- `php artisan schedule:list` shows daily `backup:database`
+- `php artisan backup:database` created a database backup successfully
+- `php artisan queue:restart` completed
+- Public, pricing, docs, admin login, and health URLs returned HTTP 200 locally
+
+The only remaining deployment step is a real server/staging run with production credentials, which cannot be completed from the local workspace alone.
 
 ### Server Requirements
 
@@ -726,20 +782,22 @@ Priority: **Later**
 
 Goal: Make the repo clean, understandable, and demo-ready.
 
+Status: **Completed**
+
 Tasks:
 
-1. Rewrite README
-2. Fix project name and positioning
-3. Add `.env.example`
-4. Remove weak default password fallback
-5. Move report export logic to controller/service
-6. Add admin dashboard screenshots
-7. Improve invoice print design
-8. Add role matrix documentation
-9. Add demo data seeder
-10. Add basic feature tests
+1. Rewrite README - Completed
+2. Fix project name and positioning - Completed
+3. Add `.env.example` - Completed
+4. Remove weak default password fallback - Completed
+5. Move report export logic to controller/service - Completed
+6. Add admin dashboard screenshots - Completed
+7. Improve invoice print design - Completed
+8. Add role matrix documentation - Completed
+9. Add demo data seeder - Completed
+10. Add basic feature tests - Completed
 
-Estimated priority: **Start immediately**
+Estimated priority: **Completed**
 
 ### Phase 2 - Business-Ready Version
 
@@ -810,19 +868,17 @@ Estimated priority: **Later**
 
 ## 12. Immediate To-Do List
 
-Start with these tasks first:
+Release-readiness tasks:
 
 ```txt
-1. Rewrite README
-2. Add proper project description
-3. Add installation guide
-4. Add .env.example
-5. Remove default weak admin password
-6. Refactor report export route
-7. Improve invoice design
-8. Add product/customer/supplier import
-9. Add backup setup
-10. Add role permission tests
+1. Review and commit the completed Phase 1/security updates - Pending commit only
+2. Run final local browser/HTTP/PDF QA for dashboard, invoice print, and report export - Completed locally
+3. Run a local deployment dry run - Completed locally
+4. Verify scheduler, queue worker, backup creation, and backup restore guide - Completed locally; repeat on target server
+5. Repeat public-repo privacy scan immediately before push/release - Completed locally; repeat before push
+6. Test with one real business dataset or realistic pilot dataset - Demo dataset completed; real pilot remains business validation
+7. Update screenshots if any UI changes during final QA - Existing screenshots available; regenerate after final branding/demo data selection
+8. Decide whether Phase 4 SaaS work should start now or stay later - Keep later
 ```
 
 ---
@@ -873,18 +929,15 @@ It already has:
 - CSV exports
 - Import/wholesale business direction
 
-Before using it as a product, it needs:
+Before using it as a production product, the remaining work is now external/business-side:
 
-- Better documentation
-- Security cleanup
-- Report code refactor
-- UI/UX polish
-- Import/export tools
-- Backup system
-- Audit logging verification
-- Tests
-- Deployment documentation
+- Commit and push after the user confirms no additional changes are needed
+- Staging deployment verification with real server credentials
+- Scheduler, queue, backup, and restore verification on the target server
+- Repeat privacy/security scan immediately before public release
+- Real business pilot testing
+- Phase 4 SaaS build, if the product should become subscription SaaS
 
 Recommended next move:
 
-> First turn this into a clean single-business installable product. After testing with real businesses, convert it into a SaaS product.
+> Commit and deploy the single-business installable product to staging. After testing with real businesses, decide whether to convert it into a SaaS product.

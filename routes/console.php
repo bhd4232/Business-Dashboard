@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Services\DatabaseBackupService;
+use App\Support\AdminPassword;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -14,11 +15,19 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Artisan::command('admin:ensure-super {--email=} {--password=} {--name=ZamZam Admin}', function () {
-    $email = $this->option('email') ?: env('ADMIN_EMAIL', 'admin@zamzamint.com');
+    $email = $this->option('email') ?: env('ADMIN_EMAIL', 'admin@example.com');
     $password = $this->option('password') ?: env('ADMIN_PASSWORD');
 
     if (! $password) {
         $this->error('Please provide --password or set ADMIN_PASSWORD.');
+
+        return 1;
+    }
+
+    try {
+        AdminPassword::assertStrong($password, '--password/ADMIN_PASSWORD');
+    } catch (RuntimeException $exception) {
+        $this->error($exception->getMessage());
 
         return 1;
     }

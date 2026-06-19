@@ -77,7 +77,7 @@ ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=
 ```
 
-`ADMIN_PASSWORD` is required by the database seeder. Do not use weak default passwords in production.
+`ADMIN_PASSWORD` is required by the database seeder. Use at least 12 characters with uppercase and lowercase letters, numbers, and symbols.
 
 ## Seed Data
 
@@ -110,7 +110,7 @@ Available report exports include:
 ## Security Notes
 
 - Keep `.env` out of git.
-- Set a strong `ADMIN_PASSWORD` before seeding.
+- Set a strong `ADMIN_PASSWORD` before seeding or running `admin:ensure-super`.
 - Only trusted users should receive `super_admin`.
 - Financial delete actions are restricted.
 - Review deployment secrets before enabling automatic production deploys.

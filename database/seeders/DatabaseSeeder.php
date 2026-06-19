@@ -6,9 +6,9 @@ use App\Models\Account;
 use App\Models\ExpenseCategory;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\AdminPassword;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use RuntimeException;
 
 class DatabaseSeeder extends Seeder
 {
@@ -19,14 +19,10 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        $adminPassword = env('ADMIN_PASSWORD');
-
-        if (! $adminPassword) {
-            throw new RuntimeException('ADMIN_PASSWORD is required before running the database seeder.');
-        }
+        $adminPassword = AdminPassword::fromEnvironment();
 
         User::query()->updateOrCreate(
-            ['email' => env('ADMIN_EMAIL', 'admin@zamzamint.com')],
+            ['email' => env('ADMIN_EMAIL', 'admin@example.com')],
             [
                 'name' => env('ADMIN_NAME', 'ZamZam Admin'),
                 'password' => $adminPassword,

@@ -389,14 +389,14 @@ http://localhost:8000
 http://localhost:8000/admin
 ```
 
-Default seeded admin:
+Seeded admin account:
 
 ```text
-Email: admin@zamzamint.com
-Password: password
+Email: value of ADMIN_EMAIL, for example admin@example.com
+Password: value of ADMIN_PASSWORD
 ```
 
-Change the password before production use.
+`ADMIN_PASSWORD` is required before running `php artisan db:seed` and must be a strong password. Do not publish real admin credentials in documentation or commits.
 
 ## 8. Coolify Deployment with GitHub
 
@@ -433,7 +433,10 @@ QUEUE_CONNECTION=sync
 FILESYSTEM_DISK=public
 LOG_CHANNEL=stack
 MAIL_MAILER=log
+MAIL_FROM_ADDRESS=admin@example.com
 ```
+
+For larger MySQL/Redis production deployments, `SESSION_DRIVER`, `CACHE_STORE`, and `QUEUE_CONNECTION` can be moved to `database` or `redis`. For SQLite or small single-server installs, prefer `file` sessions/cache and `sync` queue to avoid database write contention.
 
 Generate `APP_KEY` locally:
 
