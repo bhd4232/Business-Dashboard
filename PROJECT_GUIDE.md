@@ -44,7 +44,7 @@ Important behavior:
 - User create/edit screens support assigned companies and a default company.
 - Company-specific profile and branding are resolved through `CompanySettingsService`.
 - Cross-company courier selection and booking are rejected at the service layer.
-- Courier provider creation and courier booking actions are disabled while `All Companies` is selected.
+- While `All Companies` is selected, Super Admin can create a courier provider only by explicitly selecting its owner company; order booking actions still require a specific active company context.
 
 Important files:
 
@@ -709,6 +709,7 @@ Manual admin smoke checks:
 - Purchase fixed/custom costs are purchase-level costs, not product lines.
 - `storage:link` is needed for public uploads.
 - If deploying on Coolify, make sure migrations run after deployment.
+- On HTTPS deployments behind Coolify/Traefik, set both `APP_URL` and `ASSET_URL` to the public `https://` URL and keep trusted-proxy handling enabled; otherwise Filament lazy component scripts may be blocked as mixed content.
 - Run rollback tests only on disposable databases before production rollback work.
 - Historical records initially belong to `Main Company`; production reassignment requires verified company mapping.
 - `All Companies` is intended for owner-level reporting. Company-specific write actions must require one selected company.

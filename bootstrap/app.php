@@ -6,6 +6,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpFoundation\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -20,6 +21,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware) {
+        // Coolify terminates HTTPS at its Traefik proxy. Trust the forwarded
+        // scheme/host so Filament lazy-loaded component assets never fall back
+        // to insecure http:// URLs on an https:// admin page.
+        $middleware->trustProxies(
+            at: env('TRUSTED_PROXIES', '*'),
+            headers: Request::HEADER_X_FORWARDED_TRAEFIK,
+        );
         $middleware->validateCsrfTokens(except: ['webhooks/couriers/*']);
         $middleware->appendToGroup('web', PreventDemoModeWrites::class);
         $middleware->appendToGroup('web', SetCurrentCompany::class);

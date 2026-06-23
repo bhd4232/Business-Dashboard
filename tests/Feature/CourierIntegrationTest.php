@@ -237,7 +237,7 @@ class CourierIntegrationTest extends TestCase
             ->assertSee('Set Delivery Fees');
     }
 
-    public function test_courier_provider_create_is_blocked_when_all_companies_are_selected(): void
+    public function test_super_admin_can_open_courier_provider_create_and_must_select_company_when_all_companies_are_selected(): void
     {
         Company::defaultCompany();
 
@@ -249,7 +249,9 @@ class CourierIntegrationTest extends TestCase
         $this->actingAs($user)
             ->withSession(['current_company_id' => 'all'])
             ->get('/admin/courier-providers/create')
-            ->assertForbidden();
+            ->assertOk()
+            ->assertSee('Company')
+            ->assertSee('Select the company that will own this courier provider.');
     }
 
     public function test_steadfast_booking_posts_order_and_stores_consignment_response(): void
