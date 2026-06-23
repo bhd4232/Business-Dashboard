@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Models\Company;
 use App\Models\User;
 use App\Models\UserRole;
 use Filament\Actions\Action;
@@ -11,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Schema as SchemaFacade;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
@@ -96,6 +98,51 @@ class UserForm
                             ->dehydrated(fn (?string $state): bool => filled($state))
                             ->helperText('Leave blank while editing to keep the current password.'),
                     ]),
+
+                Section::make('Company Access')
+                    ->schema([
+                        Select::make('company_ids')
+                            ->label('Assigned Companies')
+                            ->multiple()
+                            ->options(fn (): array => SchemaFacade::hasTable('companies') ? Company::query()
+                                ->where('is_active', true)
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all() : [])
+                            ->preload()
+                            ->searchable()
+                            ->afterStateHydrated(function (Select $component, ?User $record): void {
+                                if (! $record?->exists) {
+                                    return;
+                                }
+
+                                $component->state($record->companies()->pluck('companies.id')->all());
+                            }),
+
+                        Select::make('default_company_id')
+                            ->label('Default Company')
+                            ->options(fn (): array => SchemaFacade::hasTable('companies') ? Company::query()
+                                ->where('is_active', true)
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all() : [])
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Used when staff sign in or when no company is selected.')
+                            ->afterStateHydrated(function (Select $component, ?User $record): void {
+                                if (! $record?->exists) {
+                                    return;
+                                }
+
+                                $component->state(
+                                    $record->companies()
+                                        ->wherePivot('is_default', true)
+                                        ->value('companies.id'),
+                                );
+                            }),
+                    ])
+                    ->columns(2)
+                    ->visible(fn (): bool => SchemaFacade::hasTable('companies')),
             ]);
     }
 }

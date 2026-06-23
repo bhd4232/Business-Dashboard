@@ -21,6 +21,9 @@ APP_NAME="Business Dashboard"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://your-domain.com
+APP_VERSION=1.0.0
+APP_RELEASE_TYPE=major
+APP_RELEASE_DATE=2026-06-21
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -50,11 +53,16 @@ npm ci
 npm run build
 php artisan key:generate
 php artisan migrate --force
-php artisan db:seed --force
 php artisan storage:link
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+```
+
+If this is a brand-new installation with no real business data yet, create the first admin user with the guarded seeder or the admin command:
+
+```bash
+php artisan db:seed --force
 ```
 
 Create or reset the admin user later with:
@@ -91,12 +99,12 @@ The deploy workflow runs tests before SSH deploy. On the server it:
 
 ```bash
 cd /path/to/project
+php artisan down --retry=60
+php artisan backup:database
 git pull origin main
 composer install --no-dev --prefer-dist --no-interaction --no-progress
 npm ci
 npm run build
-php artisan down --retry=60
-php artisan backup:database
 php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
@@ -105,11 +113,34 @@ php artisan queue:restart
 php artisan up
 ```
 
+Do not run `php artisan db:seed --force` during routine updates after real customers, purchases, products, or users exist.
+
 If a deploy fails while maintenance mode is enabled:
 
 ```bash
 php artisan up
 ```
+
+## Live Data Safety
+
+Application updates should keep live data when they use forward migrations and the existing production database. Data loss risk comes from destructive commands, destructive migrations, unsafe seeders, or pointing the app to the wrong database/storage.
+
+Never run these commands against live production data:
+
+```bash
+php artisan migrate:fresh
+php artisan migrate:refresh
+php artisan migrate:reset
+php artisan db:wipe
+```
+
+Before every production update:
+
+1. Confirm the current code version and the target `APP_VERSION`.
+2. Create a database backup with `php artisan backup:database`.
+3. Run only reviewed migrations with `php artisan migrate --force`.
+4. Verify admin login, dashboard totals, recent orders, purchases, payments, and stock after deploy.
+5. Update `CHANGELOG.md` and GitHub release notes for the deployed version.
 
 ## Scheduler
 

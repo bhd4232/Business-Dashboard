@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\Company;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
@@ -17,6 +18,7 @@ use App\Models\StockMovement;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\User;
+use App\Services\CompanyContext;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -25,8 +27,11 @@ class DemoDataSeeder extends Seeder
     public function run(): void
     {
         $today = now()->toDateString();
+        $company = Company::defaultCompany();
+        Company::seedCoreCompanies();
+        app(CompanyContext::class)->set($company);
 
-        User::query()->updateOrCreate(
+        $demoUser = User::query()->updateOrCreate(
             ['email' => 'demo@example.com'],
             [
                 'name' => 'Demo Admin',
@@ -36,6 +41,15 @@ class DemoDataSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
         );
+
+        if ($company) {
+            $demoUser->companies()->syncWithoutDetaching([
+                $company->getKey() => [
+                    'role' => 'owner',
+                    'is_default' => true,
+                ],
+            ]);
+        }
 
         $accounts = collect([
             ['Demo Cash 01', 'cash', 800000],
@@ -90,7 +104,7 @@ class DemoDataSeeder extends Seeder
             $product = $this->product($categories[$row[2]], [
                 'name' => $row[0],
                 'sku' => $row[1],
-                'barcode' => '8801000000' . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+                'barcode' => '8801000000'.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
                 'brand' => $row[3],
                 'cost_price' => $row[4],
                 'sale_price' => $row[5],
@@ -176,7 +190,7 @@ class DemoDataSeeder extends Seeder
 
         for ($index = 0; $index < 10; $index++) {
             $purchase = Purchase::query()->updateOrCreate(
-                ['purchase_number' => 'PUR-DEMO-' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT)],
+                ['purchase_number' => 'PUR-DEMO-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT)],
                 [
                     'supplier_id' => $suppliers[$index]->getKey(),
                     'purchase_date' => $today,
@@ -207,7 +221,7 @@ class DemoDataSeeder extends Seeder
             $secondProduct = $products[($index + 2) % 10];
 
             $order = Order::query()->updateOrCreate(
-                ['order_number' => 'INV-DEMO-' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT)],
+                ['order_number' => 'INV-DEMO-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT)],
                 [
                     'customer_id' => $customer->getKey(),
                     'customer_name' => $customer->name,
@@ -233,7 +247,7 @@ class DemoDataSeeder extends Seeder
                 $accounts[$index % $accounts->count()],
                 $amount,
                 $today,
-                'CPAY-DEMO-' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
+                'CPAY-DEMO-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
             );
         });
 
@@ -246,19 +260,19 @@ class DemoDataSeeder extends Seeder
                 $accounts[$index % $accounts->count()],
                 $amount,
                 $today,
-                'SPAY-DEMO-' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
+                'SPAY-DEMO-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
             );
         });
 
         $expenseCategories->each(function (ExpenseCategory $category, int $index) use ($accounts, $today): void {
             Expense::query()->updateOrCreate(
-                ['expense_number' => 'EXP-DEMO-' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT)],
+                ['expense_number' => 'EXP-DEMO-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT)],
                 [
                     'expense_category_id' => $category->getKey(),
                     'account_id' => $accounts[$index % $accounts->count()]->getKey(),
                     'amount' => 700 + ($index * 350),
                     'expense_date' => $today,
-                    'reference' => 'DEMO-EXP-' . str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
+                    'reference' => 'DEMO-EXP-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
                     'note' => 'Today demo expense.',
                 ],
             );
@@ -374,8 +388,7 @@ class DemoDataSeeder extends Seeder
         float $amount,
         string $date,
         string $number = 'SPAY-DEMO-0001',
-    ): void
-    {
+    ): void {
         if ($amount <= 0) {
             return;
         }

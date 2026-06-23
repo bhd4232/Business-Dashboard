@@ -6,6 +6,7 @@ use App\Filament\Concerns\HasStickyHeaderFormActions;
 use App\Filament\Resources\Users\UserResource;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class EditUser extends EditRecord
 {
@@ -13,11 +14,55 @@ class EditUser extends EditRecord
 
     protected static string $resource = UserResource::class;
 
+    protected array $companyIds = [];
+
+    protected ?int $defaultCompanyId = null;
+
     protected function getHeaderActions(): array
     {
         return [
             ViewAction::make(),
             $this->getStickySaveFormAction(),
         ];
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $this->companyIds = array_values(array_filter(array_map('intval', $data['company_ids'] ?? [])));
+        $this->defaultCompanyId = filled($data['default_company_id'] ?? null)
+            ? (int) $data['default_company_id']
+            : null;
+
+        unset($data['company_ids'], $data['default_company_id']);
+
+        return $data;
+    }
+
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        $record = parent::handleRecordUpdate($record, $data);
+
+        $this->syncCompanyAccess($record);
+
+        return $record;
+    }
+
+    protected function syncCompanyAccess(Model $record): void
+    {
+        if ($this->defaultCompanyId && ! in_array($this->defaultCompanyId, $this->companyIds, true)) {
+            $this->companyIds[] = $this->defaultCompanyId;
+        }
+
+        $sync = collect($this->companyIds)
+            ->unique()
+            ->mapWithKeys(fn (int $companyId): array => [
+                $companyId => [
+                    'role' => $record->role,
+                    'is_default' => $companyId === $this->defaultCompanyId,
+                ],
+            ])
+            ->all();
+
+        $record->companies()->sync($sync);
     }
 }

@@ -10,6 +10,7 @@ use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\Company;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
@@ -25,6 +26,7 @@ use App\Models\SupplierPayment;
 use App\Models\TransactionLedger;
 use App\Models\User;
 use App\Observers\AuditObserver;
+use App\Services\CompanyContext;
 use Filament\Notifications\Livewire\Notifications;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +34,12 @@ use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->singleton(CompanyContext::class);
+        $this->app->alias(CompanyContext::class, 'company.context');
+    }
+
     public function boot(): void
     {
         Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
@@ -48,6 +56,7 @@ class AppServiceProvider extends ServiceProvider
         foreach ([
             Account::class,
             Category::class,
+            Company::class,
             Customer::class,
             CustomerPayment::class,
             Expense::class,

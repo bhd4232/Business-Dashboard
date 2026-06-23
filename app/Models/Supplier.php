@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\ValidatesEmailAddress;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Supplier extends Model
 {
-    use ValidatesEmailAddress;
+    use BelongsToCompany, ValidatesEmailAddress;
 
     protected $fillable = [
+        'company_id',
         'name',
         'phone',
         'email',

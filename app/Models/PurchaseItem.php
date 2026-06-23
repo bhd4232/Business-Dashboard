@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PurchaseItem extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
+        'company_id',
         'purchase_id',
         'product_id',
         'quantity',
@@ -27,6 +31,10 @@ class PurchaseItem extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (PurchaseItem $item): void {
+            $item->company_id ??= $item->purchase?->company_id;
+        });
+
         static::saving(function (PurchaseItem $item): void {
             $item->subtotal = (int) $item->quantity * (float) $item->unit_cost;
         });

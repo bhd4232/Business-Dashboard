@@ -120,6 +120,8 @@ Available report exports include:
 Recommended production flow:
 
 ```bash
+php artisan down --retry=60
+php artisan backup:database
 composer install --no-dev --optimize-autoloader
 npm ci
 npm run build
@@ -129,7 +131,10 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan queue:restart
+php artisan up
 ```
+
+Do not run destructive migration commands or broad seeders against a live database after real business data exists. See [Production Update Safety](docs/update-safety.md).
 
 Required GitHub Actions secrets for the included deploy workflow:
 
@@ -148,6 +153,9 @@ DEPLOY_PATH
 - [Business Dashboard Roadmap](business-dashboard-roadmap.md)
 - [Audit Report](business_dashboard_audit_report.md)
 - [Deployment Guide](docs/deployment.md)
+- [Production Update Safety](docs/update-safety.md)
+- [Release Policy](docs/release-policy.md)
+- [Changelog](CHANGELOG.md)
 - [Roles and Permissions](docs/roles-and-permissions.md)
 - [Import and Export Guide](docs/import-export.md)
 - [Backup and Restore Guide](docs/backup-restore.md)

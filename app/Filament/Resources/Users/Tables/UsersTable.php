@@ -32,6 +32,12 @@ class UsersTable
                     ->formatStateUsing(fn (?string $state): string => User::ROLES[$state] ?? str($state ?? '')->headline()->toString())
                     ->sortable(),
 
+                TextColumn::make('companies.name')
+                    ->label('Companies')
+                    ->badge()
+                    ->separator(',')
+                    ->toggleable(),
+
                 IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean()

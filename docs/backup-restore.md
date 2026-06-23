@@ -26,6 +26,8 @@ From the admin panel:
 
 Database backup supports SQLite and MySQL/MariaDB.
 
+Create a database backup before every production update, before running migrations, and before changing server database/storage settings.
+
 ## Create Full App Backup
 
 Use the Backups page in the admin panel:
@@ -130,3 +132,4 @@ php artisan up
 9. Check recent orders, purchases, payments, and stock.
 10. Review audit logs.
 11. Verify company settings and invoice branding.
+12. Confirm `/health/version` shows the expected app version after the restore or redeploy.

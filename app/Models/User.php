@@ -7,7 +7,9 @@ use App\Models\Concerns\ValidatesEmailAddress;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Auth;
@@ -310,6 +312,49 @@ class User extends Authenticatable implements FilamentUser
     public function canManageSettings(): bool
     {
         return $this->isSuperAdmin() || $this->hasPermission('settings.manage');
+    }
+
+    public function companies(): BelongsToMany
+    {
+        return $this->belongsToMany(Company::class)
+            ->withPivot(['role', 'is_default'])
+            ->withTimestamps();
+    }
+
+    public function accessibleCompanies(): Builder|BelongsToMany
+    {
+        if ($this->isSuperAdmin()) {
+            return Company::query()
+                ->where('is_active', true)
+                ->orderBy('name');
+        }
+
+        return $this->companies()
+            ->where('companies.is_active', true)
+            ->orderBy('companies.name');
+    }
+
+    public function defaultCompany(): ?Company
+    {
+        return $this->companies()
+            ->wherePivot('is_default', true)
+            ->where('companies.is_active', true)
+            ->first();
+    }
+
+    public function canAccessCompany(int $companyId): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return Company::query()
+                ->whereKey($companyId)
+                ->where('is_active', true)
+                ->exists();
+        }
+
+        return $this->companies()
+            ->whereKey($companyId)
+            ->where('companies.is_active', true)
+            ->exists();
     }
 
     public function canPerformModelAbility(string $ability, string $modelClass): bool

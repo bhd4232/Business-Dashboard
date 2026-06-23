@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Account extends Model
 {
+    use BelongsToCompany;
+
     public const TYPES = [
         'cash' => 'Cash',
         'bank' => 'Bank',
@@ -14,6 +17,7 @@ class Account extends Model
     ];
 
     protected $fillable = [
+        'company_id',
         'name',
         'type',
         'opening_balance',

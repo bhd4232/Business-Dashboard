@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class Product extends Model
 {
+    use BelongsToCompany;
+
     public const STATUS_AVAILABLE = 'available';
 
     public const STATUS_COMING_SOON = 'coming_soon';
@@ -19,6 +22,7 @@ class Product extends Model
     public const COMING_SOON_PURCHASE_PRODUCTS = Purchase::CHINA_TO_BD_COST_FIELDS;
 
     protected $fillable = [
+        'company_id',
         'name',
         'description',
         'sku',

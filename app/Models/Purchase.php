@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\PurchaseWorkflowService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
 
 class Purchase extends Model
 {
+    use BelongsToCompany;
+
     public const CHINA_TO_BD_COST_FIELDS = [
         'machine_purchase' => 'Machine Purchase',
         'inspection' => 'Inspection',
@@ -32,6 +35,7 @@ class Purchase extends Model
     ];
 
     protected $fillable = [
+        'company_id',
         'purchase_number',
         'supplier_id',
         'purchase_date',
@@ -95,7 +99,7 @@ class Purchase extends Model
     protected static function booted(): void
     {
         static::creating(function (Purchase $purchase): void {
-            $purchase->purchase_number ??= static::nextPurchaseNumber();
+            $purchase->purchase_number ??= static::nextPurchaseNumber($purchase->company);
             $purchase->purchase_date ??= now()->toDateString();
         });
 
@@ -120,11 +124,18 @@ class Purchase extends Model
         return $this->hasMany(PurchaseItem::class);
     }
 
-    public static function nextPurchaseNumber(): string
+    public static function nextPurchaseNumber(?Company $company = null): string
     {
+        $company ??= app()->bound('company.context') ? app('company.context')->company() : null;
+        $company ??= Company::defaultCompany();
+        $prefix = $company?->invoice_prefix ?: 'PUR';
+
         do {
-            $number = 'PUR-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
-        } while (self::query()->where('purchase_number', $number)->exists());
+            $number = $prefix.'-PUR-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
+        } while (self::query()
+            ->when($company, fn ($query) => $query->where('company_id', $company->getKey()))
+            ->where('purchase_number', $number)
+            ->exists());
 
         return $number;
     }

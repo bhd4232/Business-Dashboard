@@ -76,6 +76,7 @@ class OrderWorkflowService
                     'reference_id' => $order->getKey(),
                 ],
                 [
+                    'company_id' => $order->company_id,
                     'quantity' => $quantity,
                     'note' => "Invoice {$order->order_number}",
                 ],

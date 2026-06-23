@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\BackupDownloadController;
+use App\Http\Controllers\Admin\CompanySwitchController;
 use App\Http\Controllers\Admin\CustomerCsvController;
 use App\Http\Controllers\Admin\OrderPdfController;
 use App\Http\Controllers\Admin\ProductCsvController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\InstallController;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\CompanySettingsService;
+use App\Support\AppRelease;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -24,15 +26,18 @@ Route::view('/docs', 'marketing.docs')->name('marketing.docs');
 
 Route::get('/health/version', function () {
     $roleOptions = User::roleOptions();
+    $release = AppRelease::current();
 
     return response()
         ->json([
             'app' => 'zamzam-erp',
+            'app_name' => config('app.name'),
+            'version' => $release['version'],
+            'release_type' => $release['type'],
+            'release_label' => $release['type_label'],
+            'release_date' => $release['date'],
             'marker' => 'roles-built-in-v2',
-            'commit' => env('SOURCE_COMMIT')
-                ?: env('COOLIFY_GIT_COMMIT_SHA')
-                ?: env('GIT_COMMIT')
-                ?: null,
+            'commit' => $release['commit'],
             'role_option_keys' => array_keys($roleOptions),
             'has_sales_staff_role' => array_key_exists('sales_staff', $roleOptions),
         ])
@@ -46,8 +51,8 @@ Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $o
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);
 
     return view('orders.print', [
-        'order' => $order->load(['customer', 'items.product']),
-        'company' => app(CompanySettingsService::class)->profile(),
+        'order' => $order->load(['company', 'customer', 'items.product']),
+        'company' => app(CompanySettingsService::class)->profile($order->company),
     ]);
 })->name('orders.print');
 
@@ -64,6 +69,9 @@ Route::middleware('auth')
     ->name('reports.export.pdf');
 
 Route::middleware('auth')->group(function (): void {
+    Route::post('/admin/company/switch', CompanySwitchController::class)
+        ->name('admin.company.switch');
+
     Route::get('/admin/products/export/csv', [ProductCsvController::class, 'export'])
         ->name('products.export.csv');
 

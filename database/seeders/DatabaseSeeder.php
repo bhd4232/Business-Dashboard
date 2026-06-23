@@ -3,9 +3,11 @@
 namespace Database\Seeders;
 
 use App\Models\Account;
+use App\Models\Company;
 use App\Models\ExpenseCategory;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\CompanyContext;
 use App\Support\AdminPassword;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -21,7 +23,11 @@ class DatabaseSeeder extends Seeder
 
         $adminPassword = AdminPassword::fromEnvironment();
 
-        User::query()->updateOrCreate(
+        $company = Company::defaultCompany();
+        Company::seedCoreCompanies();
+        app(CompanyContext::class)->set($company);
+
+        $admin = User::query()->updateOrCreate(
             ['email' => env('ADMIN_EMAIL', 'admin@example.com')],
             [
                 'name' => env('ADMIN_NAME', 'ZamZam Admin'),
@@ -31,6 +37,15 @@ class DatabaseSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
         );
+
+        if ($company) {
+            $admin->companies()->syncWithoutDetaching([
+                $company->getKey() => [
+                    'role' => 'owner',
+                    'is_default' => true,
+                ],
+            ]);
+        }
 
         Account::query()->firstOrCreate(
             ['name' => 'Cash'],

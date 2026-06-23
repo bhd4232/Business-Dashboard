@@ -7,8 +7,10 @@ use App\Filament\Widgets\CustomerDueNotifications;
 use App\Filament\Widgets\LowStockProducts;
 use App\Filament\Widgets\SalesPurchaseTrend;
 use App\Filament\Widgets\TopBusinessPerformers;
+use App\Http\Middleware\SetCurrentCompany;
 use App\Services\CompanySettingsService;
 use App\Services\ProductSetupService;
+use App\Support\AppRelease;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -47,9 +49,11 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
+                NavigationGroup::make('Company Management'),
                 NavigationGroup::make('Sales'),
                 NavigationGroup::make('Purchasing'),
                 NavigationGroup::make('Inventory'),
+                NavigationGroup::make('Courier'),
                 NavigationGroup::make('Accounts'),
                 NavigationGroup::make('Reports'),
                 NavigationGroup::make('Settings'),
@@ -97,6 +101,88 @@ class AdminPanelProvider extends PanelProvider
                             transform: scale(0.96);
                         }
 
+                        .zz-release-footer {
+                            display: grid;
+                            gap: .2rem;
+                            margin: .75rem;
+                            padding: .65rem .75rem;
+                            color: rgb(55 65 81);
+                            background: rgb(248 250 252);
+                            border: 1px solid rgb(229 231 235);
+                            border-radius: .5rem;
+                            text-decoration: none;
+                        }
+
+                        .zz-release-footer:hover {
+                            color: rgb(17 24 39);
+                            border-color: rgb(245 158 11);
+                        }
+
+                        .zz-release-footer-version {
+                            color: rgb(17 24 39);
+                            font-size: .82rem;
+                            font-weight: 850;
+                            line-height: 1.1;
+                        }
+
+                        .zz-release-footer-type {
+                            color: rgb(100 116 139);
+                            font-size: .7rem;
+                            font-weight: 750;
+                            line-height: 1.2;
+                        }
+
+                        .dark .zz-release-footer {
+                            color: rgb(229 231 235);
+                            background: rgb(17 24 39);
+                            border-color: rgb(55 65 81);
+                        }
+
+                        .dark .zz-release-footer-version {
+                            color: rgb(248 250 252);
+                        }
+
+                        .dark .zz-release-footer-type {
+                            color: rgb(148 163 184);
+                        }
+
+                        .zz-company-switcher {
+                            flex-shrink: 0;
+                            width: min(14rem, 42vw);
+                        }
+
+                        .zz-company-switcher .fi-dropdown {
+                            width: 100%;
+                        }
+
+                        .zz-company-switcher .fi-input-wrp {
+                            width: 100%;
+                        }
+
+                        .zz-company-switcher-trigger {
+                            cursor: pointer;
+                            min-height: 2.25rem;
+                            width: 100%;
+                            padding-inline-start: .75rem;
+                            padding-inline-end: .25rem;
+                            font-size: .875rem;
+                            font-weight: 400;
+                            text-align: start;
+                        }
+
+                        .zz-company-switcher-trigger-label {
+                            display: block;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                        }
+
+                        @media (max-width: 640px) {
+                            .zz-company-switcher {
+                                width: min(12rem, 46vw);
+                            }
+                        }
+
                         @media (prefers-reduced-motion: reduce) {
                             .fi-sidebar-item-icon {
                                 transition: none;
@@ -111,6 +197,26 @@ class AdminPanelProvider extends PanelProvider
                         }
                     </style>
                 HTML),
+            )
+            ->renderHook(
+                PanelsRenderHook::GLOBAL_SEARCH_BEFORE,
+                fn (): HtmlString => new HtmlString(view('filament.partials.company-switcher')->render()),
+            )
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_FOOTER,
+                function (): HtmlString {
+                    $release = AppRelease::current();
+                    $version = e($release['version']);
+                    $type = e($release['type_label']);
+                    $url = e(url('/admin/release-notes'));
+
+                    return new HtmlString(<<<HTML
+                        <a href="{$url}" class="zz-release-footer">
+                            <span class="zz-release-footer-version">v{$version}</span>
+                            <span class="zz-release-footer-type">{$type}</span>
+                        </a>
+                    HTML);
+                },
             )
             ->renderHook(
                 PanelsRenderHook::CONTENT_BEFORE,
@@ -152,6 +258,7 @@ class AdminPanelProvider extends PanelProvider
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,
+                SetCurrentCompany::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
             ])

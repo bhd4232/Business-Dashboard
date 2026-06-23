@@ -110,6 +110,7 @@ class PurchaseWorkflowService
                     'reference_id' => $purchase->getKey(),
                 ],
                 [
+                    'company_id' => $purchase->company_id,
                     'quantity' => $quantity,
                     'note' => "Purchase {$purchase->purchase_number}",
                 ],

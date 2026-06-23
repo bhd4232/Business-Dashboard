@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItem extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
+        'company_id',
         'order_id',
         'product_id',
         'quantity',
@@ -25,6 +29,10 @@ class OrderItem extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (OrderItem $item): void {
+            $item->company_id ??= $item->order?->company_id;
+        });
+
         static::saving(function (OrderItem $item): void {
             if ($item->unit_cost === null) {
                 $item->unit_cost = $item->product?->cost_price ?? 0;

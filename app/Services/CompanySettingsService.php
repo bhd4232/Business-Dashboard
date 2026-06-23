@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AppSetting;
+use App\Models\Company;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
@@ -26,8 +27,14 @@ class CompanySettingsService
 
     public const DATE_FORMAT = 'company.date_format';
 
-    public function profile(): array
+    public function profile(?Company $company = null): array
     {
+        $company ??= $this->currentCompany();
+
+        if ($company) {
+            return $this->companyProfile($company);
+        }
+
         return [
             'name' => $this->value(self::NAME, config('app.name', 'Business Dashboard')),
             'logo' => $this->value(self::LOGO),
@@ -47,6 +54,29 @@ class CompanySettingsService
 
     public function save(array $data): void
     {
+        $company = $this->currentCompany();
+
+        if (! $company && Schema::hasTable('companies')) {
+            $company = Company::defaultCompany();
+        }
+
+        if ($company) {
+            $settings = $company->settings ?? [];
+            $settings['dark_logo'] = trim((string) ($data['dark_logo'] ?? ''));
+            $settings['date_format'] = trim((string) ($data['date_format'] ?? 'd M Y'));
+
+            $company->fill([
+                'name' => trim((string) ($data['name'] ?? '')),
+                'logo' => trim((string) ($data['logo'] ?? '')),
+                'address' => trim((string) ($data['address'] ?? '')),
+                'phone' => trim((string) ($data['phone'] ?? '')),
+                'email' => trim((string) ($data['email'] ?? '')),
+                'currency' => trim((string) ($data['currency'] ?? 'BDT')),
+                'timezone' => trim((string) ($data['timezone'] ?? config('app.timezone', 'UTC'))),
+                'settings' => $settings,
+            ])->save();
+        }
+
         AppSetting::setValue(self::NAME, trim((string) ($data['name'] ?? '')));
         AppSetting::setValue(self::LOGO, trim((string) ($data['logo'] ?? '')));
         AppSetting::setValue(self::DARK_LOGO, trim((string) ($data['dark_logo'] ?? '')));
@@ -58,23 +88,53 @@ class CompanySettingsService
         AppSetting::setValue(self::DATE_FORMAT, trim((string) ($data['date_format'] ?? 'd M Y')));
     }
 
-    public function logoUrl(): ?string
+    public function logoUrl(?Company $company = null): ?string
     {
+        $company ??= $this->currentCompany();
+
+        if ($company) {
+            return $this->publicUrl($company->logo);
+        }
+
         return $this->publicUrl($this->value(self::LOGO));
     }
 
-    public function darkLogoUrl(bool $fallbackToLight = true): ?string
+    public function darkLogoUrl(bool $fallbackToLight = true, ?Company $company = null): ?string
     {
+        $company ??= $this->currentCompany();
+
+        if ($company) {
+            $settings = (array) $company->settings;
+            $darkLogo = $this->publicUrl($settings['dark_logo'] ?? null);
+
+            return $darkLogo ?: ($fallbackToLight ? $this->logoUrl($company) : null);
+        }
+
         return $this->publicUrl($this->value(self::DARK_LOGO)) ?: ($fallbackToLight ? $this->logoUrl() : null);
     }
 
-    public function logoPath(): ?string
+    public function logoPath(?Company $company = null): ?string
     {
+        $company ??= $this->currentCompany();
+
+        if ($company) {
+            return $this->publicPath($company->logo);
+        }
+
         return $this->publicPath($this->value(self::LOGO));
     }
 
-    public function darkLogoPath(bool $fallbackToLight = true): ?string
+    public function darkLogoPath(bool $fallbackToLight = true, ?Company $company = null): ?string
     {
+        $company ??= $this->currentCompany();
+
+        if ($company) {
+            $settings = (array) $company->settings;
+            $darkLogo = $this->publicPath($settings['dark_logo'] ?? null);
+
+            return $darkLogo ?: ($fallbackToLight ? $this->logoPath($company) : null);
+        }
+
         return $this->publicPath($this->value(self::DARK_LOGO)) ?: ($fallbackToLight ? $this->logoPath() : null);
     }
 
@@ -117,5 +177,35 @@ class CompanySettingsService
         }
 
         return AppSetting::getValue($key, $default);
+    }
+
+    protected function currentCompany(): ?Company
+    {
+        if (! app()->bound(CompanyContext::class) || ! app(CompanyContext::class)->hasCompany()) {
+            return null;
+        }
+
+        return app(CompanyContext::class)->company();
+    }
+
+    protected function companyProfile(Company $company): array
+    {
+        $settings = (array) $company->settings;
+
+        return [
+            'name' => $company->name ?: config('app.name', 'Business Dashboard'),
+            'logo' => $company->logo,
+            'dark_logo' => $settings['dark_logo'] ?? null,
+            'logo_url' => $this->logoUrl($company),
+            'dark_logo_url' => $this->darkLogoUrl(company: $company),
+            'logo_path' => $this->logoPath($company),
+            'dark_logo_path' => $this->darkLogoPath(company: $company),
+            'address' => $company->address,
+            'phone' => $company->phone,
+            'email' => $company->email,
+            'currency' => $company->currency ?: 'BDT',
+            'timezone' => $company->timezone ?: config('app.timezone', 'UTC'),
+            'date_format' => $settings['date_format'] ?? 'd M Y',
+        ];
     }
 }

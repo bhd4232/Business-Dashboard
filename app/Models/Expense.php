@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -9,7 +10,10 @@ use Illuminate\Validation\ValidationException;
 
 class Expense extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
+        'company_id',
         'expense_number',
         'expense_category_id',
         'account_id',
@@ -27,6 +31,7 @@ class Expense extends Model
     protected static function booted(): void
     {
         static::creating(function (Expense $expense): void {
+            $expense->company_id ??= $expense->account?->company_id ?? $expense->category?->company_id;
             $expense->expense_number ??= static::nextExpenseNumber();
             $expense->expense_date ??= now()->toDateString();
         });
@@ -71,7 +76,7 @@ class Expense extends Model
 
     public static function nextExpenseNumber(): string
     {
-        return 'EXP-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5));
+        return 'EXP-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
     }
 
     public function syncLedger(): void
@@ -83,6 +88,7 @@ class Expense extends Model
             ],
             [
                 'account_id' => $this->account_id,
+                'company_id' => $this->company_id,
                 'type' => 'expense',
                 'direction' => 'out',
                 'amount' => $this->amount,

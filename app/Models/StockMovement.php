@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\StockMovementService;
 use Illuminate\Database\Eloquent\Model;
 
 class StockMovement extends Model
 {
+    use BelongsToCompany;
+
     public const TYPES = [
         'opening' => 'Opening',
         'purchase' => 'Purchase',
@@ -16,6 +19,7 @@ class StockMovement extends Model
     ];
 
     protected $fillable = [
+        'company_id',
         'product_id',
         'type',
         'quantity',
@@ -31,6 +35,10 @@ class StockMovement extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (StockMovement $movement): void {
+            $movement->company_id ??= $movement->product?->company_id;
+        });
+
         static::saving(function (StockMovement $movement): void {
             app(StockMovementService::class)->prepareForSave($movement);
         });

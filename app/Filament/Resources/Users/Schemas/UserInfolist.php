@@ -20,6 +20,10 @@ class UserInfolist
                         TextEntry::make('role')
                             ->badge()
                             ->formatStateUsing(fn (?string $state): string => str($state ?? '')->headline()->toString()),
+                        TextEntry::make('companies.name')
+                            ->label('Companies')
+                            ->badge()
+                            ->separator(','),
                         IconEntry::make('is_active')
                             ->label('Active')
                             ->boolean(),

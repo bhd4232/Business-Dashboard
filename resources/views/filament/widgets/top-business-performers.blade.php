@@ -49,8 +49,59 @@
 <x-filament-widgets::widget>
     <style>
         .zz-performers {
+            --zz-performer-card-bg: #ffffff;
+            --zz-performer-card-border: #e5e7eb;
+            --zz-performer-card-shadow: 0 16px 36px rgb(15 23 42 / 0.08);
+            --zz-performer-head-bg: #f8fafc;
+            --zz-performer-head-border: #e5e7eb;
+            --zz-performer-title: #111827;
+            --zz-performer-muted: #64748b;
+            --zz-performer-row-bg: #ffffff;
+            --zz-performer-row-border: #e5e7eb;
+            --zz-performer-rank-bg: #f8fafc;
+            --zz-performer-rank-border: #e2e8f0;
+            --zz-performer-rank-text: #111827;
+            --zz-performer-bar-bg: #e5e7eb;
+            --zz-performer-empty-bg: #f8fafc;
+            --zz-performer-empty-border: #cbd5e1;
+            --zz-performer-icon-emerald-text: #047857;
+            --zz-performer-icon-emerald-bg: #ecfdf5;
+            --zz-performer-icon-emerald-border: #a7f3d0;
+            --zz-performer-icon-sky-text: #0369a1;
+            --zz-performer-icon-sky-bg: #eff6ff;
+            --zz-performer-icon-sky-border: #bfdbfe;
+            --zz-performer-icon-amber-text: #b45309;
+            --zz-performer-icon-amber-bg: #fffbeb;
+            --zz-performer-icon-amber-border: #fde68a;
             display: grid;
             gap: 16px;
+        }
+
+        .dark .zz-performers {
+            --zz-performer-card-bg: #17181d;
+            --zz-performer-card-border: #2b2d34;
+            --zz-performer-card-shadow: 0 18px 42px rgb(0 0 0 / 0.18);
+            --zz-performer-head-bg: #111827;
+            --zz-performer-head-border: #2b3445;
+            --zz-performer-title: #f8fafc;
+            --zz-performer-muted: #9ca3af;
+            --zz-performer-row-bg: #202127;
+            --zz-performer-row-border: #30333b;
+            --zz-performer-rank-bg: #2b2d34;
+            --zz-performer-rank-border: #3b3f49;
+            --zz-performer-rank-text: #f8fafc;
+            --zz-performer-bar-bg: #111318;
+            --zz-performer-empty-bg: #202127;
+            --zz-performer-empty-border: #3a3d45;
+            --zz-performer-icon-emerald-text: #6ee7b7;
+            --zz-performer-icon-emerald-bg: #063c2c;
+            --zz-performer-icon-emerald-border: #0f6b4d;
+            --zz-performer-icon-sky-text: #93c5fd;
+            --zz-performer-icon-sky-bg: #172b4d;
+            --zz-performer-icon-sky-border: #254a7d;
+            --zz-performer-icon-amber-text: #fcd34d;
+            --zz-performer-icon-amber-bg: #46320b;
+            --zz-performer-icon-amber-border: #79570e;
         }
 
         .zz-performers__grid {
@@ -62,10 +113,10 @@
         .zz-performer-card {
             overflow: hidden;
             min-width: 0;
-            background: #17181d;
-            border: 1px solid #2b2d34;
+            background: var(--zz-performer-card-bg);
+            border: 1px solid var(--zz-performer-card-border);
             border-radius: 12px;
-            box-shadow: 0 18px 42px rgb(0 0 0 / 0.18);
+            box-shadow: var(--zz-performer-card-shadow);
         }
 
         .zz-performer-card__head {
@@ -73,8 +124,8 @@
             align-items: center;
             gap: 12px;
             padding: 16px;
-            background: #111827;
-            border-bottom: 1px solid #2b3445;
+            background: var(--zz-performer-head-bg);
+            border-bottom: 1px solid var(--zz-performer-head-border);
         }
 
         .zz-performer-icon {
@@ -93,26 +144,26 @@
         }
 
         .zz-performer-icon--emerald {
-            color: #6ee7b7;
-            background: #063c2c;
-            border: 1px solid #0f6b4d;
+            color: var(--zz-performer-icon-emerald-text);
+            background: var(--zz-performer-icon-emerald-bg);
+            border: 1px solid var(--zz-performer-icon-emerald-border);
         }
 
         .zz-performer-icon--sky {
-            color: #93c5fd;
-            background: #172b4d;
-            border: 1px solid #254a7d;
+            color: var(--zz-performer-icon-sky-text);
+            background: var(--zz-performer-icon-sky-bg);
+            border: 1px solid var(--zz-performer-icon-sky-border);
         }
 
         .zz-performer-icon--amber {
-            color: #fcd34d;
-            background: #46320b;
-            border: 1px solid #79570e;
+            color: var(--zz-performer-icon-amber-text);
+            background: var(--zz-performer-icon-amber-bg);
+            border: 1px solid var(--zz-performer-icon-amber-border);
         }
 
         .zz-performer-title {
             margin: 0;
-            color: #f8fafc;
+            color: var(--zz-performer-title);
             font-size: 15px;
             font-weight: 850;
             line-height: 1.25;
@@ -120,7 +171,7 @@
 
         .zz-performer-subtitle {
             margin-top: 3px;
-            color: #9ca3af;
+            color: var(--zz-performer-muted);
             font-size: 12px;
             line-height: 1.35;
         }
@@ -138,8 +189,8 @@
             align-items: center;
             min-height: 70px;
             padding: 10px;
-            background: #202127;
-            border: 1px solid #30333b;
+            background: var(--zz-performer-row-bg);
+            border: 1px solid var(--zz-performer-row-border);
             border-radius: 10px;
         }
 
@@ -149,9 +200,9 @@
             justify-content: center;
             width: 30px;
             height: 30px;
-            color: #f8fafc;
-            background: #2b2d34;
-            border: 1px solid #3b3f49;
+            color: var(--zz-performer-rank-text);
+            background: var(--zz-performer-rank-bg);
+            border: 1px solid var(--zz-performer-rank-border);
             border-radius: 9px;
             font-size: 12px;
             font-weight: 850;
@@ -160,7 +211,7 @@
 
         .zz-performer-name {
             overflow: hidden;
-            color: #f8fafc;
+            color: var(--zz-performer-title);
             font-size: 13px;
             font-weight: 800;
             line-height: 1.3;
@@ -170,7 +221,7 @@
 
         .zz-performer-meta {
             margin-top: 3px;
-            color: #a8adb8;
+            color: var(--zz-performer-muted);
             font-size: 12px;
             line-height: 1.3;
         }
@@ -179,7 +230,7 @@
             overflow: hidden;
             height: 5px;
             margin-top: 8px;
-            background: #111318;
+            background: var(--zz-performer-bar-bg);
             border-radius: 999px;
         }
 
@@ -209,7 +260,7 @@
 
         .zz-performer-value strong {
             display: block;
-            color: #f8fafc;
+            color: var(--zz-performer-title);
             font-size: 13px;
             font-weight: 850;
             line-height: 1.25;
@@ -219,7 +270,7 @@
         .zz-performer-value span {
             display: block;
             margin-top: 3px;
-            color: #8f95a3;
+            color: var(--zz-performer-muted);
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
@@ -230,9 +281,9 @@
             align-items: center;
             justify-content: center;
             min-height: 120px;
-            color: #9ca3af;
-            background: #202127;
-            border: 1px dashed #3a3d45;
+            color: var(--zz-performer-muted);
+            background: var(--zz-performer-empty-bg);
+            border: 1px dashed var(--zz-performer-empty-border);
             border-radius: 10px;
             font-size: 13px;
             font-weight: 700;

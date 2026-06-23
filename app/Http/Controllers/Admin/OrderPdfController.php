@@ -15,11 +15,11 @@ class OrderPdfController extends Controller
     {
         abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);
 
-        $order->load(['customer', 'items.product']);
+        $order->load(['company', 'customer', 'items.product']);
 
         return Pdf::loadView('orders.pdf', [
             'order' => $order,
-            'company' => $settings->profile(),
+            'company' => $settings->profile($order->company),
         ])->setPaper('a4')->download($order->order_number.'.pdf');
     }
 }

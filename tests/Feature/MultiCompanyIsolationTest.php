@@ -1,0 +1,303 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Company;
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\StockMovement;
+use App\Models\User;
+use App\Services\CompanyContext;
+use App\Services\ReportService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class MultiCompanyIsolationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_company_context_scopes_business_records(): void
+    {
+        $garments = Company::query()->create([
+            'name' => 'Garments Machinery',
+            'slug' => 'garments-machinery',
+            'invoice_prefix' => 'GM',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $solar = Company::query()->create([
+            'name' => 'Solar Items',
+            'slug' => 'solar-items',
+            'invoice_prefix' => 'SOL',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+
+        app(CompanyContext::class)->set($garments);
+        Product::query()->create([
+            'name' => 'Garments Cutter',
+            'sku' => 'GM-CUTTER-001',
+            'price' => 1200,
+            'sale_price' => 1200,
+            'cost_price' => 900,
+            'stock' => 5,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+
+        app(CompanyContext::class)->set($solar);
+        Product::query()->create([
+            'name' => 'Solar Panel',
+            'sku' => 'SOL-PANEL-001',
+            'price' => 2200,
+            'sale_price' => 2200,
+            'cost_price' => 1800,
+            'stock' => 8,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+
+        $this->assertSame(['Solar Panel'], Product::query()->pluck('name')->all());
+
+        app(CompanyContext::class)->set($garments);
+        $this->assertSame(['Garments Cutter'], Product::query()->pluck('name')->all());
+
+        app(CompanyContext::class)->all();
+        $this->assertEqualsCanonicalizing(
+            ['Garments Cutter', 'Solar Panel'],
+            Product::query()->pluck('name')->all(),
+        );
+    }
+
+    public function test_new_records_and_children_inherit_current_company(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Gadget Items',
+            'slug' => 'gadget-items',
+            'invoice_prefix' => 'GAD',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+
+        app(CompanyContext::class)->set($company);
+
+        $customer = Customer::query()->create([
+            'name' => 'Gadget Customer',
+            'phone' => '+8801700000000',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
+        $product = Product::query()->create([
+            'name' => 'Gadget Charger',
+            'sku' => 'GAD-CHARGER-001',
+            'price' => 500,
+            'sale_price' => 500,
+            'cost_price' => 300,
+            'stock' => 10,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+        StockMovement::query()->create([
+            'company_id' => $company->getKey(),
+            'product_id' => $product->getKey(),
+            'type' => 'opening',
+            'quantity' => 10,
+            'reference_type' => Product::class,
+            'reference_id' => $product->getKey(),
+            'note' => 'Report isolation opening stock',
+        ]);
+        $order = Order::query()->create([
+            'customer_id' => $customer->getKey(),
+            'discount' => 0,
+            'vat' => 0,
+            'paid_amount' => 0,
+            'status' => 'draft',
+        ]);
+        $item = OrderItem::query()->create([
+            'order_id' => $order->getKey(),
+            'product_id' => $product->getKey(),
+            'quantity' => 2,
+            'unit_price' => 500,
+        ]);
+
+        $this->assertSame($company->getKey(), $customer->company_id);
+        $this->assertSame($company->getKey(), $product->company_id);
+        $this->assertSame($company->getKey(), $order->company_id);
+        $this->assertSame($company->getKey(), $item->company_id);
+        $this->assertStringStartsWith('GAD-'.now()->format('Ymd').'-', $order->order_number);
+    }
+
+    public function test_staff_user_only_accesses_assigned_companies(): void
+    {
+        $assigned = Company::query()->create([
+            'name' => 'Gift Items',
+            'slug' => 'gift-items',
+            'invoice_prefix' => 'GFT',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $unassigned = Company::query()->create([
+            'name' => 'Solar Items',
+            'slug' => 'solar-items',
+            'invoice_prefix' => 'SOL',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $user = User::factory()->create([
+            'role' => 'sales_staff',
+            'is_active' => true,
+        ]);
+
+        $user->companies()->detach();
+        $user->companies()->attach($assigned, [
+            'role' => 'sales_staff',
+            'is_default' => true,
+        ]);
+
+        $this->assertTrue($user->canAccessCompany($assigned->getKey()));
+        $this->assertFalse($user->canAccessCompany($unassigned->getKey()));
+        $this->assertSame([$assigned->getKey()], $user->accessibleCompanies()->pluck('companies.id')->all());
+    }
+
+    public function test_staff_user_default_company_is_selected_when_session_is_empty(): void
+    {
+        $primary = Company::query()->create([
+            'name' => 'Garments Machinery',
+            'slug' => 'garments-machinery-default',
+            'invoice_prefix' => 'GM',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $default = Company::query()->create([
+            'name' => 'Gift Items',
+            'slug' => 'gift-items-default',
+            'invoice_prefix' => 'GFT',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $user = User::factory()->create([
+            'role' => 'sales_staff',
+            'is_active' => true,
+        ]);
+
+        $user->companies()->sync([
+            $primary->getKey() => [
+                'role' => 'sales_staff',
+                'is_default' => false,
+            ],
+            $default->getKey() => [
+                'role' => 'sales_staff',
+                'is_default' => true,
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->get('/admin')
+            ->assertOk()
+            ->assertSessionHas('current_company_id', $default->getKey());
+    }
+
+    public function test_report_aggregates_are_scoped_to_current_company(): void
+    {
+        $garments = Company::query()->create([
+            'name' => 'Garments Machinery',
+            'slug' => 'garments-machinery-reports',
+            'invoice_prefix' => 'GM',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $solar = Company::query()->create([
+            'name' => 'Solar Items',
+            'slug' => 'solar-items-reports',
+            'invoice_prefix' => 'SOL',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+
+        $this->seedCompletedOrder($garments, 'Garments Cutter', 'GM-CUTTER-RPT', 1000);
+        $this->seedCompletedOrder($solar, 'Solar Panel', 'SOL-PANEL-RPT', 2500);
+
+        app(CompanyContext::class)->set($garments);
+        $garmentsSummary = app(ReportService::class)->dashboardSummary();
+        $garmentsProducts = app(ReportService::class)->topSellingProducts()->pluck('name')->all();
+
+        $this->assertSame(1000.0, (float) $garmentsSummary['sales_today']);
+        $this->assertSame(['Garments Cutter'], $garmentsProducts);
+
+        app(CompanyContext::class)->set($solar);
+        $solarSummary = app(ReportService::class)->dashboardSummary();
+        $solarProducts = app(ReportService::class)->topSellingProducts()->pluck('name')->all();
+
+        $this->assertSame(2500.0, (float) $solarSummary['sales_today']);
+        $this->assertSame(['Solar Panel'], $solarProducts);
+    }
+
+    protected function seedCompletedOrder(Company $company, string $productName, string $sku, float $unitPrice): void
+    {
+        app(CompanyContext::class)->set($company);
+
+        $customer = Customer::query()->create([
+            'name' => "{$productName} Customer",
+            'phone' => '+8801700000000',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
+        $product = Product::query()->create([
+            'name' => $productName,
+            'sku' => $sku,
+            'price' => $unitPrice,
+            'sale_price' => $unitPrice,
+            'cost_price' => $unitPrice / 2,
+            'stock' => 10,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+        $order = Order::withoutEvents(fn (): Order => Order::query()->create([
+            'company_id' => $company->getKey(),
+            'order_number' => $company->invoice_prefix.'-REPORT-'.str($sku)->slug('-')->upper(),
+            'customer_id' => $customer->getKey(),
+            'customer_name' => $customer->name,
+            'order_date' => now()->toDateString(),
+            'subtotal' => $unitPrice,
+            'discount' => 0,
+            'vat' => 0,
+            'total_amount' => $unitPrice,
+            'paid_amount' => 0,
+            'due_amount' => $unitPrice,
+            'status' => 'completed',
+        ]));
+
+        OrderItem::withoutEvents(fn (): OrderItem => OrderItem::query()->create([
+            'company_id' => $company->getKey(),
+            'order_id' => $order->getKey(),
+            'product_id' => $product->getKey(),
+            'quantity' => 1,
+            'unit_price' => $unitPrice,
+            'unit_cost' => $unitPrice / 2,
+            'subtotal' => $unitPrice,
+        ]));
+    }
+}

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Validation\ValidationException;
 
 class TransactionLedger extends Model
 {
+    use BelongsToCompany;
+
     public const DIRECTIONS = [
         'in' => 'In',
         'out' => 'Out',
@@ -21,6 +24,7 @@ class TransactionLedger extends Model
     ];
 
     protected $fillable = [
+        'company_id',
         'account_id',
         'type',
         'direction',
@@ -38,6 +42,10 @@ class TransactionLedger extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (TransactionLedger $ledger): void {
+            $ledger->company_id ??= $ledger->account?->company_id;
+        });
+
         static::saving(function (TransactionLedger $ledger): void {
             if ((float) $ledger->amount <= 0) {
                 throw ValidationException::withMessages([

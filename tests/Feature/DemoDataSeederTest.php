@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Company;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
@@ -29,6 +30,11 @@ class DemoDataSeederTest extends TestCase
         $this->seed(DemoDataSeeder::class);
 
         $this->assertDatabaseHas('products', ['sku' => 'DEMO-ROUTER-001']);
+        $this->assertDatabaseHas('companies', ['slug' => 'main-company']);
+        $this->assertDatabaseHas('companies', ['slug' => 'garments-machinery']);
+        $this->assertDatabaseHas('companies', ['slug' => 'solar-items']);
+        $this->assertDatabaseHas('companies', ['slug' => 'gadget-items']);
+        $this->assertDatabaseHas('companies', ['slug' => 'gift-items']);
         $this->assertDatabaseHas('customers', ['email' => 'farhan.retail@example.com']);
         $this->assertDatabaseHas('suppliers', ['email' => 'sales@shenzhen-demo.example']);
         $this->assertDatabaseHas('orders', ['order_number' => 'INV-DEMO-0001']);
@@ -97,6 +103,11 @@ class DemoDataSeederTest extends TestCase
             DB::purge('demo');
 
             $this->assertSame(1, User::on('demo')->where('email', 'demo@example.com')->count());
+            $this->assertSame(1, Company::on('demo')->where('slug', 'main-company')->count());
+            $this->assertSame(1, Company::on('demo')->where('slug', 'garments-machinery')->count());
+            $this->assertSame(1, Company::on('demo')->where('slug', 'solar-items')->count());
+            $this->assertSame(1, Company::on('demo')->where('slug', 'gadget-items')->count());
+            $this->assertSame(1, Company::on('demo')->where('slug', 'gift-items')->count());
             $this->assertSame(10, Product::on('demo')->where('sku', 'like', 'DEMO-%')->where('status', Product::STATUS_AVAILABLE)->count());
             $this->assertSame(10, Order::on('demo')->whereDate('order_date', today())->where('order_number', 'like', 'INV-DEMO-%')->count());
         } finally {

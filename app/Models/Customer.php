@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\ValidatesEmailAddress;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +10,7 @@ use Illuminate\Support\Str;
 
 class Customer extends Model
 {
-    use ValidatesEmailAddress;
+    use BelongsToCompany, ValidatesEmailAddress;
 
     public const TYPES = [
         'regular' => 'Regular',
@@ -28,6 +29,7 @@ class Customer extends Model
     ];
 
     protected $fillable = [
+        'company_id',
         'name',
         'phone',
         'email',

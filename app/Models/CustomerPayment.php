@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -9,6 +10,8 @@ use Illuminate\Validation\ValidationException;
 
 class CustomerPayment extends Model
 {
+    use BelongsToCompany;
+
     public const METHODS = [
         'cash' => 'Cash',
         'bank' => 'Bank',
@@ -18,6 +21,7 @@ class CustomerPayment extends Model
     ];
 
     protected $fillable = [
+        'company_id',
         'payment_number',
         'customer_id',
         'account_id',
@@ -36,6 +40,7 @@ class CustomerPayment extends Model
     protected static function booted(): void
     {
         static::creating(function (CustomerPayment $payment): void {
+            $payment->company_id ??= $payment->customer?->company_id;
             $payment->payment_number ??= static::nextPaymentNumber();
             $payment->payment_date ??= now()->toDateString();
         });
@@ -85,7 +90,7 @@ class CustomerPayment extends Model
 
     public static function nextPaymentNumber(): string
     {
-        return 'CPAY-' . now()->format('Ymd') . '-' . Str::upper(Str::random(5));
+        return 'CPAY-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
     }
 
     public function syncLedger(): void
@@ -97,6 +102,7 @@ class CustomerPayment extends Model
             ],
             [
                 'account_id' => $this->account_id,
+                'company_id' => $this->company_id,
                 'type' => 'customer_payment',
                 'direction' => 'in',
                 'amount' => $this->amount,
