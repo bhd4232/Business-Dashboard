@@ -21,6 +21,8 @@ APP_NAME="Business Dashboard"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://your-domain.com
+ASSET_URL=https://your-domain.com
+TRUSTED_PROXIES=*
 APP_VERSION=1.0.0
 APP_RELEASE_TYPE=major
 APP_RELEASE_DATE=2026-06-21
@@ -42,6 +44,8 @@ CACHE_STORE=file
 ```
 
 Never commit `.env` or production credentials. `ADMIN_PASSWORD` must be at least 12 characters and include uppercase and lowercase letters, numbers, and symbols.
+
+`APP_URL` and `ASSET_URL` must both use `https://` in production. Coolify/Traefik terminates TLS at the reverse proxy, so `TRUSTED_PROXIES=*` allows Laravel to honor its forwarded HTTPS scheme. Restrict this value to known proxy addresses if the application container is also directly exposed to untrusted traffic.
 
 For small single-server or SQLite installs, keep `SESSION_DRIVER=file`, `CACHE_STORE=file`, and `QUEUE_CONNECTION=sync`. For higher traffic MySQL deployments, use Redis where available, or database queue/cache with a dedicated queue worker.
 

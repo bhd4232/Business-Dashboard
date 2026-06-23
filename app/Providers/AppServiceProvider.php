@@ -29,6 +29,7 @@ use App\Observers\AuditObserver;
 use App\Services\CompanyContext;
 use Filament\Notifications\Livewire\Notifications;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
@@ -42,6 +43,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
             $subject = $arguments[0] ?? null;
             $modelClass = is_object($subject) ? $subject::class : $subject;

@@ -18,6 +18,10 @@ All notable production changes to Business Dashboard are documented here.
 - Live Pathao, RedX, and E-Courier adapters require their official current API contracts and merchant credentials.
 - Production company-data reassignment must use a reviewed mapping and pre-migration backup.
 
+### Fixed
+
+- Fixed Filament select, textarea, and checkbox components failing behind an HTTPS reverse proxy because lazy-loaded JavaScript URLs were generated with `http://`.
+
 ## [1.0.0] - 2026-06-21
 
 **Release type:** Major Version Update

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\CourierProviders;
 use App\Filament\Resources\CourierProviders\Pages\CreateCourierProvider;
 use App\Filament\Resources\CourierProviders\Pages\EditCourierProvider;
 use App\Filament\Resources\CourierProviders\Pages\ListCourierProviders;
+use App\Models\Company;
 use App\Models\CourierProvider;
 use App\Services\CompanyContext;
 use App\Services\SteadfastCourierClient;
@@ -47,6 +48,18 @@ class CourierProviderResource extends Resource
         return $schema->components([
             Section::make('Delivery Partner')
                 ->schema([
+                    Select::make('company_id')
+                        ->label('Company')
+                        ->options(fn (): array => Company::query()
+                            ->where('is_active', true)
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->all())
+                        ->searchable()
+                        ->preload()
+                        ->required(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->visible(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->helperText('Select the company that will own this courier provider.'),
                     Select::make('driver')
                         ->label('Select Delivery Partner')
                         ->options(CourierProvider::DRIVERS)
@@ -265,7 +278,8 @@ class CourierProviderResource extends Resource
     public static function canCreate(): bool
     {
         return SchemaFacade::hasTable('courier_providers')
-            && app(CompanyContext::class)->hasCompany()
+            && (app(CompanyContext::class)->hasCompany()
+                || (app(CompanyContext::class)->isAllCompanies() && (Auth::user()?->isSuperAdmin() ?? false)))
             && (Auth::user()?->hasPermission('sales.update') ?? false);
     }
 
