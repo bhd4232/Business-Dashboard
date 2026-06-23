@@ -197,6 +197,23 @@ class CourierProviderResource extends Resource
                         ->revealable()
                         ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_STEADFAST)
                         ->maxLength(255),
+                    TextInput::make('credentials.webhook_secret')
+                        ->label('Webhook Signing Secret')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255),
+                    TextInput::make('settings.signature_header')
+                        ->label('Webhook Signature Header')
+                        ->default('X-Courier-Signature')
+                        ->maxLength(100),
+                    TextInput::make('settings.tracking_url')
+                        ->label('Tracking URL Template')
+                        ->placeholder('https://example.com/track/{tracking_id}')
+                        ->helperText('Use {tracking_id} as the placeholder.'),
+                    TextInput::make('settings.label_url')
+                        ->label('Label URL Template')
+                        ->placeholder('https://example.com/label/{reference}')
+                        ->helperText('Use {tracking_id} or {reference}.'),
                 ])
                 ->columns(2)
                 ->visible(fn (Get $get): bool => in_array($get('driver'), CourierProvider::API_DRIVERS, true))

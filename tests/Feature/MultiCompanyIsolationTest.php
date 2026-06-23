@@ -2,13 +2,32 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
+use App\Models\AuditLog;
+use App\Models\Category;
 use App\Models\Company;
+use App\Models\Concerns\BelongsToCompany;
+use App\Models\Container;
+use App\Models\CourierBooking;
+use App\Models\CourierProvider;
+use App\Models\CourierStatusLog;
+use App\Models\CourierWebhookLog;
 use App\Models\Customer;
+use App\Models\CustomerPayment;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\Purchase;
+use App\Models\PurchaseItem;
+use App\Models\Shipment;
 use App\Models\StockMovement;
+use App\Models\Supplier;
+use App\Models\SupplierPayment;
+use App\Models\TransactionLedger;
 use App\Models\User;
+use App\Scopes\CompanyScope;
 use App\Services\CompanyContext;
 use App\Services\ReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,6 +36,24 @@ use Tests\TestCase;
 class MultiCompanyIsolationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_every_company_owned_model_uses_the_company_scope_contract(): void
+    {
+        $models = [
+            Account::class, AuditLog::class, Category::class, CourierBooking::class,
+            CourierProvider::class, CourierStatusLog::class, CourierWebhookLog::class,
+            Customer::class, CustomerPayment::class, Expense::class, ExpenseCategory::class,
+            Order::class, OrderItem::class, Product::class, Purchase::class, PurchaseItem::class,
+            StockMovement::class, Supplier::class, SupplierPayment::class, TransactionLedger::class,
+            Container::class, Shipment::class,
+        ];
+
+        foreach ($models as $modelClass) {
+            $traits = class_uses_recursive($modelClass);
+            $this->assertArrayHasKey(BelongsToCompany::class, $traits, "{$modelClass} must use BelongsToCompany.");
+            $this->assertArrayHasKey(CompanyScope::class, (new $modelClass)->getGlobalScopes(), "{$modelClass} must register CompanyScope.");
+        }
+    }
 
     public function test_company_context_scopes_business_records(): void
     {

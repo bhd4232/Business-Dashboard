@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ProcessCourierWebhook;
 use App\Models\Company;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
@@ -13,15 +14,52 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\CompanyContext;
+use App\Services\CourierManager;
 use App\Services\CourierService;
 use App\Services\SteadfastCourierClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class CourierIntegrationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_courier_manager_resolves_manual_adapter_and_creates_booking(): void
+    {
+        $company = $this->company('Manager Company', 'manager-company', 'MGR');
+        app(CompanyContext::class)->set($company);
+        $order = $this->orderForCompany($company);
+        $provider = app(CourierService::class)->manualProvider($company);
+
+        $booking = app(CourierManager::class)->create($order, $provider, ['tracking_id' => 'MGR-001']);
+
+        $this->assertSame('MGR-001', $booking->tracking_id);
+        $this->assertSame($company->getKey(), $booking->company_id);
+    }
+
+    public function test_signed_courier_webhook_is_idempotently_queued(): void
+    {
+        Queue::fake();
+        $company = $this->company('Webhook Company', 'webhook-company', 'WHK');
+        app(CompanyContext::class)->set($company);
+        $provider = $this->steadfastProvider($company);
+        $credentials = $provider->credentials;
+        $credentials['webhook_secret'] = 'webhook-test-secret';
+        $provider->update(['credentials' => $credentials]);
+
+        $payload = json_encode(['event_id' => 'evt-001', 'tracking_code' => 'TRACK-001', 'delivery_status' => 'delivered']);
+        $signature = hash_hmac('sha256', $payload, 'webhook-test-secret');
+        $server = ['CONTENT_TYPE' => 'application/json', 'HTTP_X_COURIER_SIGNATURE' => $signature, 'HTTP_X_WEBHOOK_ID' => 'evt-001'];
+
+        $this->call('POST', route('couriers.webhook', $provider), [], [], [], $server, $payload)->assertAccepted();
+        $this->call('POST', route('couriers.webhook', $provider), [], [], [], $server, $payload)->assertAccepted();
+
+        $this->assertDatabaseCount('courier_webhook_logs', 1);
+        Queue::assertPushed(ProcessCourierWebhook::class, 1);
+    }
 
     public function test_manual_courier_booking_updates_order_delivery_status_without_changing_order_status(): void
     {
@@ -134,7 +172,7 @@ class CourierIntegrationTest extends TestCase
 
         app(CompanyContext::class)->all();
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
 
         app(CourierService::class)->createManualBooking($order, [
             'courier_provider_id' => $provider->getKey(),
@@ -155,7 +193,7 @@ class CourierIntegrationTest extends TestCase
 
         app(CompanyContext::class)->all();
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
 
         app(CourierService::class)->createSteadfastBooking($order, $provider, [
             'recipient_address' => 'Dhaka',

@@ -11,7 +11,15 @@
 
 > **v1 থেকে পরিবর্তন:** Lunar e-commerce package সরিয়ে দেওয়া হয়েছে। কারণ ও যুক্তি নিচের "কেন Lunar নয়" সেকশনে আছে। এর বদলে একটা **native Blade + Livewire storefront** ডিজাইন করা হয়েছে যা সম্পূর্ণভাবে এই একই ERP কোডবেস ও Filament প্যানেল থেকে নিয়ন্ত্রিত হবে — কোনো আলাদা package, আলাদা admin panel, বা sync layer ছাড়াই।
 
+> **v2 আপডেট (স্ট্যাটাস ভেরিফিকেশন):** বিদ্যমান রিপোর `ERP_PHASE_ROADMAP.md` ও `PROJECT_GUIDE.md` সরাসরি পড়ে এবং ব্যবহারকারীর সরাসরি ফিডব্যাক থেকে যাচাই করা হয়েছে যে **Part 1 (Multi-Company)-এর আর্কিটেকচার নতুন installation-এর জন্য কার্যত সম্পূর্ণ** — কিন্তু **বিদ্যমান production data এখনো "Main Company"-তে আছে এবং ৪টা আসল company-তে ভাগ করা হয়নি**, এবং queue/scheduled command/export/backup-এর cross-cutting isolation audit বাকি। **Part 2 (Courier)**-এর Manual ও Steadfast booking flow সম্পন্ন, কিন্তু পরিকল্পিত architecture (CourierManager/CourierProviderInterface), webhook reliability, এবং Pathao/RedX/E-Courier adapter এখনো বাকি। তাই ডকুমেন্টের শুরুতে নতুন **"Part 0: Pre-requisite ERP Stabilization"** যুক্ত করা হয়েছে (repo roadmap-এর Phase 9 কভার করে), এবং Part 1/Part 2-এ বিস্তারিত ✅ সম্পন্ন / ❌ বাকি তালিকা যুক্ত হয়েছে।
+
+> **v2 সংশোধনী (Domain Routing):** Part 4 (Storefront)-এ আগে ভুলভাবে subdomain-based routing (`gadget.zamzamint.com`) লেখা ছিল। ব্যবহারকারী নিশ্চিত করেছেন প্রতিটা company-র **সম্পূর্ণ আলাদা, বিদ্যমান custom domain** আছে (`tasneemknitindustry.com`, `noorsolaren.com`, `zamzamgadgetbd.com`, `zamzamint.com`), এবং ভবিষ্যতে নতুন company নতুন domain সহ যুক্ত করার সক্ষমতা প্রয়োজন। তাই Part 4.4 সম্পূর্ণ rewrite করে একটা **`ResolveCompanyFromDomain` middleware** ভিত্তিক ডিজাইন যুক্ত করা হয়েছে, যা route definition-এ কোনো company hardcode না করে runtime-এ ডেটাবেস lookup করে domain থেকে company শনাক্ত করে — ফলে নতুন company যুক্ত করতে কোনো কোড পরিবর্তন বা নতুন deployment লাগবে না।
+
+> **v3 আপডেট (সরাসরি কোড-ভিত্তিক যাচাই, latest `PROJECT_GUIDE.md` থেকে):** ব্যবহারকারীর আপলোড করা latest `PROJECT_GUIDE.md` সরাসরি পড়ে Part 1 ও Part 2-এর implementation বিস্তারিতভাবে কনফার্ম করা হয়েছে — exact ফাইল পাথ, model নাম, এবং কোডে থাকা safeguard (cross-company courier reject, "All Companies" view-এ write action disable) সব যুক্ত হয়েছে। `tests/Feature/MultiCompanyIsolationTest.php` ও `CourierIntegrationTest.php` বাস্তবে exist করে এটা কনফার্ম হয়েছে (আগে "কোনো leak-test নেই" ভুলভাবে লেখা ছিল)। `.env`/`composer.json`-এর কিছু আগের ক্রিটিকাল সমস্যা (ADMIN_PASSWORD, MAIL_FROM_ADDRESS, session/queue/cache driver) এখন ঠিক হয়ে গেছে বলে কনফার্ম হয়েছে। একটা সম্পূর্ণ নতুন **"Release and Update Safety"** সিস্টেম (Part 0.3) আবিষ্কৃত হয়েছে যা ভবিষ্যতের সব বড় migration/launch-এর জন্য backup ও changelog নিয়ম বাধ্যতামূলক করে। Part 4 (Storefront)-এ নিশ্চিত করা হয়েছে যে এই অংশ এখনো সম্পূর্ণ কোডবিহীন — তাই Part 4-এর ডিজাইন অপরিবর্তিত থাকবে।
+
 **Investor/Mudarabah Module ও Lead/CRM Module:** এই দুটো এখনকার চারটা প্রধান কাজের স্কোপের বাইরে রাখা হয়েছে। ডকুমেন্টের শেষে **"Part 11: ভবিষ্যৎ মডিউল ও Build Order"** সেকশনে এগুলোর বিস্তারিত প্ল্যান এবং ঠিক কখন এগুলো শুরু করতে হবে তার স্পষ্ট নির্দেশনা দেওয়া আছে। **এজেন্ট/ডেভেলপারের জন্য নির্দেশ: Part 1-10 সম্পূর্ণ না হওয়া পর্যন্ত Part 11-এর কোনো কাজ শুরু করবেন না।**
+
+**WooCommerce Data Migration:** ব্যবহারকারীর বর্তমান ৪টা কোম্পানির ওয়েবসাইট WooCommerce-এ চলছে, যেখানে real customer ও product ডেটা আছে। এই ডেটা হারানো চলবে না। সংক্ষিপ্ত নোট **"Part 12: WooCommerce Data Migration (সংক্ষিপ্ত নোট)"**-এ ডকুমেন্টের শেষে রাখা হয়েছে — Part 4 (Storefront Foundation) শুরু হওয়ার সময় এই নোট পূর্ণ বিস্তারিত পরিকল্পনায় রূপান্তরিত হবে। **এই নোট না পড়ে Part 4 শুরু করবেন না, কারণ WooCommerce থেকে ডেটা না আনলে storefront চালু হওয়ার আগেই পুরনো customer/product ডেটা হারিয়ে যাওয়ার ঝুঁকি থাকবে।**
 
 ---
 
@@ -45,9 +53,156 @@ Expense & account ledger · Reports & exports · Role & permission system · Aud
 
 ---
 
+# Part 0: Pre-requisite ERP Stabilization (Repo Roadmap Phase 9 অনুযায়ী)
+
+> **⚠️ এজেন্টের জন্য কঠোর নির্দেশ:** বিদ্যমান রিপোর `ERP_PHASE_ROADMAP.md`-এ স্পষ্টভাবে লেখা আছে যে Phase 10 (E-commerce/Storefront) শুরু করার পূর্বশর্ত হলো Phase 9 (Production Operations)-এর আইটেমগুলো স্থিতিশীল হওয়া। এই Master Plan-এর Part 4 (Custom Storefront)-এ যাওয়ার আগে নিচের আইটেমগুলো repo-তে আসলে সম্পন্ন হয়েছে কিনা যাচাই করুন। Part 1 ও Part 2 (Multi-Company, Courier)-এর অধিকাংশ কাজ ইতিমধ্যে সম্পন্ন হওয়ার কারণে এই Part 0-এর কাজ তাদের **সাথে সমান্তরালে বা তার ঠিক পরে** করা যেতে পারে, কিন্তু Part 4 শুরুর আগে এই Part 0 সম্পূর্ণ হওয়া আবশ্যক।
+
+## 0.1 repo roadmap অনুযায়ী অবশিষ্ট Pre-requisite আইটেম
+
+```txt
+[ ] Per-product landed cost allocation (Phase 2 Future Work, Phase 5 profit
+    report-এর সঠিকতার জন্য জরুরি — বর্তমানে profit = sale_price - cost_price
+    মাত্র, China-to-BD costs প্রোডাক্ট-লেভেলে allocate হয় না)
+[ ] Shipment ও container tracking (Phase 2 Future Work)
+[ ] PDF export — invoice ও purchase report (Phase 3/5 Future Work,
+    composer.json-এ dompdf আগে থেকেই আছে কিন্তু version pin ঠিক করতে হবে —
+    আগের code review-এ চিহ্নিত করা হয়েছিল)
+[ ] Backup ও restore documentation এবং প্রকৃত backup system (composer.json-এ
+    spatie/laravel-backup বা অনুরূপ প্যাকেজ এখনো নেই — আগের code review থেকে)
+[ ] Final production hosting/domain সিদ্ধান্ত নিশ্চিত করা
+[ ] npm run build সমস্যা ফিক্স করা আছে কিনা যাচাই করা (roadmap-এ "Recommended
+    Immediate Next Work"-এর #1 আইটেম ছিল)
+[ ] Manual purchase costing smoke test সম্পন্ন হয়েছে কিনা যাচাই করা
+```
+
+## 0.2 আগের Code Review থেকে এখনো-অনিশ্চিত ক্রিটিকাল/হাই-প্রায়োরিটি আইটেম
+
+আগের code review-এ (`BUSINESS_DASHBOARD_REVIEW.md`) যে ক্রিটিকাল সমস্যাগুলো চিহ্নিত হয়েছিল, সেগুলো এখনো ঠিক হয়েছে কিনা এই Part 0-এর অংশ হিসেবে যাচাই করা জরুরি — কারণ Multi-Company বা Storefront-এর মতো বড় কাজ শুরু করার আগে এই ভিত্তিগত সমস্যাগুলো (যেমন `composer.json`-এর `block-insecure: false`, `minimum-stability: dev`, session/queue/cache সব database driver হওয়া) অমীমাংসিত থাকলে নতুন কাজের উপর সরাসরি প্রভাব পড়বে।
+
+```txt
+[✅] .env.example-এ ADMIN_PASSWORD খালি থাকার সমস্যা — ঠিক হয়েছে, কনফার্ম করা হয়েছে।
+    PROJECT_GUIDE.md অনুযায়ী এখন `ADMIN_PASSWORD` সেট করা বাধ্যতামূলক db:seed
+    চালানোর আগে, এবং ডকুমেন্টেশনে আর real email/password (admin@zamzamint.com)
+    উল্লেখ নেই — generic placeholder (admin@example.com) ব্যবহার হচ্ছে।
+[✅] MAIL_FROM_ADDRESS placeholder — ঠিক হয়েছে, এখন admin@example.com
+    ব্যবহার হচ্ছে production env উদাহরণে (আগে hello@example.com ছিল)
+[ ] composer.json-এ block-insecure: false — এখনো যাচাই করা হয়নি
+[ ] minimum-stability: dev — এখনো যাচাই করা হয়নি
+[ ] dompdf wildcard version ("*") — pin করা হয়েছে কিনা এখনো যাচাই করা হয়নি
+[✅] SESSION_DRIVER/QUEUE_CONNECTION/CACHE_STORE — PROJECT_GUIDE.md-এ এখন
+    স্পষ্ট নির্দেশনা আছে: ছোট/single-server install-এ file/sync প্রেফার করা,
+    বড় MySQL/Redis production-এ database/redis-এ migrate করা যায়। production
+    env উদাহরণে এখন file/sync ডিফল্ট — এটা আগের সমস্যার সঠিক সমাধান।
+```
+
+## 0.3 নতুন আবিষ্কৃত সিস্টেম — Release and Update Safety
+
+PROJECT_GUIDE.md-এর latest ভার্সনে একটা সম্পূর্ণ নতুন সিস্টেম পাওয়া গেছে যা মূল Master Plan v1-এ ছিল না, কিন্তু এটা Part 0 (Pre-requisite Stabilization)-এর সাথে সরাসরি সম্পর্কিত এবং ভবিষ্যতের সব বড় migration (data migration, storefront launch)-এর জন্য গুরুত্বপূর্ণ একটা safety net।
+
+```txt
+✅ app/Support/AppRelease.php          — রিলিজ মেটাডেটা কেন্দ্রীভূত করে
+✅ app/Filament/Pages/ReleaseNotes.php  — admin panel-এ Release Notes পেজ
+✅ config/release.php                   — রিলিজ কনফিগারেশন
+✅ CHANGELOG.md                         — production change history রেকর্ড
+✅ docs/release-policy.md, docs/update-safety.md — পলিসি ডকুমেন্টেশন
+✅ tests/Feature/ReleaseNotesTest.php   — টেস্ট কভারেজ আছে
+```
+
+**গুরুত্বপূর্ণ নিয়ম যা এই সিস্টেম থেকে এসেছে:**
+
+```txt
+✅ Production deployment documentation-এ এখন স্পষ্ট লেখা আছে: migration-এর
+   আগে database backup বাধ্যতামূলক।
+✅ Routine production update-এ broad seeder, migrate:fresh, বা অন্য কোনো
+   destructive command চালানো নিষিদ্ধ।
+✅ Release type categorize করা হয়: major, minor, patch, security, hotfix,
+   maintenance — প্রতিটা আপডেটের প্রভাব স্পষ্টভাবে চিহ্নিত থাকে।
+```
+
+**এজেন্টের জন্য নির্দেশ — এই সিস্টেম Part 1.9 (data migration)-এর সাথে সরাসরি যুক্ত:** Part 1.9-এর ধাপ ৭ (production data migration, Main Company থেকে আসল ৪টা company-তে ভাগ করা) চালানোর আগে, এই Release/Update Safety সিস্টেমের নিয়ম অনুসরণ করে অবশ্যই backup নিতে হবে এবং `CHANGELOG.md`-এ এই migration-কে একটা স্পষ্ট entry (সম্ভবত "major" বা "maintenance" টাইপ) হিসেবে রেকর্ড করতে হবে। Storefront launch (Part 4)-এর সময়ও একই নিয়ম প্রযোজ্য।
+
+## 0.4 Build Order-এ অবস্থান
+
+```txt
+Part 0 (Pre-requisite Stabilization)         ┐
+        +                                     ├─ সমান্তরালে করা যেতে পারে
+Part 1.9 ধাপ ৭ (production data migration)    ┤  (backup system Part 0-এ
+        +                                     │   থাকা Part 1.9-এর পূর্বশর্ত)
+Part 1.10 (cross-cutting isolation audit)     ┘
+        ↓
+Part 2 (Courier) — অবশিষ্ট কাজ (2.4-এ তালিকাভুক্ত ক্রম অনুযায়ী)
+        ↓
+Part 3 (Fraud/Risk)
+        ↓
+Part 0, Part 1.9 (ধাপ ৭), ও Part 1.10 — তিনটাই সম্পূর্ণ নিশ্চিত হলেই → Part 4 (Storefront) শুরু
+```
+
+**গুরুত্বপূর্ণ নির্ভরতা:** Part 1.9-এর ধাপ ৭ (data migration) শুরু করার আগে Part 0-এর backup system সম্পন্ন হওয়া আবশ্যক, কারণ এই migration destructive এবং ভুল হলে production ডেটা মিশে যাওয়ার ঝুঁকি আছে।
+
+---
+
 # Part 1: Multi-Company System
 
-(আগের প্ল্যানের মতই অপরিবর্তিত — এটাই ভিত্তি, বাকি সব মডিউল এর উপর নির্ভর করবে)
+> **✅ স্ট্যাটাস: নতুন installation-এর জন্য Part 1 কার্যত complete। বিদ্যমান production data migration বাকি।**
+>
+> এটা একটা গুরুত্বপূর্ণ পার্থক্য — আর্কিটেকচার (companies টেবিল, BelongsToCompany trait, CompanyScope, company_id সব টেবিলে) সম্পূর্ণ implement হয়ে গেছে এবং নতুন কোনো installation-এ এটা সঠিকভাবে কাজ করবে। কিন্তু **বিদ্যমান production data এখনো ভাগ হয়নি** — নিচে সুনির্দিষ্ট অবশিষ্ট কাজ:
+>
+> ```txt
+> ❌ ১. পুরনো production data বর্তমানে "Main Company"-তে backfill করা আছে।
+>    এটাকে Garments/Solar/Gadget/Gift — এই চারটা আসল company-তে সঠিকভাবে
+>    ভাগ করার জন্য একটা migration/import tool এখনো তৈরি হয়নি।
+>    (এটাই Part 1-এর সবচেয়ে গুরুত্বপূর্ণ অবশিষ্ট কাজ — এটা ছাড়া বাস্তবে
+>    multi-company আলাদা করে দেখানো সম্ভব হবে না, কারণ সব ডেটা এখনো এক জায়গায়।)
+>
+> ❌ ২. Queue job, scheduled command, export, ও backup/restore flow-এর
+>    পূর্ণ company-isolation audit এখনো বাকি। এই জায়গাগুলোতে CompanyScope
+>    bypass হওয়ার ঝুঁকি বেশি, কারণ queue job/command প্রায়ই কোনো authenticated
+>    user context ছাড়া চলে এবং company context manually set করতে হয়।
+>
+> ❌ ৩. সব company-scoped model নিয়ে একটা বিস্তৃত leak-test matrix নেই।
+>    বর্তমান টেস্ট গুরুত্বপূর্ণ flow কভার করে, কিন্তু প্রতিটা model (categories,
+>    products, stock_movements, suppliers, purchases, customers, orders,
+>    accounts, expenses, ইত্যাদি — মোট ~২০টা model, দেখুন 1.5) আলাদাভাবে
+>    isolation test করা হয়নি।
+> ```
+>
+> **এজেন্টের জন্য নির্দেশ:** নতুন কোনো ফিচার (Part 2-14) এই Part 1-এর architecture-এর উপর নির্ভর করে নিরাপদে এগিয়ে যেতে পারে, কারণ architecture সম্পূর্ণ। কিন্তু **production-এ company isolation আসলে কাজ করছে দেখানোর জন্য** (owner-কে demo করা, বা multi-company reporting-এর সঠিকতা যাচাই করা), অবশ্যই প্রথমে ❌১ (data migration) সম্পন্ন করতে হবে — নাহলে সব company-তে একই (Main Company-র) ডেটা দেখাবে এবং isolation feature থাকলেও বাস্তবে কোনো পার্থক্য বোঝা যাবে না। ❌২ ও ❌৩ — এই দুটো production-এ চলে যাওয়ার আগে, বিশেষত Part 0 (Pre-requisite Stabilization)-এর সাথে একই সময়ে সম্পন্ন করা উচিত, কারণ backup/restore audit-ও Part 0-এর backup system কাজের সাথে সরাসরি যুক্ত।
+
+### ✅ কোডে নিশ্চিতভাবে যাচাই করা Implementation (PROJECT_GUIDE.md সরাসরি পড়ে কনফার্ম)
+
+```txt
+app/Models/Company.php                                — companies প্রোফাইল, ব্র্যান্ডিং, currency,
+                                                          timezone, invoice prefix, JSON settings
+app/Models/Concerns/BelongsToCompany.php               — নতুন রেকর্ডে company_id স্বয়ংক্রিয় assign
+app/Scopes/CompanyScope.php                            — query-level isolation scope
+app/Services/CompanyContext.php                        — request-lifecycle company context resolver
+app/Http/Middleware/SetCurrentCompany.php              — session company selection resolve করে
+app/Http/Controllers/Admin/CompanySwitchController.php — company switch করার controller
+app/Filament/Resources/Companies/                       — Company CRUD resource
+resources/views/filament/partials/company-switcher.blade.php — Filament টপ-বার switcher UI
+tests/Feature/MultiCompanyIsolationTest.php             — isolation টেস্ট (বিদ্যমান, কিন্তু matrix
+                                                          সম্পূর্ণ কভারেজ কিনা যাচাই বাকি — দেখুন 1.10)
+```
+
+### নতুন আবিষ্কৃত Safeguard (Master Plan v1-এ ছিল না)
+
+```txt
+✅ Cross-company courier selection ও booking service-layer-এ reject করা হয় —
+   মানে কোনো company-র user ভুলবশত বা ইচ্ছাকৃতভাবে অন্য company-র courier
+   provider ব্যবহার করতে পারবে না, এটা service-এর ভেতরেই hard-check করা।
+✅ "All Companies" view selected থাকলে courier provider creation ও booking
+   action সম্পূর্ণ disable হয়ে যায় — owner-level group reporting view থেকে
+   ভুলবশত কোনো company-specific write action হওয়ার ঝুঁকি এতে কমে।
+```
+
+**এজেন্টের জন্য নোট:** এই দুটো pattern (service-layer cross-company reject + "All Companies" view-এ write action disable) ভবিষ্যতের অন্য module-এও (Lead/CRM, Investor, Storefront) অনুসরণ করা উচিত — এটা company isolation নিরাপদ রাখার একটা প্রমাণিত pattern এই কোডবেসে।
+
+### Company Invoice Numbering — নিশ্চিত হওয়া ফরম্যাট
+
+```txt
+GAD-20260623-0001   (Gadget company, কোম্পানির prefix + তারিখ + daily sequence)
+```
+এটা Part 1.8-এ আগে যা প্ল্যান করা হয়েছিল তার সাথে সামঞ্জস্যপূর্ণ এবং বাস্তবে কাজ করছে।
 
 ## 1.1 Business Requirement
 
@@ -148,40 +303,218 @@ GFT-20260621-0001  (Gift Items)
 ## 1.9 Migration Strategy (বিদ্যমান ডেটা)
 
 ```txt
-1. companies টেবিল তৈরি
-2. ডিফল্ট company তৈরি: "Main Company"
-3. core টেবিলে company_id nullable যুক্ত
-4. বিদ্যমান রেকর্ড Main Company ID দিয়ে backfill
-5. নিরাপদ হলে company_id required করা
-6. আসল companies তৈরি (Garments/Solar/Gadget/Gift)
-7. সঠিক company-তে ডেটা সরানো
+✅ ১. companies টেবিল তৈরি
+✅ ২. ডিফল্ট company তৈরি: "Main Company"
+✅ ৩. core টেবিলে company_id nullable যুক্ত
+✅ ৪. বিদ্যমান রেকর্ড Main Company ID দিয়ে backfill
+✅ ৫. নিরাপদ হলে company_id required করা
+✅ ৬. আসল companies তৈরি (Garments/Solar/Gadget/Gift)
+❌ ৭. সঠিক company-তে ডেটা সরানো  ← এটাই Part 1-এর একমাত্র বড় অবশিষ্ট কাজ
 ```
+
+### ধাপ ৭-এর বিস্তারিত প্ল্যান (Data Migration/Import Tool)
+
+বর্তমানে সব পুরনো ডেটা "Main Company"-তে আছে। এই ডেটাকে সঠিক ৪টা company-তে ভাগ করার জন্য একটা নিরাপদ, পরীক্ষাযোগ্য প্রক্রিয়া দরকার — সরাসরি বড় `UPDATE` query চালানো ঝুঁকিপূর্ণ, কারণ ভুল হলে ডেটা মিশে যাবে এবং আলাদা করা কঠিন হবে।
+
+```txt
+ক) একটা artisan command তৈরি করুন: php artisan companies:migrate-data
+   — dry-run মোড থাকবে (--dry-run ফ্ল্যাগ) যা শুধু কতগুলো রেকর্ড কোন
+     company-তে যাবে তার সারাংশ দেখাবে, আসলে কিছু পরিবর্তন করবে না
+
+খ) প্রতিটা মডেলের (Product, Customer, Supplier, Order, Purchase ইত্যাদি)
+   জন্য ম্যানুয়ালি ঠিক করতে হবে কোন রেকর্ড কোন company-র — এটা automatic
+   হওয়ার মতো spliting rule নেই (যেমন product name দিয়ে অনুমান করা ঠিক হবে
+   না), তাই owner/admin-কে একটা Filament bulk-action UI দিয়ে সিলেক্ট করতে
+   দেওয়া ভালো: "এই ১৫০টা প্রোডাক্ট সিলেক্ট করুন → company: Gadget Items-এ
+   move করুন"
+
+গ) Migration command company_id পরিবর্তনের সাথে সাথে related records-ও
+   (stock_movements, order_items, purchase_items) একই company_id-তে
+   migrate করবে — orphan/mismatched company_id রেকর্ড তৈরি হওয়া থেকে বাঁচাতে
+
+ঘ) প্রতিটা batch migration-এর আগে database backup নেওয়া বাধ্যতামূলক
+   (Part 0-এর backup system এই কাজের পূর্বশর্ত — backup system না থাকলে
+   এই migration শুরু করা উচিত না)
+
+ঙ) Migration-এর পরে verification: প্রতিটা company-র Product/Customer/Order
+   count owner-এর প্রত্যাশার সাথে মেলে কিনা ম্যানুয়ালি যাচাই করা
+```
+
+**⚠️ সতর্কতা:** এই migration কাজ production ডেটার উপর destructive পরিবর্তন করে। Part 0 (backup system) সম্পন্ন না হলে এই ধাপ শুরু করা উচিত না।
+
+## 1.10 অবশিষ্ট কাজ — Cross-Cutting Isolation Audit
+
+```txt
+❌ Queue job company-isolation audit
+   — প্রতিটা queued job-এ company_id explicitly pass করা হচ্ছে কিনা যাচাই
+     করুন; queue worker authenticated user context ছাড়া চলে, তাই
+     CompanyScope-এর creating() hook company_id auto-set করতে পারে না
+     যদি job-এর ভেতরে company context manually bind না করা হয়
+
+❌ Scheduled command company-isolation audit
+   — cron/scheduled command (যেমন daily report generation, reminder)
+     প্রতিটা company-র জন্য আলাদাভাবে লুপ করছে কিনা, নাকি ভুলবশত
+     global scope bypass করে সব company-র ডেটা একসাথে প্রসেস করছে
+
+❌ Export company-isolation audit
+   — CSV/Excel export route (routes/web.php-এ থাকা বিদ্যমান export)
+     logged-in user-এর company-র বাইরের ডেটা export করতে পারছে কিনা চেক
+
+❌ Backup/restore flow company-isolation audit
+   — যদি future-এ per-company backup/restore ফিচার থাকে, এক company-র
+     backup restore করলে অন্য company-র ডেটা প্রভাবিত হয় না তা নিশ্চিত করা
+
+⚠️ Comprehensive leak-test matrix — আংশিকভাবে সংশোধিত স্ট্যাটাস
+   `tests/Feature/MultiCompanyIsolationTest.php` এবং `tests/Feature/CourierIntegrationTest.php`
+   বাস্তবে কোডে exist করে (PROJECT_GUIDE.md দিয়ে কনফার্ম করা হয়েছে), তাই
+   "কোনো leak-test নেই" এই দাবি সঠিক নয়। কিন্তু এই টেস্ট ফাইলগুলো ঠিক কতগুলো
+   model কভার করে এবং Part 1.5-এ তালিকাভুক্ত ~২০টা company-scoped model-এর
+   প্রতিটার জন্য আলাদা isolation assertion আছে কিনা তা নিশ্চিতভাবে যাচাই করা
+   হয়নি। **এজেন্টের জন্য কাজ:** নতুন টেস্ট লেখার আগে প্রথমে
+   `MultiCompanyIsolationTest.php` ফাইল খুলে দেখুন ঠিক কোন কোন model already
+   কভার করা আছে, তারপর শুধু gap থাকা model-গুলোর জন্য নতুন টেস্ট কেস যুক্ত
+   করুন — সম্পূর্ণ নতুন matrix থেকে শুরু করবেন না।
+```
+
+**Build Order-এ অবস্থান:** এই Part 1.10-এর কাজ Part 0 (Pre-requisite Stabilization)-এর সাথে সমান্তরালে করা উচিত, কারণ এটাও এক ধরনের production-readiness/stabilization কাজ — নতুন ফিচার (Part 2-14) যুক্ত করার আগে নয়, বরং তার পাশাপাশি।
 
 ---
 
 # Part 2: Courier Integration Module
 
-(অপরিবর্তিত মূল আর্কিটেকচার — আগের প্ল্যান থেকেই)
+> **✅ স্ট্যাটাস: আংশিক সম্পন্ন।** Manual ও Steadfast courier basic flow কাজ করছে, কিন্তু পরিকল্পিত আর্কিটেকচার (CourierProviderInterface, CourierManager) এখনো implement হয়নি — বর্তমানে `CourierService` সরাসরি Manual/Steadfast handle করে। নিচে সম্পন্ন ও বাকি কাজ আলাদাভাবে চিহ্নিত করা হলো।
 
-## 2.1 Courier Gateway আর্কিটেকচার
+## 2.0 সম্পন্ন vs বাকি কাজের সম্পূর্ণ তালিকা
+
+### ✅ যা সম্পন্ন হয়েছে (PROJECT_GUIDE.md দিয়ে কনফার্ম করা বিস্তারিত)
 
 ```txt
-CourierManager
-├── CourierProviderInterface
-├── ManualCourier Adapter      ← প্রথমে এটাই বানাতে হবে
-├── SteadfastCourier Adapter
-├── PathaoCourier Adapter
-├── RedxCourier Adapter
+Manual/custom courier booking — Order list ও Order detail থেকে দুই জায়গা থেকেই করা যায়
+Active Custom provider সিলেকশন manual booking-এর সময়
+Tracking ID না দিলে স্বয়ংক্রিয় manual tracking ID generate হয়
+Steadfast order creation — https://portal.packzy.com/api/v1/create_order এন্ডপয়েন্ট দিয়ে
+Steadfast status sync — tracking code বা invoice দিয়ে
+Steadfast consignment ID ও tracking code সংরক্ষণ হয়
+Steadfast API key/secret key এনক্রিপ্টেড `credentials` model cast-এ সুরক্ষিত
+Provider settings: contact person, phone, warehouse, delivery fees, courier costs,
+  return costs, COD percentage, base URL — সব কনফিগারযোগ্য
+Delivery status sales Order status থেকে independent (পরিকল্পনা অনুযায়ী ✅)
+Normalized delivery status enum বাস্তবায়িত: not_booked, booking_pending, booked,
+  picked_up, in_transit, delivered, partial_delivered, returned, cancelled, failed
+প্রতিটা manual/synchronized status change-এ courier status log তৈরি হয়
+Order-এ courier action: booking, Steadfast booking, delivered, returned, status info
+Courier booking detail-এ provider, invoice, recipient, COD amount, tracking data,
+  status history — সব দেখানো হয়
+✅ Manual ও Steadfast booking service Order ও Courier Provider একই company-র
+  কিনা যাচাই করে (cross-company booking block করা — Part 1-এর নতুন আবিষ্কৃত
+  safeguard-এর সাথে সম্পর্কিত)
+```
+
+### ✅ নিশ্চিত হওয়া ফাইল পাথ
+
+```txt
+app/Models/CourierProvider.php
+app/Models/CourierBooking.php
+app/Models/CourierStatusLog.php
+app/Models/CourierWebhookLog.php
+app/Services/CourierService.php
+app/Services/SteadfastCourierClient.php
+app/Filament/Resources/CourierProviders/
+app/Filament/Resources/CourierBookings/
+tests/Feature/CourierIntegrationTest.php
+```
+
+### ⚠️ Pathao/RedX/E-Courier — সংশোধিত স্ট্যাটাস
+
+PROJECT_GUIDE.md স্পষ্ট করে বলছে এগুলো এখন **"configuration placeholder"** হিসেবে provider choice-এ দেখা যায় (অর্থাৎ Filament dropdown-এ option আছে), কিন্তু **কোনো live API client implement হয়নি**। এটা আগের "তৈরি হয়নি" বলার চেয়ে একটু বেশি অগ্রগতি — UI-level provider স্লট রেডি আছে, কিন্তু backend API integration শূন্য থেকে শুরু করতে হবে।
+
+```txt
+[ ] Pathao — placeholder option আছে, live API client নেই
+[ ] RedX — placeholder option আছে, live API client নেই
+[ ] E-Courier — placeholder option আছে, live API client নেই (এটা মূল প্ল্যানে
+    ছিল না, কিন্তু কোডে provider choice হিসেবে already যুক্ত আছে — confirmed)
+```
+
+### ❌ যা এখনো বাকি — Architecture
+
+```txt
+[ ] CourierProviderInterface তৈরি হয়নি — পরিকল্পিত abstraction layer নেই
+[ ] CourierManager তৈরি হয়নি — বর্তমানে CourierService সরাসরি Manual/Steadfast
+    if-else দিয়ে handle করে, এটা নতুন provider যুক্ত করার সময় code duplicate করবে
+```
+
+**⚠️ গুরুত্বপূর্ণ আর্কিটেকচারাল সিদ্ধান্ত প্রয়োজন:** Pathao/RedX/E-Courier adapter যুক্ত করার আগে `CourierService`-কে `CourierManager` + `CourierProviderInterface` প্যাটার্নে refactor করা উচিত কিনা, নাকি বর্তমান `CourierService`-এর ভেতরেই নতুন provider-এর জন্য case যুক্ত করতে থাকা ঠিক হবে — এটা একটা trade-off: refactor করলে স্বল্পমেয়াদে বেশি কাজ কিন্তু দীর্ঘমেয়াদে নতুন provider যুক্ত করা সহজ হবে এবং hallucination-prone duplicate code এড়ানো যাবে। **সুপারিশ:** Pathao adapter শুরু করার ঠিক আগে এই refactor একটা ছোট, আলাদা ধাপ হিসেবে করা — যাতে agent একসাথে দুটো কাজ (refactor + নতুন provider) না করে, যেটা hallucination ঝুঁকি বাড়ায়।
+
+### ❌ যা এখনো বাকি — API Adapters
+
+```txt
+উপরে "⚠️ Pathao/RedX/E-Courier — সংশোধিত স্ট্যাটাস" সেকশনে বিস্তারিত আছে।
+সংক্ষেপে: তিনটার জন্যই UI-level provider placeholder কোডে আছে, কিন্তু
+কোনো live API adapter এখনো লেখা হয়নি — তিনটাই শূন্য থেকে শুরু করতে হবে।
+E-Courier মূল Master Plan v1-এ ছিল না, কিন্তু কোডে provider option হিসেবে
+already যুক্ত আছে, তাই এটা স্কোপে ধরে নেওয়া হচ্ছে।
+```
+
+### ❌ যা এখনো বাকি — Webhook ও Reliability
+
+> **✅ PROJECT_GUIDE.md দিয়ে কনফার্ম:** "`courier_webhook_logs` exists for future webhook diagnostics, but no inbound webhook processing is active yet." — এটা আগের অনুমানকে নিশ্চিত করে।
+
+```txt
+[ ] Courier webhook endpoint তৈরি হয়নি (route নেই)
+[ ] Webhook signature verification নেই
+[ ] Webhook payload processing logic নেই — courier_webhook_logs টেবিল
+    আছে কিন্তু আসলে কোনো payload এখানে log/process হচ্ছে না
+[ ] Webhook retry mechanism নেই
+[ ] API failure-এর জন্য retry logic নেই
+[ ] Queue-based webhook/API processing নেই (বর্তমানে synchronous)
+[ ] Idempotency guarantee নেই (একই webhook দুইবার এলে duplicate processing
+    হওয়ার ঝুঁকি আছে)
+[ ] Production monitoring/alerting নেই courier API failure-এর জন্য
+```
+
+### ❌ যা এখনো বাকি — Filament Resources ও UI
+
+```txt
+[ ] CourierStatusLogResource তৈরি হয়নি
+[ ] CourierWebhookLogResource তৈরি হয়নি
+[ ] Order action-এ "Cancel Booking" নেই
+[ ] Order action-এ "Print Label" নেই
+[ ] Dedicated tracking action/link নেই (বর্তমানে শুধু tracking ID +
+    Steadfast sync আছে, কিন্তু সুনির্দিষ্ট "Track" বাটন/পেজ নেই)
+[ ] Steadfast balance admin UI-তে কোথাও দেখানো হয়নি (যদিও balance method
+    কোডে আছে)
+```
+
+### ❌ যা এখনো বাকি — Reports
+
+```txt
+[ ] Provider-wise delivered/returned/cancelled count রিপোর্ট নেই
+[ ] Success/return ratio রিপোর্ট নেই (এটা Part 3-এর Fraud/Risk module-এর
+    জন্যও প্রয়োজনীয় ডেটা সোর্স — তাই এই দুটো module একসাথে সম্পর্কিত)
+[ ] COD amount রিপোর্ট/সামারি নেই
+[ ] Company-wise courier performance তুলনা রিপোর্ট নেই
+```
+
+## 2.1 মূল আর্কিটেকচার (পরিকল্পিত, আংশিক বাস্তবায়িত)
+
+```txt
+CourierManager                          ← ❌ এখনো তৈরি হয়নি
+├── CourierProviderInterface             ← ❌ এখনো তৈরি হয়নি
+├── ManualCourier Adapter      ✅ সম্পন্ন (CourierService-এর ভেতরে)
+├── SteadfastCourier Adapter   ✅ সম্পন্ন (CourierService-এর ভেতরে)
+├── PathaoCourier Adapter      ❌ বাকি
+├── RedxCourier Adapter        ❌ বাকি
+├── ECourierCourier Adapter    ❌ বাকি (স্কোপ কনফার্ম করতে হবে)
 └── Future Adapters
 ```
 
 ## 2.2 প্রধান টেবিল
 
 ```txt
-courier_providers       — company_id, name, slug, credentials (encrypted), settings JSON
-courier_bookings        — company_id, order_id, tracking_id, recipient info, cod_amount, status
-courier_status_logs     — status change history
-courier_webhook_logs    — raw webhook payload debugging
+courier_providers       — ✅ সম্পন্ন (company_id, name, slug, credentials, settings)
+courier_bookings        — ✅ সম্পন্ন (order_id, tracking_id, recipient info, cod_amount, status)
+courier_status_logs     — সম্পন্ন কিনা যাচাই করা হয়নি — Resource নেই তবে টেবিল থাকতে পারে
+courier_webhook_logs    — ✅ টেবিল/মডেল তৈরি, ❌ কিন্তু payload logging/processing বাস্তবে কাজ করছে না
 ```
 
 ## 2.3 Internal Delivery Status (Normalized)
@@ -191,29 +524,55 @@ not_booked → booking_pending → booked → picked_up → in_transit
 → delivered / partial_delivered / returned / cancelled / failed
 ```
 
-**নিয়ম:** Order status (`draft/confirmed/completed/cancelled`) আর Delivery status আলাদা রাখতে হবে — দুটো ভিন্ন workflow।
+**নিয়ম:** Order status (`draft/confirmed/completed/cancelled`) আর Delivery status আলাদা রাখতে হবে — দুটো ভিন্ন workflow। *(এই অংশের বাস্তবায়ন স্ট্যাটাস যাচাই করা হয়নি — কোডে গিয়ে নিশ্চিত করুন delivery_status আলাদা ফিল্ড হিসেবে আছে কিনা।)*
 
-## 2.4 Priority Order
+## 2.4 অবশিষ্ট কাজের Priority Order (Refactor → Webhook → নতুন Adapter)
 
-```txt
-1. Manual Courier   — API ছাড়াই কাজ করে, আগে বানাতে হবে
-2. Steadfast        — BD COD/e-commerce-এ জনপ্রিয়
-3. Pathao           — strong merchant delivery
-4. RedX             — সাধারণ e-commerce delivery
-```
-
-## 2.5 Filament Resources
+পুরনো priority (Manual → Steadfast → Pathao → RedX) আংশিক প্রাসঙ্গিকতা হারিয়েছে কারণ Manual ও Steadfast already সম্পন্ন। এখন থেকে যা অবশিষ্ট তার জন্য নতুন priority:
 
 ```txt
-CourierProviderResource, CourierBookingResource,
-CourierStatusLogResource, CourierWebhookLogResource
+১. CourierManager + CourierProviderInterface রিফ্যাক্টর
+   (বিদ্যমান Manual/Steadfast লজিক এই নতুন abstraction-এ migrate করা,
+    নতুন কোনো ফিচার যুক্ত না করে শুধু রিফ্যাক্টর)
+২. Webhook endpoint + signature verification + processing + retry
+   (নতুন adapter যুক্ত করার আগে এই reliability layer থাকা জরুরি, কারণ
+    Pathao/RedX-এর webhook এই একই infrastructure ব্যবহার করবে)
+৩. CourierStatusLogResource + CourierWebhookLogResource (debugging/audit-এর জন্য)
+৪. Order action: Cancel Booking, Print Label, dedicated Track action
+৫. Pathao adapter (CourierManager প্যাটার্নে, রিফ্যাক্টরের পরে)
+৬. RedX adapter
+৭. E-Courier adapter (স্কোপ কনফার্ম হওয়ার পরে)
+৮. Courier reports (provider-wise delivered/returned/cancelled, success/return
+   ratio, COD summary, company-wise performance) — এই ডেটা Part 3
+   (Fraud/Risk)-এর জন্যও দরকার, তাই Part 3 শুরুর আগে অন্তত success/return
+   ratio রিপোর্টের ডেটা সোর্স তৈরি থাকা উচিত
+৯. Steadfast balance UI-তে দেখানো
+১০. Idempotency guarantee ও production monitoring/alerting
 ```
 
-Order resource-এ courier action: Create Booking, Track, Sync Status, Cancel Booking, Print Label, Mark Manual Delivered/Returned।
+## 2.5 Filament Resources (স্ট্যাটাস সহ)
+
+```txt
+CourierProviderResource     — ✅ থাকার সম্ভাবনা আছে (providers টেবিল সম্পন্ন)
+CourierBookingResource       — ✅ থাকার সম্ভাবনা আছে (bookings টেবিল সম্পন্ন)
+CourierStatusLogResource     — ❌ তৈরি হয়নি
+CourierWebhookLogResource    — ❌ তৈরি হয়নি
+```
+
+Order resource-এ courier action — স্ট্যাটাস:
+```txt
+Create Booking         — ✅ সম্পন্ন (অনুমিত, যেহেতু booking flow কাজ করছে)
+Track / Sync Status     — ✅ আংশিক (Steadfast sync আছে, কিন্তু dedicated track action নেই)
+Cancel Booking          — ❌ বাকি
+Print Label             — ❌ বাকি
+Mark Manual Delivered/Returned — যাচাই করা হয়নি
+```
 
 ---
 
 # Part 3: Customer Success & Risk Score (Fraud Detection)
+
+> **⚠️ নির্ভরতা নোট:** এই module-এর success/return ratio calculation Part 2-এর courier delivery status ডেটার উপর নির্ভর করে। Part 2-এর courier reports (2.4-এর ধাপ ৮) সম্পূর্ণ না হলে, Part 3-এর risk score calculation-এর জন্য raw delivery status থেকে সরাসরি query করতে হবে, যা কম efficient কিন্তু কাজ চলবে। আদর্শ sequencing: Part 2-এর webhook reliability (ধাপ ১-২) অন্তত সম্পন্ন হওয়ার পরে Part 3 শুরু করা, যাতে delivery status data নির্ভরযোগ্য থাকে।
 
 (অপরিবর্তিত মূল আর্কিটেকচার)
 
@@ -280,6 +639,12 @@ Order Create/View, Order Table, Customer View, Courier Booking Modal, Dashboard 
 ---
 
 # Part 4: Custom Lightweight Storefront — সম্পূর্ণ ERP থেকে ম্যানেজড
+
+> **⚠️ এই Part শুরু করার আগে পড়ুন (নোট ১ — WooCommerce):** ব্যবহারকারীর ৪টা কোম্পানির বর্তমান ওয়েবসাইট WooCommerce-এ চলছে, যেখানে real customer ও product ডেটা আছে। এই storefront চালু করার আগে সেই ডেটা migrate করতে হবে, নাহলে হারিয়ে যাবে। সংক্ষিপ্ত প্ল্যান ডকুমেন্টের শেষে **"Part 12: WooCommerce Data Migration"**-এ আছে — সেটা প্রথমে পড়ে নিশ্চিত করুন migration approach (one-time import vs phased rollout) নিয়ে ব্যবহারকারীর সাথে কথা হয়েছে, তারপর এই Part 4-এর কাজ শুরু করুন।
+>
+> **⚠️ নোট ২ — Domain Routing (গুরুত্বপূর্ণ আর্কিটেকচার সিদ্ধান্ত):** প্রতিটা company-র **নিজস্ব সম্পূর্ণ আলাদা domain** আছে (subdomain না) — `tasneemknitindustry.com`, `noorsolaren.com`, `zamzamgadgetbd.com`, `zamzamint.com`। এবং ব্যবহারকারী ভবিষ্যতে নতুন company যুক্ত করতে চান, প্রতিটার নিজস্ব নতুন domain সহ। তাই route definition-এ company hardcode করা চলবে না — **section 4.4-এ বর্ণিত `ResolveCompanyFromDomain` middleware** ব্যবহার করতে হবে, যা runtime-এ ডেটাবেস lookup করে domain থেকে company শনাক্ত করে। এই middleware তৈরি করা **Part 4-এর প্রথম এবং সবচেয়ে গুরুত্বপূর্ণ কাজ** — এর আগে কোনো controller/route লেখা ঠিক হবে না, কারণ পরের সব কাজ এই company-resolution mechanism-এর উপর নির্ভর করে।
+>
+> **✅ নোট ৩ — কোড স্ট্যাটাস কনফার্ম (PROJECT_GUIDE.md সরাসরি যাচাই করে):** এই Part 4-এর storefront/domain/cart/checkout সম্পর্কিত কিছুই এখনো কোডে implement হয়নি — `PROJECT_GUIDE.md`-এর latest ভার্সনে Multi-Company ও Courier সিস্টেমের বিস্তারিত আছে, কিন্তু storefront সম্পর্কে কোনো section নেই, `companies` টেবিলে কোনো `domain` কলামের উল্লেখ নেই। তাই নিচের সম্পূর্ণ Part 4 ডিজাইন এখনো শুধুই **plan** — এজেন্ট এটাকে from-scratch implement করবে, কোনো বিদ্যমান partial code-এর সাথে merge করার প্রয়োজন নেই।
 
 ## 4.1 মূলনীতি
 
@@ -352,34 +717,133 @@ usage_limit, used_count, expires_at, is_active, created_at, updated_at
 
 **Order মডেলে যুক্ত হবে:** `source` enum (`admin`, `storefront`) — যাতে বোঝা যায় কোন চ্যানেল থেকে অর্ডার এসেছে, কিন্তু stock/account/report লজিক সম্পূর্ণ অপরিবর্তিত থাকবে।
 
-## 4.4 Routes Structure
+## 4.4 Routes Structure — Custom Domain Mapping (Subdomain না)
 
-```php
-// routes/storefront.php (company subdomain বা path-based)
+> **⚠️ গুরুত্বপূর্ণ সংশোধনী:** এই Master Plan-এর আগের ভার্সনে subdomain-based রুটিং (`gadget.zamzamint.com`) লেখা ছিল। ব্যবহারকারী নিশ্চিত করেছেন প্রতিটা company-র **সম্পূর্ণ আলাদা, ইতিমধ্যে-বিদ্যমান custom domain** আছে:
+>
+> ```txt
+> Garments Machinery → tasneemknitindustry.com
+> Solar Items        → noorsolaren.com
+> Gadget Items        → zamzamgadgetbd.com
+> Gift Items          → zamzamint.com
+> ```
+>
+> এবং ভবিষ্যতে নতুন company যুক্ত হলে তার নিজস্ব নতুন domain-ও থাকবে। তাই Laravel-এর সহজ `Route::domain('{company}.zamzamint.com')` pattern এখানে কাজ করবে না — কারণ এটা একই parent domain-এর subdomain ধরে নেয়। এর বদলে একটা **domain-to-company lookup middleware** প্রয়োজন।
 
-Route::domain('{company}.zamzamint.com')->group(function () {
-    Route::get('/', HomeController::class);
-    Route::get('/category/{slug}', CategoryController::class);
-    Route::get('/product/{slug}', ProductController::class);
-    Route::get('/cart', CartController::class);
-    Route::get('/checkout', CheckoutController::class);
-    Route::get('/account/orders', OrderHistoryController::class);
-    Route::get('/track/{orderNo}', OrderTrackController::class);
-});
+### আর্কিটেকচার: Domain Resolver Middleware
+
+```txt
+ব্যবহারকারী tasneemknitindustry.com ভিজিট করল
+→ Middleware রিকোয়েস্টের হোস্টনেম (tasneemknitindustry.com) দেখে
+→ companies টেবিলে domain কলাম দিয়ে lookup করে কোন company এটা বের করে
+→ company_id current request context-এ bind করে দেয়
+→ একই HomeController/ProductController/CartController ইত্যাদি ব্যবহার হয়,
+  কিন্তু এখন company_id দিয়ে শুধু সেই company-র product/order/theme দেখায়
 ```
 
-**Multi-company routing সিদ্ধান্ত:** Subdomain-based (`gadget.zamzamint.com`, `garments.zamzamint.com`) সবচেয়ে পরিষ্কার — প্রতিটা company-র নিজস্ব ব্র্যান্ডিং অনুভূতি থাকবে, SEO-তেও আলাদা সাইটের মত আচরণ করবে।
+### `companies` টেবিলে নতুন কলাম (Part 1.3-এর সাথে যুক্ত)
+
+```txt
+companies
+---------
+... (Part 1.3-এ উল্লেখিত কলামগুলো) ...
+domain          — VARCHAR, UNIQUE  (যেমন: "tasneemknitindustry.com")
+domain_verified — BOOLEAN, default false (DNS/SSL সঠিকভাবে সেটআপ হয়েছে কিনা)
+```
+
+### Middleware বাস্তবায়ন
+
+```php
+namespace App\Http\Middleware;
+
+use App\Models\Company;
+use Closure;
+use Illuminate\Http\Request;
+
+class ResolveCompanyFromDomain
+{
+    public function handle(Request $request, Closure $next)
+    {
+        $host = $request->getHost(); // যেমন: tasneemknitindustry.com
+
+        $company = Company::where('domain', $host)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $company) {
+            abort(404); // এই domain কোনো company-র সাথে match করেনি
+        }
+
+        // company context bind করা — এর পর থেকে BelongsToCompany trait
+        // এই context ব্যবহার করে স্বয়ংক্রিয়ভাবে company_id scope করবে
+        app()->instance('company.context', $company);
+
+        return $next($request);
+    }
+}
+```
+
+### রুট স্ট্রাকচার
+
+```php
+// routes/storefront.php
+
+Route::middleware(['web', \App\Http\Middleware\ResolveCompanyFromDomain::class])
+    ->group(function () {
+        Route::get('/', HomeController::class);
+        Route::get('/category/{slug}', CategoryController::class);
+        Route::get('/product/{slug}', ProductController::class);
+        Route::get('/cart', CartController::class);
+        Route::get('/checkout', CheckoutController::class);
+        Route::get('/account/orders', OrderHistoryController::class);
+        Route::get('/track/{orderNo}', OrderTrackController::class);
+    });
+```
+
+**মূল পার্থক্য পুরনো subdomain প্ল্যানের সাথে:** আগে route definition-এর ভেতরেই `Route::domain()` দিয়ে company hardcode করার চেষ্টা ছিল। এখন route definition company-নিরপেক্ষ — কোন company তা **middleware রানটাইমে ডেটাবেস lookup করে বের করে**। এর ফলে নতুন company যুক্ত করতে কোনো নতুন route বা কোনো কোড পরিবর্তন লাগবে না — শুধু Filament থেকে একটা নতুন company row তৈরি করে তার `domain` ফিল্ড পূরণ করলেই, এবং সার্ভারে সেই domain DNS দিয়ে পয়েন্ট করলেই, নতুন company-র storefront কাজ শুরু করবে।
+
+### সার্ভার-লেভেল কনফিগারেশন (Domain পয়েন্ট করা)
+
+```txt
+প্রতিটা company-র domain (tasneemknitindustry.com, noorsolaren.com,
+zamzamgadgetbd.com, zamzamint.com) — DNS A রেকর্ড দিয়ে একই সার্ভার
+(একই Coolify app/IP)-এ পয়েন্ট করতে হবে।
+
+Coolify-তে একটা Application-এর সাথে একাধিক custom domain যুক্ত করার
+সুবিধা আছে — প্রতিটা domain-এর জন্য আলাদা SSL certificate (Let's Encrypt)
+স্বয়ংক্রিয়ভাবে issue হবে। এটা routes/storefront.php কোডের সাথে সম্পর্কিত
+না, এটা ইনফ্রাস্ট্রাকচার লেভেলের সেটআপ — Coolify dashboard-এ প্রতিটা
+domain manually যুক্ত করতে হবে।
+```
+
+### নতুন Company ভবিষ্যতে যুক্ত করার সম্পূর্ণ প্রক্রিয়া
+
+```txt
+১. Filament-এ CompanyResource থেকে নতুন company তৈরি (নাম, business_type, ইত্যাদি)
+২. নতুন company-র domain ফিল্ড পূরণ (যেমন: "newbrand.com")
+৩. domain owner-কে DNS A রেকর্ড সেটআপ করতে বলা (Coolify সার্ভারের IP-তে পয়েন্ট করা)
+৪. Coolify dashboard-এ এই নতুন domain যুক্ত করা (SSL auto-issue হবে)
+৫. Filament StorefrontSettingsResource থেকে নতুন company-র থিম রঙ, লোগো,
+   ব্যানার সেটআপ করা
+৬. Product/Category নতুন company-র জন্য যুক্ত করা (company_id সহ)
+৭. কোনো কোড পরিবর্তন বা নতুন deployment লাগবে না — domain DNS resolve
+   হওয়ার সাথে সাথেই middleware স্বয়ংক্রিয়ভাবে সঠিক company শনাক্ত করবে
+```
+
+এটাই এই আর্কিটেকচারের মূল সুবিধা — **company সংখ্যা ৪ থেকে ৫, ১০, বা তার বেশি হলেও কোনো কোড পরিবর্তন লাগবে না।** শুধু ডেটাবেসে নতুন row এবং DNS/Coolify-তে নতুন domain যুক্ত করতে হবে।
 
 ## 4.5 Filament-এ Storefront ম্যানেজমেন্ট — নতুন Resource
 
 ```txt
 app/Filament/Resources/
-├── StorefrontSettingsResource/   — থিম, লোগো, ব্যানার, WhatsApp নম্বর
+├── StorefrontSettingsResource/   — থিম, লোগো, ব্যানার, WhatsApp নম্বর, domain ফিল্ড
 ├── StorefrontPageResource/       — About, Policy পেজ এডিট
 ├── BannerResource/                — হোমপেজ স্লাইডার, drag-drop reorder
 ├── CouponResource/                — ডিসকাউন্ট কোড
 └── CartResource/  (read-only)    — abandoned cart দেখার জন্য
 ```
+
+CompanyResource (Part 1.3)-এর ফর্মে যুক্ত হবে নতুন ফিল্ড: `domain` (টেক্সট ইনপুট, unique validation), `domain_verified` (toggle, read-only বা ম্যানুয়াল কনফার্মেশন)।
 
 Order resource-এ আগে থেকে যা আছে তাতে যুক্ত হবে: `source` কলাম (Admin/Storefront ব্যাজ), storefront থেকে আসা order-এ "অনলাইন অর্ডার" ট্যাগ।
 
@@ -489,16 +953,18 @@ Filament-এর `StorefrontSettingsResource`-এ color picker দিয়ে ow
 
 **এটাই Lunar-এর তুলনায় সবচেয়ে বড় সুবিধা** — কোনো `LunarOrderSyncService`, কোনো duplicate prevention logic, কোনো webhook delay লাগবে না। Order তৈরি হওয়া মাত্রই এটা ERP-এর native অংশ।
 
-## 4.8 Multi-Company + Storefront
+## 4.8 Multi-Company + Storefront (বাস্তব Domain অনুযায়ী)
 
 ```txt
-Garments Machinery → garments.zamzamint.com (বা path: /garments)
-Solar Items        → solar.zamzamint.com
-Gadget Items       → gadget.zamzamint.com
-Gift Items         → gift.zamzamint.com
+Garments Machinery → tasneemknitindustry.com
+Solar Items        → noorsolaren.com
+Gadget Items        → zamzamgadgetbd.com
+Gift Items          → zamzamint.com
+
+ভবিষ্যৎ নতুন company → নতুন custom domain (কোনো কোড পরিবর্তন ছাড়াই, দেখুন 4.4)
 ```
 
-প্রতিটা subdomain-এর জন্য একই Blade component/Livewire ব্যবহার হবে, কিন্তু `company_id` দিয়ে products, theme, banner আলাদা হবে — কোনো কোড ডুপ্লিকেশন ছাড়াই।
+প্রতিটা domain-এর জন্য একই Blade component/Livewire ব্যবহার হবে, কিন্তু 4.4-এ বর্ণিত `ResolveCompanyFromDomain` middleware দিয়ে `company_id` সনাক্ত হয় এবং তার ভিত্তিতে products, theme, banner আলাদা হয় — কোনো কোড ডুপ্লিকেশন ছাড়াই।
 
 ## 4.9 AI Agent দিয়ে কাজ করার নিয়ম (Hallucination কমানোর আসল উপায়)
 
@@ -555,19 +1021,43 @@ and successful add-to-cart."
 
 # Part 6: Recommended Development Phases
 
+## Phase 0: Pre-requisite Stabilization (Part 0 অনুযায়ী)
+```txt
+landed cost allocation, shipment/container tracking, PDF export, backup system বাকি
+✅ ADMIN_PASSWORD, MAIL_FROM_ADDRESS, session/queue/cache driver — কনফার্ম হয়েছে ঠিক হয়েছে
+❌ composer.json (block-insecure, minimum-stability, dompdf version) — এখনো যাচাই বাকি
+✅ নতুন আবিষ্কৃত: Release and Update Safety সিস্টেম (AppRelease, CHANGELOG.md,
+   backup-before-migration নিয়ম) ইতিমধ্যে কোডে আছে — Part 0.3 দেখুন
+— Phase 1/2-এর অবশিষ্ট কাজের সাথে সমান্তরালে করা যেতে পারে
+```
+
 ## Phase 1: Multi-Company Foundation
 ```txt
-companies টেবিল, company_user pivot, Company model, CompanyContext service,
-CompanyScope, BelongsToCompany trait, company switcher, core টেবিলে company_id,
-বিদ্যমান ডেটা backfill, সব resource/report/widget আপডেট
-+ Company isolation leak test লেখা (গুরুত্বপূর্ণ)
+✅ আর্কিটেকচার সম্পূর্ণ ও ফাইল-পাথ পর্যায়ে কনফার্ম — companies টেবিল, BelongsToCompany,
+   CompanyScope, CompanyContext, SetCurrentCompany middleware, company switcher UI,
+   Companies Filament resource — সব নিশ্চিতভাবে কোডে আছে
+✅ নতুন আবিষ্কৃত safeguard — cross-company courier booking service-layer-এ reject,
+   "All Companies" view-এ company-specific write action disable
+❌ বাকি — বিদ্যমান production data এখনো "Main Company"-তে, Garments/Solar/
+   Gadget/Gift-এ ভাগ করা হয়নি (বিস্তারিত প্ল্যান: Part 1.9, ধাপ ৭)
+❌ বাকি — Queue/scheduled command/export/backup flow-এর cross-cutting
+   isolation audit (বিস্তারিত: Part 1.10)
+⚠️ আংশিক — `MultiCompanyIsolationTest.php` exist করে, কিন্তু সম্পূর্ণ ~২০টা
+   model কভার করে কিনা যাচাই বাকি (বিস্তারিত: Part 1.10)
 ```
 
 ## Phase 2: Courier Foundation
 ```txt
-courier টেবিল, CourierProviderInterface, CourierManager, ManualCourier provider,
-delivery_status যুক্ত করা order workflow-তে, Filament courier resources,
-order courier action, courier reports
+✅ সম্পন্ন ও বিস্তারিতভাবে কনফার্ম — Manual/custom booking, Steadfast API
+   (booking+sync+encrypted credentials), normalized delivery status enum,
+   status log creation, cross-company booking block
+⚠️ Pathao/RedX/E-Courier — UI-level provider placeholder কোডে আছে, কিন্তু
+   কোনো live API client নেই (সংশোধিত স্ট্যাটাস, আগে এদের অস্তিত্বই ধরা হয়নি)
+❌ বাকি — CourierProviderInterface/CourierManager রিফ্যাক্টর, webhook endpoint +
+   signature verification + retry, CourierStatusLogResource, CourierWebhookLogResource,
+   Cancel Booking/Print Label action, courier reports (success/return ratio, COD summary)
+   বিস্তারিত ক্রম দেখুন Part 2, সেকশন 2.4
+
 ```
 
 ## Phase 3: Fraud / Customer Success MVP
@@ -1012,3 +1502,73 @@ Lead/CRM module থেকে অন্তত একটা পূর্ণ busine
 ```
 
 **এজেন্টের জন্য সংক্ষিপ্ত নির্দেশ:** যদি আপনাকে এই ডকুমেন্ট দেখিয়ে কোনো কাজ করতে বলা হয় এবং স্পষ্ট না থাকে কোন ধাপে আছি, তাহলে ব্যবহারকারীকে জিজ্ঞেস করুন "Part 1-10-এর কোন ধাপ পর্যন্ত সম্পূর্ণ হয়েছে?" — এর উত্তর পাওয়ার আগে ১১ বা ১২ নম্বর ধাপের কোনো কাজ শুরু করবেন না।
+
+---
+
+# Part 12: WooCommerce Data Migration (সংক্ষিপ্ত নোট — পরে বিস্তারিত হবে)
+
+## ⚠️ প্রেক্ষাপট (কেন এই নোট গুরুত্বপূর্ণ)
+
+```txt
+ব্যবহারকারীর ৪টা কোম্পানির ওয়েবসাইট বর্তমানে WooCommerce-এ চলছে।
+সেখানে real, live customer ও product ডেটা আছে।
+Part 4 (Custom Storefront) তৈরি হলে এই ডেটা ERP-তে না আনলে হারিয়ে যাবে।
+এই মডিউলের সম্পূর্ণ বিস্তারিত প্ল্যান এখনো লেখা হয়নি — যখন Part 4 (Storefront
+Foundation) শুরু হবে, ঠিক তার আগে এই নোট থেকে একটা পূর্ণ implementation
+প্ল্যান বানাতে হবে।
+```
+
+## সিদ্ধান্ত এখনো বাকি — দুটো পথ বিবেচনায় আছে
+
+```txt
+পথ A: One-Time Import + WooCommerce বন্ধ
+  → WooCommerce থেকে Customer/Product/Order একবার Export-Import করে
+    ERP-তে আনা, তারপর WooCommerce ধীরে ধীরে বন্ধ করে নতুন storefront চালু।
+  → ঝুঁকি কম, কিন্তু এক ধাক্কায় migration, SEO impact সম্ভব।
+
+পথ B: Live Ongoing Sync
+  → WooCommerce সাইট চালু রেখে REST API দিয়ে দ্বিমুখী sync রাখা।
+  → কোনো বড় ধাক্কা নেই, কিন্তু stock race condition, ৪টা company-র
+    আলাদা sync logic maintain করা, dual maintenance burden — এই
+    জটিলতাগুলো দীর্ঘমেয়াদে বাড়বে।
+
+সুপারিশ করা মাঝামাঝি পথ: Phased Migration
+  ১. WooCommerce ডেটা (Customer + Product + Order history) one-time import
+  ২. নতুন ERP-storefront তৈরি ও টেস্ট (Part 4-10 অনুযায়ী)
+  ৩. সবচেয়ে ছোট company-তে (যেমন Gift Items) প্রথমে নতুন storefront লাইভ,
+     WooCommerce এক সপ্তাহ read-only/backup মোডে প্যারালাল রাখা
+  ৪. সব ঠিক থাকলে সেই company-র WooCommerce বন্ধ, বাকি company-গুলোতে
+     একই প্যাটার্নে ধাপে ধাপে রোলআউট
+```
+
+## যা নিশ্চিত করতে হবে Part 4 শুরুর আগে
+
+```txt
+[ ] ব্যবহারকারীর সাথে confirm করা — One-time import, Live sync, নাকি Phased migration?
+[ ] WooCommerce REST API credentials (Consumer Key/Secret) সংগ্রহ এবং সংরক্ষণ পদ্ধতি ঠিক করা
+[ ] WooCommerce-এর Customer ডেটা ফিল্ড ম্যাপিং ERP-এর Customer মডেলের সাথে
+    (যেমন: WooCommerce billing_phone → ERP Customer.phone)
+[ ] WooCommerce-এর Product ডেটা ফিল্ড ম্যাপিং (SKU, price, stock, image, category)
+    ERP-এর Product মডেলের সাথে
+[ ] Order history আনা হবে কিনা, নাকি শুধু Customer + Product (এটা ব্যবসায়িক সিদ্ধান্ত)
+[ ] Duplicate detection logic — ফোন নম্বর/email দিয়ে আগে থেকেই ERP-তে থাকা
+    Customer-এর সাথে WooCommerce-এর Customer মিলিয়ে দেখা (যেমন Lead/CRM
+    মডিউলের LeadConversionService-এ যে duplicate-প্রতিরোধী প্যাটার্ন ব্যবহার
+    হয়েছে, এখানেও একই নীতি প্রয়োগ হবে)
+[ ] Currently এই Business-Dashboard কোডবেসে Customer/Product পেজে যে
+    "Import" বাটন আছে বলে ব্যবহারকারী উল্লেখ করেছেন তার backend logic
+    আসলে কাজ করে কিনা যাচাই করা — PROJECT_GUIDE.md-এর Section 3/5-এ
+    কোনো import feature documented নেই, তাই Part 4 শুরুর আগে এটা প্রথমে
+    লাইভ সাইটে টেস্ট করে নিশ্চিত হওয়া জরুরি (ভাঙা/অসম্পূর্ণ ফিচার হতে পারে)
+```
+
+## Build Order-এ অবস্থান
+
+```txt
+Part 1 (Multi-Company) সম্পূর্ণ হওয়ার পর, Part 4 (Storefront Foundation)
+শুরু হওয়ার ঠিক আগে — এই Part 12-এর সংক্ষিপ্ত নোট থেকে একটা সম্পূর্ণ,
+ধাপে-ধাপে implementation প্ল্যান (আলাদা MD ফাইলে, Lead/CRM ও Investor
+মডিউলের মতো বিস্তারিত ফরম্যাটে) তৈরি করতে হবে।
+```
+
+**এজেন্টের জন্য নির্দেশ:** Part 4 (Storefront)-এ পৌঁছানোর আগে, ব্যবহারকারীকে জিজ্ঞেস করুন WooCommerce migration approach নিয়ে এখনও সিদ্ধান্ত হয়েছে কিনা। সিদ্ধান্ত না হলে, Part 4-এর storefront কোড লেখা শুরু করার আগে এই বিষয়ে স্পষ্টীকরণ চান।

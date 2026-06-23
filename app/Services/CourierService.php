@@ -114,7 +114,7 @@ class CourierService
             ]);
         }
 
-        $status = $this->mapSteadfastStatus($consignment['status'] ?? 'in_review');
+        $status = $this->normalizeSteadfastStatus($consignment['status'] ?? 'in_review');
         $booking = CourierBooking::query()->create([
             'company_id' => $order->company_id,
             'courier_provider_id' => $provider->getKey(),
@@ -158,7 +158,7 @@ class CourierService
 
         return $this->updateStatus(
             $booking,
-            $this->mapSteadfastStatus($response['delivery_status']),
+            $this->normalizeSteadfastStatus($response['delivery_status']),
             'Synced from Steadfast: '.$response['delivery_status'],
         );
     }
@@ -213,7 +213,7 @@ class CourierService
         ], fn ($value): bool => $value !== null && $value !== '');
     }
 
-    protected function mapSteadfastStatus(string $status): string
+    public function normalizeSteadfastStatus(string $status): string
     {
         return match ($status) {
             'delivered', 'delivered_approval_pending' => CourierBooking::STATUS_DELIVERED,

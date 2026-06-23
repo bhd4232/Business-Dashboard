@@ -5,6 +5,8 @@ namespace App\Filament\Resources\CourierBookings;
 use App\Filament\Resources\CourierBookings\Pages\ListCourierBookings;
 use App\Filament\Resources\CourierBookings\Pages\ViewCourierBooking;
 use App\Models\CourierBooking;
+use App\Models\CourierProvider;
+use App\Services\CourierManager;
 use App\Services\CourierService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -77,6 +79,9 @@ class CourierBookingResource extends Resource
                 ViewAction::make(),
                 self::statusAction(),
                 self::syncSteadfastAction(),
+                self::trackAction(),
+                self::labelAction(),
+                self::cancelAction(),
             ]);
     }
 
@@ -160,10 +165,40 @@ class CourierBookingResource extends Resource
         return Action::make('syncSteadfast')
             ->label('Sync Steadfast')
             ->icon('heroicon-o-arrow-path')
-            ->visible(fn (CourierBooking $record): bool => $record->provider?->driver === \App\Models\CourierProvider::DRIVER_STEADFAST)
+            ->visible(fn (CourierBooking $record): bool => $record->provider?->driver === CourierProvider::DRIVER_STEADFAST)
             ->action(function (CourierBooking $record): void {
                 app(CourierService::class)->syncSteadfastStatus($record);
             });
+    }
+
+    public static function cancelAction(): Action
+    {
+        return Action::make('cancelBooking')
+            ->label('Cancel booking')
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->requiresConfirmation()
+            ->visible(fn (CourierBooking $record): bool => ! in_array($record->status, [CourierBooking::STATUS_DELIVERED, CourierBooking::STATUS_RETURNED, CourierBooking::STATUS_CANCELLED], true))
+            ->action(fn (CourierBooking $record) => app(CourierManager::class)->cancel($record));
+    }
+
+    public static function trackAction(): Action
+    {
+        return Action::make('track')
+            ->icon('heroicon-o-map-pin')
+            ->url(fn (CourierBooking $record): ?string => app(CourierManager::class)->adapter($record->provider)->trackingUrl($record))
+            ->openUrlInNewTab()
+            ->visible(fn (CourierBooking $record): bool => filled(app(CourierManager::class)->adapter($record->provider)->trackingUrl($record)));
+    }
+
+    public static function labelAction(): Action
+    {
+        return Action::make('printLabel')
+            ->label('Print label')
+            ->icon('heroicon-o-printer')
+            ->url(fn (CourierBooking $record): ?string => app(CourierManager::class)->adapter($record->provider)->labelUrl($record))
+            ->openUrlInNewTab()
+            ->visible(fn (CourierBooking $record): bool => filled(app(CourierManager::class)->adapter($record->provider)->labelUrl($record)));
     }
 
     protected static function statusColor(?string $status): string

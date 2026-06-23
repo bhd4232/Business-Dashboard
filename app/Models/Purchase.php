@@ -124,6 +124,11 @@ class Purchase extends Model
         return $this->hasMany(PurchaseItem::class);
     }
 
+    public function shipments(): HasMany
+    {
+        return $this->hasMany(Shipment::class);
+    }
+
     public static function nextPurchaseNumber(?Company $company = null): string
     {
         $company ??= app()->bound('company.context') ? app('company.context')->company() : null;

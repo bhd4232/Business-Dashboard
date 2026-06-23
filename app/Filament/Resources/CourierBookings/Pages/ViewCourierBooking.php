@@ -14,6 +14,9 @@ class ViewCourierBooking extends ViewRecord
         return [
             CourierBookingResource::syncSteadfastAction(),
             CourierBookingResource::statusAction(),
+            CourierBookingResource::trackAction(),
+            CourierBookingResource::labelAction(),
+            CourierBookingResource::cancelAction(),
         ];
     }
 }

@@ -6,6 +6,7 @@ use App\Filament\Resources\Purchases\Pages\CreatePurchase;
 use App\Filament\Resources\Purchases\Pages\EditPurchase;
 use App\Filament\Resources\Purchases\Pages\ListPurchases;
 use App\Filament\Resources\Purchases\Pages\ViewPurchase;
+use App\Filament\Resources\Purchases\RelationManagers\ShipmentsRelationManager;
 use App\Filament\Resources\Purchases\Schemas\PurchaseForm;
 use App\Filament\Resources\Purchases\Schemas\PurchaseInfolist;
 use App\Filament\Resources\Purchases\Tables\PurchasesTable;
@@ -42,6 +43,13 @@ class PurchaseResource extends Resource
     public static function table(Table $table): Table
     {
         return PurchasesTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            ShipmentsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

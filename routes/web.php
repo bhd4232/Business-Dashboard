@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ProductCsvController;
 use App\Http\Controllers\Admin\ReportExportController;
 use App\Http\Controllers\Admin\ReportPdfController;
 use App\Http\Controllers\Admin\SupplierCsvController;
+use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
 use App\Models\Order;
 use App\Models\User;
@@ -46,6 +47,10 @@ Route::get('/health/version', function () {
 
 Route::get('/install', [InstallController::class, 'create'])->name('install.create');
 Route::post('/install', [InstallController::class, 'store'])->name('install.store');
+
+Route::post('/webhooks/couriers/{provider}', CourierWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('couriers.webhook');
 
 Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $order, Request $request) {
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);

@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->validateCsrfTokens(except: ['webhooks/couriers/*']);
         $middleware->appendToGroup('web', PreventDemoModeWrites::class);
         $middleware->appendToGroup('web', SetCurrentCompany::class);
     })

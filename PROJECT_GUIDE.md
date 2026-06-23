@@ -65,6 +65,9 @@ Production migration note:
 - The safe schema migration puts historical records in `Main Company` first.
 - Moving real historical records from `Main Company` into Garments, Solar, Gadget, or Gift must be done with verified business mapping and backups.
 - Never guess the destination company for existing production records.
+- Use `php artisan companies:migrate-data {company-slug} {mapping.json} --dry-run` to validate an explicit mapping. A real run creates a database backup automatically; `--no-backup` is rejected in production.
+- `docs/company-data-migration.example.json` documents the accepted aggregate mapping keys. Child purchase/order/stock/payment records move transactionally with their selected parent.
+- The isolation contract test covers every current company-owned model, including courier, shipment, and container records.
 
 ### Courier and Delivery Integration
 
@@ -94,14 +97,17 @@ Implemented behavior:
 - Orders expose booking, Steadfast booking, delivered, returned, and status information actions.
 - Courier booking detail includes provider, invoice, recipient, COD amount, tracking data, and status history.
 - Manual and Steadfast booking services verify that Order and Courier Provider belong to the same company.
+- `CourierManager` and `CourierProviderInterface` provide the provider adapter boundary; Manual and Steadfast use concrete adapters.
+- API calls use bounded timeouts and retry/backoff.
+- Signed incoming webhooks are deduplicated, logged, queued, retried, and processed inside the provider's explicit company context.
+- Courier Status Log and Webhook Log resources provide operational diagnostics.
+- Booking actions support cancellation and configurable tracking/label URL templates.
+- `CourierReportService` exposes provider/company delivery, return, cancellation, success-rate, and COD aggregates.
 
 Not implemented yet:
 
 - Live Pathao, RedX, and E-Courier API clients
-- Courier gateway interface/manager abstraction
-- Incoming courier webhook routes and processing
-- Separate Courier Status Log and Webhook Log Filament resources
-- API label printing, provider cancellation, and courier performance reports
+- Provider-native remote cancellation/label endpoints where an official API contract is required; current actions use normalized cancellation and configurable label URLs.
 
 Important files:
 
@@ -111,11 +117,25 @@ app/Models/CourierBooking.php
 app/Models/CourierStatusLog.php
 app/Models/CourierWebhookLog.php
 app/Services/CourierService.php
+app/Services/CourierManager.php
+app/Contracts/CourierProviderInterface.php
+app/Services/Couriers/
 app/Services/SteadfastCourierClient.php
+app/Services/CourierReportService.php
 app/Filament/Resources/CourierProviders/
 app/Filament/Resources/CourierBookings/
+app/Filament/Resources/CourierStatusLogs/
+app/Filament/Resources/CourierWebhookLogs/
 tests/Feature/CourierIntegrationTest.php
 ```
+
+### Shipment and Container Tracking
+
+- Company-scoped containers track container number, shipping line, route, lifecycle status, and estimated/actual departure and arrival dates.
+- Company-scoped shipments link an optional Purchase and Container and track carrier, transport mode, tracking number, status, shipped/ETA/received dates, and notes.
+- Shipment validation rejects a Purchase or Container from another company.
+- Shipment and container tracking is embedded inside each Purchase View/Edit page; the standalone Shipment and Container resources are intentionally hidden from sidebar navigation.
+- Draft purchases allow shipment planning and inline container creation. Received purchases show read-only logistics history. Cancelled purchases show existing logistics history only when records exist.
 
 ### Release and Update Safety
 

@@ -57,6 +57,9 @@ class SteadfastCourierClient
 
         return Http::acceptJson()
             ->asJson()
+            ->timeout(20)
+            ->connectTimeout(5)
+            ->retry(3, 500, throw: false)
             ->withHeaders([
                 'Api-Key' => $apiKey,
                 'Secret-Key' => $secretKey,

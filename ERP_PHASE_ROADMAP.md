@@ -75,7 +75,7 @@ Related planning documents:
 
 **Goal:** Build supplier purchase flow and China-to-Bangladesh wholesale purchase costing.
 
-**Status:** Mostly done and actively evolving.
+**Status:** Done, with optional future costing refinements.
 
 **Completed:**
 
@@ -116,6 +116,9 @@ Related planning documents:
 - Tests cover purchase totals, stock, supplier balance, custom costs, and reports.
 - Supplier field in purchase creation supports selecting existing suppliers and inline creation.
 - Product field in purchase items supports selecting existing products and inline creation.
+- Per-product landed costs are allocated and stored on purchase items.
+- Purchase LC, PI, and CI reference/date tracking is available.
+- Company-scoped container and shipment tracking is available in Filament.
 
 **Important Implementation Notes:**
 
@@ -126,9 +129,6 @@ Related planning documents:
 
 **Future Work:**
 
-- Per-product landed cost allocation.
-- Purchase LC, PI, and CI document tracking. **Done:** Reference number and date fields are available in purchase form, view, and table.
-- Container and shipment tracking.
 - China supplier and local clearing agent separation.
 - Purchase expense category mapping.
 - Better purchase costing summary widget.
@@ -315,7 +315,7 @@ Related planning documents:
 
 **Goal:** Automate repetitive business follow-up work.
 
-**Status:** Planned.
+**Status:** In progress. Application-side backup, release safety, build, PDF, and migration tooling are complete; final hosting/domain and live restore drill remain operational decisions.
 
 **Ideas:**
 
@@ -558,14 +558,12 @@ Related planning documents:
 
 Priority:
 
-1. Run `npm run build` and fix any frontend build issue.
-2. Do a manual purchase costing smoke test.
-3. Add landed-cost allocation per product.
-4. Add shipment and container tracking.
-5. Add PDF export for invoice and purchase report.
-6. Add backup and restore documentation.
-7. Decide final production hosting and domain.
-8. Start Phase 10 e-commerce foundation after the ERP production readiness items are stable.
+1. Do a manual purchase costing smoke test in the target production environment.
+2. Decide final production hosting and domain.
+3. Run a supervised backup restore drill on disposable infrastructure.
+4. Obtain official API access/contracts for Pathao, RedX, and E-Courier before implementing their live adapters.
+5. Reassign verified Main Company production data using a reviewed dry-run mapping and mandatory backup.
+6. Start Phase 10 e-commerce foundation after these operational readiness items are stable.
 
 ---
 
