@@ -12,6 +12,132 @@
 - Admin route: `/admin`
 - Public route: `/`
 - Main business focus: product inventory, purchase costing, sales invoice, supplier/customer due, accounts, reports, and audit trail
+- Architecture: single application and database with company-wise business data isolation
+- Delivery support: company-specific manual/custom courier and Steadfast API integration
+
+## 1.1 Current Platform Foundations
+
+### Multi-Company System
+
+The application now supports multiple companies inside one Laravel installation and one database.
+
+Core companies:
+
+- Garments Machinery Company (`GM`)
+- Solar Items Company (`SOL`)
+- Gadget Items Company (`GAD`)
+- Gift Items Company (`GFT`)
+
+Important behavior:
+
+- `companies` stores company profile, branding, currency, timezone, invoice prefix, active state, and JSON settings.
+- `company_user` assigns users to companies with a company-specific role and default-company flag.
+- Super Admin can select a company or `All Companies` from the Filament top-bar switcher.
+- Staff can only select companies assigned to them.
+- The selected company is stored in session key `current_company_id`.
+- `SetCurrentCompany` resolves the session selection and initializes `CompanyContext` for each admin request.
+- `BelongsToCompany` automatically assigns `company_id` to new business records and applies `CompanyScope` to queries.
+- Core business records require `company_id`; existing records were backfilled to `Main Company` during migration.
+- Company-scoped models include inventory, sales, purchasing, accounts, expenses, ledger, audit, and courier models.
+- Company invoice numbers use the selected company's prefix, date, and daily sequence, for example `GAD-20260623-0001`.
+- Dashboard summaries, reports, and widgets follow the active company context.
+- User create/edit screens support assigned companies and a default company.
+- Company-specific profile and branding are resolved through `CompanySettingsService`.
+- Cross-company courier selection and booking are rejected at the service layer.
+- Courier provider creation and courier booking actions are disabled while `All Companies` is selected.
+
+Important files:
+
+```text
+app/Models/Company.php
+app/Models/Concerns/BelongsToCompany.php
+app/Scopes/CompanyScope.php
+app/Services/CompanyContext.php
+app/Http/Middleware/SetCurrentCompany.php
+app/Http/Controllers/Admin/CompanySwitchController.php
+app/Filament/Resources/Companies/
+resources/views/filament/partials/company-switcher.blade.php
+tests/Feature/MultiCompanyIsolationTest.php
+```
+
+Production migration note:
+
+- The safe schema migration puts historical records in `Main Company` first.
+- Moving real historical records from `Main Company` into Garments, Solar, Gadget, or Gift must be done with verified business mapping and backups.
+- Never guess the destination company for existing production records.
+
+### Courier and Delivery Integration
+
+Courier data is company-specific. A company can have its own Custom/manual partners and its own encrypted API credentials.
+
+Supported provider choices:
+
+- Custom/manual
+- Steadfast
+- Pathao configuration placeholder
+- RedX configuration placeholder
+- E-Courier configuration placeholder
+
+Implemented behavior:
+
+- Manual/custom courier booking from Order list and Order detail.
+- Active Custom provider selection during manual booking.
+- Automatic manual tracking ID generation when none is supplied.
+- Steadfast order creation through `https://portal.packzy.com/api/v1/create_order`.
+- Steadfast status sync by tracking code or invoice.
+- Steadfast consignment ID and tracking code storage.
+- Steadfast API key and secret key are stored in the encrypted `credentials` model cast.
+- Provider settings support contact person, phone, warehouse, delivery fees, courier costs, return costs, COD percentage, and base URL.
+- Delivery status is independent from the sales Order status.
+- Normalized delivery statuses are `not_booked`, `booking_pending`, `booked`, `picked_up`, `in_transit`, `delivered`, `partial_delivered`, `returned`, `cancelled`, and `failed`.
+- Every manual or synchronized status change creates a courier status log.
+- Orders expose booking, Steadfast booking, delivered, returned, and status information actions.
+- Courier booking detail includes provider, invoice, recipient, COD amount, tracking data, and status history.
+- Manual and Steadfast booking services verify that Order and Courier Provider belong to the same company.
+
+Not implemented yet:
+
+- Live Pathao, RedX, and E-Courier API clients
+- Courier gateway interface/manager abstraction
+- Incoming courier webhook routes and processing
+- Separate Courier Status Log and Webhook Log Filament resources
+- API label printing, provider cancellation, and courier performance reports
+
+Important files:
+
+```text
+app/Models/CourierProvider.php
+app/Models/CourierBooking.php
+app/Models/CourierStatusLog.php
+app/Models/CourierWebhookLog.php
+app/Services/CourierService.php
+app/Services/SteadfastCourierClient.php
+app/Filament/Resources/CourierProviders/
+app/Filament/Resources/CourierBookings/
+tests/Feature/CourierIntegrationTest.php
+```
+
+### Release and Update Safety
+
+- Application release metadata is centralized in `AppRelease` and `config/release.php`.
+- The admin panel includes a Release Notes page.
+- `CHANGELOG.md` records notable production changes.
+- Production deployment documentation requires a database backup before migrations.
+- Routine production updates must not run broad seeders, `migrate:fresh`, or other destructive commands.
+- Release types include major, minor, patch, security, hotfix, and maintenance updates.
+
+Important files:
+
+```text
+app/Support/AppRelease.php
+app/Filament/Pages/ReleaseNotes.php
+resources/views/filament/pages/release-notes.blade.php
+config/release.php
+CHANGELOG.md
+docs/release-policy.md
+docs/update-safety.md
+tests/Feature/ReleaseNotesTest.php
+```
 
 ## 2. Important Folders
 
@@ -312,6 +438,9 @@ app/Filament/Resources/Expenses/
 app/Filament/Resources/TransactionLedgers/
 app/Filament/Resources/Users/
 app/Filament/Resources/AuditLogs/
+app/Filament/Resources/Companies/
+app/Filament/Resources/CourierProviders/
+app/Filament/Resources/CourierBookings/
 ```
 
 ## 6. Important Migrations
@@ -360,6 +489,16 @@ Accounts and audit:
 2026_06_02_015000_create_transaction_ledgers_table.php
 2026_06_03_010000_add_role_fields_to_users_table.php
 2026_06_03_011000_create_audit_logs_table.php
+```
+
+Multi-company and courier:
+
+```text
+2026_06_22_000000_create_companies_table.php
+2026_06_22_001000_add_company_id_to_core_business_tables.php
+2026_06_22_002000_require_company_id_on_core_business_tables.php
+2026_06_22_003000_create_courier_tables_and_delivery_status.php
+2026_06_22_004000_add_provider_reference_to_courier_bookings.php
 ```
 
 ## 7. Local Setup
@@ -514,6 +653,9 @@ php artisan test --filter=SalesOrderTest
 php artisan test --filter=AccountsAndPaymentsTest
 php artisan test --filter=ReportsTest
 php artisan test --filter=PhaseSixPermissionsTest
+php artisan test --filter=MultiCompanyIsolationTest
+php artisan test --filter=CourierIntegrationTest
+php artisan test --filter=ReleaseNotesTest
 ```
 
 Manual admin smoke checks:
@@ -532,6 +674,12 @@ Manual admin smoke checks:
 12. Check dashboard metrics.
 13. Check purchase report and CSV export dynamic custom cost columns.
 14. Check user permissions and audit logs.
+15. Switch between assigned companies and confirm lists, reports, widgets, and invoice prefixes change correctly.
+16. Confirm staff cannot select or access an unassigned company.
+17. Create separate courier providers for two companies and confirm they never appear across company contexts.
+18. Create a Custom courier booking and update it to delivered/returned.
+19. Configure a Steadfast test provider and verify booking/status sync with safe non-production credentials.
+20. Select `All Companies` and confirm courier provider creation and booking actions are unavailable.
 
 ## 11. Known Notes and Cleanup
 
@@ -542,6 +690,11 @@ Manual admin smoke checks:
 - `storage:link` is needed for public uploads.
 - If deploying on Coolify, make sure migrations run after deployment.
 - Run rollback tests only on disposable databases before production rollback work.
+- Historical records initially belong to `Main Company`; production reassignment requires verified company mapping.
+- `All Companies` is intended for owner-level reporting. Company-specific write actions must require one selected company.
+- Pathao, RedX, and E-Courier currently appear as provider configuration choices only; their live API adapters are not implemented.
+- `courier_webhook_logs` exists for future webhook diagnostics, but no inbound webhook processing is active yet.
+- Courier provider API credentials use an encrypted model cast; never expose them in logs, exports, or documentation.
 
 ## 12. Quick File Map
 
@@ -551,6 +704,11 @@ Purchase model            app/Models/Purchase.php
 Order model               app/Models/Order.php
 Stock movement model      app/Models/StockMovement.php
 Report service            app/Services/ReportService.php
+Company model             app/Models/Company.php
+Company context           app/Services/CompanyContext.php
+Company scope             app/Scopes/CompanyScope.php
+Courier service           app/Services/CourierService.php
+Steadfast API client      app/Services/SteadfastCourierClient.php
 
 Purchase form             app/Filament/Resources/Purchases/Schemas/PurchaseForm.php
 Purchase infolist         app/Filament/Resources/Purchases/Schemas/PurchaseInfolist.php
@@ -560,6 +718,10 @@ Reports view              resources/views/filament/pages/reports.blade.php
 CSV exports               routes/web.php
 Dashboard widget          app/Filament/Widgets/BusinessOverview.php
 Admin panel provider      app/Providers/Filament/AdminPanelProvider.php
+Company switcher          resources/views/filament/partials/company-switcher.blade.php
+Courier providers         app/Filament/Resources/CourierProviders/
+Courier bookings          app/Filament/Resources/CourierBookings/
+Release notes             app/Filament/Pages/ReleaseNotes.php
 Seeder                    database/seeders/DatabaseSeeder.php
 ```
 
