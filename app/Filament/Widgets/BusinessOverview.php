@@ -21,6 +21,11 @@ class BusinessOverview extends StatsOverviewWidget
             Stat::make('Today Sales', $this->money($summary['sales_today']))
                 ->icon(Heroicon::OutlinedDocumentCurrencyBangladeshi)
                 ->color('success'),
+            Stat::make('Storefront Pending', $summary['storefront_pending_orders'])
+                ->icon(Heroicon::OutlinedShoppingBag)
+                ->description($this->money($summary['storefront_pending_amount']).' awaiting review')
+                ->descriptionIcon($summary['storefront_pending_orders'] > 0 ? Heroicon::OutlinedExclamationTriangle : Heroicon::OutlinedCheckCircle)
+                ->color($summary['storefront_pending_orders'] > 0 ? 'warning' : 'success'),
             Stat::make('Today Purchases', $this->money($summary['purchases_today']))
                 ->icon(Heroicon::OutlinedShoppingBag)
                 ->color('warning'),
@@ -57,6 +62,6 @@ class BusinessOverview extends StatsOverviewWidget
 
     protected function money(float|int|string $amount): string
     {
-        return 'BDT ' . number_format((float) $amount, 2);
+        return 'BDT '.number_format((float) $amount, 2);
     }
 }

@@ -4,14 +4,18 @@ namespace App\Filament\Resources\Orders\Tables;
 
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
+use App\Models\CustomerRiskProfile;
+use App\Models\CustomerRiskReview;
 use App\Models\Order;
 use App\Services\CompanyContext;
 use App\Services\CourierService;
+use App\Services\CustomerRiskService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -25,7 +29,7 @@ class OrdersTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('customer'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['customer', 'latestFraudCheck', 'latestRiskReview']))
             ->columns([
                 TextColumn::make('order_number')
                     ->label('Invoice Number')
@@ -41,6 +45,14 @@ class OrdersTable
                     ->label('Sale Date')
                     ->date()
                     ->sortable(),
+
+                TextColumn::make('source')
+                    ->label('Source')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => Order::SOURCES[$state ?? Order::SOURCE_ADMIN] ?? str($state)->headline()->toString())
+                    ->color(fn (?string $state): string => $state === Order::SOURCE_STOREFRONT ? 'warning' : 'gray')
+                    ->sortable()
+                    ->toggleable(),
 
                 TextColumn::make('total_amount')
                     ->label('Total Amount')
@@ -77,6 +89,27 @@ class OrdersTable
                     })
                     ->sortable(),
 
+                TextColumn::make('latestFraudCheck.risk_level')
+                    ->label('Risk')
+                    ->badge()
+                    ->placeholder('Not checked')
+                    ->formatStateUsing(fn (?string $state): string => CustomerRiskProfile::LEVELS[$state ?? ''] ?? 'Not checked')
+                    ->color(fn (?string $state): string => match ($state) {
+                        'low' => 'success', 'medium' => 'warning', 'high', 'blacklisted' => 'danger', default => 'gray',
+                    }),
+
+                TextColumn::make('latestRiskReview.status')
+                    ->label('Risk Review')
+                    ->badge()
+                    ->placeholder('Not required')
+                    ->formatStateUsing(fn (?string $state): string => CustomerRiskReview::STATUSES[$state ?? ''] ?? 'Not required')
+                    ->color(fn (?string $state): string => match ($state) {
+                        CustomerRiskReview::STATUS_APPROVED => 'success',
+                        CustomerRiskReview::STATUS_REJECTED => 'danger',
+                        CustomerRiskReview::STATUS_PENDING => 'warning',
+                        default => 'gray',
+                    }),
+
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -94,6 +127,9 @@ class OrdersTable
                 SelectFilter::make('delivery_status')
                     ->label('Delivery')
                     ->options(Order::DELIVERY_STATUSES),
+
+                SelectFilter::make('source')
+                    ->options(Order::SOURCES),
 
                 SelectFilter::make('customer_id')
                     ->label('Customer')
@@ -151,7 +187,7 @@ class OrdersTable
                         app(CourierService::class)->updateStatus($record->latestCourierBooking, CourierBooking::STATUS_RETURNED, 'Marked returned from order list.');
                     }),
                 Action::make('print')
-                    ->url(fn (Order $record): string => route('orders.print', $record))
+                    ->url(fn (Order $record): string => route('orders.print', ['order' => $record, 'print' => 1]))
                     ->openUrlInNewTab(),
             ])
             ->toolbarActions([
@@ -166,6 +202,13 @@ class OrdersTable
         $record->loadMissing('customer');
 
         $schema = [
+            Placeholder::make('risk_notice')
+                ->label('Customer Risk Check')
+                ->content(function () use ($record): string {
+                    $profile = app(CustomerRiskService::class)->evaluateCustomer($record->customer, $record);
+
+                    return "{$profile->risk_score}/100 — ".(CustomerRiskProfile::LEVELS[$profile->risk_level] ?? $profile->risk_level);
+                }),
             TextInput::make('tracking_id')
                 ->label('Tracking ID')
                 ->helperText('Leave blank to auto-generate a manual tracking ID.')

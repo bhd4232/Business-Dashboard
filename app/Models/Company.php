@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -15,30 +16,36 @@ class Company extends Model
             'slug' => 'garments-machinery',
             'business_type' => 'Garments Machinery',
             'invoice_prefix' => 'GM',
+            'domain' => 'tasneemknitindustry.com',
         ],
         [
             'name' => 'Solar Items Company',
             'slug' => 'solar-items',
             'business_type' => 'Solar Items',
             'invoice_prefix' => 'SOL',
+            'domain' => 'noorsolaren.com',
         ],
         [
             'name' => 'Gadget Items Company',
             'slug' => 'gadget-items',
             'business_type' => 'Gadget Items',
             'invoice_prefix' => 'GAD',
+            'domain' => 'zamzamgadgetbd.com',
         ],
         [
             'name' => 'Gift Items Company',
             'slug' => 'gift-items',
             'business_type' => 'Gift Items',
             'invoice_prefix' => 'GFT',
+            'domain' => 'zamzamint.com',
         ],
     ];
 
     protected $fillable = [
         'name',
         'slug',
+        'domain',
+        'domain_verified',
         'business_type',
         'logo',
         'phone',
@@ -53,6 +60,7 @@ class Company extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'domain_verified' => 'boolean',
         'settings' => 'array',
     ];
 
@@ -63,6 +71,7 @@ class Company extends Model
             $company->currency = $company->currency ?: 'BDT';
             $company->timezone = $company->timezone ?: config('app.timezone', 'Asia/Dhaka');
             $company->invoice_prefix = Str::upper($company->invoice_prefix ?: Str::substr(Str::slug($company->name, ''), 0, 3) ?: 'INV');
+            $company->domain = static::normalizeDomain($company->domain);
         });
     }
 
@@ -71,6 +80,26 @@ class Company extends Model
         return $this->belongsToMany(User::class)
             ->withPivot(['role', 'is_default'])
             ->withTimestamps();
+    }
+
+    public function storefrontSetting(): HasOne
+    {
+        return $this->hasOne(StorefrontSetting::class);
+    }
+
+    public static function normalizeDomain(?string $domain): ?string
+    {
+        $domain = strtolower(trim((string) $domain));
+
+        if ($domain === '') {
+            return null;
+        }
+
+        $domain = preg_replace('#^https?://#', '', $domain) ?: $domain;
+        $domain = strtok($domain, '/') ?: $domain;
+        $domain = preg_replace('/:\d+$/', '', $domain) ?: $domain;
+
+        return str_starts_with($domain, 'www.') ? substr($domain, 4) : $domain;
     }
 
     public static function defaultCompany(): ?self
@@ -105,7 +134,7 @@ class Company extends Model
         }
 
         foreach (self::CORE_COMPANIES as $company) {
-            static::query()->firstOrCreate(
+            $record = static::query()->firstOrCreate(
                 ['slug' => $company['slug']],
                 [
                     'name' => $company['name'],
@@ -113,10 +142,16 @@ class Company extends Model
                     'currency' => 'BDT',
                     'timezone' => config('app.timezone', 'Asia/Dhaka'),
                     'invoice_prefix' => $company['invoice_prefix'],
+                    'domain' => $company['domain'],
+                    'domain_verified' => false,
                     'is_active' => true,
                     'settings' => [],
                 ],
             );
+
+            if (blank($record->domain)) {
+                $record->forceFill(['domain' => $company['domain']])->save();
+            }
         }
     }
 }

@@ -28,11 +28,20 @@ class ReleaseNotes extends Page
 
     public function release(): array
     {
-        return AppRelease::current();
+        return AppRelease::latestPublished();
     }
 
     public function changelogEntries(): array
     {
-        return AppRelease::changelogEntries();
+        return AppRelease::userFacingChangelogEntries();
+    }
+
+    public function technicalChangelogEntries(): array
+    {
+        if (! (Auth::user()?->isSuperAdmin() ?? false)) {
+            return [];
+        }
+
+        return AppRelease::technicalChangelogEntries();
     }
 }

@@ -146,7 +146,15 @@
             border-radius: 6px;
             color: #ffffff;
             cursor: pointer;
+            min-width: 92px;
             padding: 10px 14px;
+        }
+
+        .print-actions {
+            align-items: flex-start;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
         }
 
         .footer {
@@ -170,6 +178,7 @@
                 padding: 0;
             }
 
+            .print-actions,
             .print-button {
                 display: none;
             }
@@ -191,6 +200,7 @@
                 display: block;
             }
 
+            .print-actions,
             .print-button,
             .box,
             .totals {
@@ -200,7 +210,15 @@
     </style>
 </head>
 <body>
-    @php($company = $company ?? ['name' => config('app.name', 'Business Dashboard'), 'currency' => 'BDT'])
+    @php
+        $company = $company ?? ['name' => config('app.name', 'Business Dashboard'), 'currency' => 'BDT'];
+        $currency = $company['currency'] ?? 'BDT';
+        $money = fn (float $amount): string => $currency.' '.number_format($amount, 2);
+        $discount = (float) $order->discount;
+        $vat = (float) $order->vat;
+        $paid = (float) $order->paid_amount;
+        $due = (float) $order->due_amount;
+    @endphp
     <main class="invoice">
         <div class="header">
             <div>
@@ -212,7 +230,9 @@
                 <p class="muted">Invoice No: <strong>{{ $order->order_number }}</strong></p>
                 <span class="status">{{ ucfirst($order->status) }}</span>
             </div>
-            <button class="print-button" onclick="window.print()">Print</button>
+            <div class="print-actions">
+                <button class="print-button" id="invoice-print-button" type="button">Print</button>
+            </div>
         </div>
 
         <div class="meta" style="margin-top: 32px;">
@@ -233,8 +253,10 @@
                 <h2>Sale Date</h2>
                 <p>{{ optional($order->order_date)->format($company['date_format'] ?? 'd M Y') }}</p>
                 <h2 style="margin-top: 16px;">Payment</h2>
-                <p class="muted">Paid: {{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->paid_amount, 2) }}</p>
-                <p class="muted">Due: {{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->due_amount, 2) }}</p>
+                @if ($paid > 0)
+                    <p class="muted">Paid: -{{ $money($paid) }}</p>
+                @endif
+                <p class="muted">Due: {{ $money($due) }}</p>
             </section>
         </div>
 
@@ -276,27 +298,33 @@
                 <table>
                     <tr>
                         <td>Subtotal</td>
-                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->subtotal, 2) }}</td>
+                        <td class="amount">{{ $money((float) $order->subtotal) }}</td>
                     </tr>
-                    <tr>
-                        <td>Discount</td>
-                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->discount, 2) }}</td>
-                    </tr>
-                    <tr>
-                        <td>VAT</td>
-                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->vat, 2) }}</td>
-                    </tr>
+                    @if ($discount > 0)
+                        <tr>
+                            <td>Discount</td>
+                            <td class="amount">{{ $money($discount) }}</td>
+                        </tr>
+                    @endif
+                    @if ($vat > 0)
+                        <tr>
+                            <td>VAT</td>
+                            <td class="amount">{{ $money($vat) }}</td>
+                        </tr>
+                    @endif
                     <tr>
                         <td>Total</td>
-                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->total_amount, 2) }}</td>
+                        <td class="amount">{{ $money((float) $order->total_amount) }}</td>
                     </tr>
-                    <tr>
-                        <td>Paid</td>
-                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->paid_amount, 2) }}</td>
-                    </tr>
+                    @if ($paid > 0)
+                        <tr>
+                            <td>Paid</td>
+                            <td class="amount">-{{ $money($paid) }}</td>
+                        </tr>
+                    @endif
                     <tr class="total-row">
                         <td>Due</td>
-                        <td class="amount">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->due_amount, 2) }}</td>
+                        <td class="amount">{{ $money($due) }}</td>
                     </tr>
                 </table>
             </div>
@@ -309,5 +337,24 @@
             Thank you for your business.
         </div>
     </main>
+    <script>
+        (function () {
+            const printButton = document.getElementById('invoice-print-button');
+            const openPrintDialog = function () {
+                window.focus();
+                setTimeout(function () {
+                    window.print();
+                }, 50);
+            };
+
+            if (printButton) {
+                printButton.addEventListener('click', openPrintDialog);
+            }
+
+            if (new URLSearchParams(window.location.search).get('print') === '1') {
+                window.addEventListener('load', openPrintDialog);
+            }
+        })();
+    </script>
 </body>
 </html>

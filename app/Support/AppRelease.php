@@ -6,6 +6,20 @@ use Illuminate\Support\Facades\File;
 
 class AppRelease
 {
+    protected const TECHNICAL_SECTION_TITLES = [
+        'database',
+        'databases',
+        'deployment',
+        'deployment notes',
+        'migration',
+        'migrations',
+        'operations',
+        'technical',
+        'technical notes',
+    ];
+
+    protected const TECHNICAL_ITEM_PATTERN = '/\b(artisan|backup|backups|cron|database|databases|db|maria(?:db)?|migrate|migrated|migration|migrations|mysql|queue|restore|restored|schema|schemas|seeder|seeders|sqlite|table|tables)\b/i';
+
     public const TYPE_LABELS = [
         'initial' => 'Initial Release',
         'major' => 'Major Version Update',
@@ -26,6 +40,24 @@ class AppRelease
             'type' => $type,
             'type_label' => self::typeLabel($type),
             'date' => self::date(),
+            'commit' => self::commit(),
+            'short_commit' => self::shortCommit(),
+        ];
+    }
+
+    public static function latestPublished(): array
+    {
+        $latest = self::changelogEntries()[0] ?? null;
+
+        if (! $latest) {
+            return self::current();
+        }
+
+        return [
+            'version' => $latest['version'],
+            'type' => strtolower(str_replace([' ', '-'], '_', $latest['release_type'])),
+            'type_label' => $latest['release_type'],
+            'date' => $latest['date'],
             'commit' => self::commit(),
             'short_commit' => self::shortCommit(),
         ];
@@ -115,6 +147,68 @@ class AppRelease
                 'sections' => $sections,
             ];
         }, $matches);
+    }
+
+    public static function userFacingChangelogEntries(): array
+    {
+        return self::filterEntriesForAudience(includeTechnicalNotes: false);
+    }
+
+    public static function technicalChangelogEntries(): array
+    {
+        return self::filterEntriesForAudience(includeTechnicalNotes: true, onlyTechnicalNotes: true);
+    }
+
+    protected static function filterEntriesForAudience(bool $includeTechnicalNotes, bool $onlyTechnicalNotes = false): array
+    {
+        return collect(self::changelogEntries())
+            ->map(function (array $entry) use ($includeTechnicalNotes, $onlyTechnicalNotes): array {
+                $entry['sections'] = collect($entry['sections'])
+                    ->map(function (array $section) use ($includeTechnicalNotes, $onlyTechnicalNotes): ?array {
+                        $technicalSection = self::isTechnicalSection($section['title']);
+
+                        if ($onlyTechnicalNotes && $technicalSection) {
+                            return $section;
+                        }
+
+                        if (! $includeTechnicalNotes && $technicalSection) {
+                            return null;
+                        }
+
+                        $section['items'] = collect($section['items'])
+                            ->filter(function (string $item) use ($includeTechnicalNotes, $onlyTechnicalNotes): bool {
+                                $technicalItem = self::isTechnicalItem($item);
+
+                                if ($onlyTechnicalNotes) {
+                                    return $technicalItem;
+                                }
+
+                                return $includeTechnicalNotes || ! $technicalItem;
+                            })
+                            ->values()
+                            ->all();
+
+                        return count($section['items']) > 0 ? $section : null;
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
+
+                return $entry;
+            })
+            ->filter(fn (array $entry): bool => count($entry['sections']) > 0)
+            ->values()
+            ->all();
+    }
+
+    protected static function isTechnicalSection(string $title): bool
+    {
+        return in_array(strtolower(trim($title)), self::TECHNICAL_SECTION_TITLES, true);
+    }
+
+    protected static function isTechnicalItem(string $item): bool
+    {
+        return preg_match(self::TECHNICAL_ITEM_PATTERN, $item) === 1;
     }
 
     protected static function parseChangelogBody(string $body): array

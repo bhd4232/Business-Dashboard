@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use PDO;
 use RuntimeException;
 use Symfony\Component\Process\Process;
 
@@ -28,7 +29,7 @@ class DatabaseBackupService
             str($connection)->slug(),
             $extension,
         );
-        $relativePath = self::DIRECTORY . '/' . $filename;
+        $relativePath = self::DIRECTORY.'/'.$filename;
         $absolutePath = Storage::disk('local')->path($relativePath);
 
         File::ensureDirectoryExists(dirname($absolutePath));
@@ -57,7 +58,7 @@ class DatabaseBackupService
     public function find(string $filename): ?array
     {
         $filename = basename($filename);
-        $path = self::DIRECTORY . '/' . $filename;
+        $path = self::DIRECTORY.'/'.$filename;
 
         if (! Storage::disk('local')->exists($path)) {
             return null;
@@ -71,6 +72,48 @@ class DatabaseBackupService
         collect($this->all())
             ->skip($keep)
             ->each(fn (array $file): bool => Storage::disk('local')->delete($file['relative_path']));
+    }
+
+    /**
+     * Restore a SQLite backup into a disposable file and verify its integrity.
+     * The configured/live database is never modified.
+     */
+    public function verifyRestore(string $filename): array
+    {
+        $backup = $this->find($filename);
+
+        if (! $backup || ! str_ends_with($backup['name'], '.sqlite')) {
+            throw new RuntimeException('A valid SQLite database backup is required for the restore drill.');
+        }
+
+        $temporaryPath = storage_path('framework/testing/restore-drill-'.str()->uuid().'.sqlite');
+        File::ensureDirectoryExists(dirname($temporaryPath));
+
+        try {
+            File::copy($backup['path'], $temporaryPath);
+            $pdo = new PDO('sqlite:'.$temporaryPath);
+            $integrity = $pdo->query('PRAGMA integrity_check')->fetchColumn();
+
+            if ($integrity !== 'ok') {
+                throw new RuntimeException('SQLite integrity check failed: '.(string) $integrity);
+            }
+
+            $tables = $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+                ->fetchAll(PDO::FETCH_COLUMN);
+
+            if (! in_array('migrations', $tables, true)) {
+                throw new RuntimeException('Restored database does not contain the migrations table.');
+            }
+
+            return [
+                'backup' => $backup['name'],
+                'integrity' => $integrity,
+                'table_count' => count($tables),
+            ];
+        } finally {
+            unset($pdo);
+            File::delete($temporaryPath);
+        }
     }
 
     protected function backupSqlite(array $config, string $absolutePath): void
@@ -88,9 +131,9 @@ class DatabaseBackupService
     {
         $command = [
             'mysqldump',
-            '--host=' . ($config['host'] ?? '127.0.0.1'),
-            '--port=' . ($config['port'] ?? 3306),
-            '--user=' . ($config['username'] ?? ''),
+            '--host='.($config['host'] ?? '127.0.0.1'),
+            '--port='.($config['port'] ?? 3306),
+            '--user='.($config['username'] ?? ''),
             '--single-transaction',
             '--quick',
             '--skip-lock-tables',
@@ -100,7 +143,7 @@ class DatabaseBackupService
         $password = $config['password'] ?? null;
 
         if (filled($password)) {
-            $command[] = '--password=' . $password;
+            $command[] = '--password='.$password;
         }
 
         $process = new Process($command);
@@ -137,9 +180,9 @@ class DatabaseBackupService
         }
 
         if ($bytes < 1024 * 1024) {
-            return number_format($bytes / 1024, 1) . ' KB';
+            return number_format($bytes / 1024, 1).' KB';
         }
 
-        return number_format($bytes / 1024 / 1024, 1) . ' MB';
+        return number_format($bytes / 1024 / 1024, 1).' MB';
     }
 }

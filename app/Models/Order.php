@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Services\CustomerRiskService;
 use App\Services\OrderWorkflowService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Order extends Model
 {
@@ -32,6 +34,15 @@ class Order extends Model
         CourierBooking::STATUS_FAILED => 'Failed',
     ];
 
+    public const SOURCE_ADMIN = 'admin';
+
+    public const SOURCE_STOREFRONT = 'storefront';
+
+    public const SOURCES = [
+        self::SOURCE_ADMIN => 'Admin',
+        self::SOURCE_STOREFRONT => 'Storefront',
+    ];
+
     protected $fillable = [
         'company_id',
         'order_number',
@@ -46,6 +57,7 @@ class Order extends Model
         'due_amount',
         'status',
         'delivery_status',
+        'source',
         'note',
     ];
 
@@ -66,6 +78,7 @@ class Order extends Model
             $order->order_date ??= now()->toDateString();
             $order->status ??= 'draft';
             $order->delivery_status ??= CourierBooking::STATUS_NOT_BOOKED;
+            $order->source ??= self::SOURCE_ADMIN;
             $order->customer_name = $order->customer?->name ?? $order->customer_name;
         });
 
@@ -76,6 +89,9 @@ class Order extends Model
         static::saved(function (Order $order): void {
             $order->syncTotalsStockAndCustomerBalance();
             app(OrderWorkflowService::class)->syncPreviousCustomerBalance($order);
+            if ($order->wasChanged('status') && in_array($order->status, ['confirmed', 'completed'], true) && Schema::hasTable('fraud_checks')) {
+                app(CustomerRiskService::class)->evaluateOrder($order);
+            }
         });
 
         static::deleted(function (Order $order): void {
@@ -102,6 +118,26 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function fraudChecks(): HasMany
+    {
+        return $this->hasMany(FraudCheck::class);
+    }
+
+    public function riskReviews(): HasMany
+    {
+        return $this->hasMany(CustomerRiskReview::class);
+    }
+
+    public function latestRiskReview()
+    {
+        return $this->hasOne(CustomerRiskReview::class)->latestOfMany();
+    }
+
+    public function latestFraudCheck()
+    {
+        return $this->hasOne(FraudCheck::class)->latestOfMany();
     }
 
     public function product(): BelongsTo

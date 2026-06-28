@@ -23,7 +23,8 @@ MAJOR.MINOR.PATCH
 Every production release must update:
 
 - `APP_VERSION`, `APP_RELEASE_TYPE`, and `APP_RELEASE_DATE` in production environment values.
-- `CHANGELOG.md` with what was added, changed, fixed, secured, or migrated.
+- `CHANGELOG.md` with user-facing app changes under normal sections such as `Added`, `Changed`, and `Fixed`.
+- Put database, migration, backup, queue, scheduler, and deployment-only notes under `Technical Notes`; the app hides those from the normal Release History and shows them only to Super Admin users.
 - GitHub commit message, tag, or release notes with the same version and summary.
 - Deployment notes when migrations, queues, cron, storage, or environment values change.
 

@@ -154,7 +154,60 @@ class CompanySettingsTest extends TestCase
             ->assertOk()
             ->assertSee('ZamZam Trading')
             ->assertSee('Dhaka, Bangladesh')
-            ->assertSee('USD 100.00');
+            ->assertSee('USD 100.00')
+            ->assertDontSee('Discount')
+            ->assertDontSee('VAT')
+            ->assertDontSee('Paid:')
+            ->assertDontSee('<td>Paid</td>', false)
+            ->assertSee('invoice-print-button')
+            ->assertSee('window.print()');
+    }
+
+    public function test_invoice_print_hides_zero_adjustments_and_shows_paid_as_negative_when_present(): void
+    {
+        app(CompanySettingsService::class)->save([
+            'name' => 'ZamZam Trading',
+            'currency' => 'USD',
+            'timezone' => 'Asia/Dhaka',
+            'date_format' => 'Y-m-d',
+        ]);
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $customer = Customer::query()->create(['name' => 'Invoice Customer']);
+        $product = Product::query()->create([
+            'name' => 'Invoice Product',
+            'sku' => 'INV-PAID-001',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 10,
+        ]);
+        $order = Order::query()->create([
+            'customer_id' => $customer->id,
+            'order_date' => '2026-06-14',
+            'status' => 'draft',
+            'discount' => 10,
+            'vat' => 5,
+            'paid_amount' => 20,
+        ]);
+        OrderItem::query()->create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 1,
+            'unit_price' => 100,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('orders.print', $order))
+            ->assertOk()
+            ->assertSee('Discount')
+            ->assertSee('VAT')
+            ->assertSee('Paid: -USD 20.00')
+            ->assertSee('<td>Paid</td>', false)
+            ->assertSee('<td class="amount">-USD 20.00</td>', false)
+            ->assertSee('USD 75.00');
     }
 
     public function test_company_settings_livewire_save_updates_profile(): void

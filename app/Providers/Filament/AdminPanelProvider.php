@@ -4,13 +4,14 @@ namespace App\Providers\Filament;
 
 use App\Filament\Widgets\BusinessOverview;
 use App\Filament\Widgets\CustomerDueNotifications;
+use App\Filament\Widgets\CustomerRiskAlerts;
+use App\Filament\Widgets\CustomerRiskOverview;
 use App\Filament\Widgets\LowStockProducts;
 use App\Filament\Widgets\SalesPurchaseTrend;
 use App\Filament\Widgets\TopBusinessPerformers;
 use App\Http\Middleware\SetCurrentCompany;
 use App\Services\CompanySettingsService;
 use App\Services\ProductSetupService;
-use App\Support\AppRelease;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -50,10 +51,12 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->navigationGroups([
                 NavigationGroup::make('Company Management'),
+                NavigationGroup::make('Storefront'),
                 NavigationGroup::make('Sales'),
                 NavigationGroup::make('Purchasing'),
                 NavigationGroup::make('Inventory'),
                 NavigationGroup::make('Courier'),
+                NavigationGroup::make('Customer Success'),
                 NavigationGroup::make('Accounts'),
                 NavigationGroup::make('Reports'),
                 NavigationGroup::make('Settings'),
@@ -99,51 +102,6 @@ class AdminPanelProvider extends PanelProvider
 
                         .fi-sidebar-item-btn:active .fi-sidebar-item-icon {
                             transform: scale(0.96);
-                        }
-
-                        .zz-release-footer {
-                            display: grid;
-                            gap: .2rem;
-                            margin: .75rem;
-                            padding: .65rem .75rem;
-                            color: rgb(55 65 81);
-                            background: rgb(248 250 252);
-                            border: 1px solid rgb(229 231 235);
-                            border-radius: .5rem;
-                            text-decoration: none;
-                        }
-
-                        .zz-release-footer:hover {
-                            color: rgb(17 24 39);
-                            border-color: rgb(245 158 11);
-                        }
-
-                        .zz-release-footer-version {
-                            color: rgb(17 24 39);
-                            font-size: .82rem;
-                            font-weight: 850;
-                            line-height: 1.1;
-                        }
-
-                        .zz-release-footer-type {
-                            color: rgb(100 116 139);
-                            font-size: .7rem;
-                            font-weight: 750;
-                            line-height: 1.2;
-                        }
-
-                        .dark .zz-release-footer {
-                            color: rgb(229 231 235);
-                            background: rgb(17 24 39);
-                            border-color: rgb(55 65 81);
-                        }
-
-                        .dark .zz-release-footer-version {
-                            color: rgb(248 250 252);
-                        }
-
-                        .dark .zz-release-footer-type {
-                            color: rgb(148 163 184);
                         }
 
                         .zz-company-switcher {
@@ -203,22 +161,6 @@ class AdminPanelProvider extends PanelProvider
                 fn (): HtmlString => new HtmlString(view('filament.partials.company-switcher')->render()),
             )
             ->renderHook(
-                PanelsRenderHook::SIDEBAR_FOOTER,
-                function (): HtmlString {
-                    $release = AppRelease::current();
-                    $version = e($release['version']);
-                    $type = e($release['type_label']);
-                    $url = e(url('/admin/release-notes'));
-
-                    return new HtmlString(<<<HTML
-                        <a href="{$url}" class="zz-release-footer">
-                            <span class="zz-release-footer-version">v{$version}</span>
-                            <span class="zz-release-footer-type">{$type}</span>
-                        </a>
-                    HTML);
-                },
-            )
-            ->renderHook(
                 PanelsRenderHook::CONTENT_BEFORE,
                 function (): HtmlString {
                     $setup = app(ProductSetupService::class);
@@ -245,10 +187,12 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 BusinessOverview::class,
+                CustomerRiskOverview::class,
                 SalesPurchaseTrend::class,
                 TopBusinessPerformers::class,
                 LowStockProducts::class,
                 CustomerDueNotifications::class,
+                CustomerRiskAlerts::class,
             ])
             ->middleware([
                 EncryptCookies::class,

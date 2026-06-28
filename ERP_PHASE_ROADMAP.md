@@ -315,7 +315,22 @@ Related planning documents:
 
 **Goal:** Automate repetitive business follow-up work.
 
-**Status:** In progress. Application-side backup, release safety, build, PDF, and migration tooling are complete; final hosting/domain and live restore drill remain operational decisions.
+**Status:** In progress.
+
+**Completed:**
+
+- Rule-based Customer Success and Risk Score profiles.
+- Delivered/returned/cancelled courier ratios.
+- Explainable per-order risk check snapshots.
+- Global and company-specific blacklist management.
+- Blacklist enforcement before courier booking.
+- Risk badges and booking-time score visibility.
+- Idempotent delivery risk events.
+- Dashboard Customer Success & Risk stats and high-risk/blacklisted alert table.
+- Manager approval workflow for high-risk courier booking.
+- Owner approval workflow for blacklisted courier booking.
+- Configurable risk rule thresholds and deduction weights.
+- Risk review and risk event admin visibility.
 
 **Ideas:**
 
@@ -327,6 +342,7 @@ Related planning documents:
 - Stock adjustment approval.
 - Purchase arrival reminder.
 - Supplier payable reminders.
+- Additional automation rules after storefront traffic starts.
 
 **Done Criteria:**
 

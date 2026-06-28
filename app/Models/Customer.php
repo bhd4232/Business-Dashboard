@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\ValidatesEmailAddress;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Customer extends Model
@@ -66,6 +67,11 @@ class Customer extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(CustomerPayment::class);
+    }
+
+    public function riskProfile(): HasOne
+    {
+        return $this->hasOne(CustomerRiskProfile::class)->latestOfMany();
     }
 
     public static function typeOptions(): array

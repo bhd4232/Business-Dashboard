@@ -24,6 +24,7 @@ class Product extends Model
     protected $fillable = [
         'company_id',
         'name',
+        'slug',
         'description',
         'sku',
         'barcode',
@@ -48,6 +49,19 @@ class Product extends Model
         'vat_rate' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Product $product): void {
+            if (filled($product->slug)) {
+                $product->slug = Str::slug($product->slug);
+
+                return;
+            }
+
+            $product->slug = static::uniqueSlug($product);
+        });
+    }
 
     public function category()
     {
@@ -108,6 +122,24 @@ class Product extends Model
         }
 
         return $sku;
+    }
+
+    protected static function uniqueSlug(Product $product): string
+    {
+        $base = Str::slug($product->name) ?: Str::slug($product->sku) ?: 'product';
+        $slug = $base;
+        $suffix = 2;
+
+        while (static::query()
+            ->when($product->company_id, fn ($query) => $query->where('company_id', $product->company_id))
+            ->where('slug', $slug)
+            ->when($product->exists, fn ($query) => $query->whereKeyNot($product->getKey()))
+            ->exists()) {
+            $slug = "{$base}-{$suffix}";
+            $suffix++;
+        }
+
+        return $slug;
     }
 
     public function setStockFromProductForm(int $targetStock): void

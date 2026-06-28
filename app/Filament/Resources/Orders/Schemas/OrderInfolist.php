@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Models\CourierBooking;
+use App\Models\CustomerRiskProfile;
+use App\Models\CustomerRiskReview;
 use App\Models\Order;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -20,6 +22,9 @@ class OrderInfolist
                         TextEntry::make('order_number')->label('Invoice Number'),
                         TextEntry::make('customer.name')->label('Customer'),
                         TextEntry::make('order_date')->date(),
+                        TextEntry::make('source')
+                            ->badge()
+                            ->formatStateUsing(fn (?string $state): string => Order::SOURCES[$state ?? Order::SOURCE_ADMIN] ?? str($state)->headline()->toString()),
                         TextEntry::make('status')->badge(),
                         TextEntry::make('delivery_status')
                             ->label('Delivery')
@@ -46,6 +51,20 @@ class OrderInfolist
                             ->placeholder('BDT 0.00'),
                     ])
                     ->columns(4),
+
+                Section::make('Customer Success & Risk Score')
+                    ->schema([
+                        TextEntry::make('latestFraudCheck.risk_score')->label('Score')->placeholder('Not checked'),
+                        TextEntry::make('latestFraudCheck.risk_level')->label('Risk Level')->badge()->placeholder('Not checked')
+                            ->formatStateUsing(fn (?string $state): string => CustomerRiskProfile::LEVELS[$state ?? ''] ?? 'Not checked'),
+                        TextEntry::make('latestFraudCheck.created_at')->label('Checked At')->dateTime()->placeholder('Never'),
+                        TextEntry::make('latestRiskReview.status')->label('Review Status')->badge()->placeholder('Not required')
+                            ->formatStateUsing(fn (?string $state): string => CustomerRiskReview::STATUSES[$state ?? ''] ?? 'Not required'),
+                        TextEntry::make('latestRiskReview.approval_type')->label('Approval Type')->badge()->placeholder('Not required')
+                            ->formatStateUsing(fn (?string $state): string => CustomerRiskReview::TYPES[$state ?? ''] ?? 'Not required'),
+                        TextEntry::make('latestRiskReview.review_note')->label('Review Note')->placeholder('-'),
+                    ])
+                    ->columns(3),
 
                 Section::make('Totals')
                     ->schema([

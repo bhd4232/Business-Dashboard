@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\CourierBooking;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -153,5 +155,27 @@ class SalesOrderTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $order->update(['status' => 'confirmed']);
+    }
+
+    public function test_order_edit_form_exposes_delivery_status_for_storefront_tracking(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $customer = Customer::query()->create(['name' => 'Tracking Admin Customer']);
+        $order = Order::query()->create([
+            'customer_id' => $customer->id,
+            'status' => 'draft',
+            'delivery_status' => CourierBooking::STATUS_BOOKED,
+        ]);
+
+        $this->actingAs($user)
+            ->get("/admin/orders/{$order->getKey()}/edit")
+            ->assertOk()
+            ->assertSee('Order Status')
+            ->assertSee('Delivery Status')
+            ->assertSee('Booked')
+            ->assertSee('In Transit');
     }
 }

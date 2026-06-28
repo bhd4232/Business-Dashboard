@@ -40,6 +40,28 @@ class BackupSystemTest extends TestCase
         $this->assertSame('sqlite backup contents', File::get($backup['path']));
     }
 
+    public function test_sqlite_backup_can_be_restored_and_verified_in_disposable_database(): void
+    {
+        Storage::fake('local');
+        $databasePath = storage_path('framework/testing/restore-source.sqlite');
+        File::ensureDirectoryExists(dirname($databasePath));
+        File::delete($databasePath);
+        $pdo = new \PDO('sqlite:'.$databasePath);
+        $pdo->exec('CREATE TABLE migrations (id INTEGER PRIMARY KEY, migration TEXT, batch INTEGER)');
+        unset($pdo);
+        Config::set('database.connections.backup_test', [
+            'driver' => 'sqlite',
+            'database' => $databasePath,
+        ]);
+
+        $backup = app(DatabaseBackupService::class)->create('backup_test');
+
+        $result = app(DatabaseBackupService::class)->verifyRestore($backup['name']);
+
+        $this->assertSame('ok', $result['integrity']);
+        $this->assertGreaterThan(0, $result['table_count']);
+    }
+
     public function test_database_backup_cleanup_keeps_latest_ten_files(): void
     {
         Storage::fake('local');
