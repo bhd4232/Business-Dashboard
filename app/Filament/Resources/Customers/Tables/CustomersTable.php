@@ -3,14 +3,15 @@
 namespace App\Filament\Resources\Customers\Tables;
 
 use App\Models\Customer;
+use App\Models\CustomerRiskProfile;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -49,6 +50,20 @@ class CustomersTable
 
                 TextColumn::make('current_balance')
                     ->money('BDT')
+                    ->sortable(),
+
+                TextColumn::make('riskProfile.risk_level')
+                    ->label('Risk')
+                    ->badge()
+                    ->placeholder('Not checked')
+                    ->formatStateUsing(fn (?string $state): string => CustomerRiskProfile::LEVELS[$state ?? ''] ?? 'Not checked')
+                    ->color(fn (?string $state): string => match ($state) {
+                        'low' => 'success', 'medium' => 'warning', 'high', 'blacklisted' => 'danger', default => 'gray',
+                    }),
+
+                TextColumn::make('riskProfile.risk_score')
+                    ->label('Score')
+                    ->placeholder('-')
                     ->sortable(),
 
                 IconColumn::make('is_active')

@@ -58,6 +58,14 @@ class CompanyResource extends Resource
                         ->maxLength(255),
                     TextInput::make('business_type')
                         ->maxLength(255),
+                    TextInput::make('domain')
+                        ->label('Storefront Domain')
+                        ->unique(ignoreRecord: true)
+                        ->maxLength(255)
+                        ->helperText('Example: zamzamgadgetbd.com. Do not include https:// or paths.'),
+                    Toggle::make('domain_verified')
+                        ->label('Domain verified')
+                        ->default(false),
                     TextInput::make('invoice_prefix')
                         ->required()
                         ->maxLength(20),
@@ -127,6 +135,16 @@ class CompanyResource extends Resource
                 TextColumn::make('business_type')
                     ->searchable()
                     ->toggleable(),
+                TextColumn::make('domain')
+                    ->label('Storefront Domain')
+                    ->searchable()
+                    ->placeholder('-')
+                    ->toggleable(),
+                IconColumn::make('domain_verified')
+                    ->label('Domain Verified')
+                    ->boolean()
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('invoice_prefix')
                     ->badge()
                     ->searchable(),
@@ -157,6 +175,12 @@ class CompanyResource extends Resource
                 ->disk('public'),
             TextEntry::make('name'),
             TextEntry::make('slug'),
+            TextEntry::make('domain')
+                ->label('Storefront Domain')
+                ->placeholder('-'),
+            IconEntry::make('domain_verified')
+                ->label('Domain Verified')
+                ->boolean(),
             TextEntry::make('business_type'),
             TextEntry::make('invoice_prefix')
                 ->badge(),

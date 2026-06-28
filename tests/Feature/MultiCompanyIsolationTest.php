@@ -14,8 +14,12 @@ use App\Models\CourierStatusLog;
 use App\Models\CourierWebhookLog;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
+use App\Models\CustomerRiskEvent;
+use App\Models\CustomerRiskProfile;
+use App\Models\CustomerRiskReview;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\FraudCheck;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -23,6 +27,8 @@ use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Shipment;
 use App\Models\StockMovement;
+use App\Models\StorefrontPage;
+use App\Models\StorefrontSetting;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\TransactionLedger;
@@ -43,9 +49,10 @@ class MultiCompanyIsolationTest extends TestCase
             Account::class, AuditLog::class, Category::class, CourierBooking::class,
             CourierProvider::class, CourierStatusLog::class, CourierWebhookLog::class,
             Customer::class, CustomerPayment::class, Expense::class, ExpenseCategory::class,
+            CustomerRiskProfile::class, CustomerRiskEvent::class, CustomerRiskReview::class, FraudCheck::class,
             Order::class, OrderItem::class, Product::class, Purchase::class, PurchaseItem::class,
             StockMovement::class, Supplier::class, SupplierPayment::class, TransactionLedger::class,
-            Container::class, Shipment::class,
+            Container::class, Shipment::class, StorefrontPage::class, StorefrontSetting::class,
         ];
 
         foreach ($models as $modelClass) {

@@ -41,6 +41,7 @@ class CourierService
     public function createManualBooking(Order $order, array $data = []): CourierBooking
     {
         $order->loadMissing('customer', 'company');
+        app(CustomerRiskService::class)->assertNotBlacklisted($order);
 
         if (! $order->company_id) {
             throw ValidationException::withMessages([
@@ -91,6 +92,7 @@ class CourierService
     public function createSteadfastBooking(Order $order, CourierProvider $provider, array $data = []): CourierBooking
     {
         $order->loadMissing(['customer', 'items.product', 'company']);
+        app(CustomerRiskService::class)->assertNotBlacklisted($order);
 
         if ($provider->driver !== CourierProvider::DRIVER_STEADFAST) {
             throw ValidationException::withMessages([
@@ -182,6 +184,9 @@ class CourierService
 
         $this->logStatus($booking, $fromStatus, $status, $note);
         $booking->order?->forceFill(['delivery_status' => $status])->saveQuietly();
+        if ($booking->order) {
+            app(CustomerRiskService::class)->recordDeliveryEvent($booking->order, $status);
+        }
 
         return $booking->refresh();
     }

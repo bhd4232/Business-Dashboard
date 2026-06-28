@@ -30,6 +30,7 @@ class DemoDataSeederTest extends TestCase
         $this->seed(DemoDataSeeder::class);
 
         $this->assertDatabaseHas('products', ['sku' => 'DEMO-ROUTER-001']);
+        $this->assertDatabaseHas('storefront_settings', ['is_published' => true]);
         $this->assertDatabaseHas('companies', ['slug' => 'main-company']);
         $this->assertDatabaseHas('companies', ['slug' => 'garments-machinery']);
         $this->assertDatabaseHas('companies', ['slug' => 'solar-items']);
@@ -102,6 +103,14 @@ class DemoDataSeederTest extends TestCase
             Config::set('database.connections.demo.database', $demoPath);
             DB::purge('demo');
 
+            $demoSchema = DB::connection('demo')->getSchemaBuilder();
+
+            $this->assertTrue($demoSchema->hasTable('customer_risk_profiles'));
+            $this->assertTrue($demoSchema->hasTable('customer_blacklists'));
+            $this->assertTrue($demoSchema->hasTable('fraud_checks'));
+            $this->assertTrue($demoSchema->hasTable('customer_risk_events'));
+            $this->assertTrue($demoSchema->hasTable('customer_risk_reviews'));
+            $this->assertTrue($demoSchema->hasTable('storefront_settings'));
             $this->assertSame(1, User::on('demo')->where('email', 'demo@example.com')->count());
             $this->assertSame(1, Company::on('demo')->where('slug', 'main-company')->count());
             $this->assertSame(1, Company::on('demo')->where('slug', 'garments-machinery')->count());

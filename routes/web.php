@@ -10,6 +10,16 @@ use App\Http\Controllers\Admin\ReportPdfController;
 use App\Http\Controllers\Admin\SupplierCsvController;
 use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\Storefront\AccountOrdersController as StorefrontAccountOrdersController;
+use App\Http\Controllers\Storefront\CartController as StorefrontCartController;
+use App\Http\Controllers\Storefront\CheckoutController as StorefrontCheckoutController;
+use App\Http\Controllers\Storefront\HomeController as StorefrontHomeController;
+use App\Http\Controllers\Storefront\OrderTrackController as StorefrontOrderTrackController;
+use App\Http\Controllers\Storefront\PageController as StorefrontPageController;
+use App\Http\Controllers\Storefront\PreviewController as StorefrontPreviewController;
+use App\Http\Controllers\Storefront\ProductIndexController as StorefrontProductIndexController;
+use App\Http\Controllers\Storefront\ProductShowController as StorefrontProductShowController;
+use App\Http\Middleware\ResolveCompanyFromDomain;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\CompanySettingsService;
@@ -17,9 +27,105 @@ use App\Support\AppRelease;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('marketing.home');
-})->name('marketing.home');
+Route::middleware(ResolveCompanyFromDomain::class.':optional')
+    ->get('/', StorefrontHomeController::class)
+    ->name('marketing.home');
+
+Route::middleware(ResolveCompanyFromDomain::class.':optional')
+    ->get('/pages/{slug}', [StorefrontPageController::class, 'show'])
+    ->name('storefront.pages.show');
+
+Route::get('/storefront', [StorefrontPreviewController::class, 'home'])
+    ->name('storefront.preview.index');
+
+Route::prefix('/storefront/{company:slug}')->group(function (): void {
+    Route::get('/', [StorefrontPreviewController::class, 'home'])
+        ->name('storefront.preview.show');
+
+    Route::get('/products', [StorefrontPreviewController::class, 'products'])
+        ->name('storefront.preview.products.index');
+
+    Route::get('/category/{slug}', [StorefrontPreviewController::class, 'products'])
+        ->name('storefront.preview.categories.show');
+
+    Route::get('/product/{slug}', [StorefrontPreviewController::class, 'product'])
+        ->name('storefront.preview.products.show');
+
+    Route::get('/cart', [StorefrontCartController::class, 'showPreview'])
+        ->name('storefront.preview.cart.show');
+
+    Route::post('/cart/items/{slug}', [StorefrontCartController::class, 'addPreview'])
+        ->name('storefront.preview.cart.add');
+
+    Route::patch('/cart/items/{slug}', [StorefrontCartController::class, 'updatePreview'])
+        ->name('storefront.preview.cart.update');
+
+    Route::delete('/cart/items/{slug}', [StorefrontCartController::class, 'removePreview'])
+        ->name('storefront.preview.cart.remove');
+
+    Route::get('/checkout', [StorefrontCheckoutController::class, 'showPreview'])
+        ->name('storefront.preview.checkout.show');
+
+    Route::post('/checkout', [StorefrontCheckoutController::class, 'storePreview'])
+        ->name('storefront.preview.checkout.store');
+
+    Route::get('/checkout/success/{order}', [StorefrontCheckoutController::class, 'successPreview'])
+        ->name('storefront.preview.checkout.success');
+
+    Route::get('/track', [StorefrontOrderTrackController::class, 'indexPreview'])
+        ->name('storefront.preview.track.index');
+
+    Route::get('/track/{orderNo}', [StorefrontOrderTrackController::class, 'showPreview'])
+        ->name('storefront.preview.track.show');
+
+    Route::get('/account/orders', [StorefrontAccountOrdersController::class, 'indexPreview'])
+        ->name('storefront.preview.account.orders');
+
+    Route::get('/pages/{slug}', [StorefrontPageController::class, 'showPreview'])
+        ->name('storefront.preview.pages.show');
+});
+
+Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
+    Route::get('/products', StorefrontProductIndexController::class)
+        ->name('storefront.products.index');
+
+    Route::get('/category/{slug}', StorefrontProductIndexController::class)
+        ->name('storefront.categories.show');
+
+    Route::get('/product/{slug}', StorefrontProductShowController::class)
+        ->name('storefront.products.show');
+
+    Route::get('/cart', [StorefrontCartController::class, 'show'])
+        ->name('storefront.cart.show');
+
+    Route::post('/cart/items/{slug}', [StorefrontCartController::class, 'add'])
+        ->name('storefront.cart.add');
+
+    Route::patch('/cart/items/{slug}', [StorefrontCartController::class, 'update'])
+        ->name('storefront.cart.update');
+
+    Route::delete('/cart/items/{slug}', [StorefrontCartController::class, 'remove'])
+        ->name('storefront.cart.remove');
+
+    Route::get('/checkout', [StorefrontCheckoutController::class, 'show'])
+        ->name('storefront.checkout.show');
+
+    Route::post('/checkout', [StorefrontCheckoutController::class, 'store'])
+        ->name('storefront.checkout.store');
+
+    Route::get('/checkout/success/{order}', [StorefrontCheckoutController::class, 'success'])
+        ->name('storefront.checkout.success');
+
+    Route::get('/track', [StorefrontOrderTrackController::class, 'index'])
+        ->name('storefront.track.index');
+
+    Route::get('/track/{orderNo}', [StorefrontOrderTrackController::class, 'show'])
+        ->name('storefront.track.show');
+
+    Route::get('/account/orders', [StorefrontAccountOrdersController::class, 'index'])
+        ->name('storefront.account.orders');
+
+});
 
 Route::view('/pricing', 'marketing.pricing')->name('marketing.pricing');
 

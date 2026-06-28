@@ -5,10 +5,13 @@ namespace App\Filament\Resources\Orders\Pages;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
+use App\Models\CustomerRiskProfile;
 use App\Services\CompanyContext;
 use App\Services\CourierService;
+use App\Services\CustomerRiskService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -73,7 +76,7 @@ class ViewOrder extends ViewRecord
                     $this->record->refresh();
                 }),
             Action::make('print')
-                ->url(fn () => route('orders.print', $this->record))
+                ->url(fn () => route('orders.print', ['order' => $this->record, 'print' => 1]))
                 ->openUrlInNewTab(),
             EditAction::make(),
         ];
@@ -84,6 +87,13 @@ class ViewOrder extends ViewRecord
         $this->record->loadMissing('customer');
 
         $schema = [
+            Placeholder::make('risk_notice')
+                ->label('Customer Risk Check')
+                ->content(function (): string {
+                    $profile = app(CustomerRiskService::class)->evaluateCustomer($this->record->customer, $this->record);
+
+                    return "{$profile->risk_score}/100 — ".(CustomerRiskProfile::LEVELS[$profile->risk_level] ?? $profile->risk_level);
+                }),
             TextInput::make('tracking_id')
                 ->label('Tracking ID')
                 ->helperText('Leave blank to auto-generate a manual tracking ID.')

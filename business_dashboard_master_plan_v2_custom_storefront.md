@@ -636,6 +636,15 @@ Order Confirmed → Fraud/Risk Check
 
 Order Create/View, Order Table, Customer View, Courier Booking Modal, Dashboard Alert Widget — সবখানে risk badge দেখানো।
 
+## 3.8 Future Enhancement Notes
+
+> **বর্তমান স্ট্যাটাস:** Part 3-এর required MVP/operational কাজ সম্পন্ন ধরা যাবে। নিচের আইটেমগুলো Part 4 শুরু করার blocker নয়; এগুলো real storefront/courier data জমার পরে future optimization হিসেবে বিবেচনা করা যাবে।
+
+- Risk rules আরও business-specific করা, যেমন district-wise return tendency বা courier-area ভিত্তিক risk adjustment।
+- Customer phone normalization আরও advanced করা, যাতে একই নম্বরের local/international/ভিন্ন formatting cross-company intelligence-এ আরও নির্ভুলভাবে ধরা যায়।
+- Storefront live order আসার পর real data দেখে risk threshold ও deduction weight tune করা।
+- ভবিষ্যতে rule-based scoring যথেষ্ট না হলে AI/ML-based prediction বিবেচনা করা, কিন্তু বর্তমান পর্যায়ে এটা দরকার নেই।
+
 ---
 
 # Part 4: Custom Lightweight Storefront — সম্পূর্ণ ERP থেকে ম্যানেজড

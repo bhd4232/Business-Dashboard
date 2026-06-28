@@ -12,6 +12,7 @@ use App\Models\Account;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Customer;
+use App\Models\CustomerBlacklist;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
@@ -21,6 +22,8 @@ use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\StockMovement;
+use App\Models\StorefrontPage;
+use App\Models\StorefrontSetting;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\TransactionLedger;
@@ -64,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
             Company::class,
             Customer::class,
             CustomerPayment::class,
+            CustomerBlacklist::class,
             Expense::class,
             ExpenseCategory::class,
             Order::class,
@@ -72,6 +76,8 @@ class AppServiceProvider extends ServiceProvider
             Purchase::class,
             PurchaseItem::class,
             StockMovement::class,
+            StorefrontPage::class,
+            StorefrontSetting::class,
             Supplier::class,
             SupplierPayment::class,
             TransactionLedger::class,

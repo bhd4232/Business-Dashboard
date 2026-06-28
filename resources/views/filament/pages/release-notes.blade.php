@@ -243,6 +243,29 @@
 
         @if (auth()->user()?->isSuperAdmin())
             <section class="zz-release-card zz-release-rule">
+                <h2>Super Admin Database & Deployment Notes</h2>
+
+                @foreach ($this->technicalChangelogEntries() as $entry)
+                    <div style="margin-bottom: 14px;">
+                        <h3 style="margin: 0 0 7px; color: var(--zz-title); font-size: 15px; font-weight: 900;">
+                            v{{ $entry['version'] }} — {{ $entry['date'] }}
+                        </h3>
+
+                        @foreach ($entry['sections'] as $section)
+                            <div style="margin-bottom: 9px;">
+                                <h4 style="margin: 0 0 6px; color: var(--zz-title); font-size: 12px; font-weight: 900; text-transform: uppercase;">
+                                    {{ $section['title'] }}
+                                </h4>
+                                <ul>
+                                    @foreach ($section['items'] as $item)
+                                        <li>{{ $item }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endforeach
+                    </div>
+                @endforeach
+
                 <h2>Production Update Rules</h2>
                 <ul>
                     <li>Create a database backup before every live update.</li>

@@ -38,12 +38,15 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.0.0')
-            ->assertSee('Major Version Update')
+            ->assertSee('v1.2.0')
+            ->assertSee('Minor Version Update')
+            ->assertSee('Released 2026-06-24')
+            ->assertSee('Super Admin Database & Deployment Notes', false)
+            ->assertSee('Added disposable SQLite backup restore verification')
             ->assertSee('Production Update Rules');
     }
 
-    public function test_production_update_rules_are_hidden_from_non_super_admin_users(): void
+    public function test_database_related_release_notes_are_hidden_from_non_super_admin_users(): void
     {
         $user = User::factory()->create([
             'role' => 'manager',
@@ -54,7 +57,11 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.0.0')
+            ->assertSee('v1.2.0')
+            ->assertSee('Added Customer and Order risk badges')
+            ->assertDontSee('Added disposable SQLite backup restore verification')
+            ->assertDontSee('Technical Notes')
+            ->assertDontSee('Super Admin Database')
             ->assertDontSee('Production Update Rules')
             ->assertDontSee('Never run');
     }

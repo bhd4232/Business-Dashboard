@@ -91,11 +91,19 @@ class OrderForm
                             ->required(),
 
                         Select::make('status')
+                            ->label('Order Status')
                             ->options(Order::STATUSES)
                             ->default('draft')
                             ->required()
                             ->live()
-                            ->helperText('Stock is decreased when the invoice is Confirmed or Completed. Draft and Cancelled invoices do not affect stock.'),
+                            ->helperText('Controls invoice, stock, accounts, and sales reporting.'),
+
+                        Select::make('delivery_status')
+                            ->label('Delivery Status')
+                            ->options(Order::DELIVERY_STATUSES)
+                            ->default('not_booked')
+                            ->required()
+                            ->helperText('Controls courier progress shown on storefront tracking.'),
                     ])
                     ->columns(2)
                     ->collapsible()

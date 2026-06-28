@@ -15,6 +15,7 @@ use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\StockMovement;
+use App\Models\StorefrontSetting;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\User;
@@ -30,6 +31,19 @@ class DemoDataSeeder extends Seeder
         $company = Company::defaultCompany();
         Company::seedCoreCompanies();
         app(CompanyContext::class)->set($company);
+
+        if ($company) {
+            StorefrontSetting::query()->updateOrCreate(
+                ['company_id' => $company->getKey()],
+                [
+                    'theme_color' => '#F59E0B',
+                    'whatsapp_number' => '+8801700000000',
+                    'meta_title' => 'ZamZam Demo Store',
+                    'meta_description' => 'Demo storefront powered by ZamZam ERP products and inventory.',
+                    'is_published' => true,
+                ],
+            );
+        }
 
         $demoUser = User::query()->updateOrCreate(
             ['email' => 'demo@example.com'],

@@ -68,6 +68,7 @@ Production migration note:
 - Use `php artisan companies:migrate-data {company-slug} {mapping.json} --dry-run` to validate an explicit mapping. A real run creates a database backup automatically; `--no-backup` is rejected in production.
 - `docs/company-data-migration.example.json` documents the accepted aggregate mapping keys. Child purchase/order/stock/payment records move transactionally with their selected parent.
 - The isolation contract test covers every current company-owned model, including courier, shipment, and container records.
+- Current business decision: no bulk legacy reassignment is planned because almost all records will be entered fresh under the correct company. Any small number of historical exceptions should be reviewed and moved manually; do not run the bulk migration command without a new explicit decision.
 
 ### Courier and Delivery Integration
 
@@ -129,6 +130,40 @@ app/Filament/Resources/CourierWebhookLogs/
 tests/Feature/CourierIntegrationTest.php
 ```
 
+### Customer Success and Risk Score
+
+- The module uses explainable rules rather than machine learning. Every deduction is stored as a named factor.
+- Company-level profiles track courier totals plus delivered, returned, and cancelled ratios by customer phone.
+- Scores map to Low (`80-100`), Medium (`50-79`), and High (`0-49`) risk; an active global/company blacklist produces the separate Blacklisted level.
+- Checks run when an Order becomes confirmed/completed and again immediately before courier booking.
+- Global or company blacklist matches block courier booking pending owner review.
+- Terminal courier status changes create idempotent customer risk events and refresh the profile.
+- Risk badges appear in Customer and Order lists/details; booking forms show the current score before submission.
+- Super Admin manages global/company blacklist entries under the `Customer Success` navigation group.
+- High-risk orders create manager approval requests before courier booking can continue.
+- Blacklisted matches create owner approval requests before courier booking can continue.
+- Risk review, risk event, and rule settings screens live under the `Customer Success` navigation group.
+- The dashboard shows Customer Success & Risk stats plus an alert table for high-risk and blacklisted profiles.
+- Super Admin can tune risk thresholds and deduction weights without changing code.
+
+Important files:
+
+```text
+app/Services/CustomerRiskService.php
+app/Services/CustomerRiskSettingsService.php
+app/Models/CustomerRiskProfile.php
+app/Models/CustomerRiskEvent.php
+app/Models/CustomerBlacklist.php
+app/Models/CustomerRiskReview.php
+app/Models/FraudCheck.php
+app/Filament/Resources/CustomerRiskProfiles/
+app/Filament/Resources/CustomerBlacklists/
+app/Filament/Resources/CustomerRiskReviews/
+app/Filament/Resources/CustomerRiskEvents/
+app/Filament/Pages/CustomerRiskSettings.php
+tests/Feature/CustomerRiskTest.php
+```
+
 ### Shipment and Container Tracking
 
 - Company-scoped containers track container number, shipping line, route, lifecycle status, and estimated/actual departure and arrival dates.
@@ -157,6 +192,118 @@ CHANGELOG.md
 docs/release-policy.md
 docs/update-safety.md
 tests/Feature/ReleaseNotesTest.php
+```
+
+### Storefront Foundation
+
+The project includes a native Laravel Blade storefront foundation. Do not install Lunar or create a duplicate ecommerce model layer. Storefront work must reuse the existing ERP `Company`, `Product`, `Category`, `Customer`, `Order`, stock, risk, and courier flows.
+
+Current behavior:
+
+- Public storefront routing is custom-domain aware through `ResolveCompanyFromDomain`.
+- Company domains live on `companies.domain`; verification state lives on `companies.domain_verified`.
+- Storefront publishing and brand settings live in `storefront_settings`.
+- The Filament admin resource is `Storefront Settings` under the `Storefront` navigation group.
+- Storefront content pages live in `storefront_pages`.
+- The Filament admin resource is `Storefront Pages` under the `Storefront` navigation group for About, Return Policy, Privacy Policy, Terms, and similar public pages.
+- Storefront Settings list/edit pages include `Manage Pages` shortcuts so policy/content pages can be opened directly from settings.
+- Product storefront URLs use company-scoped product slugs.
+- Orders have a `source` value so future checkout orders can be identified as `storefront`.
+- Production storefront URLs are domain based, for example `/products`, `/category/{slug}`, and `/product/{slug}` on the mapped company domain.
+- Local development preview URLs are available without editing the hosts file:
+  - `/storefront`
+  - `/storefront/{company-slug}`
+  - `/storefront/{company-slug}/products`
+  - `/storefront/{company-slug}/category/{slug}`
+  - `/storefront/{company-slug}/product/{slug}`
+  - `/storefront/{company-slug}/cart`
+- The demo seeder creates a published Main Company storefront setting so `/storefront` shows products immediately after `php artisan demo:refresh`.
+- Storefront cart is session based and company scoped. Cart keys are isolated by company ID, so items added on one storefront domain/company do not appear in another company cart.
+- Cart supports add, update quantity, remove item, stock capping, empty-cart state, and subtotal summary.
+- Cart routes on production custom domains:
+  - `GET /cart`
+  - `POST /cart/items/{product-slug}`
+  - `PATCH /cart/items/{product-slug}`
+  - `DELETE /cart/items/{product-slug}`
+- Cart routes on local preview:
+  - `GET /storefront/{company-slug}/cart`
+  - `POST /storefront/{company-slug}/cart/items/{product-slug}`
+  - `PATCH /storefront/{company-slug}/cart/items/{product-slug}`
+  - `DELETE /storefront/{company-slug}/cart/items/{product-slug}`
+- Checkout is now implemented for storefront carts. Customers submit name, phone, optional email, delivery address, and note.
+- Checkout reuses or updates an existing company-scoped Customer by phone; new storefront customers use `customer_source = website`.
+- Checkout creates existing ERP `Order` and `OrderItem` records with `source = storefront`.
+- Storefront orders are created as `draft` by design. Stock is not deducted until an admin reviews and confirms/completes the order through the ERP order workflow.
+- Draft storefront orders do not increase `Today Sales`; the dashboard shows them separately as `Storefront Pending` with pending order count and amount.
+- The Orders table and Order detail page display the order `Source` badge, and the Orders table can be filtered by `Admin` or `Storefront` source.
+- Checkout validates current cart stock and clears the cart after successful order creation.
+- Checkout success pages show the generated ERP order number and order summary.
+- Production checkout routes on custom domains:
+  - `GET /checkout`
+  - `POST /checkout`
+  - `GET /checkout/success/{order}`
+- Storefront order tracking lets customers search by ERP order number and view order status, the current delivery status only after an admin/courier update, latest courier/provider/tracking ID, totals, due amount, and ordered items. Default `Not Booked` delivery status stays hidden on the customer-facing page.
+- Admin/courier status changes appear as chronological `Tracking Updates` rather than a fixed list of possible statuses. Order status and delivery status updates come from order audit logs; courier updates come from courier status logs.
+- Tracking update markers and the `Latest` badge are styled in `resources/views/storefront/track/show.blade.php`; markers use 100px rounded corners and the latest badge uses compact 10px horizontal padding.
+- Tracking only exposes orders from the current storefront company and only when `source = storefront`; admin orders and other-company orders return 404.
+- Customer order history is available from the storefront header `Account` link and at `/account/orders`; customers search by checkout phone number and see only current-company storefront orders with links into live tracking. Admin-created orders and other-company orders are hidden.
+- Published storefront pages are available from footer links and at `/pages/{slug}`. Unpublished pages and other-company pages return 404.
+- In local/testing, `/pages/{slug}` falls back to the first published storefront company so admins can preview content pages on `127.0.0.1`; local company-scoped preview still works at `/storefront/{company-slug}/pages/{slug}`.
+- Admin Order forms use two explicit labels: `Order Status` for invoice/stock/accounts/reporting workflow and `Delivery Status` for storefront tracking/courier progress; courier booking actions may update delivery status automatically.
+- Production tracking routes on custom domains:
+  - `GET /track`
+  - `GET /track/{orderNo}`
+- Production customer account routes on custom domains:
+  - `GET /account/orders`
+- Production storefront content routes on custom domains:
+  - `GET /pages/{slug}`
+- Local preview checkout routes:
+  - `GET /storefront/{company-slug}/checkout`
+  - `POST /storefront/{company-slug}/checkout`
+  - `GET /storefront/{company-slug}/checkout/success/{order}`
+- Local preview tracking routes:
+  - `GET /storefront/{company-slug}/track`
+  - `GET /storefront/{company-slug}/track/{orderNo}`
+- Local preview customer account routes:
+  - `GET /storefront/{company-slug}/account/orders`
+- Local preview storefront content routes:
+  - `GET /storefront/{company-slug}/pages/{slug}`
+- Storefront UI should use Tailwind CSS 4 via Vite and should aim for a polished Shopify-style ecommerce look: image-first product cards, clean collection tiles, strong CTA buttons, responsive mobile layout, and dark/light compatibility.
+- Avoid broad inline CSS for storefront pages unless it is a small dynamic CSS variable such as company theme color.
+- Whenever storefront UI/routes/settings/cart/checkout are changed, update this guide with the affected files and verification steps.
+
+Important files:
+
+```text
+app/Http/Middleware/ResolveCompanyFromDomain.php
+app/Http/Controllers/Storefront/
+app/Http/Controllers/Storefront/AccountOrdersController.php
+app/Http/Controllers/Storefront/OrderTrackController.php
+app/Http/Controllers/Storefront/PageController.php
+app/Services/StorefrontCart.php
+app/Models/StorefrontPage.php
+app/Models/StorefrontSetting.php
+app/Filament/Resources/StorefrontPages/
+app/Filament/Resources/StorefrontSettings/
+database/migrations/2026_06_25_000000_add_storefront_foundation_fields.php
+database/migrations/2026_06_25_001000_create_storefront_settings_table.php
+database/migrations/2026_06_28_001000_create_storefront_pages_table.php
+database/seeders/DemoDataSeeder.php
+routes/web.php
+resources/views/storefront/
+resources/views/storefront/cart/show.blade.php
+resources/views/storefront/checkout/
+resources/views/storefront/track/show.blade.php
+resources/css/app.css
+tests/Feature/StorefrontFoundationTest.php
+```
+
+Verification:
+
+```bash
+php artisan demo:refresh
+php artisan test --filter=StorefrontFoundationTest
+npm run build
 ```
 
 ## 2. Important Folders
@@ -328,6 +475,8 @@ Sales behavior:
 - Draft/cancelled orders do not affect stock.
 - Customer current balance is opening balance plus confirmed/completed invoice due minus customer payments.
 - Printable invoice route: `/admin/orders/{order}/print`
+- Printable invoices hide zero-value discount, VAT, paid, and advance-style paid rows; paid amounts display as a negative deduction when greater than zero.
+- Verify printable invoice behavior with `php artisan test --filter=CompanySettingsTest`.
 
 ### Accounts and Ledger
 

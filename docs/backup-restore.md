@@ -28,6 +28,20 @@ Database backup supports SQLite and MySQL/MariaDB.
 
 Create a database backup before every production update, before running migrations, and before changing server database/storage settings.
 
+For SQLite, verify the newest backup by restoring it into an automatically deleted disposable database:
+
+```bash
+php artisan backup:verify
+```
+
+Or verify a specific SQLite backup filename:
+
+```bash
+php artisan backup:verify database-backup-YYYYMMDD-HHMMSS-sqlite.sqlite
+```
+
+This command never overwrites the configured database. MySQL/MariaDB restore drills should continue to use a separate disposable database/server following the manual procedure below.
+
 ## Create Full App Backup
 
 Use the Backups page in the admin panel:
