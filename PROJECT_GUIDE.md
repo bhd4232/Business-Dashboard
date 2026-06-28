@@ -306,6 +306,10 @@ php artisan test --filter=StorefrontFoundationTest
 npm run build
 ```
 
+Test note:
+
+- `StorefrontFoundationTest` disables Vite and Laravel's `ValidateCsrfToken` middleware inside the test case so CI can verify storefront routing, rendering, carts, checkout, tracking, and public pages without requiring a prebuilt Vite manifest or browser-generated CSRF tokens.
+
 ## 2. Important Folders
 
 ```text

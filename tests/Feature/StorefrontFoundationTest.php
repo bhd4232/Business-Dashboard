@@ -16,12 +16,21 @@ use App\Models\StorefrontSetting;
 use App\Models\User;
 use App\Services\CompanyContext;
 use App\Services\ReportService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class StorefrontFoundationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutVite();
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+    }
 
     public function test_custom_domain_renders_company_storefront_products(): void
     {
