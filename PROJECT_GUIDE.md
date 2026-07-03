@@ -99,6 +99,7 @@ Implemented behavior:
 - Courier booking detail includes provider, invoice, recipient, COD amount, tracking data, and status history.
 - Manual and Steadfast booking services verify that Order and Courier Provider belong to the same company.
 - `CourierManager` and `CourierProviderInterface` provide the provider adapter boundary; Manual and Steadfast use concrete adapters.
+- Pathao, RedX, and E-Courier resolve through explicit pending live adapters. They intentionally reject booking, sync, balance, and webhook operations with a clear setup message until official merchant API credentials, request field mapping, and sandbox/live response samples are available.
 - API calls use bounded timeouts and retry/backoff.
 - Signed incoming webhooks are deduplicated, logged, queued, retried, and processed inside the provider's explicit company context.
 - Courier Status Log and Webhook Log resources provide operational diagnostics.
@@ -107,7 +108,7 @@ Implemented behavior:
 
 Not implemented yet:
 
-- Live Pathao, RedX, and E-Courier API clients
+- Live Pathao, RedX, and E-Courier API clients beyond the pending adapter guardrail
 - Provider-native remote cancellation/label endpoints where an official API contract is required; current actions use normalized cancellation and configurable label URLs.
 
 Important files:
@@ -121,6 +122,10 @@ app/Services/CourierService.php
 app/Services/CourierManager.php
 app/Contracts/CourierProviderInterface.php
 app/Services/Couriers/
+app/Services/Couriers/PendingLiveCourierAdapter.php
+app/Services/Couriers/PathaoCourierAdapter.php
+app/Services/Couriers/RedxCourierAdapter.php
+app/Services/Couriers/ECourierAdapter.php
 app/Services/SteadfastCourierClient.php
 app/Services/CourierReportService.php
 app/Filament/Resources/CourierProviders/
@@ -204,6 +209,8 @@ Current behavior:
 - Company domains live on `companies.domain`; verification state lives on `companies.domain_verified`.
 - Storefront publishing and brand settings live in `storefront_settings`.
 - The Filament admin resource is `Storefront Settings` under the `Storefront` navigation group.
+- `Storefront Settings` also acts as the admin launch-readiness dashboard using Filament default table columns/actions: readiness score, missing setup checklist, domain verification, visible product count, published page count, Preview, Open Site, and Pages shortcuts.
+- Storefront domain and domain verification are edited from the Storefront Settings form even though the canonical fields live on `companies.domain` and `companies.domain_verified`; create/edit pages synchronize those company fields on save so the list dashboard and edit form do not drift. Duplicate domains assigned to another company are rejected with a form validation error before the database unique constraint can throw a 500.
 - Storefront content pages live in `storefront_pages`.
 - The Filament admin resource is `Storefront Pages` under the `Storefront` navigation group for About, Return Policy, Privacy Policy, Terms, and similar public pages.
 - Storefront Settings list/edit pages include `Manage Pages` shortcuts so policy/content pages can be opened directly from settings.
@@ -269,6 +276,12 @@ Current behavior:
 - Local preview storefront content routes:
   - `GET /storefront/{company-slug}/pages/{slug}`
 - Storefront UI should use Tailwind CSS 4 via Vite and should aim for a polished Shopify-style ecommerce look: image-first product cards, clean collection tiles, strong CTA buttons, responsive mobile layout, and dark/light compatibility.
+- Storefront layout includes SEO/Open Graph/Twitter metadata from storefront settings, compact mobile-safe header actions, footer WhatsApp contact, banner-image hero support, and explicit out-of-stock product states.
+- Dark mode is a real class-based toggle, not just `prefers-color-scheme`. `resources/css/app.css` declares `@custom-variant dark (&:where(.dark, .dark *));` (storefront only; Filament's own dark mode is unaffected). `resources/views/storefront/layout.blade.php` sets the `dark` class before paint from `localStorage.storefrontTheme`, falling back to the company's `storefront_settings.theme_mode` (`system`/`light`/`dark`) on first visit, and exposes a header sun/moon button (`[data-theme-toggle]`) that flips the class and persists the choice. No Alpine.js is loaded in the storefront bundle, so the toggle and the quantity stepper (`[data-qty-stepper]`/`[data-qty-input]`/`[data-qty-increment]`/`[data-qty-decrement]`) are plain vanilla JS in `layout.blade.php`, not Alpine directives.
+- Product listing supports `?sort=price_asc|price_desc` (default newest) and category quick-filter chips, handled in `StorefrontProductIndexController` and `PreviewController::products`.
+- Product detail pages show a breadcrumb, a sticky buy box with a quantity stepper, and a "You may also like" related-products rail (same category, excludes current product, limit 4), sourced from `StorefrontProductShowController` and `PreviewController::product`.
+- Homepage hero heading/subheading/CTA label are admin-editable via `storefront_settings.hero_heading`, `hero_subheading`, `hero_cta_label` (all nullable; blank falls back to the default "Shop the latest from {company}." copy in `home.blade.php`).
+- Public storefront copy should not expose implementation details such as unfinished roadmap steps; customer-facing text should describe direct ordering, review, confirmation, and tracking.
 - Avoid broad inline CSS for storefront pages unless it is a small dynamic CSS variable such as company theme color.
 - Whenever storefront UI/routes/settings/cart/checkout are changed, update this guide with the affected files and verification steps.
 
@@ -285,15 +298,28 @@ app/Models/StorefrontPage.php
 app/Models/StorefrontSetting.php
 app/Filament/Resources/StorefrontPages/
 app/Filament/Resources/StorefrontSettings/
+app/Filament/Resources/StorefrontSettings/Pages/CreateStorefrontSetting.php
+app/Filament/Resources/StorefrontSettings/Pages/EditStorefrontSetting.php
 database/migrations/2026_06_25_000000_add_storefront_foundation_fields.php
 database/migrations/2026_06_25_001000_create_storefront_settings_table.php
 database/migrations/2026_06_28_001000_create_storefront_pages_table.php
+database/migrations/2026_07_03_000000_add_hero_and_theme_fields_to_storefront_settings_table.php
 database/seeders/DemoDataSeeder.php
 routes/web.php
 resources/views/storefront/
 resources/views/storefront/cart/show.blade.php
 resources/views/storefront/checkout/
 resources/views/storefront/track/show.blade.php
+resources/views/storefront/layout.blade.php
+resources/views/storefront/home.blade.php
+resources/views/storefront/partials/product-card.blade.php
+resources/views/storefront/products/index.blade.php
+resources/views/storefront/products/show.blade.php
+resources/views/storefront/cart/show.blade.php
+resources/views/storefront/checkout/show.blade.php
+app/Http/Controllers/Storefront/ProductIndexController.php
+app/Http/Controllers/Storefront/ProductShowController.php
+app/Http/Controllers/Storefront/PreviewController.php
 resources/css/app.css
 tests/Feature/StorefrontFoundationTest.php
 ```
@@ -303,7 +329,18 @@ Verification:
 ```bash
 php artisan demo:refresh
 php artisan test --filter=StorefrontFoundationTest
+php artisan test --filter=PhaseFourAdminPagesTest
 npm run build
+```
+
+Optional local HTTP smoke check after `php artisan serve --host=127.0.0.1 --port=8000`:
+
+```bash
+GET /storefront
+GET /storefront/{company-slug}/products
+GET /storefront/{company-slug}/cart
+GET /storefront/{company-slug}/track
+GET /storefront/{company-slug}/account/orders
 ```
 
 Test note:
@@ -853,6 +890,7 @@ Manual admin smoke checks:
 18. Create a Custom courier booking and update it to delivered/returned.
 19. Configure a Steadfast test provider and verify booking/status sync with safe non-production credentials.
 20. Select `All Companies` and confirm courier provider creation and booking actions are unavailable.
+21. Create Pathao, RedX, and E-Courier providers and confirm live booking fails with the explicit official-API setup message until credentials and field mappings are supplied.
 
 ## 11. Known Notes and Cleanup
 
@@ -866,8 +904,8 @@ Manual admin smoke checks:
 - Run rollback tests only on disposable databases before production rollback work.
 - Historical records initially belong to `Main Company`; production reassignment requires verified company mapping.
 - `All Companies` is intended for owner-level reporting. Company-specific write actions must require one selected company.
-- Pathao, RedX, and E-Courier currently appear as provider configuration choices only; their live API adapters are not implemented.
-- `courier_webhook_logs` exists for future webhook diagnostics, but no inbound webhook processing is active yet.
+- Pathao, RedX, and E-Courier currently appear as provider configuration choices and resolve through pending live adapters; their live API clients are not enabled yet.
+- `courier_webhook_logs` stores signed inbound courier webhook delivery attempts for supported live adapters.
 - Courier provider API credentials use an encrypted model cast; never expose them in logs, exports, or documentation.
 
 ## 12. Quick File Map

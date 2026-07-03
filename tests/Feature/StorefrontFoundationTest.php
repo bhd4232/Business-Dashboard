@@ -64,6 +64,8 @@ class StorefrontFoundationTest extends TestCase
             ->assertSee('Gadget Store')
             ->assertSee('Fast Charger')
             ->assertSee('Account')
+            ->assertSee('Official storefront - live catalog, direct ordering')
+            ->assertSee('property="og:title"', false)
             ->assertSee('http://shop.example.test/account/orders', false);
 
         $this->get('http://shop.example.test/product/'.$product->slug)

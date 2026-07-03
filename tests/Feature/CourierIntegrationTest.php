@@ -40,6 +40,37 @@ class CourierIntegrationTest extends TestCase
         $this->assertSame($company->getKey(), $booking->company_id);
     }
 
+    public function test_pending_live_courier_adapters_fail_with_explicit_setup_message(): void
+    {
+        $company = $this->company('Pending Courier Company', 'pending-courier-company', 'PND');
+        app(CompanyContext::class)->set($company);
+        $order = $this->orderForCompany($company);
+
+        foreach ([CourierProvider::DRIVER_PATHAO, CourierProvider::DRIVER_REDX, CourierProvider::DRIVER_ECOURIER] as $driver) {
+            $provider = CourierProvider::query()->create([
+                'company_id' => $company->getKey(),
+                'name' => CourierProvider::DRIVERS[$driver],
+                'slug' => $driver,
+                'driver' => $driver,
+                'credentials' => [],
+                'settings' => [],
+                'is_active' => true,
+            ]);
+
+            $this->assertSame($driver, app(CourierManager::class)->adapter($provider)->driver());
+
+            try {
+                app(CourierManager::class)->create($order, $provider, [
+                    'recipient_address' => 'Dhaka',
+                    'cod_amount' => 500,
+                ]);
+                $this->fail("Expected {$driver} pending adapter to reject live booking.");
+            } catch (ValidationException $exception) {
+                $this->assertStringContainsString('official API credentials', $exception->getMessage());
+            }
+        }
+    }
+
     public function test_signed_courier_webhook_is_idempotently_queued(): void
     {
         Queue::fake();

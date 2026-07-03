@@ -23,10 +23,21 @@ class ProductShowController extends Controller
             ->where('status', Product::STATUS_AVAILABLE)
             ->firstOrFail();
 
+        $related = Product::query()
+            ->with('category')
+            ->where('is_active', true)
+            ->where('status', Product::STATUS_AVAILABLE)
+            ->where('id', '!=', $product->id)
+            ->when($product->category_id, fn ($query) => $query->where('category_id', $product->category_id))
+            ->latest()
+            ->limit(4)
+            ->get();
+
         return view('storefront.products.show', [
             'company' => $company,
             'setting' => $company->storefrontSetting,
             'product' => $product,
+            'related' => $related,
         ]);
     }
 }
