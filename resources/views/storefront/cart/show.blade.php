@@ -15,14 +15,17 @@
             @forelse ($items as $item)
                 @php
                     $product = $item['product'];
+                    $variant = $item['variant'] ?? null;
+                    $lineStock = $variant ? (int) $variant->stock : (int) $product->stock;
+                    $lineImage = $variant && filled($variant->images) ? collect($variant->images)->first() : $product->image;
                     $updateUrl = isset($previewSlug) ? route('storefront.preview.cart.update', [$previewSlug, $product->slug]) : route('storefront.cart.update', $product->slug);
                     $removeUrl = isset($previewSlug) ? route('storefront.preview.cart.remove', [$previewSlug, $product->slug]) : route('storefront.cart.remove', $product->slug);
                     $productUrl = isset($previewSlug) ? route('storefront.preview.products.show', [$previewSlug, $product->slug]) : route('storefront.products.show', $product->slug);
                 @endphp
                 <article class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-[96px_1fr] dark:border-white/10 dark:bg-white/5">
                     <a href="{{ $productUrl }}" class="overflow-hidden rounded-lg bg-gray-100 dark:bg-white/5">
-                        @if ($product->image)
-                            <img class="aspect-square h-full w-full object-cover" src="{{ asset('storage/'.$product->image) }}" alt="{{ $product->name }}">
+                        @if ($lineImage)
+                            <img class="aspect-square h-full w-full object-cover" src="{{ asset('storage/'.$lineImage) }}" alt="{{ $product->name }}">
                         @else
                             <div class="grid aspect-square h-full w-full place-items-center text-3xl font-semibold text-[var(--storefront-brand)]">{{ mb_substr($product->name, 0, 1) }}</div>
                         @endif
@@ -31,17 +34,23 @@
                         <div>
                             <div class="text-xs font-medium text-gray-400">{{ $product->category?->name ?? 'Product' }}</div>
                             <a href="{{ $productUrl }}" class="mt-1 block text-base font-semibold tracking-tight text-gray-950 dark:text-white">{{ $product->name }}</a>
-                            <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">BDT {{ number_format($item['unit_price'], 2) }} each &middot; {{ (int) $product->stock }} in stock</div>
+                            @if ($variant)
+                                <div class="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">{{ $variant->label() }}</div>
+                            @endif
+                            <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">BDT {{ number_format($item['unit_price'], 2) }} each &middot; {{ $lineStock }} in stock</div>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-3">
                             <form method="POST" action="{{ $updateUrl }}" class="flex items-center gap-2">
                                 @csrf
                                 @method('PATCH')
+                                @if ($variant)
+                                    <input type="hidden" name="variant" value="{{ $variant->getKey() }}">
+                                @endif
                                 <div class="flex items-center rounded-lg border border-gray-300 dark:border-white/15" data-qty-stepper>
                                     <button type="button" data-qty-decrement class="grid h-10 w-9 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Decrease quantity">&minus;</button>
-                                    <label class="sr-only" for="quantity-{{ $product->id }}">Quantity</label>
-                                    <input id="quantity-{{ $product->id }}" data-qty-input class="h-10 w-12 border-x border-gray-300 bg-transparent text-center text-sm font-semibold dark:border-white/15" type="number" name="quantity" min="0" max="{{ max(1, (int) $product->stock) }}" value="{{ $item['quantity'] }}">
+                                    <label class="sr-only" for="quantity-{{ $product->id }}-{{ $variant?->getKey() ?? 0 }}">Quantity</label>
+                                    <input id="quantity-{{ $product->id }}-{{ $variant?->getKey() ?? 0 }}" data-qty-input class="h-10 w-12 border-x border-gray-300 bg-transparent text-center text-sm font-semibold dark:border-white/15" type="number" name="quantity" min="0" max="{{ max(1, $lineStock) }}" value="{{ $item['quantity'] }}">
                                     <button type="button" data-qty-increment class="grid h-10 w-9 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Increase quantity">+</button>
                                 </div>
                                 <button class="rounded-lg bg-gray-950 px-3 py-2 text-xs font-medium text-white dark:bg-white dark:text-gray-950" type="submit">Update</button>
@@ -49,6 +58,9 @@
                             <form method="POST" action="{{ $removeUrl }}">
                                 @csrf
                                 @method('DELETE')
+                                @if ($variant)
+                                    <input type="hidden" name="variant" value="{{ $variant->getKey() }}">
+                                @endif
                                 <button class="rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-600 transition hover:border-red-400 hover:text-red-600 dark:border-white/15 dark:text-gray-300" type="submit">Remove</button>
                             </form>
                             <div class="w-full text-right text-base font-semibold text-gray-950 dark:text-white">BDT {{ number_format($item['subtotal'], 2) }}</div>

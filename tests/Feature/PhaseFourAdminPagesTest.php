@@ -144,16 +144,14 @@ class PhaseFourAdminPagesTest extends TestCase
         $this->actingAs($user);
 
         Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
-            ->fillForm([
-                'company_id' => $company->getKey(),
-                'company_domain' => 'synced-store.example.test',
-                'company_domain_verified' => true,
-                'is_published' => true,
-                'theme_color' => '#0F766E',
-                'whatsapp_number' => '+8801700000000',
-                'meta_title' => 'Synced Store',
-                'meta_description' => 'Synced storefront settings.',
-            ])
+            ->set('data.company_id', $company->getKey())
+            ->set('data.company_domain', 'synced-store.example.test')
+            ->set('data.company_domain_verified', true)
+            ->set('data.is_published', true)
+            ->set('data.theme_color', '#0F766E')
+            ->set('data.whatsapp_number', '+8801700000000')
+            ->set('data.meta_title', 'Synced Store')
+            ->set('data.meta_description', 'Synced storefront settings.')
             ->call('save')
             ->assertHasNoFormErrors();
 
@@ -188,13 +186,11 @@ class PhaseFourAdminPagesTest extends TestCase
         $this->actingAs($user);
 
         Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
-            ->fillForm([
-                'company_id' => $company->getKey(),
-                'company_domain' => 'https://www.zamzamgadgetbd.com',
-                'company_domain_verified' => true,
-                'is_published' => true,
-                'theme_color' => '#0F766E',
-            ])
+            ->set('data.company_id', $company->getKey())
+            ->set('data.company_domain', 'https://www.zamzamgadgetbd.com')
+            ->set('data.company_domain_verified', true)
+            ->set('data.is_published', true)
+            ->set('data.theme_color', '#0F766E')
             ->call('save')
             ->assertHasFormErrors(['company_domain']);
 

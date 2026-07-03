@@ -21,6 +21,7 @@ class StockMovement extends Model
     protected $fillable = [
         'company_id',
         'product_id',
+        'product_variant_id',
         'type',
         'quantity',
         'reason',
@@ -48,10 +49,14 @@ class StockMovement extends Model
                 app(StockMovementService::class)->syncProductStock((int) $movement->getOriginal('product_id'));
             }
 
+            $movement->applyVariantStockDelta();
+
             app(StockMovementService::class)->syncProductStock($movement->product_id);
         });
 
         static::deleted(function (StockMovement $movement): void {
+            $movement->restoreVariantStock();
+
             app(StockMovementService::class)->syncProductStock($movement->product_id);
         });
 
@@ -63,6 +68,56 @@ class StockMovement extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function productVariant()
+    {
+        return $this->belongsTo(ProductVariant::class);
+    }
+
+    /**
+     * Variant stock is a live counter (not ledger-derived like product
+     * stock), so movements tagged with a variant apply their signed
+     * quantity as a delta when created or changed.
+     */
+    public function applyVariantStockDelta(): void
+    {
+        if (! $this->product_variant_id) {
+            return;
+        }
+
+        $newSigned = static::signedQuantityFor($this->type, (int) $this->quantity);
+        $oldSigned = $this->wasRecentlyCreated
+            ? 0
+            : static::signedQuantityFor(
+                (string) $this->getOriginal('type', $this->type),
+                (int) $this->getOriginal('quantity', 0),
+            );
+
+        $delta = $newSigned - $oldSigned;
+
+        if ($delta === 0) {
+            return;
+        }
+
+        $variant = ProductVariant::withoutGlobalScopes()->find($this->product_variant_id);
+        $variant?->update(['stock' => max(0, (int) $variant->stock + $delta)]);
+    }
+
+    public function restoreVariantStock(): void
+    {
+        if (! $this->product_variant_id) {
+            return;
+        }
+
+        $signed = static::signedQuantityFor($this->type, (int) $this->quantity);
+
+        if ($signed === 0) {
+            return;
+        }
+
+        $variant = ProductVariant::withoutGlobalScopes()->find($this->product_variant_id);
+        $variant?->update(['stock' => max(0, (int) $variant->stock - $signed)]);
     }
 
     public function getSignedQuantityAttribute(): int

@@ -2,6 +2,51 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-04 - Storefront Variant Cart and CI Stabilization
+
+Reason:
+
+- Latest storefront merchandising work added variable product/cart behavior and exposed a CI-only failure where Storefront Settings domain sync tests failed under `php artisan test --env=testing`.
+
+Changed files:
+
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php`
+- `app/Filament/Resources/StorefrontSettings/Pages/CreateStorefrontSetting.php`
+- `app/Filament/Resources/StorefrontSettings/Pages/EditStorefrontSetting.php`
+- `app/Http/Controllers/Storefront/CartController.php`
+- `app/Http/Controllers/Storefront/CheckoutController.php`
+- `app/Models/StockMovement.php`
+- `app/Services/OrderWorkflowService.php`
+- `app/Services/StockMovementService.php`
+- `app/Services/StorefrontCart.php`
+- `database/migrations/2026_07_03_050000_add_product_variant_id_to_stock_movements.php`
+- `database/seeders/DemoDataSeeder.php`
+- `resources/views/storefront/cart/show.blade.php`
+- `resources/views/storefront/checkout/show.blade.php`
+- `resources/views/storefront/checkout/success.blade.php`
+- `resources/views/storefront/products/show.blade.php`
+- `tests/Feature/PhaseFourAdminPagesTest.php`
+- `tests/Feature/ProductVariantTest.php`
+- `PROJECT_GUIDE.md`
+
+What changed:
+
+- Storefront carts now keep product variants as separate lines using product + variant keys.
+- Variable product pages can submit multiple variant quantities in one add-to-cart request.
+- Checkout stores `product_variant_id`, `variant_label`, variant price, and variant cost on order items.
+- Sale stock movements can reference a variant and update/restore variant stock with signed movement deltas.
+- Variable products keep parent stock synced from active variant stock without the product stock ledger overwriting it.
+- Demo data now includes richer storefront sample products, variant products, pages, and courier provider records.
+- Storefront Settings domain sync tests now set Livewire `data.*` state directly and the create/edit pages merge raw form state before syncing company domain fields, stabilizing `php artisan test --env=testing`.
+
+Verification:
+
+- `php artisan test --env=testing --filter=PhaseFourAdminPagesTest` passed.
+- `php artisan test --filter=PhaseFourAdminPagesTest` passed.
+- `php artisan test --env=testing` passed: 176 tests, 787 assertions.
+
+Commit status: Pending commit and push requested by user.
+
 ## 2026-07-03 - Storefront "Top-Class Reference Pattern" (Part 4.6 remaining items)
 
 Reason:

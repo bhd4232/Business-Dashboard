@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Company;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Collection;
 
@@ -11,48 +12,53 @@ class StorefrontCart
 {
     public function __construct(protected Session $session) {}
 
-    public function add(Company $company, Product $product, int $quantity = 1): void
+    public function add(Company $company, Product $product, int $quantity = 1, ?ProductVariant $variant = null): void
     {
         $quantity = max(1, $quantity);
         $items = $this->raw($company);
-        $currentQuantity = (int) ($items[$product->getKey()]['quantity'] ?? 0);
-        $nextQuantity = min($product->stock, $currentQuantity + $quantity);
+        $key = $this->lineKey($product, $variant);
+        $maxStock = $this->availableStock($product, $variant);
+        $currentQuantity = (int) ($items[$key]['quantity'] ?? 0);
+        $nextQuantity = min($maxStock, $currentQuantity + $quantity);
 
         if ($nextQuantity < 1) {
             return;
         }
 
-        $items[$product->getKey()] = [
+        $items[$key] = [
             'product_id' => $product->getKey(),
+            'variant_id' => $variant?->getKey(),
             'quantity' => $nextQuantity,
         ];
 
         $this->put($company, $items);
     }
 
-    public function update(Company $company, Product $product, int $quantity): void
+    public function update(Company $company, Product $product, int $quantity, ?ProductVariant $variant = null): void
     {
         $items = $this->raw($company);
+        $key = $this->lineKey($product, $variant);
 
         if ($quantity < 1) {
-            unset($items[$product->getKey()]);
+            unset($items[$key]);
             $this->put($company, $items);
 
             return;
         }
 
-        $items[$product->getKey()] = [
+        $items[$key] = [
             'product_id' => $product->getKey(),
-            'quantity' => min($product->stock, $quantity),
+            'variant_id' => $variant?->getKey(),
+            'quantity' => min($this->availableStock($product, $variant), $quantity),
         ];
 
         $this->put($company, $items);
     }
 
-    public function remove(Company $company, Product $product): void
+    public function remove(Company $company, Product $product, ?ProductVariant $variant = null): void
     {
         $items = $this->raw($company);
-        unset($items[$product->getKey()]);
+        unset($items[$this->lineKey($product, $variant)]);
         $this->put($company, $items);
     }
 
@@ -70,8 +76,8 @@ class StorefrontCart
         }
 
         $products = Product::query()
-            ->with('category')
-            ->whereIn('id', collect($items)->pluck('product_id')->all())
+            ->with(['category', 'activeVariants'])
+            ->whereIn('id', collect($items)->pluck('product_id')->unique()->all())
             ->where('is_active', true)
             ->where('status', Product::STATUS_AVAILABLE)
             ->get()
@@ -83,23 +89,48 @@ class StorefrontCart
             ->map(function (array $item) use ($products, &$changed): ?array {
                 $product = $products->get($item['product_id']);
 
-                if (! $product || $product->stock < 1) {
+                if (! $product) {
                     $changed = true;
 
                     return null;
                 }
 
-                $quantity = min((int) $item['quantity'], (int) $product->stock);
+                $variant = null;
+
+                if (! empty($item['variant_id'])) {
+                    $variant = $product->activeVariants->firstWhere('id', (int) $item['variant_id']);
+
+                    if (! $variant) {
+                        $changed = true;
+
+                        return null;
+                    }
+                }
+
+                $maxStock = $this->availableStock($product, $variant);
+
+                if ($maxStock < 1) {
+                    $changed = true;
+
+                    return null;
+                }
+
+                $quantity = min((int) $item['quantity'], $maxStock);
 
                 if ($quantity !== (int) $item['quantity']) {
                     $changed = true;
                 }
 
+                $unitPrice = $variant
+                    ? $variant->effectiveSalePrice()
+                    : (float) $product->selling_price;
+
                 return [
                     'product' => $product,
+                    'variant' => $variant,
                     'quantity' => $quantity,
-                    'unit_price' => (float) $product->selling_price,
-                    'subtotal' => (float) $product->selling_price * $quantity,
+                    'unit_price' => $unitPrice,
+                    'subtotal' => $unitPrice * $quantity,
                 ];
             })
             ->filter()
@@ -110,8 +141,9 @@ class StorefrontCart
                 $company,
                 $cartItems
                     ->mapWithKeys(fn (array $item): array => [
-                        $item['product']->getKey() => [
+                        $this->lineKey($item['product'], $item['variant']) => [
                             'product_id' => $item['product']->getKey(),
+                            'variant_id' => $item['variant']?->getKey(),
                             'quantity' => $item['quantity'],
                         ],
                     ])
@@ -130,6 +162,16 @@ class StorefrontCart
     public function subtotal(Company $company): float
     {
         return (float) $this->items($company)->sum('subtotal');
+    }
+
+    protected function availableStock(Product $product, ?ProductVariant $variant): int
+    {
+        return $variant ? (int) $variant->stock : (int) $product->stock;
+    }
+
+    protected function lineKey(Product $product, ?ProductVariant $variant): string
+    {
+        return $product->getKey().':'.($variant?->getKey() ?? 0);
     }
 
     protected function raw(Company $company): array

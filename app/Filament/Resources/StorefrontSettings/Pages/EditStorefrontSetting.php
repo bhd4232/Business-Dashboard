@@ -15,11 +15,26 @@ class EditStorefrontSetting extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $this->syncCompanyDomain($data);
+        $this->syncCompanyDomain($this->domainSyncData($data));
 
         unset($data['company_domain'], $data['company_domain_verified']);
 
         return $data;
+    }
+
+    protected function domainSyncData(array $data): array
+    {
+        $rawState = $this->form->getRawState();
+
+        if ($rawState instanceof \Illuminate\Contracts\Support\Arrayable) {
+            $rawState = $rawState->toArray();
+        }
+
+        if (! is_array($rawState)) {
+            return $data;
+        }
+
+        return array_replace($rawState, $data);
     }
 
     protected function syncCompanyDomain(array $data): void

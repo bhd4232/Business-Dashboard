@@ -9,6 +9,7 @@ use App\Filament\Forms\Components\PhoneInput;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
@@ -115,6 +116,7 @@ class OrderForm
                             ->relationship()
                             ->table([
                                 TableColumn::make('Product'),
+                                TableColumn::make('Variation'),
                                 TableColumn::make('Quantity'),
                                 TableColumn::make('Unit Price'),
                                 TableColumn::make('Subtotal'),
@@ -135,10 +137,47 @@ class OrderForm
 
                                         $unitPrice = $product->selling_price;
 
+                                        $set('product_variant_id', null);
+                                        $set('variant_label', null);
                                         $set('unit_price', $unitPrice);
                                         $set('subtotal', (int) ($get('quantity') ?? 0) * $unitPrice);
                                         self::setOrderTotalsFromRepeater($get, $set);
                                     }),
+
+                                Select::make('product_variant_id')
+                                    ->label('Variation')
+                                    ->options(function (Get $get): array {
+                                        $product = Product::query()->with('activeVariants')->find($get('product_id'));
+
+                                        if (! $product?->has_variants) {
+                                            return [];
+                                        }
+
+                                        return $product->activeVariants
+                                            ->mapWithKeys(fn (ProductVariant $variant): array => [
+                                                $variant->getKey() => $variant->label().' (stock: '.(int) $variant->stock.')',
+                                            ])
+                                            ->all();
+                                    })
+                                    ->visible(fn (Get $get): bool => (bool) Product::query()->whereKey($get('product_id'))->value('has_variants'))
+                                    ->required(fn (Get $get): bool => (bool) Product::query()->whereKey($get('product_id'))->value('has_variants'))
+                                    ->live()
+                                    ->afterStateUpdated(function (Get $get, Set $set, $state): void {
+                                        $variant = ProductVariant::query()->find($state);
+
+                                        if (! $variant) {
+                                            $set('variant_label', null);
+
+                                            return;
+                                        }
+
+                                        $set('variant_label', $variant->label());
+                                        $set('unit_price', $variant->effectiveSalePrice());
+                                        $set('subtotal', (int) ($get('quantity') ?? 0) * $variant->effectiveSalePrice());
+                                        self::setOrderTotalsFromRepeater($get, $set);
+                                    }),
+
+                                Hidden::make('variant_label'),
 
                                 TextInput::make('quantity')
                                     ->integer()

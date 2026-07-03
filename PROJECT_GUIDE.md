@@ -227,6 +227,7 @@ Current behavior:
 - The demo seeder creates a published Main Company storefront setting so `/storefront` shows products immediately after `php artisan demo:refresh`.
 - Storefront cart is session based and company scoped. Cart keys are isolated by company ID, so items added on one storefront domain/company do not appear in another company cart.
 - Cart supports add, update quantity, remove item, stock capping, empty-cart state, and subtotal summary.
+- Variable products can be added to the storefront cart by option/variant. Cart line keys include product and variant IDs so multiple options of the same product remain separate lines.
 - Cart routes on production custom domains:
   - `GET /cart`
   - `POST /cart/items/{product-slug}`
@@ -240,6 +241,7 @@ Current behavior:
 - Checkout is now implemented for storefront carts. Customers submit name, phone, optional email, delivery address, and note.
 - Checkout reuses or updates an existing company-scoped Customer by phone; new storefront customers use `customer_source = website`.
 - Checkout creates existing ERP `Order` and `OrderItem` records with `source = storefront`.
+- Storefront checkout stores `product_variant_id` and a human-readable `variant_label` on order items when the customer buys a product variant. Variant unit price and cost are used when present.
 - Storefront orders are created as `draft` by design. Stock is not deducted until an admin reviews and confirms/completes the order through the ERP order workflow.
 - Draft storefront orders do not increase `Today Sales`; the dashboard shows them separately as `Storefront Pending` with pending order count and amount.
 - The Orders table and Order detail page display the order `Source` badge, and the Orders table can be filtered by `Admin` or `Storefront` source.
@@ -280,6 +282,7 @@ Current behavior:
 - Dark mode is a real class-based toggle, not just `prefers-color-scheme`. `resources/css/app.css` declares `@custom-variant dark (&:where(.dark, .dark *));` (storefront only; Filament's own dark mode is unaffected). `resources/views/storefront/layout.blade.php` sets the `dark` class before paint from `localStorage.storefrontTheme`, falling back to the company's `storefront_settings.theme_mode` (`system`/`light`/`dark`) on first visit, and exposes a header sun/moon button (`[data-theme-toggle]`) that flips the class and persists the choice. No Alpine.js is loaded in the storefront bundle, so the toggle and the quantity stepper (`[data-qty-stepper]`/`[data-qty-input]`/`[data-qty-increment]`/`[data-qty-decrement]`) are plain vanilla JS in `layout.blade.php`, not Alpine directives.
 - Product listing supports `?sort=price_asc|price_desc` (default newest) and category quick-filter chips, handled in `StorefrontProductIndexController` and `PreviewController::products`.
 - Product detail pages show a breadcrumb, a sticky buy box with a quantity stepper, and a "You may also like" related-products rail (same category, excludes current product, limit 4), sourced from `StorefrontProductShowController` and `PreviewController::product`.
+- Variable product detail pages show available variants/options, variant images, per-option stock/price, and quantity inputs so customers can add multiple variants in one submit.
 - Homepage hero heading/subheading/CTA label are admin-editable via `storefront_settings.hero_heading`, `hero_subheading`, `hero_cta_label` (all nullable; blank falls back to the default "Shop the latest from {company}." copy in `home.blade.php`).
 - Public storefront copy should not expose implementation details such as unfinished roadmap steps; customer-facing text should describe direct ordering, review, confirmation, and tracking.
 - Header includes a hover mega menu ("Categories") listing the current company's active categories that have available products, plus an optional call button (`storefront_settings.phone_number`, `tel:` link) next to the WhatsApp button. Both are queried inline in `layout.blade.php`.
@@ -287,7 +290,7 @@ Current behavior:
 - Homepage includes a static 4-step "how to order" explainer section (no backend data) between the hero and the category grid.
 - Footer includes a "Our other brands" cross-promotion section listing other active companies that have a published storefront and a domain set, linking to `https://{domain}`.
 - A fixed mobile bottom nav bar (Home/Category/Cart/Account, `sm:hidden`) is rendered in `layout.blade.php`; `<main>` gets `pb-16 sm:pb-0` and the footer gets `mb-16 sm:mb-0` so content does not sit under it on small screens.
-- Curated homepage product carousels (owner-curated, titled sections beyond "Featured products") are still pending; they need a new Filament resource and are intentionally out of scope for the current pass.
+- Curated homepage product carousels are implemented through the `Product Carousels` Filament resource. Active carousels are company scoped, ordered by sort order, hidden when empty/inactive, and rendered on the storefront homepage.
 - Avoid broad inline CSS for storefront pages unless it is a small dynamic CSS variable such as company theme color.
 - Whenever storefront UI/routes/settings/cart/checkout are changed, update this guide with the affected files and verification steps.
 
@@ -300,8 +303,11 @@ app/Http/Controllers/Storefront/AccountOrdersController.php
 app/Http/Controllers/Storefront/OrderTrackController.php
 app/Http/Controllers/Storefront/PageController.php
 app/Services/StorefrontCart.php
+app/Models/ProductCarousel.php
+app/Models/ProductVariant.php
 app/Models/StorefrontPage.php
 app/Models/StorefrontSetting.php
+app/Filament/Resources/ProductCarousels/
 app/Filament/Resources/StorefrontPages/
 app/Filament/Resources/StorefrontSettings/
 app/Filament/Resources/StorefrontSettings/Pages/CreateStorefrontSetting.php
@@ -311,6 +317,9 @@ database/migrations/2026_06_25_001000_create_storefront_settings_table.php
 database/migrations/2026_06_28_001000_create_storefront_pages_table.php
 database/migrations/2026_07_03_000000_add_hero_and_theme_fields_to_storefront_settings_table.php
 database/migrations/2026_07_03_010000_add_dual_banner_and_phone_to_storefront_settings_table.php
+database/migrations/2026_07_03_020000_create_product_carousels_tables.php
+database/migrations/2026_07_03_040000_create_product_variants_and_gallery.php
+database/migrations/2026_07_03_050000_add_product_variant_id_to_stock_movements.php
 database/seeders/DemoDataSeeder.php
 routes/web.php
 resources/views/storefront/
@@ -337,6 +346,8 @@ Verification:
 php artisan demo:refresh
 php artisan test --filter=StorefrontFoundationTest
 php artisan test --filter=PhaseFourAdminPagesTest
+php artisan test --filter=ProductCarouselTest
+php artisan test --filter=ProductVariantTest
 npm run build
 ```
 
@@ -392,13 +403,16 @@ Products support:
 - active/inactive status
 - product status: `available`, `coming_soon`
 - image upload
+- optional gallery images and product variants with per-variant SKU, options, price, cost, stock, and images
 - category relationship
 
 Stock behavior:
 
 - Stock is calculated from stock movements.
+- Products marked `has_variants` use active variant stock as the parent product stock total; the ledger sync does not overwrite parent stock for variable products.
 - Opening, purchase, and return movements increase stock.
 - Sale movements reduce stock.
+- Sale stock movements can reference `product_variant_id`; variant stock is adjusted by signed movement delta and restored when the movement is deleted.
 - Adjustment movements use signed quantity.
 - Movements that would make product stock negative are blocked.
 - Product view includes stock movement history.

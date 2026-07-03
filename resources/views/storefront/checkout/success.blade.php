@@ -25,7 +25,7 @@
             <div class="mt-5 space-y-3">
                 @foreach ($order->items as $item)
                     <div class="flex justify-between gap-4 text-sm">
-                        <span class="text-gray-600 dark:text-gray-300">{{ $item->product?->name }} &times; {{ $item->quantity }}</span>
+                        <span class="text-gray-600 dark:text-gray-300">{{ $item->product?->name }}{{ $item->variant_label ? ' ('.$item->variant_label.')' : '' }} &times; {{ $item->quantity }}</span>
                         <span class="font-semibold">BDT {{ number_format((float) $item->subtotal, 2) }}</span>
                     </div>
                 @endforeach

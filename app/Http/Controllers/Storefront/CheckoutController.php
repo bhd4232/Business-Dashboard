@@ -114,7 +114,11 @@ class CheckoutController extends Controller
             abort_if($items->isEmpty(), 422, 'Your cart is empty.');
 
             foreach ($items as $item) {
-                abort_if($item['quantity'] > $item['product']->stock, 422, "{$item['product']->name} does not have enough stock.");
+                $availableStock = $item['variant'] ?? null
+                    ? (int) $item['variant']->stock
+                    : (int) $item['product']->stock;
+
+                abort_if($item['quantity'] > $availableStock, 422, "{$item['product']->name} does not have enough stock.");
             }
 
             $customer = Customer::query()->firstOrNew([
@@ -145,12 +149,16 @@ class CheckoutController extends Controller
             ]);
 
             foreach ($items as $item) {
+                $variant = $item['variant'] ?? null;
+
                 OrderItem::query()->create([
                     'order_id' => $order->getKey(),
                     'product_id' => $item['product']->getKey(),
+                    'product_variant_id' => $variant?->getKey(),
+                    'variant_label' => $variant?->label(),
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'unit_cost' => $item['product']->cost_price ?? 0,
+                    'unit_cost' => ($variant?->cost_price ?? $item['product']->cost_price) ?? 0,
                 ]);
             }
 

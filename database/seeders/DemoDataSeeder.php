@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Account;
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\CourierProvider;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
@@ -12,15 +13,19 @@ use App\Models\ExpenseCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductCarousel;
+use App\Models\ProductVariant;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\StockMovement;
+use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\User;
 use App\Services\CompanyContext;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DemoDataSeeder extends Seeder
@@ -127,9 +132,15 @@ class DemoDataSeeder extends Seeder
             ]);
 
             $this->openingStock($product, 100 + ($index * 5));
+            $this->attachProductImages($product, $index);
 
             return $product;
         })->values();
+
+        $this->seedVariableProducts($products);
+        $this->seedCarousels($products);
+        $this->seedStorefrontPages();
+        $this->seedCourierProviders();
 
         $supplierRows = [
             ['Li Wei', 'Shenzhen Demo Trading Co.', '+8613800138000', 'sales@shenzhen-demo.example', 'Huaqiangbei, Shenzhen, China'],
@@ -291,6 +302,233 @@ class DemoDataSeeder extends Seeder
                 ],
             );
         });
+    }
+
+    /**
+     * Generates simple branded placeholder PNGs with GD so demo products
+     * have a featured image plus a two-image gallery.
+     */
+    protected function attachProductImages(Product $product, int $index): void
+    {
+        if (! function_exists('imagecreatetruecolor')) {
+            return; // GD not installed — skip images silently.
+        }
+
+        $palette = ['#0F766E', '#B45309', '#1D4ED8', '#BE185D', '#4D7C0F', '#7C3AED', '#0E7490', '#B91C1C', '#A16207', '#334155'];
+        $color = $palette[$index % count($palette)];
+
+        $featured = $this->demoImage('products', $product->slug.'-main', $product->name, $color);
+        $gallery = array_values(array_filter([
+            $this->demoImage('products/gallery', $product->slug.'-alt-1', $product->name.' - view 2', $color),
+            $this->demoImage('products/gallery', $product->slug.'-alt-2', $product->name.' - view 3', $this->shadeHex($color)),
+        ]));
+
+        $product->newQueryWithoutScopes()->whereKey($product->getKey())->update([
+            'image' => $featured,
+            'gallery_images' => json_encode($gallery),
+        ]);
+    }
+
+    protected function demoImage(string $directory, string $name, string $label, string $hex): ?string
+    {
+        $path = $directory.'/'.$name.'.png';
+        $disk = Storage::disk('public');
+
+        if ($disk->exists($path)) {
+            return $path;
+        }
+
+        [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
+
+        $image = imagecreatetruecolor(800, 800);
+        $background = imagecolorallocate($image, $r, $g, $b);
+        $overlay = imagecolorallocatealpha($image, 255, 255, 255, 90);
+        $textColor = imagecolorallocate($image, 255, 255, 255);
+
+        imagefilledrectangle($image, 0, 0, 800, 800, $background);
+        imagefilledellipse($image, 400, 330, 420, 420, $overlay);
+
+        // Product initial big in the middle, name at the bottom.
+        $initial = mb_strtoupper(mb_substr($label, 0, 1));
+        imagestring($image, 5, 392, 315, $initial, $textColor);
+        imagestring($image, 4, (int) max(20, 400 - (strlen($label) * 4)), 700, substr($label, 0, 90), $textColor);
+
+        ob_start();
+        imagepng($image);
+        $contents = ob_get_clean();
+        imagedestroy($image);
+
+        $disk->put($path, $contents);
+
+        return $path;
+    }
+
+    protected function shadeHex(string $hex): string
+    {
+        [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
+
+        return sprintf('#%02x%02x%02x', (int) min(255, $r + 60), (int) min(255, $g + 40), (int) min(255, $b + 20));
+    }
+
+    protected function seedStorefrontPages(): void
+    {
+        $pages = [
+            ['About Us', 'We are a demo company showcasing the ZamZam ERP storefront. This page is sample content.'],
+            ['Contact', 'Reach the demo store via WhatsApp or phone. Sample contact information for testing.'],
+            ['Return Policy', 'Products can be returned within 7 days of delivery in original condition. Demo policy text.'],
+            ['Privacy Policy', 'We only use customer information to process orders. Demo privacy policy content.'],
+            ['Terms and Conditions', 'By ordering from this demo storefront you agree to these sample terms.'],
+            ['Warranty Policy', 'Applicable products carry manufacturer warranty. Demo warranty details.'],
+            ['Shipping Information', 'Orders ship within 2-3 business days across the country. Demo shipping info.'],
+            ['FAQ', 'Frequently asked demo questions about ordering, payment, and delivery.'],
+            ['Wholesale Policy', 'Special pricing available for bulk orders. Contact us for demo wholesale terms.'],
+            ['How to Order', 'Browse products, add to cart, confirm checkout, and track your order. Demo guide.'],
+        ];
+
+        foreach ($pages as $index => [$title, $content]) {
+            StorefrontPage::query()->updateOrCreate(
+                ['slug' => Str::slug($title)],
+                [
+                    'title' => $title,
+                    'content' => $content,
+                    'excerpt' => Str::limit($content, 120),
+                    'is_published' => true,
+                    'sort_order' => $index,
+                ],
+            );
+        }
+    }
+
+    protected function seedCourierProviders(): void
+    {
+        CourierProvider::query()->updateOrCreate(
+            ['slug' => 'demo-manual-courier'],
+            [
+                'name' => 'Demo Manual Courier',
+                'driver' => 'manual',
+                'is_active' => true,
+                'settings' => [
+                    'contact_person' => 'Demo Dispatcher',
+                    'contact_phone' => '+8801700000010',
+                    'delivery_fee_inside_dhaka' => 80,
+                    'delivery_fee_outside_dhaka' => 130,
+                ],
+            ],
+        );
+
+        CourierProvider::query()->updateOrCreate(
+            ['slug' => 'demo-steadfast'],
+            [
+                'name' => 'Demo Steadfast (sandbox)',
+                'driver' => 'steadfast',
+                'is_active' => false,
+                'settings' => [
+                    'contact_person' => 'Steadfast Demo',
+                    'contact_phone' => '+8801700000011',
+                ],
+            ],
+        );
+    }
+
+    /**
+     * Turn two demo products into WooCommerce-style variable products so
+     * variations can be tested in admin, storefront, cart, and checkout.
+     */
+    protected function seedVariableProducts($products): void
+    {
+        // Bluetooth Speaker — Color variations.
+        $speaker = $products[1];
+        $speaker->update([
+            'has_variants' => true,
+            'variant_attributes' => ['Color' => ['Black', 'Blue', 'Red']],
+        ]);
+
+        foreach ([
+            ['Color' => 'Black', 'sku' => 'DEMO-SPEAKER-001-BLK', 'sale_price' => 1550, 'stock' => 12, 'hex' => '#1F2937'],
+            ['Color' => 'Blue', 'sku' => 'DEMO-SPEAKER-001-BLU', 'sale_price' => 1550, 'stock' => 8, 'hex' => '#1D4ED8'],
+            ['Color' => 'Red', 'sku' => 'DEMO-SPEAKER-001-RED', 'sale_price' => 1650, 'stock' => 5, 'hex' => '#B91C1C'],
+        ] as $index => $row) {
+            $variantImages = function_exists('imagecreatetruecolor')
+                ? array_values(array_filter([
+                    $this->demoImage('products/variants', $speaker->slug.'-'.Str::slug($row['Color']), $speaker->name.' - '.$row['Color'], $row['hex']),
+                ]))
+                : null;
+
+            ProductVariant::query()->updateOrCreate(
+                ['product_id' => $speaker->getKey(), 'sku' => $row['sku']],
+                [
+                    'company_id' => $speaker->company_id,
+                    'options' => ['Color' => $row['Color']],
+                    'sale_price' => $row['sale_price'],
+                    'cost_price' => 900,
+                    'stock' => $row['stock'],
+                    'images' => $variantImages,
+                    'is_active' => true,
+                    'sort_order' => $index,
+                ],
+            );
+        }
+
+        // Keyboard Mouse Combo — Layout + Color variations.
+        $combo = $products[5];
+        $combo->update([
+            'has_variants' => true,
+            'variant_attributes' => ['Layout' => ['English', 'Bangla'], 'Color' => ['Black', 'White']],
+        ]);
+
+        foreach ([
+            ['options' => ['Layout' => 'English', 'Color' => 'Black'], 'sku' => 'DEMO-KB-MOUSE-001-EN-BLK', 'stock' => 10],
+            ['options' => ['Layout' => 'English', 'Color' => 'White'], 'sku' => 'DEMO-KB-MOUSE-001-EN-WHT', 'stock' => 6],
+            ['options' => ['Layout' => 'Bangla', 'Color' => 'Black'], 'sku' => 'DEMO-KB-MOUSE-001-BN-BLK', 'stock' => 4],
+            ['options' => ['Layout' => 'Bangla', 'Color' => 'White'], 'sku' => 'DEMO-KB-MOUSE-001-BN-WHT', 'stock' => 0],
+        ] as $index => $row) {
+            ProductVariant::query()->updateOrCreate(
+                ['product_id' => $combo->getKey(), 'sku' => $row['sku']],
+                [
+                    'company_id' => $combo->company_id,
+                    'options' => $row['options'],
+                    'sale_price' => 1650 + ($index * 50),
+                    'cost_price' => 950,
+                    'stock' => $row['stock'],
+                    'is_active' => true,
+                    'sort_order' => $index,
+                ],
+            );
+        }
+    }
+
+    protected function seedCarousels($products): void
+    {
+        $carousel = ProductCarousel::query()->updateOrCreate(
+            ['company_id' => $products[0]->company_id, 'title' => 'Best Sellers'],
+            [
+                'subtitle' => 'Most popular demo picks',
+                'is_active' => true,
+                'sort_order' => 0,
+            ],
+        );
+
+        $carousel->products()->syncWithoutDetaching([
+            $products[0]->getKey() => ['sort_order' => 0],
+            $products[1]->getKey() => ['sort_order' => 1],
+            $products[4]->getKey() => ['sort_order' => 2],
+            $products[7]->getKey() => ['sort_order' => 3],
+        ]);
+
+        $newArrivals = ProductCarousel::query()->updateOrCreate(
+            ['company_id' => $products[0]->company_id, 'title' => 'New Arrivals'],
+            [
+                'subtitle' => 'Fresh in the demo catalog',
+                'is_active' => true,
+                'sort_order' => 1,
+            ],
+        );
+
+        $newArrivals->products()->syncWithoutDetaching([
+            $products[5]->getKey() => ['sort_order' => 0],
+            $products[8]->getKey() => ['sort_order' => 1],
+            $products[9]->getKey() => ['sort_order' => 2],
+        ]);
     }
 
     protected function category(string $name, string $description): Category

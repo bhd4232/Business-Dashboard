@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Storefront;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
@@ -38,9 +39,7 @@ class CartController extends Controller
         [$company] = $this->domainStorefront($request);
         $product = $this->product($slug);
 
-        $this->cart->add($company, $product, (int) $request->integer('quantity', 1));
-
-        return back()->with('storefront_status', "{$product->name} added to cart.");
+        return $this->addToCart($request, $company, $product);
     }
 
     public function addPreview(Request $request, Company $company, string $slug): RedirectResponse
@@ -48,9 +47,58 @@ class CartController extends Controller
         $this->previewStorefront($company);
         $product = $this->product($slug);
 
-        $this->cart->add($company, $product, (int) $request->integer('quantity', 1));
+        return $this->addToCart($request, $company, $product);
+    }
 
-        return back()->with('storefront_status', "{$product->name} added to cart.");
+    /**
+     * Handles both simple products (single quantity) and variable products,
+     * where multiple variants with individual quantities are added in one
+     * submit via quantities[variant_id] inputs.
+     */
+    protected function addToCart(Request $request, Company $company, Product $product): RedirectResponse
+    {
+        if (! $product->has_variants) {
+            $this->cart->add($company, $product, (int) $request->integer('quantity', 1));
+
+            return back()->with('storefront_status', "{$product->name} added to cart.");
+        }
+
+        $quantities = collect((array) $request->input('quantities', []))
+            ->map(fn ($quantity): int => max(0, (int) $quantity))
+            ->filter(fn (int $quantity): bool => $quantity > 0);
+
+        // Backwards-compatible: single variant + quantity inputs.
+        if ($quantities->isEmpty() && $request->filled('variant')) {
+            $quantities = collect([(int) $request->integer('variant') => max(1, (int) $request->integer('quantity', 1))]);
+        }
+
+        abort_if($quantities->isEmpty(), 422, 'Please select quantity for at least one option.');
+
+        $variants = ProductVariant::query()
+            ->where('product_id', $product->getKey())
+            ->where('is_active', true)
+            ->whereIn('id', $quantities->keys()->all())
+            ->get()
+            ->keyBy('id');
+
+        abort_if($variants->isEmpty(), 422, 'Selected options are not available.');
+
+        $addedLines = 0;
+
+        foreach ($quantities as $variantId => $quantity) {
+            $variant = $variants->get((int) $variantId);
+
+            if (! $variant || (int) $variant->stock < 1) {
+                continue;
+            }
+
+            $this->cart->add($company, $product, $quantity, $variant);
+            $addedLines++;
+        }
+
+        abort_if($addedLines === 0, 422, 'Selected options are out of stock.');
+
+        return back()->with('storefront_status', "{$product->name} added to cart ({$addedLines} ".($addedLines === 1 ? 'option' : 'options').').');
     }
 
     public function update(Request $request, string $slug): RedirectResponse
@@ -58,7 +106,7 @@ class CartController extends Controller
         [$company] = $this->domainStorefront($request);
         $product = $this->product($slug);
 
-        $this->cart->update($company, $product, (int) $request->integer('quantity'));
+        $this->cart->update($company, $product, (int) $request->integer('quantity'), $this->resolveVariant($request, $product));
 
         return back()->with('storefront_status', 'Cart updated.');
     }
@@ -68,7 +116,7 @@ class CartController extends Controller
         $this->previewStorefront($company);
         $product = $this->product($slug);
 
-        $this->cart->update($company, $product, (int) $request->integer('quantity'));
+        $this->cart->update($company, $product, (int) $request->integer('quantity'), $this->resolveVariant($request, $product));
 
         return back()->with('storefront_status', 'Cart updated.');
     }
@@ -76,17 +124,39 @@ class CartController extends Controller
     public function remove(Request $request, string $slug): RedirectResponse
     {
         [$company] = $this->domainStorefront($request);
-        $this->cart->remove($company, $this->product($slug));
+        $product = $this->product($slug);
+        $this->cart->remove($company, $product, $this->resolveVariant($request, $product));
 
         return back()->with('storefront_status', 'Item removed from cart.');
     }
 
-    public function removePreview(Company $company, string $slug): RedirectResponse
+    public function removePreview(Request $request, Company $company, string $slug): RedirectResponse
     {
         $this->previewStorefront($company);
-        $this->cart->remove($company, $this->product($slug));
+        $product = $this->product($slug);
+        $this->cart->remove($company, $product, $this->resolveVariant($request, $product));
 
         return back()->with('storefront_status', 'Item removed from cart.');
+    }
+
+    protected function resolveVariant(Request $request, Product $product, bool $requireForVariable = false): ?ProductVariant
+    {
+        $variantId = (int) $request->integer('variant');
+
+        if ($variantId < 1) {
+            abort_if($requireForVariable && $product->has_variants, 422, 'Please select an option first.');
+
+            return null;
+        }
+
+        $variant = ProductVariant::query()
+            ->where('product_id', $product->getKey())
+            ->where('is_active', true)
+            ->find($variantId);
+
+        abort_unless($variant, 404);
+
+        return $variant;
     }
 
     protected function cartView(Company $company, StorefrontSetting $setting, ?string $previewSlug = null): View

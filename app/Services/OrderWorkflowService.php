@@ -63,31 +63,42 @@ class OrderWorkflowService
 
     protected function syncStockMovements(Order $order, Collection $items): void
     {
-        $quantitiesByProduct = $items
-            ->groupBy('product_id')
-            ->map(fn ($productItems): int => $productItems->sum('quantity'));
+        // Group per product + variant so variable products deduct stock
+        // from the exact variant that was sold.
+        $grouped = $items
+            ->groupBy(fn ($item): string => $item->product_id.':'.($item->product_variant_id ?? 0))
+            ->map(fn ($groupItems) => [
+                'product_id' => (int) $groupItems->first()->product_id,
+                'product_variant_id' => $groupItems->first()->product_variant_id,
+                'quantity' => (int) $groupItems->sum('quantity'),
+            ]);
 
-        foreach ($quantitiesByProduct as $productId => $quantity) {
-            StockMovement::query()->updateOrCreate(
+        $keptMovementIds = [];
+
+        foreach ($grouped as $line) {
+            $movement = StockMovement::query()->updateOrCreate(
                 [
-                    'product_id' => $productId,
+                    'product_id' => $line['product_id'],
+                    'product_variant_id' => $line['product_variant_id'],
                     'type' => 'sale',
                     'reference_type' => Order::class,
                     'reference_id' => $order->getKey(),
                 ],
                 [
                     'company_id' => $order->company_id,
-                    'quantity' => $quantity,
+                    'quantity' => $line['quantity'],
                     'note' => "Invoice {$order->order_number}",
                 ],
             );
+
+            $keptMovementIds[] = $movement->getKey();
         }
 
         StockMovement::query()
             ->where('type', 'sale')
             ->where('reference_type', Order::class)
             ->where('reference_id', $order->getKey())
-            ->whereNotIn('product_id', $quantitiesByProduct->keys()->all())
+            ->whereNotIn('id', $keptMovementIds)
             ->get()
             ->each
             ->delete();

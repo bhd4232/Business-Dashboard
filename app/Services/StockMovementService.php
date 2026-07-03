@@ -43,6 +43,18 @@ class StockMovementService
             return;
         }
 
+        // Variable products own their stock as the sum of active variant
+        // stock (synced by ProductVariant hooks) — the movement ledger
+        // must not overwrite it.
+        $hasVariants = (bool) Product::query()
+            ->withoutGlobalScopes()
+            ->whereKey($productId)
+            ->value('has_variants');
+
+        if ($hasVariants) {
+            return;
+        }
+
         $stock = StockMovement::query()
             ->where('product_id', $productId)
             ->get()
