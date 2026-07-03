@@ -282,6 +282,12 @@ Current behavior:
 - Product detail pages show a breadcrumb, a sticky buy box with a quantity stepper, and a "You may also like" related-products rail (same category, excludes current product, limit 4), sourced from `StorefrontProductShowController` and `PreviewController::product`.
 - Homepage hero heading/subheading/CTA label are admin-editable via `storefront_settings.hero_heading`, `hero_subheading`, `hero_cta_label` (all nullable; blank falls back to the default "Shop the latest from {company}." copy in `home.blade.php`).
 - Public storefront copy should not expose implementation details such as unfinished roadmap steps; customer-facing text should describe direct ordering, review, confirmation, and tracking.
+- Header includes a hover mega menu ("Categories") listing the current company's active categories that have available products, plus an optional call button (`storefront_settings.phone_number`, `tel:` link) next to the WhatsApp button. Both are queried inline in `layout.blade.php`.
+- Homepage hero banner supports separate desktop and mobile images: `storefront_settings.banner_images` (existing, desktop/wide) and `storefront_settings.banner_image_mobile` (new, vertical/square), swapped via a `<picture>`/`<source media>` breakpoint at 640px in `home.blade.php`.
+- Homepage includes a static 4-step "how to order" explainer section (no backend data) between the hero and the category grid.
+- Footer includes a "Our other brands" cross-promotion section listing other active companies that have a published storefront and a domain set, linking to `https://{domain}`.
+- A fixed mobile bottom nav bar (Home/Category/Cart/Account, `sm:hidden`) is rendered in `layout.blade.php`; `<main>` gets `pb-16 sm:pb-0` and the footer gets `mb-16 sm:mb-0` so content does not sit under it on small screens.
+- Curated homepage product carousels (owner-curated, titled sections beyond "Featured products") are still pending; they need a new Filament resource and are intentionally out of scope for the current pass.
 - Avoid broad inline CSS for storefront pages unless it is a small dynamic CSS variable such as company theme color.
 - Whenever storefront UI/routes/settings/cart/checkout are changed, update this guide with the affected files and verification steps.
 
@@ -304,6 +310,7 @@ database/migrations/2026_06_25_000000_add_storefront_foundation_fields.php
 database/migrations/2026_06_25_001000_create_storefront_settings_table.php
 database/migrations/2026_06_28_001000_create_storefront_pages_table.php
 database/migrations/2026_07_03_000000_add_hero_and_theme_fields_to_storefront_settings_table.php
+database/migrations/2026_07_03_010000_add_dual_banner_and_phone_to_storefront_settings_table.php
 database/seeders/DemoDataSeeder.php
 routes/web.php
 resources/views/storefront/

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Product;
+use App\Models\ProductCarousel;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -39,6 +40,7 @@ class HomeController extends Controller
                 ->latest()
                 ->take(12)
                 ->get(),
+            'carousels' => ProductCarousel::forHomepage(),
         ]);
     }
 }

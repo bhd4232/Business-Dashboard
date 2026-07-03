@@ -39,6 +39,9 @@ class Product extends Model
         'is_active',
         'status',
         'image',
+        'gallery_images',
+        'variant_attributes',
+        'has_variants',
         'category_id',
     ];
 
@@ -48,6 +51,9 @@ class Product extends Model
         'price' => 'decimal:2',
         'vat_rate' => 'decimal:2',
         'is_active' => 'boolean',
+        'gallery_images' => 'array',
+        'variant_attributes' => 'array',
+        'has_variants' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -66,6 +72,16 @@ class Product extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function activeVariants()
+    {
+        return $this->variants()->where('is_active', true);
     }
 
     public function stockMovements()

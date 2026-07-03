@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Product;
+use App\Models\ProductCarousel;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use Illuminate\Http\Request;
@@ -37,6 +38,7 @@ class PreviewController extends Controller
                 ->latest()
                 ->take(12)
                 ->get(),
+            'carousels' => ProductCarousel::forHomepage(),
         ]);
     }
 

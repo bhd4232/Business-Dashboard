@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Products\Schemas;
 use App\Models\Category;
 use App\Models\Product;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -117,8 +119,10 @@ class ProductForm
                             ->integer()
                             ->default(0)
                             ->minValue(0)
-                            ->required()
-                            ->helperText('Saving this value creates an opening or adjustment stock movement.'),
+                            ->required(fn ($get): bool => ! $get('has_variants'))
+                            ->disabled(fn ($get): bool => (bool) $get('has_variants'))
+                            ->dehydrated(fn ($get): bool => ! $get('has_variants'))
+                            ->helperText('Saving this value creates an opening or adjustment stock movement. When variations are enabled, stock is tracked per variation and this field becomes the automatic sum of variation stock.'),
 
                         TextInput::make('reorder_level')
                             ->label('Reorder Level')
@@ -140,16 +144,96 @@ class ProductForm
                     ->collapsible()
                     ->persistCollapsed(),
 
-                Section::make('Product Image')
+                Section::make('Product Images')
                     ->schema([
                         FileUpload::make('image')
-                            ->label('Upload Image')
+                            ->label('Featured Image')
+                            ->helperText('Main image shown in product lists and as the default on the product page. Recommended: square, at least 800x800px.')
                             ->image()
+                            ->maxSize(2048)
                             ->disk('public')
                             ->directory('products')
                             ->imageEditor()
                             ->downloadable()
                             ->openable(),
+                        FileUpload::make('gallery_images')
+                            ->label('Gallery Images')
+                            ->helperText('Additional product photos shown as a gallery on the product page. Drag to reorder.')
+                            ->image()
+                            ->multiple()
+                            ->reorderable()
+                            ->maxSize(2048)
+                            ->maxFiles(10)
+                            ->disk('public')
+                            ->directory('products/gallery')
+                            ->imageEditor()
+                            ->downloadable()
+                            ->openable(),
+                    ])
+                    ->columns(2)
+                    ->collapsible()
+                    ->persistCollapsed(),
+
+                Section::make('Variations')
+                    ->description('Enable for products that come in multiple options (size, color, model). Each variation has its own SKU, price, stock, and images — like WooCommerce variable products.')
+                    ->schema([
+                        Toggle::make('has_variants')
+                            ->label('This product has variations')
+                            ->live()
+                            ->default(false),
+                        Repeater::make('variants')
+                            ->relationship('variants')
+                            ->visible(fn ($get): bool => (bool) $get('has_variants'))
+                            ->schema([
+                                KeyValue::make('options')
+                                    ->label('Options')
+                                    ->keyLabel('Attribute (e.g. Size, Color)')
+                                    ->valueLabel('Value (e.g. M, Red)')
+                                    ->required()
+                                    ->columnSpanFull(),
+                                TextInput::make('sku')
+                                    ->label('Variation SKU')
+                                    ->maxLength(100),
+                                TextInput::make('sale_price')
+                                    ->label('Sale Price')
+                                    ->numeric()
+                                    ->prefix('BDT')
+                                    ->minValue(0)
+                                    ->helperText('Leave empty to use the product sale price.'),
+                                TextInput::make('cost_price')
+                                    ->label('Cost Price')
+                                    ->numeric()
+                                    ->prefix('BDT')
+                                    ->minValue(0),
+                                TextInput::make('stock')
+                                    ->label('Stock')
+                                    ->integer()
+                                    ->default(0)
+                                    ->minValue(0)
+                                    ->required(),
+                                Toggle::make('is_active')
+                                    ->label('Active')
+                                    ->default(true),
+                                FileUpload::make('images')
+                                    ->label('Variation Images')
+                                    ->helperText('Shown when this variation is selected on the storefront.')
+                                    ->image()
+                                    ->multiple()
+                                    ->reorderable()
+                                    ->maxSize(2048)
+                                    ->maxFiles(6)
+                                    ->disk('public')
+                                    ->directory('products/variants')
+                                    ->imageEditor()
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->orderColumn('sort_order')
+                            ->reorderable()
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): ?string => collect($state['options'] ?? [])->map(fn ($v, $k) => "$k: $v")->implode(' / ') ?: null)
+                            ->addActionLabel('Add variation')
+                            ->defaultItems(0),
                     ])
                     ->collapsible()
                     ->persistCollapsed(),

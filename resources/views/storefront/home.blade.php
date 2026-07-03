@@ -5,6 +5,7 @@
         $heroProduct = $products->first();
         $bannerImage = collect($setting->banner_images ?? [])->filter()->first();
         $bannerUrl = $bannerImage ? asset('storage/'.$bannerImage) : null;
+        $bannerMobileUrl = $setting->banner_image_mobile ? asset('storage/'.$setting->banner_image_mobile) : null;
         $heroHeading = $setting->hero_heading ?: 'Shop the latest from '.$company->name.'.';
         $heroSubheading = $setting->hero_subheading ?: 'Browse current products, order directly, and track purchases from one clean storefront.';
         $heroCta = $setting->hero_cta_label ?: 'Start shopping';
@@ -37,7 +38,12 @@
 
             <div class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5">
                 @if ($bannerUrl)
-                    <img class="aspect-[4/3] w-full object-cover" src="{{ $bannerUrl }}" alt="{{ $company->name }} storefront banner">
+                    <picture>
+                        @if ($bannerMobileUrl)
+                            <source media="(max-width: 639px)" srcset="{{ $bannerMobileUrl }}">
+                        @endif
+                        <img class="aspect-[4/3] w-full object-cover" src="{{ $bannerUrl }}" alt="{{ $company->name }} storefront banner">
+                    </picture>
                 @elseif ($heroProduct?->image)
                     <img class="aspect-[4/3] w-full object-cover" src="{{ asset('storage/'.$heroProduct->image) }}" alt="{{ $heroProduct->name }}">
                 @else
@@ -46,6 +52,25 @@
                     </div>
                 @endif
             </div>
+        </div>
+    </section>
+
+    <section class="border-b border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/[0.02]">
+        <div class="mx-auto grid w-full max-w-7xl gap-6 px-4 py-12 sm:px-6 sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
+            @foreach ([
+                ['1', 'Choose a product', 'Browse the catalog and pick what you need.'],
+                ['2', 'Add to cart', 'Set the quantity and add it to your cart.'],
+                ['3', 'Confirm order', 'Fill in your delivery details and confirm.'],
+                ['4', 'Receive delivery', 'Track your order until it reaches you.'],
+            ] as [$step, $stepTitle, $stepDescription])
+                <div class="flex items-start gap-3">
+                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gray-950 text-sm font-semibold text-white dark:bg-white dark:text-gray-950">{{ $step }}</span>
+                    <div>
+                        <div class="text-sm font-semibold text-gray-900 dark:text-white">{{ $stepTitle }}</div>
+                        <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $stepDescription }}</div>
+                    </div>
+                </div>
+            @endforeach
         </div>
     </section>
 
@@ -85,4 +110,27 @@
             @endforelse
         </div>
     </section>
+
+    @foreach ($carousels ?? [] as $carousel)
+        <section class="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
+            <div class="mb-8 flex items-end justify-between gap-5">
+                <div>
+                    <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ $carousel->title }}</h2>
+                    @if ($carousel->subtitle)
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $carousel->subtitle }}</p>
+                    @endif
+                </div>
+                <a class="hidden text-sm font-medium text-gray-500 hover:text-gray-950 sm:inline dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">View all</a>
+            </div>
+            <div class="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+                <div class="flex snap-x snap-mandatory gap-5">
+                    @foreach ($carousel->products as $product)
+                        <div class="w-64 shrink-0 snap-start sm:w-72">
+                            @include('storefront.partials.product-card', ['product' => $product])
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </section>
+    @endforeach
 @endsection

@@ -2,6 +2,44 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-03 - Storefront "Top-Class Reference Pattern" (Part 4.6 remaining items)
+
+Reason:
+
+- Master plan Part 4.6 listed 7 accepted UI patterns from the SkyBuy/MoveOn reference analysis (mega menu, dual banner, header chat+call button, curated carousel, "how to order" explainer, sister-company cross-promotion, mobile bottom nav) as not yet implemented. This pass implements everything except the curated carousel, which needs a new Filament resource and was intentionally left out of scope for this change.
+
+Changed files:
+
+- `database/migrations/2026_07_03_010000_add_dual_banner_and_phone_to_storefront_settings_table.php` (new)
+- `app/Models/StorefrontSetting.php`
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`
+- `resources/views/storefront/layout.blade.php`
+- `resources/views/storefront/home.blade.php`
+- `business_dashboard_master_plan_v2_custom_storefront.md`
+- `PROJECT_GUIDE.md`
+
+What changed:
+
+- Added `storefront_settings.banner_image_mobile` (nullable) and `storefront_settings.phone_number` (nullable) columns.
+- Header mega menu: hover dropdown under "Categories" listing the company's active categories that have available products.
+- Header call button: `tel:` link next to WhatsApp, shown only when `phone_number` is set.
+- Dual banner: `home.blade.php` hero uses `<picture>`/`<source media="(max-width: 639px)">` to show `banner_image_mobile` on phones and the existing desktop banner otherwise.
+- "How to order" explainer: static 4-step icon+text section on the homepage between the hero and category grid.
+- Sister-company cross-promotion: footer section linking to other active companies with a published storefront and a domain.
+- Mobile bottom nav: fixed `sm:hidden` bar (Home/Category/Cart with badge/Account); `<main>` and `<footer>` get bottom spacing so content isn't hidden under it.
+- `StorefrontSettingResource` form: new "Call support number" field and a second, separate "Banner image (mobile)" upload alongside the existing desktop banner upload field.
+
+Verification:
+
+- `php artisan migrate --force`
+- `npm run build`
+- `php artisan test --filter=StorefrontFoundationTest` (20/20)
+- `php artisan test --filter=PhaseFourAdminPagesTest` (3/3)
+- Full suite `php artisan test` (169/169 passed, 767 assertions)
+- Manual verification via local preview: mega menu dropdown, mobile bottom nav rendering (confirmed via computed `display: grid` at 375px width since the screenshot tool was unavailable this session), category/product data on the homepage.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-03 - Storefront Visual Redesign and Admin Homepage Content Settings
 
 Reason:
