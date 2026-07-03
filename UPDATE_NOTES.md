@@ -2,6 +2,31 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-04 - Variant Stock Movement CI Fix
+
+Reason:
+
+- GitHub CI failed on `ProductVariantTest::test_confirmed_order_deducts_variant_stock_and_restores_on_cancel` because variant sale movements were still validated against the parent product movement ledger. Variable products keep stock from active variants, so the parent ledger can be empty even when the selected variant has stock.
+
+Changed files:
+
+- `app/Services/StockMovementService.php`
+- `PROJECT_GUIDE.md`
+- `UPDATE_NOTES.md`
+
+What changed:
+
+- Stock movements with `product_variant_id` now validate projected stock against the selected variant's current stock plus the signed movement delta.
+- Invalid variant/product combinations fail with a form validation message.
+- The project guide now documents that variant stock movements are validated against variant stock, not parent product ledger stock.
+
+Verification:
+
+- `php artisan test --env=testing --filter=ProductVariantTest` passed: 6 tests, 19 assertions.
+- `php artisan test --env=testing` passed: 178 tests, 798 assertions.
+
+Commit status: User approved commit and push on 2026-07-04.
+
 ## 2026-07-04 - Storefront Variant Cart and CI Stabilization
 
 Reason:

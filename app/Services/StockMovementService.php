@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use Illuminate\Validation\ValidationException;
 
@@ -104,6 +105,33 @@ class StockMovementService
         return $currentStock + $this->signedQuantityFor($type, $quantity);
     }
 
+    public function projectedVariantStockFor(StockMovement $movement): int
+    {
+        $variant = ProductVariant::withoutGlobalScopes()->find($movement->product_variant_id);
+
+        if (! $variant || (int) $variant->product_id !== (int) $movement->product_id) {
+            throw ValidationException::withMessages([
+                'product_variant_id' => 'Please select a valid product variant.',
+            ]);
+        }
+
+        $oldSigned = 0;
+
+        if (
+            $movement->exists
+            && (int) $movement->getOriginal('product_variant_id') === (int) $movement->product_variant_id
+        ) {
+            $oldSigned = $this->signedQuantityFor(
+                (string) $movement->getOriginal('type', $movement->type),
+                (int) $movement->getOriginal('quantity', 0),
+            );
+        }
+
+        return (int) $variant->stock
+            + $this->signedQuantityFor($movement->type, (int) $movement->quantity)
+            - $oldSigned;
+    }
+
     public function validate(StockMovement $movement): void
     {
         if (! array_key_exists($movement->type, StockMovement::TYPES)) {
@@ -130,12 +158,14 @@ class StockMovementService
             ]);
         }
 
-        $projectedStock = $this->projectedStockFor(
-            (int) $movement->product_id,
-            $movement->type,
-            (int) $movement->quantity,
-            $movement->exists ? (int) $movement->getKey() : null,
-        );
+        $projectedStock = $movement->product_variant_id
+            ? $this->projectedVariantStockFor($movement)
+            : $this->projectedStockFor(
+                (int) $movement->product_id,
+                $movement->type,
+                (int) $movement->quantity,
+                $movement->exists ? (int) $movement->getKey() : null,
+            );
 
         if ($projectedStock < 0) {
             $message = $movement->type === 'sale'

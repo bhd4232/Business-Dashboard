@@ -412,7 +412,7 @@ Stock behavior:
 - Products marked `has_variants` use active variant stock as the parent product stock total; the ledger sync does not overwrite parent stock for variable products.
 - Opening, purchase, and return movements increase stock.
 - Sale movements reduce stock.
-- Sale stock movements can reference `product_variant_id`; variant stock is adjusted by signed movement delta and restored when the movement is deleted.
+- Sale stock movements can reference `product_variant_id`; variant stock is validated against the variant's current stock, adjusted by signed movement delta, and restored when the movement is deleted.
 - Adjustment movements use signed quantity.
 - Movements that would make product stock negative are blocked.
 - Product view includes stock movement history.
