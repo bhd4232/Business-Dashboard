@@ -457,10 +457,18 @@ tests/Feature/CourierIntegrationTest.php
 PROJECT_GUIDE.md স্পষ্ট করে বলছে এগুলো এখন **"configuration placeholder"** হিসেবে provider choice-এ দেখা যায় (অর্থাৎ Filament dropdown-এ option আছে), কিন্তু **কোনো live API client implement হয়নি**। এটা আগের "তৈরি হয়নি" বলার চেয়ে একটু বেশি অগ্রগতি — UI-level provider স্লট রেডি আছে, কিন্তু backend API integration শূন্য থেকে শুরু করতে হবে।
 
 ```txt
-[ ] Pathao — placeholder option আছে, live API client নেই
-[ ] RedX — placeholder option আছে, live API client নেই
-[ ] E-Courier — placeholder option আছে, live API client নেই (এটা মূল প্ল্যানে
-    ছিল না, কিন্তু কোডে provider choice হিসেবে already যুক্ত আছে — confirmed)
+[✅] Pathao — live API client সম্পন্ন (2026-07-05): PathaoCourierClient
+    (issue-token OAuth password grant + token cache, orders, order info,
+    city/zone/area/store list), booking/sync/webhook adapter, Orders
+    টেবিলে "Book Pathao" action। বাকি শুধু owner-এর merchant credential
+    (client_id/secret/username/password) বসানো।
+[✅] RedX — live API client সম্পন্ন (2026-07-05): RedxCourierClient
+    (API-ACCESS-TOKEN header, parcel create/info/track/areas), adapter +
+    "Book RedX" action। বাকি শুধু owner-এর access token বসানো।
+[✅] E-Courier — live API client সম্পন্ন (2026-07-05): ECourierClient
+    (API-KEY/API-SECRET/USER-ID headers, order-place/track/cancel +
+    reference lists), adapter + "Book E-Courier" action। বাকি শুধু
+    owner-এর credential বসানো।
 ```
 
 ### ✅ Architecture — সম্পন্ন (আপডেট: কোডে যাচাই করা হয়েছে)
@@ -476,13 +484,15 @@ PROJECT_GUIDE.md স্পষ্ট করে বলছে এগুলো এ�
 ### ⚠️ যা এখনো বাকি — API Adapters (আপডেট: guardrail সম্পন্ন, live client বাকি)
 
 ```txt
-[✅] Pathao/RedX/E-Courier — এখন explicit "PendingLiveCourierAdapter" দিয়ে
-    CourierManager-এ wired আছে (app/Services/Couriers/PathaoCourierAdapter.php,
-    RedxCourierAdapter.php, ECourierAdapter.php, PendingLiveCourierAdapter.php) —
-    booking/sync/balance/webhook চাইলে স্পষ্ট setup-message দিয়ে reject করে,
-    ভুলভাবে silently fail করে না।
-[ ] Live API client (আসল merchant credential দিয়ে booking/sync/webhook কাজ
-    করা) — এখনো বাকি, official API doc/credential/sandbox response দরকার।
+[✅] Pathao/RedX/E-Courier live adapters সম্পন্ন (2026-07-05) — আগের
+    PendingLiveCourierAdapter guardrail সরিয়ে আসল adapter বসানো হয়েছে
+    (app/Services/Couriers/PathaoCourierAdapter.php, RedxCourierAdapter.php,
+    ECourierAdapter.php), create/sync/webhookStatus কাজ করে; credential
+    ছাড়া booking চাইলে স্পষ্ট "credentials required" validation error।
+[✅] Live API client — সম্পন্ন (PathaoCourierClient, RedxCourierClient,
+    ECourierClient), API contract ওয়েব রিসার্চে অফিসিয়াল ডক থেকে যাচাই
+    করা; টেস্ট Http::fake দিয়ে (LiveCourierAdaptersTest)। আসল sandbox
+    টেস্ট owner-এর merchant credential পাওয়ার পরে করতে হবে।
 ```
 
 ### ✅ যা এখন সম্পন্ন — Webhook ও Reliability (আপডেট: কোডে যাচাই করা হয়েছে)
@@ -509,7 +519,9 @@ PROJECT_GUIDE.md স্পষ্ট করে বলছে এগুলো এ�
     দিয়ে করা হয়েছে (provider-native label endpoint না, কারণ official API
     contract এখনো নেই)
 [✅] Dedicated tracking/status action আছে
-[ ] Steadfast balance admin UI-তে দেখানো এখনো বাকি
+[✅] Steadfast balance admin UI — সম্পন্ন (2026-07-05): Courier Providers
+    টেবিলে "Balance" action, credential-সহ Steadfast provider-এ ক্লিক
+    করলে current balance notification-এ দেখায়
 ```
 
 ### ✅ যা এখন সম্পন্ন — Reports (আপডেট)
@@ -528,9 +540,9 @@ CourierManager                          ✅ সম্পন্ন (app/Services/
 ├── CourierProviderInterface             ✅ সম্পন্ন (app/Contracts/CourierProviderInterface.php)
 ├── ManualCourier Adapter      ✅ সম্পন্ন (app/Services/Couriers/ManualCourierAdapter.php)
 ├── SteadfastCourier Adapter   ✅ সম্পন্ন (app/Services/Couriers/SteadfastCourierAdapter.php)
-├── PathaoCourier Adapter      ⚠️ guardrail সম্পন্ন (PendingLiveCourierAdapter), live client বাকি
-├── RedxCourier Adapter        ⚠️ guardrail সম্পন্ন (PendingLiveCourierAdapter), live client বাকি
-├── ECourierCourier Adapter    ⚠️ guardrail সম্পন্ন (PendingLiveCourierAdapter), live client বাকি
+├── PathaoCourier Adapter      ✅ সম্পন্ন (live client + adapter, 2026-07-05)
+├── RedxCourier Adapter        ✅ সম্পন্ন (live client + adapter, 2026-07-05)
+├── ECourierCourier Adapter    ✅ সম্পন্ন (live client + adapter, 2026-07-05)
 └── Future Adapters
 ```
 
@@ -562,13 +574,12 @@ not_booked → booking_pending → booked → picked_up → in_transit
 ✅ ৩. CourierStatusLogResource + CourierWebhookLogResource — সম্পন্ন
 ✅ ৪. Order action: Cancel Booking, Print Label (label URL template), dedicated
    Track action — সম্পন্ন
-⚠️ ৫. Pathao adapter — guardrail/placeholder সম্পন্ন (PendingLiveCourierAdapter),
-   live API client বাকি (merchant credential/official doc দরকার)
-⚠️ ৬. RedX adapter — একই অবস্থা, live client বাকি
-⚠️ ৭. E-Courier adapter — একই অবস্থা, live client বাকি
+✅ ৫. Pathao adapter — সম্পন্ন (2026-07-05), owner-এর credential বসালেই লাইভ
+✅ ৬. RedX adapter — সম্পন্ন (2026-07-05), owner-এর token বসালেই লাইভ
+✅ ৭. E-Courier adapter — সম্পন্ন (2026-07-05), owner-এর credential বসালেই লাইভ
 ✅ ৮. Courier reports (provider-wise delivered/returned/cancelled, success/return
    ratio, COD summary, company-wise performance) — CourierReportService দিয়ে সম্পন্ন
-❌ ৯. Steadfast balance UI-তে দেখানো — এখনো বাকি
+✅ ৯. Steadfast balance UI-তে দেখানো — সম্পন্ন (2026-07-05)
 ✅ ১০. Idempotency guarantee — সম্পন্ন; production monitoring/alerting এখনো বাকি
 ```
 
@@ -1452,11 +1463,10 @@ and successful add-to-cart."
    signature verification + queue + retry + idempotency, CourierStatusLogResource,
    CourierWebhookLogResource, Cancel Booking/Print Label/Track action,
    courier reports (success/return ratio, COD summary, company-wise performance)
-⚠️ Pathao/RedX/E-Courier — CourierManager-এ explicit "pending live adapter"
-   guardrail wired আছে, কিন্তু কোনো live API client নেই — merchant
-   credential/official API doc দরকার
-❌ বাকি — Steadfast balance UI-তে দেখানো, production monitoring/alerting
-   বিস্তারিত দেখুন Part 2, সেকশন 2.4
+✅ সম্পন্ন (2026-07-05) — Pathao/RedX/E-Courier live API client + adapter +
+   booking action; owner-এর merchant credential বসালেই লাইভ (Part 2 দেখুন)
+✅ সম্পন্ন (2026-07-05) — Steadfast balance UI (Courier Providers-এ Balance action)
+❌ বাকি — production monitoring/alerting courier API failure-এর জন্য
 ```
 
 ## Phase 3: Fraud / Customer Success MVP
@@ -1500,8 +1510,8 @@ and successful add-to-cart."
 ## Phase 7: Courier API Adapters
 ```txt
 ✅ সম্পন্ন — SteadfastCourier adapter (booking API, tracking API, webhook handler)
-⚠️ বাকি — PathaoCourier, RedxCourier, ECourier-এর live API client (guardrail
-   adapter আছে, merchant credential/official doc পেলে সম্পন্ন করা যাবে)
+✅ সম্পন্ন (2026-07-05) — PathaoCourier, RedxCourier, ECourier live API client +
+   adapter (booking/sync/webhook); owner-এর merchant credential বসালেই লাইভ
 ```
 
 ## Phase 8: Advanced Risk & Approval Workflow

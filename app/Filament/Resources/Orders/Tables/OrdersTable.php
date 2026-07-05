@@ -160,6 +160,36 @@ class OrdersTable
                         $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
                         app(CourierService::class)->createSteadfastBooking($record, $provider, $data);
                     }),
+                Action::make('bookPathao')
+                    ->label('Book Pathao')
+                    ->icon('heroicon-o-truck')
+                    ->color('info')
+                    ->visible(fn (Order $record): bool => self::canBookCourier($record) && self::hasActiveProvider(CourierProvider::DRIVER_PATHAO))
+                    ->schema(fn (Order $record): array => self::pathaoBookingForm($record))
+                    ->action(function (Order $record, array $data): void {
+                        $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
+                        app(CourierService::class)->createPathaoBooking($record, $provider, $data);
+                    }),
+                Action::make('bookRedx')
+                    ->label('Book RedX')
+                    ->icon('heroicon-o-truck')
+                    ->color('danger')
+                    ->visible(fn (Order $record): bool => self::canBookCourier($record) && self::hasActiveProvider(CourierProvider::DRIVER_REDX))
+                    ->schema(fn (Order $record): array => self::redxBookingForm($record))
+                    ->action(function (Order $record, array $data): void {
+                        $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
+                        app(CourierService::class)->createRedxBooking($record, $provider, $data);
+                    }),
+                Action::make('bookECourier')
+                    ->label('Book E-Courier')
+                    ->icon('heroicon-o-truck')
+                    ->color('success')
+                    ->visible(fn (Order $record): bool => self::canBookCourier($record) && self::hasActiveProvider(CourierProvider::DRIVER_ECOURIER))
+                    ->schema(fn (Order $record): array => self::ecourierBookingForm($record))
+                    ->action(function (Order $record, array $data): void {
+                        $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
+                        app(CourierService::class)->createECourierBooking($record, $provider, $data);
+                    }),
                 Action::make('markDelivered')
                     ->label('Delivered')
                     ->icon('heroicon-o-check-circle')
@@ -285,6 +315,105 @@ class OrdersTable
                 ])
                 ->default(0)
                 ->native(false),
+        ];
+    }
+
+    protected static function hasActiveProvider(string $driver): bool
+    {
+        return CourierProvider::query()
+            ->where('driver', $driver)
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    protected static function providerSelect(string $driver, string $label): Select
+    {
+        return Select::make('courier_provider_id')
+            ->label($label)
+            ->options(fn (): array => CourierProvider::query()
+                ->where('driver', $driver)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name', 'id')
+                ->all())
+            ->required()
+            ->native(false);
+    }
+
+    protected static function pathaoBookingForm(Order $record): array
+    {
+        return [
+            self::providerSelect(CourierProvider::DRIVER_PATHAO, 'Pathao Provider'),
+            ...self::courierBookingForm($record, includeProvider: false),
+            TextInput::make('store_id')
+                ->label('Store ID')
+                ->numeric()
+                ->helperText('Leave blank to use the provider default store.'),
+            TextInput::make('recipient_city')
+                ->label('City ID')
+                ->numeric()
+                ->helperText('Pathao city/zone/area IDs from the merchant panel or API city list.'),
+            TextInput::make('recipient_zone')
+                ->label('Zone ID')
+                ->numeric(),
+            TextInput::make('recipient_area')
+                ->label('Area ID')
+                ->numeric(),
+            Select::make('delivery_type')
+                ->options([
+                    48 => 'Normal Delivery',
+                    12 => 'On-Demand Delivery',
+                ])
+                ->default(48)
+                ->native(false),
+            TextInput::make('item_weight')
+                ->label('Weight (kg)')
+                ->numeric()
+                ->default(0.5)
+                ->minValue(0.1),
+        ];
+    }
+
+    protected static function redxBookingForm(Order $record): array
+    {
+        return [
+            self::providerSelect(CourierProvider::DRIVER_REDX, 'RedX Provider'),
+            ...self::courierBookingForm($record, includeProvider: false),
+            TextInput::make('delivery_area')
+                ->label('Delivery Area Name')
+                ->required()
+                ->helperText('RedX area name, e.g. from the RedX areas list.'),
+            TextInput::make('delivery_area_id')
+                ->label('Delivery Area ID')
+                ->numeric()
+                ->required(),
+            TextInput::make('parcel_weight')
+                ->label('Weight (grams)')
+                ->numeric()
+                ->default(500)
+                ->minValue(1),
+        ];
+    }
+
+    protected static function ecourierBookingForm(Order $record): array
+    {
+        return [
+            self::providerSelect(CourierProvider::DRIVER_ECOURIER, 'E-Courier Provider'),
+            ...self::courierBookingForm($record, includeProvider: false),
+            TextInput::make('recipient_city')
+                ->label('City')
+                ->required(),
+            TextInput::make('recipient_thana')
+                ->label('Thana')
+                ->required(),
+            TextInput::make('recipient_zip')
+                ->label('Post Code')
+                ->required(),
+            TextInput::make('recipient_area')
+                ->label('Area'),
+            TextInput::make('package_code')
+                ->label('Package Code')
+                ->helperText('Leave blank to use the provider default package.'),
         ];
     }
 

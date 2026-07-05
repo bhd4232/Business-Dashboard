@@ -2,6 +2,24 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.4.0] - 2026-07-05
+
+**Release type:** Minor Version Update
+
+### Added
+
+- Added live Pathao courier integration: token-based authentication with caching, order booking from the Orders list, delivery status sync, and webhook status mapping.
+- Added live RedX courier integration: parcel booking, tracking sync, and webhook status mapping.
+- Added live E-Courier integration: order placement, tracking sync, cancel support, and webhook status mapping.
+- Added driver-specific credential fields on the Courier Provider form (Pathao client ID/secret/username/password, RedX access token, E-Courier API key/secret/user ID) — all encrypted, owner plugs keys in later; sandbox/staging base URLs supported.
+- Added a Steadfast "Balance" action on the Courier Providers list that shows the current merchant balance.
+- The courier booking status sync action now works for all API providers (Steadfast, Pathao, RedX, E-Courier).
+
+### Technical Notes
+
+- API contracts were verified against official documentation; bookings without configured credentials fail with a clear validation message instead of silent errors.
+- Live sandbox verification is still pending until merchant credentials are provided.
+
 ## [1.3.0] - 2026-07-05
 
 **Release type:** Minor Version Update

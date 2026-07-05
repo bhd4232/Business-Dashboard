@@ -165,6 +165,301 @@ class CourierService
         );
     }
 
+    public function createPathaoBooking(Order $order, CourierProvider $provider, array $data = []): CourierBooking
+    {
+        $order->loadMissing(['customer', 'items.product', 'company']);
+        app(CustomerRiskService::class)->assertNotBlacklisted($order);
+        $this->assertProviderUsable($order, $provider, CourierProvider::DRIVER_PATHAO, 'Pathao');
+
+        $payload = array_filter([
+            'store_id' => (int) ($data['store_id'] ?? ($provider->settings['default_store_id'] ?? 0)),
+            'merchant_order_id' => $order->order_number,
+            'recipient_name' => $data['recipient_name'] ?? $order->customer_name ?? $order->customer?->name,
+            'recipient_phone' => $data['recipient_phone'] ?? $order->customer?->phone,
+            'recipient_address' => $data['recipient_address'] ?? $order->customer?->address,
+            'recipient_city' => isset($data['recipient_city']) ? (int) $data['recipient_city'] : null,
+            'recipient_zone' => isset($data['recipient_zone']) ? (int) $data['recipient_zone'] : null,
+            'recipient_area' => isset($data['recipient_area']) ? (int) $data['recipient_area'] : null,
+            'delivery_type' => (int) ($data['delivery_type'] ?? 48),
+            'item_type' => (int) ($data['item_type'] ?? 2),
+            'item_quantity' => (int) ($data['item_quantity'] ?? max(1, (int) $order->items->sum('quantity'))),
+            'item_weight' => (float) ($data['item_weight'] ?? 0.5),
+            'amount_to_collect' => (float) ($data['cod_amount'] ?? $order->due_amount ?? 0),
+            'item_description' => $data['item_description'] ?? $this->itemDescription($order),
+        ], fn ($value): bool => $value !== null && $value !== '');
+
+        $response = app(PathaoCourierClient::class)->createOrder($provider, $payload);
+        $consignment = $response['data'] ?? [];
+
+        if (blank($consignment['consignment_id'] ?? null)) {
+            throw ValidationException::withMessages([
+                'pathao' => $response['message'] ?? 'Pathao order creation failed.',
+            ]);
+        }
+
+        $status = $this->normalizePathaoStatus((string) ($consignment['order_status'] ?? 'Pending'));
+
+        return $this->storeBooking($order, $provider, [
+            'tracking_id' => (string) $consignment['consignment_id'],
+            'provider_reference' => (string) $consignment['consignment_id'],
+            'recipient_name' => $payload['recipient_name'] ?? 'Customer',
+            'recipient_phone' => $payload['recipient_phone'] ?? null,
+            'recipient_address' => $payload['recipient_address'] ?? null,
+            'cod_amount' => $payload['amount_to_collect'],
+            'note' => $data['note'] ?? null,
+        ], $status, $response['message'] ?? 'Pathao consignment created.');
+    }
+
+    public function syncPathaoStatus(CourierBooking $booking): CourierBooking
+    {
+        $booking->loadMissing('provider', 'order');
+
+        if ($booking->provider?->driver !== CourierProvider::DRIVER_PATHAO) {
+            throw ValidationException::withMessages([
+                'provider' => 'Only Pathao bookings can be synced with Pathao.',
+            ]);
+        }
+
+        $response = app(PathaoCourierClient::class)->orderInfo($booking->provider, (string) $booking->tracking_id);
+        $orderStatus = $response['data']['order_status'] ?? null;
+
+        if (blank($orderStatus)) {
+            throw ValidationException::withMessages([
+                'pathao' => 'Unable to sync Pathao delivery status.',
+            ]);
+        }
+
+        return $this->updateStatus(
+            $booking,
+            $this->normalizePathaoStatus((string) $orderStatus),
+            'Synced from Pathao: '.$orderStatus,
+        );
+    }
+
+    public function normalizePathaoStatus(string $status): string
+    {
+        $status = str($status)->lower()->toString();
+
+        return match (true) {
+            str_contains($status, 'partial') => CourierBooking::STATUS_PARTIAL_DELIVERED,
+            str_contains($status, 'delivered') => CourierBooking::STATUS_DELIVERED,
+            str_contains($status, 'return') => CourierBooking::STATUS_RETURNED,
+            str_contains($status, 'cancel') => CourierBooking::STATUS_CANCELLED,
+            str_contains($status, 'picked') => CourierBooking::STATUS_PICKED_UP,
+            str_contains($status, 'transit'), str_contains($status, 'hub') => CourierBooking::STATUS_IN_TRANSIT,
+            str_contains($status, 'pending') && ! str_contains($status, 'pickup') => CourierBooking::STATUS_BOOKING_PENDING,
+            default => CourierBooking::STATUS_BOOKED,
+        };
+    }
+
+    public function createRedxBooking(Order $order, CourierProvider $provider, array $data = []): CourierBooking
+    {
+        $order->loadMissing(['customer', 'items.product', 'company']);
+        app(CustomerRiskService::class)->assertNotBlacklisted($order);
+        $this->assertProviderUsable($order, $provider, CourierProvider::DRIVER_REDX, 'RedX');
+
+        $payload = array_filter([
+            'customer_name' => $data['recipient_name'] ?? $order->customer_name ?? $order->customer?->name,
+            'customer_phone' => $data['recipient_phone'] ?? $order->customer?->phone,
+            'customer_address' => $data['recipient_address'] ?? $order->customer?->address,
+            'delivery_area' => $data['delivery_area'] ?? null,
+            'delivery_area_id' => isset($data['delivery_area_id']) ? (int) $data['delivery_area_id'] : null,
+            'merchant_invoice_id' => $order->order_number,
+            'cash_collection_amount' => (string) (float) ($data['cod_amount'] ?? $order->due_amount ?? 0),
+            'parcel_weight' => (int) ($data['parcel_weight'] ?? 500),
+            'instruction' => $data['note'] ?? null,
+            'value' => (string) (float) ($order->total_amount ?? 0),
+        ], fn ($value): bool => $value !== null && $value !== '');
+
+        $response = app(RedxCourierClient::class)->createParcel($provider, $payload);
+        $trackingId = $response['tracking_id'] ?? null;
+
+        if (blank($trackingId)) {
+            throw ValidationException::withMessages([
+                'redx' => $response['message'] ?? 'RedX parcel creation failed.',
+            ]);
+        }
+
+        return $this->storeBooking($order, $provider, [
+            'tracking_id' => (string) $trackingId,
+            'provider_reference' => (string) $trackingId,
+            'recipient_name' => $payload['customer_name'] ?? 'Customer',
+            'recipient_phone' => $payload['customer_phone'] ?? null,
+            'recipient_address' => $payload['customer_address'] ?? null,
+            'cod_amount' => (float) $payload['cash_collection_amount'],
+            'note' => $data['note'] ?? null,
+        ], CourierBooking::STATUS_BOOKED, 'RedX parcel created.');
+    }
+
+    public function syncRedxStatus(CourierBooking $booking): CourierBooking
+    {
+        $booking->loadMissing('provider', 'order');
+
+        if ($booking->provider?->driver !== CourierProvider::DRIVER_REDX) {
+            throw ValidationException::withMessages([
+                'provider' => 'Only RedX bookings can be synced with RedX.',
+            ]);
+        }
+
+        $response = app(RedxCourierClient::class)->parcelInfo($booking->provider, (string) $booking->tracking_id);
+        $status = $response['parcel']['status'] ?? null;
+
+        if (blank($status)) {
+            throw ValidationException::withMessages([
+                'redx' => 'Unable to sync RedX delivery status.',
+            ]);
+        }
+
+        return $this->updateStatus(
+            $booking,
+            $this->normalizeRedxStatus((string) $status),
+            'Synced from RedX: '.$status,
+        );
+    }
+
+    public function normalizeRedxStatus(string $status): string
+    {
+        $status = str($status)->lower()->replace('_', '-')->toString();
+
+        return match (true) {
+            str_contains($status, 'partial') => CourierBooking::STATUS_PARTIAL_DELIVERED,
+            str_contains($status, 'delivered') => CourierBooking::STATUS_DELIVERED,
+            str_contains($status, 'return') => CourierBooking::STATUS_RETURNED,
+            str_contains($status, 'cancel') => CourierBooking::STATUS_CANCELLED,
+            str_contains($status, 'picked') => CourierBooking::STATUS_PICKED_UP,
+            str_contains($status, 'sorting'), str_contains($status, 'transit'),
+            str_contains($status, 'delivery-in-progress'), str_contains($status, 'hold') => CourierBooking::STATUS_IN_TRANSIT,
+            str_contains($status, 'pickup-pending') => CourierBooking::STATUS_BOOKING_PENDING,
+            default => CourierBooking::STATUS_BOOKED,
+        };
+    }
+
+    public function createECourierBooking(Order $order, CourierProvider $provider, array $data = []): CourierBooking
+    {
+        $order->loadMissing(['customer', 'items.product', 'company']);
+        app(CustomerRiskService::class)->assertNotBlacklisted($order);
+        $this->assertProviderUsable($order, $provider, CourierProvider::DRIVER_ECOURIER, 'E-Courier');
+
+        $payload = array_filter([
+            'recipient_name' => $data['recipient_name'] ?? $order->customer_name ?? $order->customer?->name,
+            'recipient_mobile' => $data['recipient_phone'] ?? $order->customer?->phone,
+            'recipient_city' => $data['recipient_city'] ?? null,
+            'recipient_thana' => $data['recipient_thana'] ?? null,
+            'recipient_zip' => $data['recipient_zip'] ?? null,
+            'recipient_area' => $data['recipient_area'] ?? null,
+            'recipient_address' => $data['recipient_address'] ?? $order->customer?->address,
+            'package_code' => $data['package_code'] ?? ($provider->settings['default_package_code'] ?? null),
+            'product_price' => (string) (float) ($data['cod_amount'] ?? $order->due_amount ?? 0),
+            'payment_method' => $data['payment_method'] ?? 'COD',
+            'number_of_item' => (int) ($data['item_quantity'] ?? max(1, (int) $order->items->sum('quantity'))),
+            'product_id' => $order->order_number,
+            'comments' => $data['note'] ?? $this->itemDescription($order),
+        ], fn ($value): bool => $value !== null && $value !== '');
+
+        $response = app(ECourierClient::class)->placeOrder($provider, $payload);
+        $trackingId = $response['ID'] ?? $response['id'] ?? null;
+
+        if (($response['success'] ?? true) === false || blank($trackingId)) {
+            throw ValidationException::withMessages([
+                'ecourier' => $response['message'] ?? 'E-Courier order placement failed.',
+            ]);
+        }
+
+        return $this->storeBooking($order, $provider, [
+            'tracking_id' => (string) $trackingId,
+            'provider_reference' => (string) $trackingId,
+            'recipient_name' => $payload['recipient_name'] ?? 'Customer',
+            'recipient_phone' => $payload['recipient_mobile'] ?? null,
+            'recipient_address' => $payload['recipient_address'] ?? null,
+            'cod_amount' => (float) $payload['product_price'],
+            'note' => $data['note'] ?? null,
+        ], CourierBooking::STATUS_BOOKED, $response['message'] ?? 'E-Courier order placed.');
+    }
+
+    public function syncECourierStatus(CourierBooking $booking): CourierBooking
+    {
+        $booking->loadMissing('provider', 'order');
+
+        if ($booking->provider?->driver !== CourierProvider::DRIVER_ECOURIER) {
+            throw ValidationException::withMessages([
+                'provider' => 'Only E-Courier bookings can be synced with E-Courier.',
+            ]);
+        }
+
+        $response = app(ECourierClient::class)->track($booking->provider, (string) $booking->tracking_id);
+        $status = $response['status'] ?? data_get($response, 'query_data.status');
+
+        if (is_array($status)) {
+            $status = collect($status)->last()['status'] ?? null;
+        }
+
+        if (blank($status)) {
+            throw ValidationException::withMessages([
+                'ecourier' => 'Unable to sync E-Courier delivery status.',
+            ]);
+        }
+
+        return $this->updateStatus(
+            $booking,
+            $this->normalizeECourierStatus((string) $status),
+            'Synced from E-Courier: '.$status,
+        );
+    }
+
+    public function normalizeECourierStatus(string $status): string
+    {
+        $status = str($status)->lower()->toString();
+
+        return match (true) {
+            str_contains($status, 'partial') => CourierBooking::STATUS_PARTIAL_DELIVERED,
+            str_contains($status, 'delivered') => CourierBooking::STATUS_DELIVERED,
+            str_contains($status, 'return') => CourierBooking::STATUS_RETURNED,
+            str_contains($status, 'cancel') => CourierBooking::STATUS_CANCELLED,
+            str_contains($status, 'picked') => CourierBooking::STATUS_PICKED_UP,
+            str_contains($status, 'transit'), str_contains($status, 'shipped') => CourierBooking::STATUS_IN_TRANSIT,
+            default => CourierBooking::STATUS_BOOKED,
+        };
+    }
+
+    protected function assertProviderUsable(Order $order, CourierProvider $provider, string $driver, string $label): void
+    {
+        if ($provider->driver !== $driver) {
+            throw ValidationException::withMessages([
+                'provider' => "Please select a {$label} courier provider.",
+            ]);
+        }
+
+        if ((int) $provider->company_id !== (int) $order->company_id) {
+            throw ValidationException::withMessages([
+                'provider' => 'The courier provider must belong to the same company as the order.',
+            ]);
+        }
+    }
+
+    protected function storeBooking(Order $order, CourierProvider $provider, array $attributes, string $status, string $logNote): CourierBooking
+    {
+        $booking = CourierBooking::query()->create(array_merge([
+            'company_id' => $order->company_id,
+            'courier_provider_id' => $provider->getKey(),
+            'order_id' => $order->getKey(),
+            'status' => $status,
+            'booked_at' => now(),
+        ], $attributes));
+
+        $this->logStatus($booking, null, $status, $logNote);
+        $order->forceFill(['delivery_status' => $status])->saveQuietly();
+
+        return $booking;
+    }
+
+    protected function itemDescription(Order $order): string
+    {
+        return $order->items
+            ->map(fn ($item): string => trim(($item->product?->name ?? 'Item').' x '.$item->quantity))
+            ->filter()
+            ->implode(', ');
+    }
+
     public function updateStatus(CourierBooking $booking, string $status, ?string $note = null): CourierBooking
     {
         if (! array_key_exists($status, CourierBooking::STATUSES)) {

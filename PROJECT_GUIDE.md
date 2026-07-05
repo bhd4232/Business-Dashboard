@@ -80,9 +80,9 @@ Supported provider choices:
 
 - Custom/manual
 - Steadfast
-- Pathao configuration placeholder
-- RedX configuration placeholder
-- E-Courier configuration placeholder
+- Pathao (live client)
+- RedX (live client)
+- E-Courier (live client)
 
 Implemented behavior:
 
@@ -101,7 +101,8 @@ Implemented behavior:
 - Courier booking detail includes provider, invoice, recipient, COD amount, tracking data, and status history.
 - Manual and Steadfast booking services verify that Order and Courier Provider belong to the same company.
 - `CourierManager` and `CourierProviderInterface` provide the provider adapter boundary; Manual and Steadfast use concrete adapters.
-- Pathao, RedX, and E-Courier resolve through explicit pending live adapters. They intentionally reject booking, sync, balance, and webhook operations with a clear setup message until official merchant API credentials, request field mapping, and sandbox/live response samples are available.
+- Pathao, RedX, and E-Courier have live adapters and API clients (`PathaoCourierClient` with cached issue-token auth, `RedxCourierClient` with API-ACCESS-TOKEN header, `ECourierClient` with API-KEY/API-SECRET/USER-ID headers). Driver-specific encrypted credential fields live on the Courier Provider form; booking without credentials fails with a clear validation message. Orders list exposes Book Pathao / Book RedX / Book E-Courier actions; the booking sync action covers all API drivers.
+- The Courier Providers list has a Steadfast "Balance" action that shows the current merchant balance via `get_balance`.
 - API calls use bounded timeouts and retry/backoff.
 - Signed incoming webhooks are deduplicated, logged, queued, retried, and processed inside the provider's explicit company context.
 - Courier Status Log and Webhook Log resources provide operational diagnostics.
@@ -934,7 +935,7 @@ Manual admin smoke checks:
 - Run rollback tests only on disposable databases before production rollback work.
 - Historical records initially belong to `Main Company`; production reassignment requires verified company mapping.
 - `All Companies` is intended for owner-level reporting. Company-specific write actions must require one selected company.
-- Pathao, RedX, and E-Courier currently appear as provider configuration choices and resolve through pending live adapters; their live API clients are not enabled yet.
+- Pathao, RedX, and E-Courier live API clients are implemented and tested against faked responses; live sandbox verification still requires the owner's merchant credentials in each provider's encrypted credential fields.
 - `courier_webhook_logs` stores signed inbound courier webhook delivery attempts for supported live adapters.
 - Courier provider API credentials use an encrypted model cast; never expose them in logs, exports, or documentation.
 

@@ -163,11 +163,11 @@ class CourierBookingResource extends Resource
     public static function syncSteadfastAction(): Action
     {
         return Action::make('syncSteadfast')
-            ->label('Sync Steadfast')
+            ->label('Sync courier status')
             ->icon('heroicon-o-arrow-path')
-            ->visible(fn (CourierBooking $record): bool => $record->provider?->driver === CourierProvider::DRIVER_STEADFAST)
+            ->visible(fn (CourierBooking $record): bool => in_array($record->provider?->driver, CourierProvider::API_DRIVERS, true))
             ->action(function (CourierBooking $record): void {
-                app(CourierService::class)->syncSteadfastStatus($record);
+                app(CourierManager::class)->sync($record);
             });
     }
 

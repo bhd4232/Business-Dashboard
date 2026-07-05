@@ -195,21 +195,84 @@ class CourierProviderResource extends Resource
                     TextInput::make('settings.base_url')
                         ->label('Base URL')
                         ->url()
-                        ->default(SteadfastCourierClient::DEFAULT_BASE_URL)
-                        ->placeholder('https://portal.packzy.com/api/v1')
-                        ->helperText('Steadfast default: https://portal.packzy.com/api/v1'),
+                        ->placeholder(fn (Get $get): string => match ($get('driver')) {
+                            CourierProvider::DRIVER_PATHAO => \App\Services\PathaoCourierClient::DEFAULT_BASE_URL,
+                            CourierProvider::DRIVER_REDX => \App\Services\RedxCourierClient::DEFAULT_BASE_URL,
+                            CourierProvider::DRIVER_ECOURIER => \App\Services\ECourierClient::DEFAULT_BASE_URL,
+                            default => SteadfastCourierClient::DEFAULT_BASE_URL,
+                        })
+                        ->helperText(fn (Get $get): string => match ($get('driver')) {
+                            CourierProvider::DRIVER_PATHAO => 'Leave blank for live. Sandbox: '.\App\Services\PathaoCourierClient::SANDBOX_BASE_URL,
+                            CourierProvider::DRIVER_REDX => 'Leave blank for live. Sandbox: '.\App\Services\RedxCourierClient::SANDBOX_BASE_URL,
+                            CourierProvider::DRIVER_ECOURIER => 'Leave blank for live. Staging: '.\App\Services\ECourierClient::STAGING_BASE_URL,
+                            default => 'Leave blank for the live default: '.SteadfastCourierClient::DEFAULT_BASE_URL,
+                        }),
                     TextInput::make('credentials.api_key')
                         ->label('API Key')
                         ->password()
                         ->revealable()
-                        ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_STEADFAST)
+                        ->required(fn (Get $get): bool => in_array($get('driver'), [CourierProvider::DRIVER_STEADFAST, CourierProvider::DRIVER_ECOURIER], true))
+                        ->visible(fn (Get $get): bool => in_array($get('driver'), [CourierProvider::DRIVER_STEADFAST, CourierProvider::DRIVER_ECOURIER], true))
                         ->maxLength(255),
                     TextInput::make('credentials.secret_key')
                         ->label('Secret Key')
                         ->password()
                         ->revealable()
                         ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_STEADFAST)
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_STEADFAST)
                         ->maxLength(255),
+                    TextInput::make('credentials.client_id')
+                        ->label('Client ID')
+                        ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO)
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO)
+                        ->maxLength(255),
+                    TextInput::make('credentials.client_secret')
+                        ->label('Client Secret')
+                        ->password()
+                        ->revealable()
+                        ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO)
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO)
+                        ->maxLength(255),
+                    TextInput::make('credentials.username')
+                        ->label('Merchant Email / Username')
+                        ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO)
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO)
+                        ->maxLength(255),
+                    TextInput::make('credentials.password')
+                        ->label('Merchant Password')
+                        ->password()
+                        ->revealable()
+                        ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO)
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO)
+                        ->maxLength(255),
+                    TextInput::make('settings.default_store_id')
+                        ->label('Default Store ID')
+                        ->numeric()
+                        ->helperText('Pathao merchant panel > Stores. Used when the booking form does not override it.')
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_PATHAO),
+                    TextInput::make('credentials.access_token')
+                        ->label('API Access Token')
+                        ->password()
+                        ->revealable()
+                        ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_REDX)
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_REDX)
+                        ->maxLength(2000),
+                    TextInput::make('credentials.api_secret')
+                        ->label('API Secret')
+                        ->password()
+                        ->revealable()
+                        ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_ECOURIER)
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_ECOURIER)
+                        ->maxLength(255),
+                    TextInput::make('credentials.user_id')
+                        ->label('User ID')
+                        ->required(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_ECOURIER)
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_ECOURIER)
+                        ->maxLength(255),
+                    TextInput::make('settings.default_package_code')
+                        ->label('Default Package Code')
+                        ->helperText('From E-Courier packages list. Used when the booking form does not override it.')
+                        ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_ECOURIER),
                     TextInput::make('credentials.webhook_secret')
                         ->label('Webhook Signing Secret')
                         ->password()
@@ -261,6 +324,36 @@ class CourierProviderResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
+                \Filament\Actions\Action::make('checkBalance')
+                    ->label('Balance')
+                    ->icon(Heroicon::OutlinedBanknotes)
+                    ->visible(fn (CourierProvider $record): bool => $record->driver === CourierProvider::DRIVER_STEADFAST
+                        && filled($record->credentials['api_key'] ?? null)
+                        && filled($record->credentials['secret_key'] ?? null))
+                    ->action(function (CourierProvider $record): void {
+                        try {
+                            $response = app(SteadfastCourierClient::class)->balance($record);
+                            $balance = $response['current_balance'] ?? null;
+
+                            if ($balance === null) {
+                                throw new \RuntimeException($response['message'] ?? 'Steadfast did not return a balance.');
+                            }
+
+                            \Filament\Notifications\Notification::make()
+                                ->title('Steadfast balance')
+                                ->body('Current balance: BDT '.number_format((float) $balance, 2))
+                                ->success()
+                                ->send();
+                        } catch (\Throwable $exception) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Balance check failed')
+                                ->body($exception instanceof \Illuminate\Validation\ValidationException
+                                    ? collect($exception->errors())->flatten()->implode(' ')
+                                    : $exception->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
                 EditAction::make(),
             ])
             ->toolbarActions([

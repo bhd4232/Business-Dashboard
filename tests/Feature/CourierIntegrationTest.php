@@ -40,7 +40,7 @@ class CourierIntegrationTest extends TestCase
         $this->assertSame($company->getKey(), $booking->company_id);
     }
 
-    public function test_pending_live_courier_adapters_fail_with_explicit_setup_message(): void
+    public function test_live_courier_adapters_require_credentials_before_booking(): void
     {
         $company = $this->company('Pending Courier Company', 'pending-courier-company', 'PND');
         app(CompanyContext::class)->set($company);
@@ -64,9 +64,9 @@ class CourierIntegrationTest extends TestCase
                     'recipient_address' => 'Dhaka',
                     'cod_amount' => 500,
                 ]);
-                $this->fail("Expected {$driver} pending adapter to reject live booking.");
+                $this->fail("Expected {$driver} adapter to reject booking without credentials.");
             } catch (ValidationException $exception) {
-                $this->assertStringContainsString('official API credentials', $exception->getMessage());
+                $this->assertStringContainsString('required', $exception->getMessage());
             }
         }
     }

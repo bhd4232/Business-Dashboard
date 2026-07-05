@@ -2,6 +2,31 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-05 - Live Pathao/RedX/E-Courier Couriers + Steadfast Balance UI
+
+Reason:
+
+- Master plan Part 2 remaining items. Owner asked to build the live courier clients now (API contracts researched from official docs) and show the Steadfast balance in admin; credentials stay admin-configurable so the owner plugs in merchant keys later.
+
+Changed files:
+
+- `app/Services/PathaoCourierClient.php`, `app/Services/RedxCourierClient.php`, `app/Services/ECourierClient.php` (new — verified endpoints: Pathao aladdin issue-token/orders/reference lists with cached bearer token; RedX v1.0.0-beta parcel/track/info/areas with API-ACCESS-TOKEN header; E-Courier order-place/track/cancel with API-KEY/API-SECRET/USER-ID headers)
+- `app/Services/CourierService.php` (create/sync/normalize methods for the three couriers + shared `storeBooking`/`assertProviderUsable` helpers)
+- `app/Services/Couriers/PathaoCourierAdapter.php`, `RedxCourierAdapter.php`, `ECourierAdapter.php` (now real adapters); `PendingLiveCourierAdapter.php` deleted
+- `app/Filament/Resources/CourierProviders/CourierProviderResource.php` (driver-aware encrypted credential fields, sandbox helper text, Steadfast Balance action)
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php` (Book Pathao / Book RedX / Book E-Courier actions with courier-specific fields)
+- `app/Filament/Resources/CourierBookings/CourierBookingResource.php` (sync action now covers all API drivers via CourierManager)
+- `tests/Feature/LiveCourierAdaptersTest.php` (new — 5 tests), `tests/Feature/CourierIntegrationTest.php` (pending-adapter test now asserts credentials-required), `tests/Feature/ReleaseNotesTest.php` (v1.4.0)
+- `CHANGELOG.md` (1.4.0), master plan Part 2 / Phase 2 / Phase 7 checkmarks
+
+Verification:
+
+- `php artisan test --filter="LiveCourierAdaptersTest|CourierIntegrationTest"` — 17/17
+- Full suite: 205 passed (910 assertions)
+- Live sandbox verification pending owner's merchant credentials.
+
+Commit status: Approved by owner; committed and pushed.
+
 ## 2026-07-05 - Fix ReleaseNotesTest after 1.3.0 changelog entry
 
 - Adding the 1.3.0 CHANGELOG entry changed the latest published release shown on the admin Release Notes page, so `ReleaseNotesTest` (which asserted v1.2.0 / Released 2026-06-24 as latest) failed. Updated the test to assert v1.3.0 / Released 2026-07-05. 3/3 pass.
