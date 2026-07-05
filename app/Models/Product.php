@@ -35,9 +35,13 @@ class Product extends Model
         'price',
         'stock',
         'reorder_level',
+        'moq',
+        'tier_prices',
         'vat_rate',
         'is_active',
         'status',
+        'is_preorder',
+        'preorder_advance_percent',
         'image',
         'gallery_images',
         'variant_attributes',
@@ -51,6 +55,10 @@ class Product extends Model
         'price' => 'decimal:2',
         'vat_rate' => 'decimal:2',
         'is_active' => 'boolean',
+        'moq' => 'integer',
+        'tier_prices' => 'array',
+        'is_preorder' => 'boolean',
+        'preorder_advance_percent' => 'integer',
         'gallery_images' => 'array',
         'variant_attributes' => 'array',
         'has_variants' => 'boolean',
@@ -102,6 +110,60 @@ class Product extends Model
     public function getSellingPriceAttribute(): float
     {
         return (float) ($this->sale_price ?? $this->price ?? 0);
+    }
+
+    /**
+     * Percentage of the line subtotal payable online in advance when this
+     * product is fulfilled as a pre-order. Defaults to full payment.
+     */
+    public function preorderAdvancePercent(): int
+    {
+        $percent = (int) ($this->preorder_advance_percent ?? 100);
+
+        return min(100, max(1, $percent));
+    }
+
+    /**
+     * Minimum order quantity for the storefront. Products without an
+     * explicit MOQ behave as before (minimum 1).
+     */
+    public function effectiveMoq(): int
+    {
+        return max(1, (int) ($this->moq ?? 1));
+    }
+
+    /**
+     * Wholesale tiers as a validated, min_qty-ascending list of
+     * ['min_qty' => int, 'price' => float] rows. Invalid rows are dropped.
+     */
+    public function normalizedTiers(): array
+    {
+        return collect($this->tier_prices ?? [])
+            ->map(fn ($tier): ?array => is_array($tier) && (int) ($tier['min_qty'] ?? 0) > 0 && is_numeric($tier['price'] ?? null)
+                ? ['min_qty' => (int) $tier['min_qty'], 'price' => (float) $tier['price']]
+                : null)
+            ->filter()
+            ->sortBy('min_qty')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Unit price for a given quantity: the deepest matching wholesale tier,
+     * falling back to the regular selling price. Tier prices apply to the
+     * base product price only; variant lines keep their own variant price.
+     */
+    public function priceForQuantity(int $quantity): float
+    {
+        $price = $this->selling_price;
+
+        foreach ($this->normalizedTiers() as $tier) {
+            if ($quantity >= $tier['min_qty']) {
+                $price = $tier['price'];
+            }
+        }
+
+        return $price;
     }
 
     public static function ensureComingSoonPurchaseProducts(): void

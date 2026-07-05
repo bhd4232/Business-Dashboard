@@ -26,6 +26,10 @@
         ])->values();
 
         $inStock = $product->stock > 0;
+        $isPreorder = (bool) $product->is_preorder;
+        $orderable = $inStock || $isPreorder;
+        $moq = $product->effectiveMoq();
+        $tiers = $product->normalizedTiers();
     @endphp
 
     <nav class="mx-auto w-full max-w-7xl px-4 pt-6 text-sm text-gray-500 sm:px-6 lg:px-8 dark:text-gray-400" aria-label="Breadcrumb">
@@ -63,6 +67,42 @@
                 {{ $product->description ?: 'Product details will be updated soon. Contact us for specifications, availability, and delivery details.' }}
             </p>
 
+            @if ($tiers !== [] && $variantData->isEmpty())
+                <div class="mt-6 max-w-xl overflow-hidden rounded-xl border border-gray-200 dark:border-white/15">
+                    <div class="border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                        Wholesale pricing
+                    </div>
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-gray-200 dark:divide-white/10">
+                            <tr>
+                                <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">{{ $moq }}{{ ($tiers[0]['min_qty'] ?? 0) > $moq ? ' - '.($tiers[0]['min_qty'] - 1) : '+' }} {{ $product->unit ?: 'pcs' }}</td>
+                                <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">BDT {{ number_format($product->selling_price, 2) }}</td>
+                            </tr>
+                            @foreach ($tiers as $index => $tier)
+                                <tr>
+                                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">
+                                        {{ $tier['min_qty'] }}{{ isset($tiers[$index + 1]) ? ' - '.($tiers[$index + 1]['min_qty'] - 1) : '+' }} {{ $product->unit ?: 'pcs' }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">BDT {{ number_format($tier['price'], 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+
+            @if ($moq > 1)
+                <div class="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                    Minimum order: {{ $moq }} {{ $product->unit ?: 'pcs' }}
+                </div>
+            @endif
+
+            @if ($isPreorder && ! $inStock)
+                <div class="mt-4 rounded-xl border border-[var(--storefront-brand)]/30 bg-[var(--storefront-brand)]/5 px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                    This item is available for pre-order. An advance payment of {{ $product->preorderAdvancePercent() }}% is collected online at checkout; cash on delivery is not available for pre-order quantities.
+                </div>
+            @endif
+
             <dl class="mt-6 grid grid-cols-3 gap-3 border-y border-gray-200 py-5 text-sm dark:border-white/10">
                 <div>
                     <dt class="text-gray-400">Stock</dt>
@@ -74,8 +114,8 @@
                 </div>
                 <div>
                     <dt class="text-gray-400">Status</dt>
-                    <dd data-status class="mt-1 font-semibold {{ $inStock ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
-                        {{ $inStock ? 'Available' : 'Out of stock' }}
+                    <dd data-status class="mt-1 font-semibold {{ $inStock ? 'text-emerald-600 dark:text-emerald-400' : ($isPreorder ? 'text-[var(--storefront-brand)]' : 'text-red-600 dark:text-red-400') }}">
+                        {{ $inStock ? 'Available' : ($isPreorder ? 'Pre-order' : 'Out of stock') }}
                     </dd>
                 </div>
             </dl>
@@ -121,12 +161,12 @@
                         <div class="flex items-center rounded-lg border border-gray-300 dark:border-white/15" data-qty-stepper>
                             <button type="button" data-qty-decrement class="grid h-12 w-11 place-items-center text-lg text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Decrease quantity">&minus;</button>
                             <label class="sr-only" for="quantity">Quantity</label>
-                            <input id="quantity" data-qty-input class="h-12 w-14 border-x border-gray-300 bg-transparent text-center text-sm font-semibold text-gray-950 outline-none dark:border-white/15 dark:text-white" type="number" name="quantity" value="1" min="1" max="{{ max(1, (int) $product->stock) }}">
+                            <input id="quantity" data-qty-input class="h-12 w-14 border-x border-gray-300 bg-transparent text-center text-sm font-semibold text-gray-950 outline-none dark:border-white/15 dark:text-white" type="number" name="quantity" value="{{ $isPreorder ? $moq : min($moq, max(1, (int) $product->stock)) }}" min="{{ $moq }}" max="{{ $isPreorder ? 100000 : max(1, (int) $product->stock) }}">
                             <button type="button" data-qty-increment class="grid h-12 w-11 place-items-center text-lg text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Increase quantity">+</button>
                         </div>
                     @endif
-                    <button type="submit" data-add-to-cart class="inline-flex h-12 items-center rounded-lg bg-gray-950 px-7 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-950" @disabled(! $inStock || $variantData->isNotEmpty())>
-                        {{ $inStock ? 'Add to cart' : 'Out of stock' }}
+                    <button type="submit" data-add-to-cart class="inline-flex h-12 items-center rounded-lg bg-gray-950 px-7 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-950" @disabled(! $orderable || $variantData->isNotEmpty())>
+                        {{ $inStock ? 'Add to cart' : ($isPreorder ? 'Pre-order now' : 'Out of stock') }}
                     </button>
                     @if ($setting->whatsapp_number)
                         <a class="inline-flex h-12 items-center rounded-lg border border-gray-300 px-7 text-sm font-medium text-gray-900 transition hover:border-gray-950 dark:border-white/15 dark:text-white dark:hover:border-white" href="https://wa.me/{{ preg_replace('/\D+/', '', $setting->whatsapp_number) }}?text={{ rawurlencode('I am interested in '.$product->name) }}" target="_blank" rel="noopener">

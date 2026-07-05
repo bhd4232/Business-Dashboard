@@ -215,6 +215,100 @@ class StorefrontSettingResource extends Resource
                 ])
                 ->columns(2),
 
+            Section::make('Online Payments (ZiniPay)')
+                ->description('Used to collect advance payments for pre-order items. COD stays the default for in-stock items.')
+                ->schema([
+                    Toggle::make('online_payment_enabled')
+                        ->label('Enable online payments')
+                        ->default(false)
+                        ->helperText('Turn on only after the ZiniPay API key below is set.'),
+                    TextInput::make('payment_credentials.zinipay_api_key')
+                        ->label('ZiniPay API key')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255),
+                    TextInput::make('payment_credentials.zinipay_base_url')
+                        ->label('ZiniPay base URL')
+                        ->url()
+                        ->maxLength(255)
+                        ->placeholder(\App\Services\ZiniPayClient::DEFAULT_BASE_URL)
+                        ->helperText('Leave empty for the default. Change only if ZiniPay gives you a different API host.'),
+                ])
+                ->columns(2)
+                ->collapsible()
+                ->collapsed(),
+
+            Section::make('Abandoned Cart Reminders')
+                ->description('Automatic SMS/WhatsApp reminders for carts left behind after a checkout attempt. Runs hourly via the scheduler.')
+                ->schema([
+                    Toggle::make('abandoned_cart_reminders_enabled')
+                        ->label('Enable reminders')
+                        ->default(false),
+                    TextInput::make('abandoned_cart_delay_hours')
+                        ->label('Remind after (hours)')
+                        ->integer()
+                        ->default(6)
+                        ->minValue(1)
+                        ->maxValue(168),
+                    TextInput::make('notification_credentials.sms_api_url')
+                        ->label('SMS gateway URL template')
+                        ->maxLength(500)
+                        ->placeholder('http://bulksmsbd.net/api/smsapi?api_key={api_key}&type=text&number={phone}&senderid={sender_id}&message={message}')
+                        ->helperText('Use {api_key}, {sender_id}, {phone}, {message} placeholders. Works with any GET-based SMS gateway.')
+                        ->columnSpanFull(),
+                    TextInput::make('notification_credentials.sms_api_key')
+                        ->label('SMS API key')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255),
+                    TextInput::make('notification_credentials.sms_sender_id')
+                        ->label('SMS sender ID')
+                        ->maxLength(100),
+                    TextInput::make('notification_credentials.whatsapp_token')
+                        ->label('WhatsApp Cloud API token')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(500),
+                    TextInput::make('notification_credentials.whatsapp_phone_number_id')
+                        ->label('WhatsApp phone number ID')
+                        ->maxLength(100),
+                    TextInput::make('notification_credentials.whatsapp_template_name')
+                        ->label('WhatsApp template name')
+                        ->maxLength(100)
+                        ->helperText('Meta-approved template with two body variables: customer name and store name.'),
+                    TextInput::make('notification_credentials.whatsapp_template_language')
+                        ->label('WhatsApp template language')
+                        ->maxLength(10)
+                        ->placeholder('bn'),
+                ])
+                ->columns(2)
+                ->collapsible()
+                ->collapsed(),
+
+            Section::make('WooCommerce Import')
+                ->description('Optional. Used by "php artisan woocommerce:import-products {company-slug}" to pull published products from the old WooCommerce site.')
+                ->schema([
+                    TextInput::make('woocommerce_base_url')
+                        ->label('WooCommerce site URL')
+                        ->url()
+                        ->maxLength(255)
+                        ->placeholder('https://zamzamgadgetbd.com')
+                        ->helperText('Root URL of the WooCommerce site. Do not include /wp-json.'),
+                    TextInput::make('woocommerce_credentials.consumer_key')
+                        ->label('Consumer key')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255),
+                    TextInput::make('woocommerce_credentials.consumer_secret')
+                        ->label('Consumer secret')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255),
+                ])
+                ->columns(2)
+                ->collapsible()
+                ->collapsed(),
+
             Section::make('SEO')
                 ->schema([
                     TextInput::make('meta_title')

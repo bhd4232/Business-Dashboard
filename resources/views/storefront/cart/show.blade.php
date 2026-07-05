@@ -38,6 +38,9 @@
                                 <div class="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">{{ $variant->label() }}</div>
                             @endif
                             <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">BDT {{ number_format($item['unit_price'], 2) }} each &middot; {{ $lineStock }} in stock</div>
+                            @if ($product->effectiveMoq() > 1)
+                                <div class="mt-1 text-xs font-medium text-gray-400 dark:text-gray-500">Minimum order: {{ $product->effectiveMoq() }} {{ $product->unit ?: 'pcs' }}</div>
+                            @endif
                         </div>
 
                         <div class="flex flex-wrap items-center gap-3">

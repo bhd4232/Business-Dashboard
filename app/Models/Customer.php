@@ -37,9 +37,19 @@ class Customer extends Model
         'address',
         'customer_type',
         'customer_source',
+        'reseller_status',
+        'business_name',
+        'reseller_note',
         'opening_balance',
         'current_balance',
         'is_active',
+    ];
+
+    public const RESELLER_STATUSES = [
+        'none' => 'Not a reseller',
+        'pending' => 'Application pending',
+        'approved' => 'Approved reseller',
+        'rejected' => 'Rejected',
     ];
 
     protected $casts = [

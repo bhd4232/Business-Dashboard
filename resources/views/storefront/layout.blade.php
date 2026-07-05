@@ -194,6 +194,9 @@
             <div>
                 <div class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Contact</div>
                 <div class="mt-3 flex flex-col items-start gap-3">
+                    <a class="text-sm text-gray-600 transition hover:text-[var(--storefront-brand)] dark:text-gray-400" href="{{ isset($previewSlug) ? route('storefront.preview.reseller.show', $previewSlug) : route('storefront.reseller.show') }}">
+                        Become a reseller
+                    </a>
                     @if ($setting->whatsapp_number)
                         <a class="inline-flex rounded-lg bg-[var(--storefront-brand)] px-4 py-2 text-sm font-medium text-white" href="https://wa.me/{{ preg_replace('/\D+/', '', $setting->whatsapp_number) }}" target="_blank" rel="noopener">
                             Chat on WhatsApp

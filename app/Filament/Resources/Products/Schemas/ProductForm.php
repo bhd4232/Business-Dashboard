@@ -144,6 +144,51 @@ class ProductForm
                     ->collapsible()
                     ->persistCollapsed(),
 
+                Section::make('Wholesale (B2B)')
+                    ->description('Optional storefront wholesale rules. Leave empty for normal retail behavior.')
+                    ->schema([
+                        Toggle::make('is_preorder')
+                            ->label('Allow pre-order')
+                            ->default(false)
+                            ->live()
+                            ->helperText('Customers can order beyond current stock. Quantities above stock require an online advance payment and cash on delivery is not offered for them.'),
+                        TextInput::make('preorder_advance_percent')
+                            ->label('Pre-order advance (%)')
+                            ->integer()
+                            ->minValue(1)
+                            ->maxValue(100)
+                            ->visible(fn ($get): bool => (bool) $get('is_preorder'))
+                            ->helperText('Percentage of the pre-order line payable online at checkout. Empty means full payment (100%).'),
+                        TextInput::make('moq')
+                            ->label('Minimum order quantity (MOQ)')
+                            ->integer()
+                            ->minValue(1)
+                            ->helperText('Storefront customers cannot order fewer than this quantity. Leave empty for no minimum.'),
+                        Repeater::make('tier_prices')
+                            ->label('Tiered prices')
+                            ->schema([
+                                TextInput::make('min_qty')
+                                    ->label('From quantity')
+                                    ->integer()
+                                    ->minValue(1)
+                                    ->required(),
+                                TextInput::make('price')
+                                    ->label('Unit price')
+                                    ->numeric()
+                                    ->prefix('BDT')
+                                    ->minValue(0)
+                                    ->required(),
+                            ])
+                            ->columns(2)
+                            ->addActionLabel('Add price tier')
+                            ->defaultItems(0)
+                            ->helperText('Per-unit price when the ordered quantity reaches each tier. Overrides the sale price at those quantities on the storefront. Does not apply to variation prices.')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->collapsible()
+                    ->persistCollapsed(),
+
                 Section::make('Product Images')
                     ->schema([
                         FileUpload::make('image')

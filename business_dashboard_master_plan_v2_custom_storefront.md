@@ -780,18 +780,45 @@ StorefrontSettingResource-এ implement, migrate, build, ও পুরো টে
 (১৬৯/১৬৯) দিয়ে verify করা হয়েছে।
 ```
 
+**✅ পরবর্তীতে সম্পন্ন হওয়া আইটেম:**
+```txt
+✅ Curated Product Carousel — সম্পন্ন (commit 2626e5f0): ProductCarousel
+   model + pivot table, ProductCarouselResource (Storefront group),
+   homepage rendering, ProductCarouselTest সহ
+✅ Product variants + gallery — সম্পন্ন (variant cart/checkout flow সহ)
+✅ Quick Reorder (B2B UX #5) — সম্পন্ন (২০২৬-০৭-০৪): account/orders পেজে
+   প্রতি অর্ডারে "Reorder" বাটন, phone-verified POST route production +
+   preview দুটোতেই, StorefrontReorderTest দিয়ে কভার করা
+```
+
 **❌ যা এখনো storefront-এর ভেতরে বাকি:**
 ```txt
-[ ] Curated Category Carousel — নতুন Filament Resource + migration +
-    manual product-selection UI লাগবে, আলাদা কাজ হিসেবে বাকি রাখা হলো
 [ ] Production custom domain-এ actual DNS + Coolify SSL go-live (কোড-level
     কাজ সম্পন্ন, কিন্তু বাস্তব domain go-live infrastructure ধাপ বাকি)
 [ ] WooCommerce data migration (Part 12 — এখনো সম্পূর্ণ আলাদা কাজ, storefront
     কোড-সম্পন্ন হলেও পুরনো WooCommerce ডেটা এখনো storefront-এ আনা হয়নি)
-[ ] Advanced e-commerce feature list (reseller approval, pre-order/
-    coming-soon checkout flow, bKash/Nagad gateway, abandoned cart recovery
-    ইত্যাদি) — এগুলোর জন্য merchant credentials/business rule নিয়ে আগে
-    সিদ্ধান্ত দরকার, তাই এখনো শুরু করা হয়নি
+✅ Tiered pricing + MOQ (B2B UX #1-2) — সম্পন্ন (২০২৬-০৭-০৪):
+    products.moq + products.tier_prices (JSON), admin ProductForm-এ
+    "Wholesale (B2B)" সেকশন, cart-এ quantity-ভিত্তিক tier price (variant
+    line বাদ — সেগুলো variant price রাখে), MOQ-এর নিচে quantity স্বয়ংক্রিয়
+    clamp, প্রোডাক্ট পেজে wholesale টেবিল + MOQ badge (StorefrontB2bTest)
+✅ Customer due visibility (B2B UX #4) — সম্পন্ন (২০২৬-০৭-০৪): account
+    orders পেজে phone match হয়ে অর্ডার পাওয়া গেলে current_balance > 0
+    হলে "Current due" ব্যানার দেখায়
+✅ Advanced e-commerce features — কোডে সম্পন্ন (২০২৬-০৭-০৪, owner-এর
+    কনফার্ম করা রিয়েল বিজনেস রুল অনুযায়ী):
+    - ZiniPay online payment (hosted checkout + verify + webhook) —
+      credentials admin panel-এ বসালেই চালু
+    - Pre-order flow: is_preorder + per-product advance % (COD শুধু
+      in-stock item-এর জন্য, pre-order-এ online advance বাধ্যতামূলক)
+    - Reseller application (/reseller) + admin approve (Customer form)
+    - Abandoned cart: DB-persisted cart record + hourly SMS/WhatsApp
+      (Meta Cloud API) reminder command — gateway credentials admin-এ
+    - WooCommerce product import: woocommerce:import-products কমান্ড
+      (products-only, owner-এর সিদ্ধান্ত অনুযায়ী)
+    বাকি শুধু: owner-এর আসল credentials (ZiniPay key, SMS gateway,
+    WhatsApp token/template, WooCommerce key/secret) সেটআপ করা, এবং
+    reseller-only price gating (customer login/OTP আসার পরে)
 ```
 
 ## 4.1 মূলনীতি
@@ -1205,10 +1232,11 @@ Checkout:
    storefront_settings.phone_number নতুন কলাম, হেডারে WhatsApp বাটনের পাশে
    tel: লিংক সহ Call বাটন (phone_number সেট থাকলেই দেখায়)।
 
-❌ ৪. Curated Category Carousel (Homepage-এ multiple) — এখনো বাকি
-   এটার জন্য নতুন `ProductCarousel`/`HomepageSection` Filament Resource,
-   নতুন migration, ও owner-এর manual product-selection UI লাগবে — এই
-   ধাপে স্কোপে রাখা হয়নি, একটা আলাদা কাজ হিসেবে পরে করা উচিত।
+✅ ৪. Curated Category Carousel (Homepage-এ multiple) — কোডে সম্পন্ন
+   ProductCarousel model + product_carousel_product pivot (sort_order সহ),
+   ProductCarouselResource (Storefront navigation group) দিয়ে owner টাইটেল/
+   সাবটাইটেল লিখে নির্দিষ্ট product select করতে পারেন, homepage-এ active
+   carousel-গুলো order অনুযায়ী render হয় (ProductCarouselTest সহ)।
 
 ✅ ৫. "কিভাবে অর্ডার করবেন" Explainer — কোডে সম্পন্ন (২০২৬-০৭-০৩)
    হোমপেজে হিরো সেকশনের পরে ৪-ধাপের static icon+text explainer

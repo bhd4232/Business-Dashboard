@@ -81,6 +81,15 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
     Route::get('/account/orders', [StorefrontAccountOrdersController::class, 'indexPreview'])
         ->name('storefront.preview.account.orders');
 
+    Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorderPreview'])
+        ->name('storefront.preview.account.reorder');
+
+    Route::get('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'showPreview'])
+        ->name('storefront.preview.reseller.show');
+
+    Route::post('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'storePreview'])
+        ->name('storefront.preview.reseller.store');
+
     Route::get('/pages/{slug}', [StorefrontPageController::class, 'showPreview'])
         ->name('storefront.preview.pages.show');
 });
@@ -125,6 +134,15 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::get('/account/orders', [StorefrontAccountOrdersController::class, 'index'])
         ->name('storefront.account.orders');
 
+    Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorder'])
+        ->name('storefront.account.reorder');
+
+    Route::get('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'show'])
+        ->name('storefront.reseller.show');
+
+    Route::post('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'store'])
+        ->name('storefront.reseller.store');
+
 });
 
 Route::view('/pricing', 'marketing.pricing')->name('marketing.pricing');
@@ -157,6 +175,10 @@ Route::post('/install', [InstallController::class, 'store'])->name('install.stor
 Route::post('/webhooks/couriers/{provider}', CourierWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('couriers.webhook');
+
+Route::post('/webhooks/zinipay/{payment}', \App\Http\Controllers\ZiniPayWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('zinipay.webhook');
 
 Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $order, Request $request) {
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);

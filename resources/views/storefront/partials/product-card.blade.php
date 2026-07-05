@@ -15,19 +15,19 @@
             @endif
         </a>
         @if ($product->stock < 1)
-            <div class="absolute inset-x-0 bottom-0 bg-gray-950/80 px-3 py-1.5 text-center text-xs font-semibold uppercase tracking-wide text-white">
-                Out of stock
+            <div class="absolute inset-x-0 bottom-0 {{ $product->is_preorder ? 'bg-[var(--storefront-brand)]/90' : 'bg-gray-950/80' }} px-3 py-1.5 text-center text-xs font-semibold uppercase tracking-wide text-white">
+                {{ $product->is_preorder ? 'Pre-order' : 'Out of stock' }}
             </div>
         @endif
 
         <form class="absolute bottom-3 right-3 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100" method="POST" action="{{ $cartAddUrl }}">
             @csrf
-            <input type="hidden" name="quantity" value="1">
+            <input type="hidden" name="quantity" value="{{ $product->effectiveMoq() }}">
             <button
                 class="grid h-10 w-10 place-items-center rounded-full bg-white text-gray-900 shadow-md transition hover:bg-gray-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-900 dark:text-white"
                 type="submit"
                 title="Quick add to cart"
-                @disabled($product->stock < 1)
+                @disabled($product->stock < 1 && ! $product->is_preorder)
             >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14"/></svg>
             </button>
@@ -44,5 +44,10 @@
                 <span class="text-xs font-medium text-amber-600 dark:text-amber-400">{{ (int) $product->stock }} left</span>
             @endif
         </div>
+        @if ($product->effectiveMoq() > 1)
+            <div class="mt-2 inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                MOQ {{ $product->effectiveMoq() }} {{ $product->unit ?: 'pcs' }}
+            </div>
+        @endif
     </div>
 </article>

@@ -7,13 +7,15 @@ use App\Models\Company;
 use App\Models\Order;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
+use App\Services\StorefrontCart;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class AccountOrdersController extends Controller
 {
-    public function __construct(protected CompanyContext $context) {}
+    public function __construct(protected CompanyContext $context, protected StorefrontCart $cart) {}
 
     public function index(Request $request): View
     {
@@ -29,6 +31,61 @@ class AccountOrdersController extends Controller
         return $this->ordersView($request, $company, $setting, $company->slug);
     }
 
+    public function reorder(Request $request, string $orderNo): RedirectResponse
+    {
+        [$company] = $this->domainStorefront($request);
+
+        $this->reorderIntoCart($request, $company, $orderNo);
+
+        return redirect()->route('storefront.cart.show');
+    }
+
+    public function reorderPreview(Request $request, Company $company, string $orderNo): RedirectResponse
+    {
+        $this->previewStorefront($company);
+
+        $this->reorderIntoCart($request, $company, $orderNo);
+
+        return redirect()->route('storefront.preview.cart.show', $company->slug);
+    }
+
+    protected function reorderIntoCart(Request $request, Company $company, string $orderNo): void
+    {
+        $phone = trim((string) $request->string('phone'));
+
+        abort_if($phone === '', 404);
+
+        $order = $this->ordersForPhone($company, $phone)
+            ->firstWhere('order_number', $orderNo);
+
+        abort_unless($order, 404);
+
+        $added = 0;
+
+        foreach ($order->items as $item) {
+            $product = $item->product;
+
+            if (! $product || ! $product->is_active || $product->status !== \App\Models\Product::STATUS_AVAILABLE) {
+                continue;
+            }
+
+            $variant = $item->product_variant_id
+                ? $product->activeVariants()->whereKey($item->product_variant_id)->first()
+                : null;
+
+            if ($item->product_variant_id && ! $variant) {
+                continue;
+            }
+
+            $this->cart->add($company, $product, (int) $item->quantity, $variant);
+            $added++;
+        }
+
+        session()->flash('storefront_status', $added > 0
+            ? "Added {$added} ".str('item')->plural($added)." from order {$order->order_number} to your cart."
+            : 'None of the items from that order are currently available.');
+    }
+
     protected function ordersView(
         Request $request,
         Company $company,
@@ -38,12 +95,19 @@ class AccountOrdersController extends Controller
         $phone = trim((string) $request->string('phone'));
         $orders = $phone === '' ? collect() : $this->ordersForPhone($company, $phone);
 
+        // Current due is only surfaced when the phone actually matches
+        // storefront orders in this company, mirroring order-history access.
+        $customerDue = $orders->isNotEmpty()
+            ? (float) ($orders->first()->customer?->current_balance ?? 0)
+            : null;
+
         return view('storefront.account.orders', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,
             'phone' => $phone,
             'orders' => $orders,
+            'customerDue' => $customerDue,
             'hasSearched' => $request->filled('phone'),
         ]);
     }

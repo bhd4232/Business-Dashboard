@@ -1,0 +1,44 @@
+@extends('storefront.layout')
+
+@php
+    $applyUrl = isset($previewSlug) ? route('storefront.preview.reseller.store', $previewSlug) : route('storefront.reseller.store');
+@endphp
+
+@section('content')
+    <section class="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+        <p class="text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">Wholesale partnership</p>
+        <h1 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Become a {{ $company->name }} reseller.</h1>
+        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
+            Apply with your business details. After the store approves your application, you get access to wholesale pricing and direct ordering support.
+        </p>
+
+        <form class="mt-8 space-y-5 rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/5" method="POST" action="{{ $applyUrl }}">
+            @csrf
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label class="text-xs font-medium text-gray-500" for="name">Your name</label>
+                    <input class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/10 dark:bg-gray-950" id="name" name="name" type="text" value="{{ old('name') }}" required>
+                    @error('name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-gray-500" for="phone">Phone number</label>
+                    <input class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/10 dark:bg-gray-950" id="phone" name="phone" type="text" value="{{ old('phone') }}" required>
+                    @error('phone') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500" for="business_name">Business / shop name</label>
+                <input class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/10 dark:bg-gray-950" id="business_name" name="business_name" type="text" value="{{ old('business_name') }}" required>
+                @error('business_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500" for="note">Tell us about your business (optional)</label>
+                <textarea class="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/10 dark:bg-gray-950" id="note" name="note" rows="3">{{ old('note') }}</textarea>
+                @error('note') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+            <button class="rounded-lg bg-gray-950 px-6 py-3 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] dark:bg-white dark:text-gray-950" type="submit">
+                Submit application
+            </button>
+        </form>
+    </section>
+@endsection

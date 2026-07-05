@@ -2,6 +2,116 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-04 - Storefront Advanced Commerce: WooCommerce Import, ZiniPay Pre-order Payments, Reseller Applications, Abandoned Cart Reminders
+
+Reason:
+
+- Owner-confirmed business rules (via Q&A): ZiniPay gateway for online payments with COD limited to in-stock items and per-product pre-order advance percent; admin-approved resellers; automatic SMS + Meta Cloud WhatsApp abandoned-cart reminders; WooCommerce products-only import via REST API. All credentials are admin-configurable fields (owner will plug in keys later) — nothing is hardcoded.
+
+Changed files:
+
+- `database/migrations/2026_07_04_020000_add_woocommerce_credentials_to_storefront_settings_table.php` (new)
+- `database/migrations/2026_07_04_030000_add_preorder_and_payment_support.php` (new)
+- `database/migrations/2026_07_04_040000_add_reseller_fields_to_customers_table.php` (new)
+- `database/migrations/2026_07_04_050000_create_storefront_cart_records_and_notification_settings.php` (new)
+- `app/Models/StorefrontSetting.php`, `app/Models/Product.php`, `app/Models/Customer.php`, `app/Models/Order.php`
+- `app/Models/StorefrontPayment.php`, `app/Models/StorefrontCartRecord.php` (new)
+- `app/Services/WooCommerceImportService.php`, `app/Services/ZiniPayClient.php`, `app/Services/StorefrontNotificationService.php` (new)
+- `app/Services/StorefrontCart.php` (persisted cart records + stable cart token)
+- `app/Console/Commands/ImportWooCommerceProducts.php`, `app/Console/Commands/SendAbandonedCartReminders.php` (new)
+- `app/Http/Controllers/Storefront/CheckoutController.php`, `app/Http/Controllers/Storefront/ResellerController.php` (new), `app/Http/Controllers/ZiniPayWebhookController.php` (new)
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` (ZiniPay, Abandoned Cart, WooCommerce sections)
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` (pre-order fields)
+- `app/Filament/Resources/Customers/Schemas/CustomerForm.php`, `app/Filament/Resources/Customers/Tables/CustomersTable.php` (reseller status)
+- `resources/views/storefront/` (product card/show pre-order states, checkout advance notice, success payment status, reseller apply page, footer link)
+- `routes/web.php`, `bootstrap/app.php` (reseller + webhook routes, CSRF exception, hourly scheduler)
+- `tests/Feature/WooCommerceImportTest.php`, `tests/Feature/StorefrontPreorderPaymentTest.php`, `tests/Feature/StorefrontResellerAndAbandonedCartTest.php` (new), `tests/Feature/MultiCompanyIsolationTest.php` (new models added to contract)
+
+What changed:
+
+- WooCommerce import: per-company base URL + encrypted consumer key/secret in storefront settings; `php artisan woocommerce:import-products {company-slug}` pulls published products (paged, retried), matches by SKU/slug (re-runs update, never duplicate), maps regular/sale price and first category, optionally downloads the first image. Stock intentionally stays 0 (ERP stock must come from stock movements).
+- Pre-order + ZiniPay: `products.is_preorder` + `preorder_advance_percent` (per-product, default 100%); pre-order products can be ordered beyond stock; checkout computes the online advance (pre-order quantity beyond stock only) and redirects to ZiniPay hosted checkout (`/v1/payment/create`); webhook at `POST /webhooks/zinipay/{payment}` re-verifies via `/v1/payment/verify` (never trusts the webhook body) and amount-matches before marking `storefront_payments` completed. COD remains the flow for fully in-stock carts. Pre-order checkout is blocked with a clear error when online payment is not configured.
+- Reseller: public `/reseller` application page (name, phone, business name, note) creates/updates a company-scoped Customer with `reseller_status = pending`; approved customers keep `approved` on re-application; admin approves from the Customer form's new Reseller section; Customers table shows a reseller badge. Price gating for approved resellers is deferred until customer login exists (documented).
+- Abandoned carts: cart activity now also persists to `storefront_cart_records` (stable session token, converted on successful checkout, phone captured at checkout attempt); hourly `storefront:send-abandoned-cart-reminders` sends one SMS (generic GET-gateway URL template with placeholders) and one WhatsApp template message (Meta Cloud API) per stale cart, then marks it reminded.
+
+Verification:
+
+- `php artisan migrate --force` (4 migrations)
+- `npm run build`
+- New test files 12/12 passed; isolation contract extended with `ProductCarousel`, `StorefrontPayment`, `StorefrontCartRecord`
+- Full suite `php artisan test` (196 passed, 882 assertions)
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-04 - Storefront B2B: Tiered Pricing, MOQ, and Customer Due Visibility
+
+Reason:
+
+- Master plan Part 4.6 B2B UX items 1, 2, and 4 were the last storefront features implementable without external credentials: per-product tiered wholesale pricing, minimum order quantity enforcement, and showing a customer's current due on the account orders page.
+
+Changed files:
+
+- `database/migrations/2026_07_04_010000_add_moq_and_tier_prices_to_products_table.php` (new)
+- `app/Models/Product.php`
+- `app/Filament/Resources/Products/Schemas/ProductForm.php`
+- `app/Services/StorefrontCart.php`
+- `app/Http/Controllers/Storefront/AccountOrdersController.php`
+- `resources/views/storefront/partials/product-card.blade.php`
+- `resources/views/storefront/products/show.blade.php`
+- `resources/views/storefront/cart/show.blade.php`
+- `resources/views/storefront/account/orders.blade.php`
+- `tests/Feature/StorefrontB2bTest.php` (new)
+- `business_dashboard_master_plan_v2_custom_storefront.md`
+- `PROJECT_GUIDE.md`
+
+What changed:
+
+- New nullable `products.moq` and `products.tier_prices` (JSON `{min_qty, price}` rows) columns; both optional so existing products behave exactly as before.
+- `Product::effectiveMoq()`, `normalizedTiers()`, and `priceForQuantity()` helpers; tier prices override the sale price at matching quantities for non-variant lines only (variant lines keep their own variant price).
+- Admin Product form gains a collapsible "Wholesale (B2B)" section with MOQ input and a tier-price repeater.
+- `StorefrontCart` clamps add/update quantities up to the MOQ (0 still removes; stock cap wins when stock is below MOQ) and prices non-variant lines with `priceForQuantity()`, so tier pricing flows into checkout order items unchanged.
+- Product page shows a "Wholesale pricing" range table (with the base price as the first row) and a "Minimum order" badge; the quantity input starts at and enforces the MOQ; product cards show an MOQ badge and quick-add uses the MOQ.
+- Account orders page shows a "Current due" banner with the customer's `current_balance` (only when > 0, and only when the searched phone matched storefront orders in the current company — same access rule as order history).
+
+Verification:
+
+- `php artisan migrate --force`
+- `npm run build`
+- `php artisan test --filter=StorefrontB2bTest` (4/4 passed)
+- Full suite `php artisan test` (184 passed, 822 assertions)
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-04 - Storefront Quick Reorder
+
+Reason:
+
+- Master plan Part 4.6 B2B UX item 5 (Quick Reorder) was the last remaining pure-code storefront feature. Customers can now re-add a previous storefront order's items to their cart in one click from the account orders page.
+
+Changed files:
+
+- `app/Http/Controllers/Storefront/AccountOrdersController.php`
+- `routes/web.php`
+- `resources/views/storefront/account/orders.blade.php`
+- `tests/Feature/StorefrontReorderTest.php` (new)
+- `business_dashboard_master_plan_v2_custom_storefront.md`
+- `PROJECT_GUIDE.md`
+
+What changed:
+
+- New `POST /account/orders/{orderNo}/reorder` route (production domain) and `POST /storefront/{company-slug}/account/orders/{orderNo}/reorder` (local preview), both named routes.
+- `AccountOrdersController::reorder`/`reorderPreview` validate that the submitted phone matches the order's customer (same matching rules as the order-history lookup), that the order belongs to the current storefront company, and that it is a storefront-source order — otherwise 404.
+- Available products/variants from the order are added to the session cart via the existing `StorefrontCart` service (stock capping applies); discontinued/inactive items are skipped. A flash status reports how many items were added, and the customer is redirected to the cart.
+- `Reorder` button added next to `Track order` on each order card in `account/orders.blade.php`, posting the searched phone as a hidden field.
+- Master plan Part 4 pending list refreshed: carousel/variants marked done (they were completed in commit 2626e5f0 but the doc still listed the carousel as pending), Quick Reorder marked done, and tiered pricing/MOQ/due-visibility explicitly listed as blocked on business decisions.
+
+Verification:
+
+- `php artisan test --filter=StorefrontReorderTest` (2/2 passed)
+- Full suite `php artisan test` (180 passed, 807 assertions)
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-04 - Variant Stock Movement CI Fix
 
 Reason:

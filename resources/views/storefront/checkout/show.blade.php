@@ -66,9 +66,26 @@
                     <span>Total</span>
                     <span>BDT {{ number_format($subtotal, 2) }}</span>
                 </div>
-                <p class="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                    Delivery charge and payment collection will be handled after review.
-                </p>
+                @if (($advanceDue ?? 0) > 0)
+                    <div class="mt-4 rounded-lg border border-[var(--storefront-brand)]/30 bg-[var(--storefront-brand)]/5 px-4 py-3 text-sm leading-6 text-gray-700 dark:text-gray-200">
+                        <div class="flex justify-between font-semibold">
+                            <span>Advance payable online now</span>
+                            <span>BDT {{ number_format($advanceDue, 2) }}</span>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Your cart includes pre-order items. Cash on delivery is not available for them - you will be redirected to a secure payment page after placing the order.
+                        </p>
+                        @unless ($onlinePaymentAvailable ?? false)
+                            <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
+                                Online payment is currently unavailable. Please contact the store to complete this pre-order.
+                            </p>
+                        @endunless
+                    </div>
+                @else
+                    <p class="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                        Delivery charge and payment collection will be handled after review.
+                    </p>
+                @endif
             </div>
         </aside>
     </section>

@@ -105,6 +105,11 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function storefrontPayments(): HasMany
+    {
+        return $this->hasMany(StorefrontPayment::class);
+    }
+
     public function courierBookings(): HasMany
     {
         return $this->hasMany(CourierBooking::class);

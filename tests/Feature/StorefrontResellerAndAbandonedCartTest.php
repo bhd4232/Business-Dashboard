@@ -1,0 +1,182 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Company;
+use App\Models\Customer;
+use App\Models\Product;
+use App\Models\StorefrontCartRecord;
+use App\Models\StorefrontSetting;
+use App\Services\CompanyContext;
+use App\Services\StorefrontCart;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+class StorefrontResellerAndAbandonedCartTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutVite();
+        $this->withoutMiddleware(ValidateCsrfToken::class);
+    }
+
+    public function test_reseller_application_creates_pending_customer(): void
+    {
+        $company = $this->createStore('reseller.example.test');
+
+        $this->get('http://reseller.example.test/reseller')
+            ->assertOk()
+            ->assertSee('Become a')
+            ->assertSee('reseller');
+
+        $this->post('http://reseller.example.test/reseller', [
+            'name' => 'Reseller Rahim',
+            'phone' => '01811111111',
+            'business_name' => 'Rahim Traders',
+            'note' => 'Wholesale electronics buyer',
+        ])->assertRedirect();
+
+        $customer = Customer::withoutGlobalScopes()->where('phone', '01811111111')->first();
+        $this->assertNotNull($customer);
+        $this->assertSame('pending', $customer->reseller_status);
+        $this->assertSame('Rahim Traders', $customer->business_name);
+        $this->assertSame($company->getKey(), $customer->company_id);
+    }
+
+    public function test_approved_reseller_stays_approved_on_reapplication(): void
+    {
+        $company = $this->createStore('reseller2.example.test');
+
+        app(CompanyContext::class)->set($company);
+
+        Customer::query()->create([
+            'name' => 'Approved Reseller',
+            'phone' => '01822222222',
+            'reseller_status' => 'approved',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
+
+        $this->post('http://reseller2.example.test/reseller', [
+            'name' => 'Approved Reseller',
+            'phone' => '01822222222',
+            'business_name' => 'Approved Traders',
+        ])->assertRedirect();
+
+        $this->assertSame('approved', Customer::withoutGlobalScopes()->where('phone', '01822222222')->first()->reseller_status);
+    }
+
+    public function test_cart_activity_persists_record_and_checkout_contact_is_remembered(): void
+    {
+        $company = $this->createStore('abandon.example.test');
+
+        app(CompanyContext::class)->set($company);
+
+        $product = Product::query()->create([
+            'name' => 'Abandoned Product',
+            'sku' => 'ABANDON-01',
+            'price' => 500,
+            'sale_price' => 450,
+            'cost_price' => 200,
+            'stock' => 10,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+
+        $this->post('http://abandon.example.test/cart/items/'.$product->slug, ['quantity' => 2]);
+
+        $record = StorefrontCartRecord::withoutGlobalScopes()->first();
+        $this->assertNotNull($record);
+        $this->assertSame(StorefrontCartRecord::STATUS_ACTIVE, $record->status);
+        $this->assertNull($record->phone);
+
+        // Completing checkout marks the record converted and stores contact.
+        $this->post('http://abandon.example.test/checkout', [
+            'name' => 'Cart Buyer',
+            'phone' => '01833333333',
+            'address' => 'Dhaka',
+        ]);
+
+        $record->refresh();
+        $this->assertSame('01833333333', $record->phone);
+        $this->assertSame(StorefrontCartRecord::STATUS_CONVERTED, $record->status);
+    }
+
+    public function test_reminder_command_sends_and_marks_stale_carts(): void
+    {
+        $company = $this->createStore('remind.example.test', reminders: true);
+
+        Http::fake([
+            'sms.example.test/*' => Http::response('ok'),
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.1']]]),
+        ]);
+
+        $stale = StorefrontCartRecord::withoutGlobalScopes()->create([
+            'company_id' => $company->getKey(),
+            'session_id' => 'sess-stale',
+            'phone' => '01844444444',
+            'customer_name' => 'Stale Buyer',
+            'items' => [['product_id' => 1, 'variant_id' => null, 'quantity' => 2]],
+            'status' => StorefrontCartRecord::STATUS_ACTIVE,
+        ]);
+        StorefrontCartRecord::withoutGlobalScopes()->whereKey($stale->getKey())->update(['updated_at' => now()->subHours(10)]);
+
+        // Fresh cart and phone-less cart must not be reminded.
+        StorefrontCartRecord::withoutGlobalScopes()->create([
+            'company_id' => $company->getKey(),
+            'session_id' => 'sess-fresh',
+            'phone' => '01855555555',
+            'items' => [['product_id' => 1, 'variant_id' => null, 'quantity' => 1]],
+            'status' => StorefrontCartRecord::STATUS_ACTIVE,
+        ]);
+
+        $this->artisan('storefront:send-abandoned-cart-reminders')
+            ->expectsOutputToContain('reminders sent: 1')
+            ->assertSuccessful();
+
+        $this->assertSame(StorefrontCartRecord::STATUS_REMINDED, $stale->fresh()->status);
+        $this->assertNotNull($stale->fresh()->reminded_at);
+    }
+
+    private function createStore(string $domain, bool $reminders = false): Company
+    {
+        $company = Company::query()->create([
+            'name' => 'Store '.$domain,
+            'slug' => str($domain)->slug()->toString(),
+            'domain' => $domain,
+            'domain_verified' => true,
+            'invoice_prefix' => 'RSL',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+
+        StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'theme_color' => '#0F766E',
+            'is_published' => true,
+            'abandoned_cart_reminders_enabled' => $reminders,
+            'abandoned_cart_delay_hours' => 6,
+            'notification_credentials' => $reminders ? [
+                'sms_api_url' => 'http://sms.example.test/send?key={api_key}&to={phone}&msg={message}&from={sender_id}',
+                'sms_api_key' => 'sms_key',
+                'sms_sender_id' => 'ZAMZAM',
+                'whatsapp_token' => 'wa_token',
+                'whatsapp_phone_number_id' => '1234567890',
+                'whatsapp_template_name' => 'abandoned_cart',
+                'whatsapp_template_language' => 'bn',
+            ] : null,
+        ]);
+
+        return $company;
+    }
+}

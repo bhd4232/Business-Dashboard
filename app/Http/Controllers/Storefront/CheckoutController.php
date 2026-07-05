@@ -7,12 +7,16 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\StorefrontPayment;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
+use App\Services\ZiniPayClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CheckoutController extends Controller
@@ -20,7 +24,22 @@ class CheckoutController extends Controller
     public function __construct(
         protected CompanyContext $context,
         protected StorefrontCart $cart,
+        protected ZiniPayClient $zinipay,
     ) {}
+
+    /**
+     * Advance amount payable online for pre-order lines: quantity beyond
+     * current stock means the line is fulfilled as a pre-order, and its
+     * full subtotal times the product's advance percent is due up front.
+     */
+    public static function advanceDue($items): float
+    {
+        return (float) collect($items)
+            ->filter(fn (array $item): bool => ! ($item['variant'] ?? null)
+                && $item['product']->is_preorder
+                && $item['quantity'] > (int) $item['product']->stock)
+            ->sum(fn (array $item): float => $item['subtotal'] * $item['product']->preorderAdvancePercent() / 100);
+    }
 
     public function show(Request $request): View|RedirectResponse
     {
@@ -38,18 +57,85 @@ class CheckoutController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        [$company] = $this->domainStorefront($request);
+        [$company, $setting] = $this->domainStorefront($request);
+        $advanceDue = self::advanceDue($this->cart->items($company));
+        $this->assertPayableCheckout($setting, $advanceDue);
         $order = $this->createOrder($request, $company);
+
+        if ($advanceDue > 0) {
+            return $this->startAdvancePayment($company, $setting, $order, $advanceDue,
+                redirectUrl: route('storefront.checkout.success', $order),
+                cancelUrl: route('storefront.checkout.success', $order),
+            ) ?? redirect()->route('storefront.checkout.success', $order);
+        }
 
         return redirect()->route('storefront.checkout.success', $order);
     }
 
     public function storePreview(Request $request, Company $company): RedirectResponse
     {
-        $this->previewStorefront($company);
+        $setting = $this->previewStorefront($company);
+        $advanceDue = self::advanceDue($this->cart->items($company));
+        $this->assertPayableCheckout($setting, $advanceDue);
         $order = $this->createOrder($request, $company);
 
+        if ($advanceDue > 0) {
+            return $this->startAdvancePayment($company, $setting, $order, $advanceDue,
+                redirectUrl: route('storefront.preview.checkout.success', [$company->slug, $order]),
+                cancelUrl: route('storefront.preview.checkout.success', [$company->slug, $order]),
+            ) ?? redirect()->route('storefront.preview.checkout.success', [$company->slug, $order]);
+        }
+
         return redirect()->route('storefront.preview.checkout.success', [$company->slug, $order]);
+    }
+
+    protected function assertPayableCheckout(StorefrontSetting $setting, float $advanceDue): void
+    {
+        if ($advanceDue > 0 && ! ZiniPayClient::isConfigured($setting)) {
+            throw ValidationException::withMessages([
+                'payment' => 'Pre-order items require an online advance payment, which is not available right now. Please contact the store.',
+            ]);
+        }
+    }
+
+    protected function startAdvancePayment(
+        Company $company,
+        StorefrontSetting $setting,
+        Order $order,
+        float $advanceDue,
+        string $redirectUrl,
+        string $cancelUrl,
+    ): ?RedirectResponse {
+        $payment = StorefrontPayment::query()->create([
+            'company_id' => $company->getKey(),
+            'order_id' => $order->getKey(),
+            'gateway' => 'zinipay',
+            'amount' => round($advanceDue, 2),
+            'status' => StorefrontPayment::STATUS_PENDING,
+        ]);
+
+        try {
+            $created = $this->zinipay->createPayment(
+                $setting,
+                $advanceDue,
+                $order->customer_name,
+                $order->customer?->email,
+                $redirectUrl,
+                $cancelUrl,
+                webhookUrl: route('zinipay.webhook', $payment),
+                metadata: ['order_number' => $order->order_number, 'payment_id' => $payment->getKey()],
+            );
+        } catch (\RuntimeException $exception) {
+            $payment->update(['status' => StorefrontPayment::STATUS_FAILED, 'payload' => ['error' => $exception->getMessage()]]);
+            Log::warning('ZiniPay payment creation failed', ['order' => $order->order_number, 'error' => $exception->getMessage()]);
+
+            // The order is already placed; the store follows up for the advance manually.
+            return null;
+        }
+
+        $payment->update(['invoice_id' => $created['invoice_id']]);
+
+        return redirect()->away($created['payment_url']);
     }
 
     public function success(Request $request, Order $order): View
@@ -95,6 +181,8 @@ class CheckoutController extends Controller
             'previewSlug' => $previewSlug,
             'items' => $items,
             'subtotal' => $this->cart->subtotal($company),
+            'advanceDue' => self::advanceDue($items),
+            'onlinePaymentAvailable' => ZiniPayClient::isConfigured($setting),
         ]);
     }
 
@@ -110,13 +198,23 @@ class CheckoutController extends Controller
 
         $items = $this->cart->items($company);
 
+        // Keep the contact on the persisted cart so abandoned-cart
+        // reminders can reach the customer if this checkout fails.
+        $this->cart->rememberContact($company, $data['phone'], $data['name']);
+
         return DB::transaction(function () use ($company, $data, $items): Order {
             abort_if($items->isEmpty(), 422, 'Your cart is empty.');
 
             foreach ($items as $item) {
-                $availableStock = $item['variant'] ?? null
-                    ? (int) $item['variant']->stock
+                $variant = $item['variant'] ?? null;
+                $availableStock = $variant
+                    ? (int) $variant->stock
                     : (int) $item['product']->stock;
+
+                // Pre-order product lines may exceed current stock by design.
+                if (! $variant && $item['product']->is_preorder) {
+                    continue;
+                }
 
                 abort_if($item['quantity'] > $availableStock, 422, "{$item['product']->name} does not have enough stock.");
             }

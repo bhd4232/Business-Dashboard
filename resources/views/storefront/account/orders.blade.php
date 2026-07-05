@@ -67,12 +67,21 @@
                         </div>
                     </div>
                 @else
+                    @if (! is_null($customerDue) && $customerDue > 0)
+                        <div class="mt-6 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-400/20 dark:bg-amber-400/10">
+                            <div class="text-sm font-medium text-amber-800 dark:text-amber-200">Current due with {{ $company->name }}</div>
+                            <div class="text-lg font-semibold text-amber-900 dark:text-amber-100">{{ $currency }} {{ number_format($customerDue, 2) }}</div>
+                        </div>
+                    @endif
                     <div class="mt-6 space-y-4">
                         @foreach ($orders as $order)
                             @php
                                 $trackUrl = isset($previewSlug)
                                     ? route('storefront.preview.track.show', [$previewSlug, $order->order_number])
                                     : route('storefront.track.show', $order->order_number);
+                                $reorderUrl = isset($previewSlug)
+                                    ? route('storefront.preview.account.reorder', [$previewSlug, $order->order_number])
+                                    : route('storefront.account.reorder', $order->order_number);
                                 $statusLabel = App\Models\Order::STATUSES[$order->status] ?? str($order->status)->headline();
                                 $itemCount = $order->items->sum('quantity');
                             @endphp
@@ -96,9 +105,18 @@
                                     <span class="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm dark:bg-white/10 dark:text-gray-300">
                                         {{ $statusLabel }}
                                     </span>
-                                    <a class="inline-flex rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] dark:bg-white dark:text-gray-950" href="{{ $trackUrl }}">
-                                        Track order
-                                    </a>
+                                    <div class="flex items-center gap-2">
+                                        <form method="POST" action="{{ $reorderUrl }}">
+                                            @csrf
+                                            <input type="hidden" name="phone" value="{{ $phone }}">
+                                            <button class="inline-flex rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 transition hover:border-gray-950 dark:border-white/15 dark:text-white dark:hover:border-white" type="submit">
+                                                Reorder
+                                            </button>
+                                        </form>
+                                        <a class="inline-flex rounded-lg bg-gray-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] dark:bg-white dark:text-gray-950" href="{{ $trackUrl }}">
+                                            Track order
+                                        </a>
+                                    </div>
                                 </div>
                             </article>
                         @endforeach

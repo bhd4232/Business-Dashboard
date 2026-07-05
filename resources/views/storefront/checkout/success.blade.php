@@ -32,6 +32,19 @@
             </div>
         </div>
 
+        @php $advancePayment = $order->storefrontPayments()->latest()->first(); @endphp
+        @if ($advancePayment)
+            <div class="mt-4 rounded-xl border px-5 py-4 text-left text-sm {{ $advancePayment->status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200' }}">
+                <div class="flex justify-between font-semibold">
+                    <span>Pre-order advance payment</span>
+                    <span>BDT {{ number_format((float) $advancePayment->amount, 2) }} &middot; {{ \App\Models\StorefrontPayment::STATUSES[$advancePayment->status] ?? ucfirst($advancePayment->status) }}</span>
+                </div>
+                @if ($advancePayment->status !== 'completed')
+                    <p class="mt-1 text-xs">If you have completed the payment, the status updates automatically within a few minutes. Otherwise the store will contact you to collect the advance.</p>
+                @endif
+            </div>
+        @endif
+
         <div class="mt-8 flex flex-wrap justify-center gap-3">
             <a class="inline-flex rounded-lg bg-gray-950 px-6 py-3 text-sm font-medium text-white dark:bg-white dark:text-gray-950" href="{{ isset($previewSlug) ? route('storefront.preview.track.show', [$previewSlug, $order->order_number]) : route('storefront.track.show', $order->order_number) }}">
                 Track this order

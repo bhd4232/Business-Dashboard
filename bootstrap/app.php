@@ -19,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->dailyAt((string) config('backup.schedule_time', '02:00'))
             ->withoutOverlapping()
             ->onOneServer();
+        $schedule->command('storefront:send-abandoned-cart-reminders')
+            ->hourly()
+            ->withoutOverlapping()
+            ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware) {
         // Coolify terminates HTTPS at its Traefik proxy. Trust the forwarded
@@ -28,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             at: env('TRUSTED_PROXIES', '*'),
             headers: Request::HEADER_X_FORWARDED_TRAEFIK,
         );
-        $middleware->validateCsrfTokens(except: ['webhooks/couriers/*']);
+        $middleware->validateCsrfTokens(except: ['webhooks/couriers/*', 'webhooks/zinipay/*']);
         $middleware->appendToGroup('web', PreventDemoModeWrites::class);
         $middleware->appendToGroup('web', SetCurrentCompany::class);
     })

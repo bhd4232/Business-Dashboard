@@ -19,7 +19,7 @@ class StorefrontCart
         $key = $this->lineKey($product, $variant);
         $maxStock = $this->availableStock($product, $variant);
         $currentQuantity = (int) ($items[$key]['quantity'] ?? 0);
-        $nextQuantity = min($maxStock, $currentQuantity + $quantity);
+        $nextQuantity = min($maxStock, max($product->effectiveMoq(), $currentQuantity + $quantity));
 
         if ($nextQuantity < 1) {
             return;
@@ -49,7 +49,7 @@ class StorefrontCart
         $items[$key] = [
             'product_id' => $product->getKey(),
             'variant_id' => $variant?->getKey(),
-            'quantity' => min($this->availableStock($product, $variant), $quantity),
+            'quantity' => min($this->availableStock($product, $variant), max($product->effectiveMoq(), $quantity)),
         ];
 
         $this->put($company, $items);
@@ -65,6 +65,70 @@ class StorefrontCart
     public function clear(Company $company): void
     {
         $this->session->forget($this->key($company));
+
+        $this->cartRecord($company)?->update(['status' => \App\Models\StorefrontCartRecord::STATUS_CONVERTED]);
+    }
+
+    /**
+     * Attach the checkout contact to the persisted cart record so
+     * abandoned-cart reminders can reach the customer.
+     */
+    public function rememberContact(Company $company, string $phone, ?string $name = null): void
+    {
+        $this->cartRecord($company)?->update([
+            'phone' => $phone,
+            'customer_name' => $name,
+        ]);
+    }
+
+    protected function cartRecord(Company $company): ?\App\Models\StorefrontCartRecord
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('storefront_cart_records')) {
+            return null;
+        }
+
+        return \App\Models\StorefrontCartRecord::withoutGlobalScopes()
+            ->where('company_id', $company->getKey())
+            ->where('session_id', $this->cartToken())
+            ->first();
+    }
+
+    /**
+     * Stable per-visitor token for the persisted cart record. Session IDs
+     * regenerate, so a dedicated token is kept in the session instead.
+     */
+    protected function cartToken(): string
+    {
+        $token = $this->session->get('storefront_cart_token');
+
+        if (! is_string($token) || $token === '') {
+            $token = (string) \Illuminate\Support\Str::uuid();
+            $this->session->put('storefront_cart_token', $token);
+        }
+
+        return $token;
+    }
+
+    protected function persistCartRecord(Company $company, array $items): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('storefront_cart_records')) {
+            return;
+        }
+
+        if ($items === []) {
+            $this->cartRecord($company)?->delete();
+
+            return;
+        }
+
+        \App\Models\StorefrontCartRecord::withoutGlobalScopes()->updateOrCreate(
+            ['company_id' => $company->getKey(), 'session_id' => $this->cartToken()],
+            [
+                'items' => array_values($items),
+                'status' => \App\Models\StorefrontCartRecord::STATUS_ACTIVE,
+                'reminded_at' => null,
+            ],
+        );
     }
 
     public function items(Company $company): Collection
@@ -115,7 +179,8 @@ class StorefrontCart
                     return null;
                 }
 
-                $quantity = min((int) $item['quantity'], $maxStock);
+                // MOQ floor first, then stock cap wins if stock is below MOQ.
+                $quantity = min(max((int) $item['quantity'], $product->effectiveMoq()), $maxStock);
 
                 if ($quantity !== (int) $item['quantity']) {
                     $changed = true;
@@ -123,7 +188,7 @@ class StorefrontCart
 
                 $unitPrice = $variant
                     ? $variant->effectiveSalePrice()
-                    : (float) $product->selling_price;
+                    : $product->priceForQuantity($quantity);
 
                 return [
                     'product' => $product,
@@ -166,7 +231,17 @@ class StorefrontCart
 
     protected function availableStock(Product $product, ?ProductVariant $variant): int
     {
-        return $variant ? (int) $variant->stock : (int) $product->stock;
+        if ($variant) {
+            return (int) $variant->stock;
+        }
+
+        // Pre-order products can be ordered beyond current stock; the
+        // checkout collects an online advance payment for those lines.
+        if ($product->is_preorder) {
+            return max((int) $product->stock, 100000);
+        }
+
+        return (int) $product->stock;
     }
 
     protected function lineKey(Product $product, ?ProductVariant $variant): string
@@ -184,6 +259,8 @@ class StorefrontCart
     protected function put(Company $company, array $items): void
     {
         $this->session->put($this->key($company), $items);
+
+        $this->persistCartRecord($company, $items);
     }
 
     protected function key(Company $company): string

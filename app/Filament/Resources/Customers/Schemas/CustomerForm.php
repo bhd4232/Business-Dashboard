@@ -38,6 +38,25 @@ class CustomerForm
                     ])
                     ->columns(2),
 
+                Section::make('Reseller')
+                    ->description('Storefront reseller applications land here as "Application pending". Approve to mark this customer as a wholesale reseller.')
+                    ->schema([
+                        \Filament\Forms\Components\Select::make('reseller_status')
+                            ->label('Reseller status')
+                            ->options(\App\Models\Customer::RESELLER_STATUSES)
+                            ->default('none')
+                            ->required(),
+                        TextInput::make('business_name')
+                            ->label('Business / shop name')
+                            ->maxLength(255),
+                        Textarea::make('reseller_note')
+                            ->label('Application note')
+                            ->rows(2)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+
                 Section::make('Balance')
                     ->schema([
                         TextInput::make('opening_balance')
