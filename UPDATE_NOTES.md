@@ -2,6 +2,36 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-05 - Part 0 Verification + Part 1.10 Cross-Cutting Isolation Audit (route-binding isolation fix)
+
+Reason:
+
+- Master plan Part 0 (pre-requisite stabilization) items were still marked unverified, and Part 1.10 (queue/scheduled/export/backup isolation audit) was pending. The audit found and fixed a real cross-company data exposure bug.
+
+Security fix (the important part):
+
+- `SetCurrentCompany` middleware ran **after** route model binding (`SubstituteBindings`), so on implicit-binding admin routes such as `/admin/orders/{order}/pdf` the `CompanyScope` could not constrain the binding query — an authenticated staff user of company A could download company B's order PDF by guessing an order ID. Fixed in `bootstrap/app.php` with `prependToPriorityList()` so company context is bound before any route model binding resolves.
+
+Changed files:
+
+- `bootstrap/app.php` (middleware priority: `SetCurrentCompany` before `SubstituteBindings`)
+- `tests/Feature/CrossCuttingIsolationAuditTest.php` (new — 4 regression tests: product CSV export, customer CSV export, report CSV export scoped to current company; cross-company order PDF returns 404)
+- `business_dashboard_master_plan_v2_custom_storefront.md` (Part 0.1/0.2, Part 1.10, Phase 0/1 checkmarks updated with evidence)
+
+Audit findings (no code change needed):
+
+- Queue: the only queued job `ProcessCourierWebhook` sets `CompanyContext` from the webhook log's provider company and clears it in `finally` — correct pattern.
+- Scheduled commands: `storefront:send-abandoned-cart-reminders` loops per company setting with explicit `company_id` filters; `backup:database` is whole-database by design.
+- Backup: no per-company restore feature exists; downloads are permission-gated.
+- Verified as already complete in code (plan doc was stale): per-product landed cost allocation (`PurchaseWorkflowService::syncLandedCosts()`), invoice + report PDF export (`OrderPdfController`, `ReportPdfController`), scheduled daily backups with restore-drill verification (`backup:database` at 02:00 + `backup:verify`), and composer.json hardening (`block-insecure: true`, `minimum-stability: stable`, dompdf pinned `^3.1`).
+
+Verification:
+
+- `php artisan test --filter=CrossCuttingIsolationAuditTest` — 4/4 (the order-PDF test failed before the middleware fix, proving the bug)
+- Full suite: 200 passed (894 assertions)
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-04 - Storefront Advanced Commerce: WooCommerce Import, ZiniPay Pre-order Payments, Reseller Applications, Abandoned Cart Reminders
 
 Reason:

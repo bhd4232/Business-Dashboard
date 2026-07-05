@@ -36,6 +36,8 @@ Important behavior:
 - Staff can only select companies assigned to them.
 - The selected company is stored in session key `current_company_id`.
 - `SetCurrentCompany` resolves the session selection and initializes `CompanyContext` for each admin request.
+- `SetCurrentCompany` is pinned before `SubstituteBindings` in the middleware priority list (`bootstrap/app.php`) so route model binding is always company-scoped; do not remove this ordering — without it an implicit binding like `/admin/orders/{order}/pdf` can resolve another company's record. Regression coverage: `tests/Feature/CrossCuttingIsolationAuditTest.php`.
+- Queued jobs run without a request, so any new job touching company-scoped models must set `CompanyContext` explicitly and clear it in `finally` (see `ProcessCourierWebhook`); scheduled commands must loop per company with explicit `company_id` filters (see `SendAbandonedCartReminders`).
 - `BelongsToCompany` automatically assigns `company_id` to new business records and applies `CompanyScope` to queries.
 - Core business records require `company_id`; existing records were backfilled to `Main Company` during migration.
 - Company-scoped models include inventory, sales, purchasing, accounts, expenses, ledger, audit, and courier models.

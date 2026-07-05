@@ -35,6 +35,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: ['webhooks/couriers/*', 'webhooks/zinipay/*']);
         $middleware->appendToGroup('web', PreventDemoModeWrites::class);
         $middleware->appendToGroup('web', SetCurrentCompany::class);
+        // Company context must be bound before route model binding runs,
+        // otherwise CompanyScope cannot constrain implicit bindings and a
+        // record from another company could resolve on admin routes.
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            prepend: SetCurrentCompany::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
