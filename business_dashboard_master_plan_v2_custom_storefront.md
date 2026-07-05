@@ -506,7 +506,7 @@ PROJECT_GUIDE.md স্পষ্ট করে বলছে এগুলো এ�
 [✅] Queue-based webhook processing (queued, synchronous না)
 [✅] Idempotency guarantee — signed webhook দেডুপ্লিকেট করা হয়
 [✅] Retry mechanism আছে (webhook ও API call উভয়ের জন্য bounded timeout + backoff)
-[ ] Production monitoring/alerting এখনো নেই courier API failure-এর জন্য
+[✅] Production monitoring/alerting সম্পন্ন (2026-07-05) — scheduled `couriers:sync-statuses` (প্রতি ৩০ মিনিটে, per-company), sync failure streak/stale booking/webhook permanent failure-এ admin database notification, Courier Health dashboard widget
 ```
 
 ### ✅ যা এখন সম্পন্ন — Filament Resources ও UI (আপডেট)
@@ -580,7 +580,7 @@ not_booked → booking_pending → booked → picked_up → in_transit
 ✅ ৮. Courier reports (provider-wise delivered/returned/cancelled, success/return
    ratio, COD summary, company-wise performance) — CourierReportService দিয়ে সম্পন্ন
 ✅ ৯. Steadfast balance UI-তে দেখানো — সম্পন্ন (2026-07-05)
-✅ ১০. Idempotency guarantee — সম্পন্ন; production monitoring/alerting এখনো বাকি
+✅ ১০. Idempotency guarantee — সম্পন্ন; production monitoring/alerting সম্পন্ন (2026-07-05)
 ```
 
 ## 2.5 Filament Resources (স্ট্যাটাস সহ)
@@ -1466,7 +1466,8 @@ and successful add-to-cart."
 ✅ সম্পন্ন (2026-07-05) — Pathao/RedX/E-Courier live API client + adapter +
    booking action; owner-এর merchant credential বসালেই লাইভ (Part 2 দেখুন)
 ✅ সম্পন্ন (2026-07-05) — Steadfast balance UI (Courier Providers-এ Balance action)
-❌ বাকি — production monitoring/alerting courier API failure-এর জন্য
+✅ সম্পন্ন (2026-07-05) — production monitoring/alerting: scheduled status sync,
+   admin alert (sync failure/stale booking/webhook failure), Courier Health widget
 ```
 
 ## Phase 3: Fraud / Customer Success MVP

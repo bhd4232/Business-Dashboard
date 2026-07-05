@@ -23,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->hourly()
             ->withoutOverlapping()
             ->onOneServer();
+        $schedule->command('couriers:sync-statuses')
+            ->everyThirtyMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware) {
         // Coolify terminates HTTPS at its Traefik proxy. Trust the forwarded

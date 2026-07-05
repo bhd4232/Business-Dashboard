@@ -108,10 +108,10 @@ Implemented behavior:
 - Courier Status Log and Webhook Log resources provide operational diagnostics.
 - Booking actions support cancellation and configurable tracking/label URL templates.
 - `CourierReportService` exposes provider/company delivery, return, cancellation, success-rate, and COD aggregates.
+- Production monitoring: `couriers:sync-statuses` runs every 30 minutes (per company, cooldown/batch limit/thresholds admin-configurable on the provider's Monitoring & Alerts section). `CourierAlertService` sends persistent database notifications (admin panel bell) to super admins and the owning company's managers on repeated sync failures, stale bookings, and webhooks that fail after all retries — deduplicated once per subject per day. The dashboard has a Courier Health widget.
 
 Not implemented yet:
 
-- Live Pathao, RedX, and E-Courier API clients beyond the pending adapter guardrail
 - Provider-native remote cancellation/label endpoints where an official API contract is required; current actions use normalized cancellation and configurable label URLs.
 
 Important files:
@@ -125,7 +125,6 @@ app/Services/CourierService.php
 app/Services/CourierManager.php
 app/Contracts/CourierProviderInterface.php
 app/Services/Couriers/
-app/Services/Couriers/PendingLiveCourierAdapter.php
 app/Services/Couriers/PathaoCourierAdapter.php
 app/Services/Couriers/RedxCourierAdapter.php
 app/Services/Couriers/ECourierAdapter.php

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\CourierBooking;
 use App\Models\CourierWebhookLog;
 use App\Services\CompanyContext;
+use App\Services\CourierAlertService;
 use App\Services\CourierManager;
 use App\Services\CourierService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -45,6 +46,34 @@ class ProcessCourierWebhook implements ShouldQueue
         } catch (Throwable $exception) {
             $log->forceFill(['status' => 'failed', 'error' => str($exception->getMessage())->limit(2000)])->save();
             throw $exception;
+        } finally {
+            $context->clear();
+        }
+    }
+
+    /**
+     * Runs only after every retry is exhausted — a webhook that will never
+     * be processed automatically needs a human to look at it.
+     */
+    public function failed(?Throwable $exception): void
+    {
+        $log = CourierWebhookLog::withoutGlobalScopes()->with('provider.company')->find($this->webhookLogId);
+
+        if (! $log || ! $log->provider) {
+            return;
+        }
+
+        $context = app(CompanyContext::class);
+        $context->set($log->provider->company);
+
+        try {
+            app(CourierAlertService::class)->alert(
+                (int) $log->provider->company_id,
+                'webhook-failure',
+                "webhook-log-{$log->id}",
+                "Courier webhook failed: {$log->provider->name}",
+                'A courier status webhook could not be processed after all retries. Review it in Courier Webhook Logs. Error: '.str($exception?->getMessage() ?? ($log->error ?? 'Unknown'))->limit(200),
+            );
         } finally {
             $context->clear();
         }

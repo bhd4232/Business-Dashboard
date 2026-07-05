@@ -36,6 +36,13 @@ class CourierProvider extends Model
         self::DRIVER_ECOURIER,
     ];
 
+    public const MONITORING_DEFAULTS = [
+        'stale_after_days' => 5,
+        'sync_failure_alert_threshold' => 3,
+        'sync_batch_limit' => 50,
+        'sync_cooldown_minutes' => 25,
+    ];
+
     protected $fillable = [
         'company_id',
         'name',
@@ -44,12 +51,17 @@ class CourierProvider extends Model
         'credentials',
         'settings',
         'is_active',
+        'sync_failure_count',
+        'last_sync_error',
+        'last_synced_at',
     ];
 
     protected $casts = [
         'credentials' => 'encrypted:array',
         'settings' => 'array',
         'is_active' => 'boolean',
+        'sync_failure_count' => 'integer',
+        'last_synced_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -58,6 +70,13 @@ class CourierProvider extends Model
             $provider->slug = $provider->slug ?: Str::slug($provider->name);
             $provider->driver = $provider->driver ?: self::DRIVER_MANUAL;
         });
+    }
+
+    public function monitoringSetting(string $key): int
+    {
+        $value = (int) (($this->settings ?? [])[$key] ?? 0);
+
+        return $value > 0 ? $value : (self::MONITORING_DEFAULTS[$key] ?? 0);
     }
 
     public function bookings(): HasMany

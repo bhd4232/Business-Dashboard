@@ -2,6 +2,35 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-05 - Production Courier Monitoring & Alerting
+
+Reason:
+
+- Last remaining master plan Part 2 item: in production nobody would notice a broken courier API, a permanently failed webhook, or a booking stuck in transit. Adds scheduled status syncing plus persistent admin alerts.
+
+Changed files:
+
+- `app/Console/Commands/SyncCourierStatuses.php` (new — `couriers:sync-statuses`, per-company loop with CompanyContext, cooldown/batch-limit/failure-streak from admin-configurable provider settings, stale-booking detection)
+- `app/Services/CourierAlertService.php` (new — Filament database notifications to active super admins + owning-company managers, deduped once per subject per day via cache)
+- `app/Jobs/ProcessCourierWebhook.php` (`failed()` hook alerts admins after all retries are exhausted)
+- `app/Filament/Widgets/CourierHealthWidget.php` (new dashboard stats), `CourierProviderResource` (Monitoring & Alerts settings section + Last Sync / Sync Failures columns)
+- `app/Models/CourierProvider.php` (MONITORING_DEFAULTS + `monitoringSetting()`), `CourierBooking.php` (ACTIVE_STATUSES, `last_synced_at`)
+- `app/Providers/Filament/AdminPanelProvider.php` (`->databaseNotifications()` bell)
+- `bootstrap/app.php` (schedule: every 30 minutes, withoutOverlapping, onOneServer)
+- Migrations: courier monitoring fields + `notifications` table
+- `tests/Feature/CourierMonitoringTest.php` (new — 6 tests), `tests/Feature/ReleaseNotesTest.php` (v1.5.0), `CHANGELOG.md` (1.5.0)
+
+Deploy notes:
+
+- Run `php artisan migrate` (new `notifications` table is required by the admin panel bell). Scheduler + queue worker must be running.
+
+Verification:
+
+- `php artisan test --env=testing --filter=CourierMonitoringTest` — 6/6
+- Full suite: 211 passed (934 assertions).
+
+Commit status: Approved by owner; committed and pushed.
+
 ## 2026-07-05 - Live Pathao/RedX/E-Courier Couriers + Steadfast Balance UI
 
 Reason:

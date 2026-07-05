@@ -43,6 +43,13 @@ class CourierBooking extends Model
         self::STATUS_FAILED => 'Failed',
     ];
 
+    public const ACTIVE_STATUSES = [
+        self::STATUS_BOOKING_PENDING,
+        self::STATUS_BOOKED,
+        self::STATUS_PICKED_UP,
+        self::STATUS_IN_TRANSIT,
+    ];
+
     protected $fillable = [
         'company_id',
         'courier_provider_id',
@@ -55,6 +62,7 @@ class CourierBooking extends Model
         'cod_amount',
         'status',
         'booked_at',
+        'last_synced_at',
         'delivered_at',
         'returned_at',
         'note',
@@ -63,6 +71,7 @@ class CourierBooking extends Model
     protected $casts = [
         'cod_amount' => 'decimal:2',
         'booked_at' => 'datetime',
+        'last_synced_at' => 'datetime',
         'delivered_at' => 'datetime',
         'returned_at' => 'datetime',
     ];

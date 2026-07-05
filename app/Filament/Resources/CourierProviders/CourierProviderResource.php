@@ -294,6 +294,37 @@ class CourierProviderResource extends Resource
                 ->columns(2)
                 ->visible(fn (Get $get): bool => in_array($get('driver'), CourierProvider::API_DRIVERS, true))
                 ->collapsible(),
+
+            Section::make('Monitoring & Alerts')
+                ->schema([
+                    TextInput::make('settings.stale_after_days')
+                        ->label('Stale Booking Alert (days)')
+                        ->numeric()
+                        ->minValue(1)
+                        ->placeholder((string) CourierProvider::MONITORING_DEFAULTS['stale_after_days'])
+                        ->helperText('Alert admins when a booking has no final status after this many days.'),
+                    TextInput::make('settings.sync_failure_alert_threshold')
+                        ->label('Sync Failure Alert Threshold')
+                        ->numeric()
+                        ->minValue(1)
+                        ->placeholder((string) CourierProvider::MONITORING_DEFAULTS['sync_failure_alert_threshold'])
+                        ->helperText('Alert admins after this many consecutive sync failures.'),
+                    TextInput::make('settings.sync_batch_limit')
+                        ->label('Sync Batch Limit')
+                        ->numeric()
+                        ->minValue(1)
+                        ->placeholder((string) CourierProvider::MONITORING_DEFAULTS['sync_batch_limit'])
+                        ->helperText('Maximum bookings synced per scheduled run.'),
+                    TextInput::make('settings.sync_cooldown_minutes')
+                        ->label('Sync Cooldown (minutes)')
+                        ->numeric()
+                        ->minValue(1)
+                        ->placeholder((string) CourierProvider::MONITORING_DEFAULTS['sync_cooldown_minutes'])
+                        ->helperText('Skip bookings synced more recently than this.'),
+                ])
+                ->columns(2)
+                ->visible(fn (Get $get): bool => in_array($get('driver'), CourierProvider::API_DRIVERS, true))
+                ->collapsed(),
         ]);
     }
 
@@ -318,6 +349,17 @@ class CourierProviderResource extends Resource
                 IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean(),
+                TextColumn::make('last_synced_at')
+                    ->label('Last Sync')
+                    ->dateTime()
+                    ->placeholder('-')
+                    ->toggleable(),
+                TextColumn::make('sync_failure_count')
+                    ->label('Sync Failures')
+                    ->badge()
+                    ->color(fn (?int $state): string => ($state ?? 0) > 0 ? 'danger' : 'success')
+                    ->tooltip(fn (CourierProvider $record): ?string => $record->last_sync_error)
+                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

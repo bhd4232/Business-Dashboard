@@ -41,6 +41,7 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->spa()
+            ->databaseNotifications()
             ->brandName(fn (): string => (string) app(CompanySettingsService::class)->profile()['name'])
             ->brandLogo(fn (): ?string => app(CompanySettingsService::class)->logoUrl())
             ->darkModeBrandLogo(fn (): ?string => app(CompanySettingsService::class)->darkLogoUrl())

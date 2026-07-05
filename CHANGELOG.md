@@ -2,6 +2,22 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.5.0] - 2026-07-05
+
+**Release type:** Minor Version Update
+
+### Added
+
+- Added automatic courier status syncing: a scheduled `couriers:sync-statuses` command runs every 30 minutes and pulls delivery status updates from Steadfast, Pathao, RedX, and E-Courier for all active bookings, per company.
+- Added persistent admin alerts (notification bell in the admin panel) when a courier provider's status sync keeps failing, when a courier webhook cannot be processed after all retries, or when bookings sit without a final delivery status for too long.
+- Added a Courier Health dashboard widget: active deliveries, stale bookings, failed webhooks in the last 24 hours, and providers with sync errors.
+- Added per-provider monitoring settings (stale-booking alert days, sync failure alert threshold, sync batch limit, sync cooldown) plus last-sync time and failure count visibility on the Courier Providers list.
+
+### Technical Notes
+
+- New `notifications` table and courier monitoring columns — run `php artisan migrate` on deploy (scheduler must already be running for the new command).
+- Alerts go to active super admins and the owning company's managers, deduplicated to at most one alert per subject per day.
+
 ## [1.4.0] - 2026-07-05
 
 **Release type:** Minor Version Update
