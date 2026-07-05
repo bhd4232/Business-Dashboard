@@ -2,6 +2,11 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-05 - Fix ReleaseNotesTest after 1.3.0 changelog entry
+
+- Adding the 1.3.0 CHANGELOG entry changed the latest published release shown on the admin Release Notes page, so `ReleaseNotesTest` (which asserted v1.2.0 / Released 2026-06-24 as latest) failed. Updated the test to assert v1.3.0 / Released 2026-07-05. 3/3 pass.
+- Commit status: Committed and pushed (follow-up to the approved 1.3.0 release-notes commit, which otherwise left the suite red).
+
 ## 2026-07-05 - Part 0 Verification + Part 1.10 Cross-Cutting Isolation Audit (route-binding isolation fix)
 
 Reason:
