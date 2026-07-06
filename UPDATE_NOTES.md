@@ -2,6 +2,49 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-06 - Android app shell (Capacitor)
+
+Reason:
+
+- Owner wants the ERP admin panel available as a mobile app, starting with Android (storefront app deferred). Since the panel is already fully responsive and cloud-hosted, the fastest and lowest-maintenance path is a Capacitor WebView shell pointed at the live URL, rather than a separate native codebase.
+
+Changed files:
+
+- `capacitor.config.json` (new) — app id `com.zamzamint.erp`, loads `https://app.zamzamint.com`
+- `mobile-shell/` (new) — placeholder web asset dir Capacitor requires, plus `mobile-shell/README.md` with build/setup instructions
+- `android/` (new) — generated native Android project (Capacitor scaffold)
+- `package.json` — added `@capacitor/core`, `@capacitor/android`, `@capacitor/app`, `@capacitor/status-bar`, `@capacitor/splash-screen`, `@capacitor/cli` (v7, matched to this machine's Node 20) and `mobile:sync` / `mobile:open` / `mobile:build` scripts
+- `.github/workflows/deploy.yml` — added `build-android` CI job (Node + JDK 17, `cap sync`, `gradlew assembleDebug`, uploads the APK as a workflow artifact) so an APK can be built and downloaded without local Android Studio; also fixed this workflow's test step which ran `php artisan test --env=testing` (the same flag now forbidden by the new CLAUDE.md rule — harmless here since CI has no real demo database, but corrected for consistency)
+- `CHANGELOG.md` (1.6.0 minor), `tests/Feature/ReleaseNotesTest.php` (v1.6.0)
+
+Notes:
+
+- This dev machine has no Android Studio/JDK installed, so no APK has been built or tested yet. The owner will install Android Studio locally to build and test.
+- `npx cap sync android` hit intermittent `EPERM` errors on this machine (antivirus locking newly written files mid-copy) — the generated `android/app/src/main/assets/capacitor.config.json` was verified correct regardless; documented as a known issue in `mobile-shell/README.md`.
+- Full suite re-verified after the version bump: `php artisan test` (no `--env` flag) — 213 passed (936 assertions).
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-06 - Agent rule: tests must not touch demo data + Phase 8 verification
+
+Reason:
+
+- Owner asked for a hard rule that test runs never refresh/reseed the demo database. Investigating this uncovered that `php artisan test --env=testing` bypasses `phpunit.xml`'s env overrides and runs `RefreshDatabase` against the real `database/demo.sqlite` — this had already wiped the owner's demo data during a prior session. Ran `php artisan demo:refresh` to restore it.
+- Also planned to build master plan Phase 8 (duplicate order / same-phone-multiple-name / high-COD-first-order detection); exploration found all three were already implemented in `CustomerRiskService` and gating courier booking via `assertCourierBookingAllowed` — just missing direct test coverage for two of the factors, and the master plan doc was stale.
+
+Changed files:
+
+- `CLAUDE.md` (new rule: never `--env` flag when testing; never demo:refresh/seed/migrate:fresh during testing)
+- `tests/Feature/CustomerRiskTest.php` (2 new tests: `phone_multiple_names` and `recent_duplicate_order` factors)
+- `business_dashboard_master_plan_v2_custom_storefront.md` (Phase 8 marked complete with detail; stale Phase 5 MOQ/tiered-pricing "unconfirmed" note corrected — it's implemented and tested)
+- `CHANGELOG.md` (1.5.1 patch), `tests/Feature/ReleaseNotesTest.php` (v1.5.1)
+
+Verification:
+
+- `php artisan test` (no --env flag) — 213 passed (936 assertions)
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-05 - Production Courier Monitoring & Alerting
 
 Reason:

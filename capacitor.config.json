@@ -1,0 +1,12 @@
+{
+  "appId": "com.zamzamint.erp",
+  "appName": "Business Dashboard",
+  "webDir": "mobile-shell/www",
+  "server": {
+    "url": "https://app.zamzamint.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

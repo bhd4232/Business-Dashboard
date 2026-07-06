@@ -1497,8 +1497,8 @@ and successful add-to-cart."
    order history-ও phone দিয়েই lookup হয় (কোনো customer password/OTP
    login system এখনো কোডে নেই — ভবিষ্যতে phone OTP লগইন চাইলে আলাদা যুক্ত
    করতে হবে)
-⚠️ MOQ/tiered-pricing B2B UX বিস্তারিত এখনো কোডে confirmed না — CartController/
-   CheckoutController-এ MOQ ভ্যালিডেশন লজিক আছে কিনা যাচাই করা প্রয়োজন
+✅ সম্পন্ন — MOQ enforcement ও quantity-tiered pricing CartController-এ কনফার্ম
+   এবং টেস্টেড (StorefrontB2bTest)
 ```
 
 ## Phase 6: Order Tracking & Account Pages
@@ -1517,9 +1517,15 @@ and successful add-to-cart."
 
 ## Phase 8: Advanced Risk & Approval Workflow
 ```txt
-High-risk order-এ manager approval, blacklisted customer-এ owner approval,
-duplicate order detection, same-phone-multiple-name detection,
-high-COD-first-order detection, risk rules manager
+✅ সম্পন্ন (আগেই কোডে ছিল, 2026-07-06-এ যাচাই ও টেস্ট কভারেজ যোগ) —
+   High-risk order-এ manager approval, blacklisted customer-এ owner approval
+   (CustomerRiskReview, TYPE_MANAGER/TYPE_OWNER), duplicate order detection
+   (একই customer + একই amount + ২৪ ঘণ্টার মধ্যে), same-phone-multiple-name
+   detection, high-COD-first-order detection — সব CustomerRiskService-এ
+   configurable factor হিসেবে আছে এবং courier booking-এর আগে গেট করে
+   (assertCourierBookingAllowed)। Risk Rule Settings পেজে সব threshold/
+   deduction admin-configurable। phone_multiple_names ও recent_duplicate_order
+   factor-এর জন্য নির্দিষ্ট টেস্ট যোগ হয়েছে (CustomerRiskTest)।
 ```
 
 ## Phase 9: Storefront Polish & Advanced Features

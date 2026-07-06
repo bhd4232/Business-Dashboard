@@ -22,6 +22,13 @@ These rules are mandatory for any AI agent working in this repository.
 - Every new company-owned model must use `BelongsToCompany` + `CompanyScope` and be added to `MultiCompanyIsolationTest::test_every_company_owned_model_uses_the_company_scope_contract`.
 - `SetCurrentCompany` must stay pinned before `SubstituteBindings` in `bootstrap/app.php`; new queued jobs set/clear `CompanyContext` explicitly; scheduled commands loop per company.
 
+## Test runs must never touch demo/dev data
+
+- Running tests must NEVER refresh, reseed, or otherwise modify the demo/development database.
+- **Always run tests as plain `php artisan test` (or `--filter=...`) with NO `--env` flag.** Verified 2026-07-05: `php artisan test --env=testing` bypasses `phpunit.xml`'s env overrides and runs `RefreshDatabase` against the real `database/demo.sqlite` (env=local, file cache) — wiping demo data. Plain `php artisan test` correctly uses the in-memory sqlite + array cache + testing env from `phpunit.xml`.
+- Never run `demo:refresh`, `db:seed`, `migrate:fresh`, or any seeder as part of testing or verification. The only place demo refresh may execute is inside the test suite's own isolated-database test (`DemoDataSeederTest`), which must keep using a disposable database.
+- If a test needs data, it creates its own records under `RefreshDatabase`; never rely on or mutate seeded demo data.
+
 ## Verification before handoff
 
 - Run the affected test files plus the full `php artisan test` suite, and `npm run build` when frontend assets change.

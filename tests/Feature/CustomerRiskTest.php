@@ -67,6 +67,28 @@ class CustomerRiskTest extends TestCase
         $this->assertSame(35, $check->factors['incomplete_address']['deduction']);
     }
 
+    public function test_same_phone_with_different_customer_name_is_flagged(): void
+    {
+        [$company, $customer] = $this->customer('Original Name', '+8801700000021', 'Complete Dhaka Address');
+        app(CompanyContext::class)->set($company);
+        Customer::query()->create(['name' => 'Different Name', 'phone' => '+8801700000021', 'address' => 'Complete Dhaka Address', 'opening_balance' => 0, 'is_active' => true]);
+
+        $profile = app(CustomerRiskService::class)->evaluateCustomer($customer);
+
+        $this->assertArrayHasKey('phone_multiple_names', $profile->factors);
+    }
+
+    public function test_duplicate_order_within_a_day_for_same_amount_is_flagged(): void
+    {
+        [$company, $customer] = $this->customer('Duplicate Customer', '+8801700000022', 'Complete Dhaka Address');
+        $this->order($company, $customer, 'DUP-1', 1500);
+        $secondOrder = $this->order($company, $customer, 'DUP-2', 1500);
+
+        $check = app(CustomerRiskService::class)->evaluateOrder($secondOrder);
+
+        $this->assertArrayHasKey('recent_duplicate_order', $check->factors);
+    }
+
     public function test_global_blacklist_blocks_courier_booking(): void
     {
         [$company, $customer] = $this->customer('Blocked Customer', '+8801700000003', 'Full Dhaka Address');
