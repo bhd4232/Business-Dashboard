@@ -2,6 +2,14 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.6.2] - 2026-07-06
+
+**Release type:** Patch
+
+### Fixed
+
+- Fixed the `build-android` CI job failing with `error: invalid source release: 21` — Capacitor 7's Android library requires Java 21 to compile, but CI was set up with JDK 17. Bumped the CI job's JDK to 21 (Temurin).
+
 ## [1.6.1] - 2026-07-06
 
 **Release type:** Patch

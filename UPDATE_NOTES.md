@@ -2,6 +2,24 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-06 - Fix build-android CI: JDK 21 required by Capacitor 7
+
+Reason:
+
+- After the gradlew permission fix, the `build-android` job progressed further but failed with `error: invalid source release: 21` compiling `capacitor-android` — Capacitor 7's Android library targets Java 21, but CI's JDK was set to 17.
+
+Changed files:
+
+- `.github/workflows/deploy.yml` — bumped `actions/setup-java` to `java-version: '21'`.
+- `CHANGELOG.md` — added `[1.6.2]` patch entry.
+- `tests/Feature/ReleaseNotesTest.php` — bumped assertion to v1.6.2.
+
+Notes:
+
+- Verified: `php artisan test --filter=ReleaseNotesTest` (3 passed, 23 assertions). No PHP/app behavior changed.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-06 - Fix build-android CI: gradlew permission denied
 
 Reason:
