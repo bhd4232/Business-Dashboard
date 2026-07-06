@@ -2,6 +2,14 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.6.1] - 2026-07-06
+
+**Release type:** Patch
+
+### Fixed
+
+- Fixed the `build-android` CI job failing with "Permission denied" on `./gradlew` — Windows checkouts don't preserve the executable bit, so the committed `android/gradlew` lost it. Restored the executable bit on the file and added a `chmod +x ./gradlew` step before running it in CI as a safety net against this happening again.
+
 ## [1.6.0] - 2026-07-06
 
 **Release type:** Minor Version Update

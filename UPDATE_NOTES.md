@@ -2,6 +2,25 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-06 - Fix build-android CI: gradlew permission denied
+
+Reason:
+
+- First `build-android` CI run (commit `690e70b2`) failed with `Permission denied` on `./gradlew` (exit 126). Windows checkouts don't preserve the Unix executable bit, so `android/gradlew` was committed as `100644` instead of `100755`.
+
+Changed files:
+
+- `android/gradlew` — restored executable bit via `git update-index --chmod=+x`.
+- `.github/workflows/deploy.yml` — added `chmod +x ./gradlew` before running it in the `build-android` job, as a safety net.
+- `CHANGELOG.md` — added `[1.6.1]` patch entry.
+- `tests/Feature/ReleaseNotesTest.php` — bumped assertions to v1.6.1 / Patch.
+
+Notes:
+
+- Full suite not required to be rerun for this fix beyond `ReleaseNotesTest` (verified: 3 passed, 23 assertions) since no other app behavior changed.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-06 - Android app shell (Capacitor)
 
 Reason:
