@@ -2,6 +2,26 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-06 - Fix Android app status bar overlap
+
+Reason:
+
+- App loaded successfully on a real device (JDK 21 fix worked), but the admin panel's header was hidden behind/overlapping the phone's status bar (clock, signal, battery icons), making the nav menu, search, and company selector hard to tap.
+
+Changed files:
+
+- `capacitor.config.json` — added `plugins.StatusBar` config (`overlaysWebView: false`, `style: DARK`, `backgroundColor: #000000`) so the WebView renders below the status bar instead of underneath it.
+- `android/app/src/main/assets/capacitor.config.json` — manually mirrored the same change (local `npx cap sync android` hit the known Windows EPERM issue again; CI's own `cap sync` on the Linux runner will regenerate this correctly from the root config on every build regardless).
+- `CHANGELOG.md` — added `[1.6.3]` patch entry.
+- `tests/Feature/ReleaseNotesTest.php` — bumped assertion to v1.6.3.
+
+Notes:
+
+- No PHP behavior changed; verified `php artisan test --filter=ReleaseNotesTest` (3 passed, 23 assertions).
+- Requires a new APK build (this is a native config change, not a web deploy) — rebuild via GitHub Actions and reinstall on the test device to see the fix.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-06 - Fix build-android CI: JDK 21 required by Capacitor 7
 
 Reason:

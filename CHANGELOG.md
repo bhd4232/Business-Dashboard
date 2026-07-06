@@ -2,6 +2,14 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.6.3] - 2026-07-06
+
+**Release type:** Patch
+
+### Fixed
+
+- Fixed the Android app header overlapping the phone's status bar, making the nav menu, search, and company selector hard to tap. Configured the `StatusBar` plugin (`overlaysWebView: false`) so the WebView content starts below the status bar instead of underneath it.
+
 ## [1.6.2] - 2026-07-06
 
 **Release type:** Patch
