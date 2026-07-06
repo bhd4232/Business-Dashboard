@@ -2,6 +2,25 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-06 - Fix Android app status bar overlap (Android 15 edge-to-edge)
+
+Reason:
+
+- The `[1.6.3]` StatusBar plugin fix (`overlaysWebView: false`) did not fix the overlap on the owner's real test device. Investigated the plugin's Android source (`node_modules/@capacitor/status-bar/android/.../StatusBar.java`) — it only sets legacy `SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN` view flags, which Android 15 (API 35) ignores because API 35 force-enables edge-to-edge layout for apps that target it. `android/variables.gradle` has `targetSdkVersion = 35`, confirming the device is hitting this.
+
+Changed files:
+
+- `android/app/src/main/res/values/styles.xml` — added `android:windowOptOutEdgeToEdgeEnforcement="true"` to `AppTheme` and `AppTheme.NoActionBar` to opt back out of forced edge-to-edge on Android 15; added the `tools:` namespace needed for the `tools:targetApi="35"` guard.
+- `CHANGELOG.md` — added `[1.6.4]` patch entry, noting this opt-out attribute may not be honored on a future Android version (would need CSS safe-area-inset padding on the server side instead, at that point).
+- `tests/Feature/ReleaseNotesTest.php` — bumped assertion to v1.6.4.
+
+Notes:
+
+- No PHP behavior changed; verified `php artisan test --filter=ReleaseNotesTest` (3 passed, 23 assertions).
+- Requires a new APK build + reinstall to test (native theme change, not a web deploy).
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-06 - Fix Android app status bar overlap
 
 Reason:

@@ -2,6 +2,18 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.6.4] - 2026-07-06
+
+**Release type:** Patch
+
+### Fixed
+
+- Fixed the Android app header still overlapping the status bar on Android 15 devices after the `[1.6.3]` StatusBar plugin fix. Root cause: the app targets SDK 35 (Android 15), which force-enables edge-to-edge layout system-wide — the StatusBar plugin's legacy overlay flags have no effect at that API level. Added `android:windowOptOutEdgeToEdgeEnforcement="true"` to the app theme to opt back out of the forced edge-to-edge layout.
+
+### Technical Notes
+
+- This opt-out attribute is only honored on Android 15 (API 35); Google has said it may stop being honored on a future Android version, at which point the fix will need to move to CSS safe-area-inset padding in the panel's layout instead.
+
 ## [1.6.3] - 2026-07-06
 
 **Release type:** Patch
