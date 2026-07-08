@@ -10,6 +10,10 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\CompanyContext;
+use App\Services\CustomerRiskSettingsService;
+use App\Services\ExternalCourierFraudService;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
@@ -17,10 +21,15 @@ use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\Flex;
+use Filament\Schemas\Components\Html;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 class OrderForm
 {
@@ -85,6 +94,71 @@ class OrderForm
                             }),
 
                         Hidden::make('customer_name'),
+
+                        Flex::make([
+                            Actions::make([
+                                Action::make('checkExternalCourierFraud')
+                                    ->label('Courier Fraud Check')
+                                    ->icon('heroicon-o-shield-exclamation')
+                                    ->color('warning')
+                                    ->action(function (Get $get, Set $set): void {
+                                        $customer = Customer::find($get('customer_id'));
+
+                                        if (! $customer?->phone) {
+                                            Notification::make()
+                                                ->title('Select a customer with a phone number first')
+                                                ->warning()
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        $result = app(ExternalCourierFraudService::class)->checkByPhone(
+                                            $customer->phone,
+                                            app(CompanyContext::class)->id() ?? $customer->company_id,
+                                            $customer->getKey(),
+                                            bypassCache: true,
+                                        );
+
+                                        $set('external_fraud_result', $result);
+                                    }),
+                            ])->grow(false),
+
+                            Html::make(function (Get $get): HtmlString {
+                                $result = $get('external_fraud_result');
+
+                                if (! is_array($result)) {
+                                    return new HtmlString('');
+                                }
+
+                                $ratio = $result['overall_success_ratio'] ?? null;
+                                $threshold = app(CustomerRiskSettingsService::class)
+                                    ->int('external_fraud_low_ratio_threshold');
+
+                                [$color, $label] = match (true) {
+                                    $ratio === null => ['#9ca3af', 'No courier history found'],
+                                    $ratio < $threshold => ['#ef4444', "High risk — {$ratio}% success"],
+                                    default => ['#22c55e', "Good — {$ratio}% success"],
+                                };
+
+                                $lines = collect($result)
+                                    ->except('overall_success_ratio')
+                                    ->map(fn (array $stats, string $driver): string => e(ucfirst($driver).": {$stats['success']} success / {$stats['cancel']} cancel (of {$stats['total']})"))
+                                    ->implode('<br>');
+
+                                return new HtmlString(
+                                    '<div style="display:flex;flex-direction:column;gap:2px;font-size:0.875rem;">'
+                                    .'<span style="color:'.$color.';font-weight:600;">'.e($label).'</span>'
+                                    .($lines !== '' ? '<span style="opacity:0.75;">'.$lines.'</span>' : '')
+                                    .'</div>'
+                                );
+                            }),
+                        ])
+                            ->verticallyAlignCenter()
+                            ->columnSpanFull(),
+
+                        Hidden::make('external_fraud_result')
+                            ->dehydrated(false),
 
                         DatePicker::make('order_date')
                             ->label('Sale Date')

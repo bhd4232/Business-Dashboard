@@ -22,7 +22,9 @@ class CompanySettings extends Page
 
     protected static ?int $navigationSort = 3;
 
-    protected static ?string $title = 'Company Settings';
+    protected static ?string $title = 'ERP Settings';
+
+    protected static ?string $navigationLabel = 'ERP Settings';
 
     protected string $view = 'filament.pages.company-settings';
 

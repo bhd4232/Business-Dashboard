@@ -56,6 +56,7 @@ class Company extends Model
         'invoice_prefix',
         'is_active',
         'settings',
+        'dashboard_color',
     ];
 
     protected $casts = [

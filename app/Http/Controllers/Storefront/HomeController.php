@@ -7,16 +7,25 @@ use App\Models\Category;
 use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductCarousel;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request): View|RedirectResponse
     {
         $company = $request->attributes->get('storefront_company');
 
         if (! $company instanceof Company) {
+            // The app's own domain (e.g. app.zamzamint.com — the Filament admin
+            // panel and the Android app both load this host) has no storefront
+            // company; send it straight into /admin instead of the generic
+            // marketing page. Any other unmatched host keeps the marketing page.
+            if ($this->isAppOwnDomain($request)) {
+                return redirect('/admin');
+            }
+
             return view('marketing.home');
         }
 
@@ -42,5 +51,12 @@ class HomeController extends Controller
                 ->get(),
             'carousels' => ProductCarousel::forHomepage(),
         ]);
+    }
+
+    protected function isAppOwnDomain(Request $request): bool
+    {
+        $appHost = config('app.admin_host');
+
+        return is_string($appHost) && $appHost !== '' && strcasecmp($request->getHost(), $appHost) === 0;
     }
 }

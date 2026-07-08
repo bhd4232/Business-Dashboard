@@ -11,7 +11,8 @@
         "filament/filament": "^4.11.4",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
-        "openspout/openspout": "~4.28.5"
+        "openspout/openspout": "~4.28.5",
+        "shahariar-ahmad/courier-fraud-checker-bd": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

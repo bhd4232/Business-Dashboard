@@ -58,6 +58,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Admin App Host
+    |--------------------------------------------------------------------------
+    |
+    | The host the Filament admin panel and the Android app shell load (e.g.
+    | app.zamzamint.com). Visiting "/" on this host redirects straight into
+    | /admin (login page if signed out, dashboard if signed in) instead of
+    | the generic marketing homepage. Left null in local/testing.
+    |
+    */
+
+    'admin_host' => env('ADMIN_APP_HOST'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

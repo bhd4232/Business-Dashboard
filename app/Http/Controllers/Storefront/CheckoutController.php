@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\CheckExternalCourierFraudJob;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Order;
@@ -262,6 +263,11 @@ class CheckoutController extends Controller
 
             $order->refresh();
             $this->cart->clear($company);
+
+            // Customer never sees this — the external check happens in the
+            // background and only surfaces to staff as a review requirement
+            // if the cross-courier success ratio is low (Part 3.8).
+            CheckExternalCourierFraudJob::dispatch($order->getKey())->afterCommit();
 
             return $order;
         });

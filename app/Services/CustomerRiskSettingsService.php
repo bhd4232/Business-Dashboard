@@ -21,6 +21,7 @@ class CustomerRiskSettingsService
         'recent_duplicate_order_deduction' => 10,
         'repeated_cancellation_deduction' => 20,
         'blacklist_match_deduction' => 50,
+        'external_fraud_low_ratio_threshold' => 50,
     ];
 
     public function all(): array

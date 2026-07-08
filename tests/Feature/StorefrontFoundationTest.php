@@ -148,6 +148,14 @@ class StorefrontFoundationTest extends TestCase
             ->assertSee('ZamZam ERP');
     }
 
+    public function test_app_own_domain_root_redirects_to_admin_panel(): void
+    {
+        config(['app.admin_host' => 'app.zamzamint.com']);
+
+        $this->get('http://app.zamzamint.com/')
+            ->assertRedirect('/admin');
+    }
+
     public function test_local_storefront_preview_renders_without_custom_host_mapping(): void
     {
         $company = $this->createPublishedStorefrontCompany('Local Demo Store', 'local-demo.example.test');

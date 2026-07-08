@@ -64,6 +64,7 @@ class CustomerRiskSettings extends Page
             'recent_duplicate_order_deduction' => 'Recent duplicate order deduction',
             'repeated_cancellation_deduction' => 'Repeated cancellation deduction',
             'blacklist_match_deduction' => 'Blacklist match deduction',
+            'external_fraud_low_ratio_threshold' => 'External courier success ratio review threshold (%)',
         ];
     }
 }

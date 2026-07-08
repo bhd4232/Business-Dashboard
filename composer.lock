@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3f7c12da03ff820692896ed8290ac054",
+    "content-hash": "79471f40d3c1a84eb1706ec63c9a5af2",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -5407,6 +5407,80 @@
                 }
             ],
             "time": "2022-12-17T21:53:22+00:00"
+        },
+        {
+            "name": "shahariar-ahmad/courier-fraud-checker-bd",
+            "version": "v2.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ShahariarAhmad/ShahariarAhmad-CourierFraudCheckerBD---packagist.org.git",
+                "reference": "2fecf06a2645263d6eeaf0a04b032d908dad7b61"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ShahariarAhmad/ShahariarAhmad-CourierFraudCheckerBD---packagist.org/zipball/2fecf06a2645263d6eeaf0a04b032d908dad7b61",
+                "reference": "2fecf06a2645263d6eeaf0a04b032d908dad7b61",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/http": "^10.0 || ^11.0 || ^12.0",
+                "illuminate/support": "^10.0 || ^11.0 || ^12.0",
+                "php": "^8.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "CourierFraudCheckerBd": "ShahariarAhmad\\CourierFraudCheckerBd\\Facade\\CourierFraudCheckerBdFacade"
+                    },
+                    "providers": [
+                        "ShahariarAhmad\\CourierFraudCheckerBd\\CourierFraudCheckerBdServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "ShahariarAhmad\\CourierFraudCheckerBd\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-3.0"
+            ],
+            "authors": [
+                {
+                    "name": "Shahariar Ahmad",
+                    "email": "muhd.shahariar@gmail.com"
+                }
+            ],
+            "description": "A fraud detection tool for e-commerce platforms to analyze customer order behavior across Steadfast and Pathao couriers.",
+            "keywords": [
+                "Laravel fraud checker",
+                "Order Status",
+                "api integration",
+                "courier",
+                "customer behavior",
+                "delivery",
+                "delivery tracking",
+                "e-commerce",
+                "e-commerce fraud",
+                "fraud checker",
+                "fraud detection",
+                "fraud prevention",
+                "laravel package",
+                "order cancellation",
+                "order management",
+                "order tracking",
+                "order verification",
+                "pathao",
+                "shipping",
+                "steadfast courier"
+            ],
+            "support": {
+                "issues": "https://github.com/ShahariarAhmad/ShahariarAhmad-CourierFraudCheckerBD---packagist.org/issues",
+                "source": "https://github.com/ShahariarAhmad/ShahariarAhmad-CourierFraudCheckerBD---packagist.org/tree/v2.0.2"
+            },
+            "time": "2025-07-07T11:20:06+00:00"
         },
         {
             "name": "spatie/invade",

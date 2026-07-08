@@ -12,11 +12,13 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\ColorEntry;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -24,6 +26,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\ColorColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -93,6 +96,11 @@ class CompanyResource extends Resource
                     Textarea::make('address')
                         ->rows(3)
                         ->columnSpanFull(),
+                    ColorPicker::make('dashboard_color')
+                        ->label('Dashboard Color')
+                        ->helperText('This company\'s admin panel color (sidebar, buttons, links). Separate from any storefront branding color.')
+                        ->default('#F59E0B')
+                        ->required(),
                 ])
                 ->columns(2),
 
@@ -148,6 +156,9 @@ class CompanyResource extends Resource
                 TextColumn::make('invoice_prefix')
                     ->badge()
                     ->searchable(),
+                ColorColumn::make('dashboard_color')
+                    ->label('Color')
+                    ->toggleable(),
                 TextColumn::make('currency')
                     ->badge(),
                 TextColumn::make('timezone')
@@ -190,6 +201,8 @@ class CompanyResource extends Resource
             TextEntry::make('currency')
                 ->badge(),
             TextEntry::make('timezone'),
+            ColorEntry::make('dashboard_color')
+                ->label('Dashboard Color'),
             IconEntry::make('is_active')
                 ->boolean(),
         ]);

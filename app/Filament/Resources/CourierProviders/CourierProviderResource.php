@@ -295,6 +295,26 @@ class CourierProviderResource extends Resource
                 ->visible(fn (Get $get): bool => in_array($get('driver'), CourierProvider::API_DRIVERS, true))
                 ->collapsible(),
 
+            Section::make('External Fraud Check (Merchant Panel Login)')
+                ->description('Optional. Lets staff look up a phone number\'s delivery success/cancel history on this courier\'s own merchant panel before booking. These are the courier\'s website login credentials, separate from the API keys above.')
+                ->schema([
+                    TextInput::make('credentials.fraud_check.username')
+                        ->label(fn (Get $get): string => $get('driver') === CourierProvider::DRIVER_REDX ? 'Merchant Phone Number' : 'Merchant Email / Username')
+                        ->maxLength(255),
+                    TextInput::make('credentials.fraud_check.password')
+                        ->label('Merchant Password')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255),
+                ])
+                ->columns(2)
+                ->visible(fn (Get $get): bool => in_array($get('driver'), [
+                    CourierProvider::DRIVER_PATHAO,
+                    CourierProvider::DRIVER_STEADFAST,
+                    CourierProvider::DRIVER_REDX,
+                ], true))
+                ->collapsed(),
+
             Section::make('Monitoring & Alerts')
                 ->schema([
                     TextInput::make('settings.stale_after_days')

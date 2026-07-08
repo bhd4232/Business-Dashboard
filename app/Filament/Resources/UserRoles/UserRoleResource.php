@@ -33,6 +33,12 @@ class UserRoleResource extends Resource
 
     protected static ?string $pluralModelLabel = 'User Roles';
 
+    /**
+     * Managed from the Users page ("Manage Roles" header action) rather than
+     * its own sidebar entry — still fully routable/accessible from there.
+     */
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function canAccess(): bool
     {
         return Auth::user() instanceof User && Auth::user()->canManageUsers();

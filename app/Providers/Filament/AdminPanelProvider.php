@@ -10,7 +10,9 @@ use App\Filament\Widgets\LowStockProducts;
 use App\Filament\Widgets\SalesPurchaseTrend;
 use App\Filament\Widgets\TopBusinessPerformers;
 use App\Http\Middleware\SetCurrentCompany;
+use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
+use App\Services\DynamicColorService;
 use App\Services\ProductSetupService;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -47,6 +49,9 @@ class AdminPanelProvider extends PanelProvider
             ->darkModeBrandLogo(fn (): ?string => app(CompanySettingsService::class)->darkLogoUrl())
             ->brandLogoHeight('2.25rem')
             ->colors([
+                // Base/fallback palette — used for "All Companies" (no single
+                // company selected) and overridden per request below via CSS
+                // custom properties for whichever company is active.
                 'primary' => Color::Amber,
             ])
             ->sidebarCollapsibleOnDesktop()
@@ -62,6 +67,28 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Reports'),
                 NavigationGroup::make('Settings'),
             ])
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                function (): HtmlString {
+                    $context = app(CompanyContext::class);
+
+                    // "All Companies" (or no company resolved) keeps the
+                    // static Amber fallback set via ->colors() above —
+                    // consistent with the existing All-Companies safeguard
+                    // that disables company-scoped write actions.
+                    $company = $context->hasCompany() && ! $context->isAllCompanies()
+                        ? $context->company()
+                        : null;
+
+                    $hex = $company?->dashboard_color ?: DynamicColorService::DEFAULT_COLOR;
+
+                    $declarations = implode('; ', app(DynamicColorService::class)->cssVariables($hex));
+
+                    return new HtmlString(
+                        '<style>:root { '.e($declarations).'; }</style>'
+                    );
+                },
+            )
             ->renderHook(
                 PanelsRenderHook::STYLES_AFTER,
                 fn (): HtmlString => new HtmlString(<<<'HTML'
@@ -155,6 +182,21 @@ class AdminPanelProvider extends PanelProvider
                             }
                         }
                     </style>
+                HTML),
+            )
+            ->renderHook(
+                PanelsRenderHook::SCRIPTS_AFTER,
+                fn (): HtmlString => new HtmlString(<<<'HTML'
+                    <script>
+                        // After any successful save/create/delete that doesn't already
+                        // navigate away (e.g. an Edit form staying on the same page, a
+                        // table row delete, a Settings page save), Filament flashes a
+                        // notification and dispatches this browser event. Reload so the
+                        // page always reflects the freshly persisted state.
+                        window.addEventListener('notificationsSent', () => {
+                            window.location.reload();
+                        });
+                    </script>
                 HTML),
             )
             ->renderHook(

@@ -2,6 +2,112 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-08 - Android WebView network-error resilience (net::ERR_SOCKET_NOT_CONNECTED)
+
+Reason:
+
+- Owner reported the Android app occasionally shows `net::ERR_SOCKET_NOT_CONNECTED` (or similar) at `https://app.zamzamint.com/`, especially around Wi-Fi ↔ mobile data switching or dual-SIM data toggling — a native WebView/socket issue, not a Laravel backend bug. Owner supplied a detailed 8-step Kotlin-oriented implementation plan; adapted it to this app's actual Java + Capacitor (not raw WebView) structure since `MainActivity.java extends BridgeActivity` — Capacitor manages its own `WebViewClient` (`com.getcapacitor.BridgeWebViewClient`) internally, so a plain `WebViewClient` subclass would have silently broken plugin bridging and local-server URL interception.
+
+Changed files:
+
+- `android/app/src/main/java/com/zamzamint/erp/ResilientBridgeWebViewClient.java` (new) — extends Capacitor's `BridgeWebViewClient` (not `WebViewClient`) so `super.onReceivedError()`/`shouldInterceptRequest()`/etc. keep working. Retries only main-frame failures for a specific transient `net::ERR_*` code set (connect, timeout, host lookup, connection reset/refused, network changed, connection closed, socket-not-connected, name-not-resolved, internet-disconnected) up to 3 times, 2.5s apart; on the 4th failure loads a local `file:///android_asset/error.html?target=<real-url>` instead of retrying forever. Resets the retry counter once the real target URL finishes loading successfully.
+- `android/app/src/main/java/com/zamzamint/erp/NetworkMonitor.java` (new) — thin wrapper around `ConnectivityManager.registerNetworkCallback`; calls back on `onAvailable()`.
+- `android/app/src/main/java/com/zamzamint/erp/MainActivity.java` — overrides `load()` (called by `BridgeActivity.onCreate()` after the bridge is built) to swap in `ResilientBridgeWebViewClient` via the public `Bridge.setWebViewClient()` API, enable `domStorageEnabled`/`LOAD_DEFAULT` cache mode, and register `NetworkMonitor` — when connectivity returns while the local error page is showing, it reloads the real app automatically (no manual tap needed unless all 3 retries were already exhausted first).
+- `android/app/src/main/assets/error.html` (new) — static "Connection Problem" page with a Retry button; reads the real target URL from a `?target=` query param (set by `ResilientBridgeWebViewClient`, itself read from `capacitor.config.json`'s `server.url` via `CapConfig.getServerUrl()` — never hardcoded).
+- `android/app/src/main/AndroidManifest.xml` — added `ACCESS_NETWORK_STATE` permission (required for `ConnectivityManager.registerNetworkCallback`).
+- `CHANGELOG.md` — added `[1.8.1]` patch entry; `tests/Feature/ReleaseNotesTest.php` bumped to v1.8.1 / Patch / 2026-07-08.
+
+Notes:
+
+- Deliberately did **not** implement step 7 (Coolify/Traefik `keepalive_timeout` tuning) from the owner's plan — that's server-side infrastructure, out of scope for this Laravel-repo-side fix, and the plan itself marks it optional/last-resort if the app-side fix isn't enough.
+- **Not verified with a real build** — this environment has no local JDK/Android SDK (matches the project's existing pattern of using the `build-android` GitHub Actions CI job instead of local Android Studio). Code was reviewed carefully against Capacitor's actual `Bridge`/`BridgeWebViewClient`/`BridgeActivity` source (`node_modules/@capacitor/android`) to confirm method signatures (`Bridge.setWebViewClient(BridgeWebViewClient)`, `BridgeActivity.load()`, `CapConfig.getServerUrl()`) and Java 21 compatibility (`capacitor.build.gradle` already sets `sourceCompatibility 21`, so lambdas/method references used here are fine) — but the actual manual test checklist from the owner's plan (Wi-Fi↔mobile switch, airplane mode, weak-network simulation, dual-SIM toggle, background/foreground) still needs to be run on a real device or emulator after the next CI build.
+- No Laravel/PHP files touched — `php artisan test` not re-run for backend logic, but `ReleaseNotesTest` was re-verified after the version bump (3 passed, 23 assertions).
+- `npm run build` not applicable (native Android/Java changes only).
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-08 - Auto-reload on save, User Roles moved under Users, per-company dashboard color (revised architecture)
+
+Reason:
+
+- Owner asked for three UI/settings changes: (1) any Filament save/create/delete should auto-reload the page instead of leaving stale form state visible; (2) the "User Roles" page shouldn't have its own sidebar entry — it should be reached from the Users page instead; (3) each company should be able to pick its own admin dashboard color.
+- **First attempt (superseded same day):** stored the color as a `CompanySettingsService` setting and set it once via `->colors()` on the panel. Owner reported it only affected list/resource pages — `Product Setup`, `ERP Settings`, `Backups`, `Release Notes`, and `Reports` kept the old color — and asked for a real multi-shade palette generator, not one flat color. Root cause: `->colors()` bakes the palette into the panel config, which isn't necessarily re-evaluated identically across every page type, and a single color isn't the same as a full 50–950 shade ladder.
+- Owner then supplied a concrete 8-step architecture (dedicated `companies.dashboard_color` column, `ColorPicker` on `CompanyResource`, a `DynamicColorService` shade generator, and a `PANELS_HEAD`-style render hook injecting CSS custom properties from `CompanyContext` on every request) and asked it to be followed exactly. Implemented that instead.
+
+Changed files:
+
+- `database/migrations/2026_07_08_000000_add_dashboard_color_to_companies_table.php` (new) — `companies.dashboard_color` (varchar(7), default `#F59E0B`), intentionally separate from `StorefrontSetting.theme_color` (customer-facing branding vs admin-panel readability).
+- `app/Models/Company.php` — added `dashboard_color` to `$fillable`.
+- `app/Filament/Resources/Companies/CompanyResource.php` — added `ColorPicker::make('dashboard_color')` to the form, plus `ColorColumn`/`ColorEntry` on the table/infolist so it's visible without opening edit.
+- `app/Services/DynamicColorService.php` (new) — `generateShades(string $hex): array` (50..950 keyed shades) and `cssVariables()`, delegating to Filament's own `Color::generatePalette()` (OKLCH-based) rather than hand-rolling HSL math, so shades render identically to any other Filament `Color::*` palette.
+- `app/Providers/Filament/AdminPanelProvider.php` — reverted `->colors()` to the static `Color::Amber` fallback (used for "All Companies" mode); added a `HEAD_END` render hook that reads `CompanyContext` fresh per request and injects `:root { --primary-50: ...; ...; --primary-950: ...; }` from the active company's `dashboard_color` — this is what makes every page type pick it up and switch instantly on company change, no reload/redeploy. Also kept the `SCRIPTS_AFTER` auto-reload-on-save hook and the User Roles/Manage Roles nav changes from the same day (see below).
+- `app/Filament/Resources/UserRoles/UserRoleResource.php` — `$shouldRegisterNavigation = false` (dropped from sidebar, still routable).
+- `app/Filament/Resources/Users/Pages/ListUsers.php` / `UserRoles/Pages/ListUserRoles.php` — "Manage Roles" / "Back to Users" header actions.
+- **Reverted** the first attempt: `app/Services/CompanySettingsService.php` (removed `PRIMARY_COLOR`/`DEFAULT_PRIMARY_COLOR`/`primaryColorHex()`), `app/Filament/Pages/CompanySettings.php` + its Blade view (removed the "Dashboard Color" section — that page is now business profile/branding only, still renamed to "ERP Settings"), `tests/Feature/CompanySettingsTest.php` (removed the 3 primary-color tests).
+- `tests/Feature/DashboardColorTest.php` (new) — 5 tests: color injected for the active company, switching company changes the injected shades, "All Companies" falls back to default, shade ladder has all 11 keys, invalid hex falls back to default.
+- `CHANGELOG.md` — rewrote the `[1.8.0]` entry to describe the corrected architecture; `tests/Feature/ReleaseNotesTest.php` stays at v1.8.0 / Minor Version Update / 2026-07-08 (no version bump needed, nothing committed yet).
+
+Notes:
+
+- Verified live in a browser end-to-end: set a company's `dashboard_color` via the actual `ColorPicker` on the Company edit form (through Livewire, not just tinker), switched the active company via the real topbar switcher, and confirmed `getComputedStyle(document.documentElement).getPropertyValue('--primary-500')` matched the new color's OKLCH hue on **every** previously-broken page (Product Setup, ERP Settings, Backups, Release Notes, Reports) plus the Dashboard and Customers list — not just resource pages. Reset the test company's color back to `#F59E0B` afterward so no demo data was left altered.
+- Discovered along the way: the local dev/demo split matters — `.env` has `DB_CONNECTION=demo`, and an earlier round of manual `tinker` verification calls had accidentally targeted a different, non-demo sqlite file, temporarily setting a company's name to "Test". That was corrected and confirmed to never have touched the real demo data (`Main Company`, `Garments Machinery Company`, etc. were intact throughout).
+- The auto-reload-on-save and User Roles nav changes are unchanged from the first attempt and already verified working.
+- Full suite verified: `php artisan test` (no `--env` flag) — 225 passed, 983 assertions.
+- `npm run build` not required — no frontend asset changes (Blade/PHP only).
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-08 - App own-domain root redirect + courier fraud check follow-up fixes
+
+Reason:
+
+- Owner reported (while manually testing on local server) that `app.zamzamint.com` (loaded by both the browser and the Android app shell) should show the login page when signed out and the dashboard directly when signed in, instead of the generic marketing homepage that `/` shows today.
+- Also fixed 3 bugs the owner found while testing yesterday's courier fraud check feature: (1) phone numbers stored as `+880...`/`880...` always returned "no history" because the third-party package only accepts local `01...` format; (2) the manual "Courier Fraud Check" button kept showing a stale cached result after adding a new courier's credentials; (3) owner asked for the result to display inline next to the button (color-coded) instead of only in a notification toast.
+
+Changed files:
+
+- `app/Http/Controllers/Storefront/HomeController.php` — added `isAppOwnDomain()` check; when the resolved storefront company is null and the request host matches `config('app.admin_host')`, redirects to `/admin` instead of rendering `marketing.home`.
+- `config/app.php` + `.env.example` — added `admin_host` config key sourced from new `ADMIN_APP_HOST` env var (left unset locally, so `/` still shows the marketing page in local/testing — verified via existing `test_local_root_keeps_marketing_homepage`).
+- `app/Services/ExternalCourierFraudService.php` — added `normalizePhone()` (converts `+880`/`880` to local `01...` format before calling the package, which throws on non-local format); added a `bypassCache` parameter to `checkByPhone()`; only caches a result when at least one courier actually answered.
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php` — manual "Courier Fraud Check" button now passes `bypassCache: true`; replaced the notification-toast result with an inline `Flex`+`Html` status next to the button, color-coded (green/red/gray) against the existing `external_fraud_low_ratio_threshold` setting.
+- `tests/Feature/ExternalCourierFraudCheckTest.php` — added phone-normalization test and cache-bypass test.
+- `tests/Feature/StorefrontFoundationTest.php` — added `test_app_own_domain_root_redirects_to_admin_panel`.
+- `CHANGELOG.md` — added `[1.7.1]` patch entry for the domain redirect; updated `[1.7.0]` with the two courier fraud check fixes; `tests/Feature/ReleaseNotesTest.php` bumped to v1.7.1 / Patch / 2026-07-08.
+
+Notes:
+
+- `ADMIN_APP_HOST` must be set to `app.zamzamint.com` in the production `.env` for the redirect to take effect there; nothing changes for customer storefront custom domains or any other unmatched host.
+- Full suite verified: `php artisan test` (no `--env` flag) — 220 passed, then re-verified after the version bump (`ReleaseNotesTest`: 3 passed, 23 assertions).
+- `npm run build` not required — no frontend asset changes.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-07 - External courier fraud check (Part 3.8)
+
+Reason:
+
+- Owner added a new master-plan section (Part 3.8) requesting a cross-courier fraud/delivery-history lookup by phone number, live and visible for admin staff, silent/background for storefront checkout. Owner explicitly chose to install `shahariar-ahmad/courier-fraud-checker-bd` (a third-party Composer package) after reviewing that it logs into each courier's own merchant panel (Pathao, Steadfast, RedX) rather than calling an official documented API — no official public fraud-check API could be found for these couriers.
+
+Changed files:
+
+- `composer.json` / `composer.lock` — added `shahariar-ahmad/courier-fraud-checker-bd` v2.0.2.
+- `app/Services/ExternalCourierFraudService.php` (new) — cache (24h TTL per phone per company), fail-safe (never throws, skips unconfigured/failing couriers), logs every real external call to `customer_risk_events`.
+- `app/Jobs/CheckExternalCourierFraudJob.php` (new) — storefront-side async check; if the cross-courier success ratio is below a configurable threshold, requests a manager review via the existing `CustomerRiskService::requestReview()` gate (same mechanism already used for high-risk/blacklisted orders).
+- `app/Http/Controllers/Storefront/CheckoutController.php` — dispatches the job (`->afterCommit()`) right after order creation; customer never sees this.
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php` — added a "Courier Fraud Check" button next to the customer select; staff click it to see a live notification with per-courier success/cancel/total and overall ratio.
+- `app/Filament/Resources/CourierProviders/CourierProviderResource.php` — added an optional "External Fraud Check (Merchant Panel Login)" section (Pathao/Steadfast/RedX), separate from existing booking API credentials, since this feature needs the courier's website login, not their API keys.
+- `app/Services/CustomerRiskSettingsService.php` + `app/Filament/Pages/CustomerRiskSettings.php` — added `external_fraud_low_ratio_threshold` (default 50%), configurable on the existing Risk Rule Settings page.
+- `tests/Feature/ExternalCourierFraudCheckTest.php` (new) — 4 tests covering: missing-credentials skip, combined stats + audit log, cache dedupe, low-ratio triggers manager review.
+- `CHANGELOG.md` — added `[1.7.0]` entry; `tests/Feature/ReleaseNotesTest.php` bumped to v1.7.0 / Minor Version Update / 2026-07-07.
+
+Notes:
+
+- Pathao has no official public fraud-check API; this feature (and the third-party package) logs into the courier's own website, which is more fragile than a documented API and may break if a courier changes its site. This is a known, accepted trade-off per the owner's explicit choice.
+- Full suite verified: `php artisan test` (no `--env` flag) — 217 passed, then re-verified after the version bump (`ReleaseNotesTest`: 3 passed, 23 assertions).
+- `npm run build` not required — no frontend asset changes.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-06 - Fix Android app status bar overlap (Android 15 edge-to-edge)
 
 Reason:
