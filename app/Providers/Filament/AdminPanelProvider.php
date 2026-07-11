@@ -24,7 +24,6 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -113,6 +112,13 @@ class AdminPanelProvider extends PanelProvider
                             justify-content: flex-end;
                         }
 
+                        /* Dropdown panels (sub-navigation tabs collapsed to a
+                           select on mobile, column manager, etc.) must float
+                           above the sticky page header above, not behind it. */
+                        .fi-dropdown-panel {
+                            z-index: 30;
+                        }
+
                         .fi-sidebar-item-icon {
                             transform-origin: center;
                             transition:
@@ -163,9 +169,30 @@ class AdminPanelProvider extends PanelProvider
                             white-space: nowrap;
                         }
 
+                        .zz-mobile-notifications-item {
+                            display: none;
+                        }
+
                         @media (max-width: 640px) {
                             .zz-company-switcher {
                                 width: min(12rem, 46vw);
+                            }
+
+                            /* On mobile the header has no room for a separate
+                               bell icon — hide it and expose notifications
+                               from inside the profile/avatar dropdown menu
+                               instead (see USER_MENU_PROFILE_AFTER hook). */
+                            .fi-topbar-database-notifications-btn {
+                                display: none;
+                            }
+
+                            .fi-topbar-end {
+                                column-gap: 0.375rem;
+                                padding-inline-end: 10px;
+                            }
+
+                            .zz-mobile-notifications-item {
+                                display: flex;
                             }
                         }
 
@@ -204,6 +231,10 @@ class AdminPanelProvider extends PanelProvider
                 fn (): HtmlString => new HtmlString(view('filament.partials.company-switcher')->render()),
             )
             ->renderHook(
+                PanelsRenderHook::USER_MENU_PROFILE_AFTER,
+                fn (): HtmlString => new HtmlString(view('filament.partials.mobile-notifications-menu-item')->render()),
+            )
+            ->renderHook(
                 PanelsRenderHook::CONTENT_BEFORE,
                 function (): HtmlString {
                     $setup = app(ProductSetupService::class);
@@ -222,13 +253,13 @@ class AdminPanelProvider extends PanelProvider
                 },
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
+            ->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\Filament\Clusters')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
-                AccountWidget::class,
                 BusinessOverview::class,
                 CustomerRiskOverview::class,
                 SalesPurchaseTrend::class,

@@ -94,6 +94,8 @@ Implemented behavior:
 - Steadfast consignment ID and tracking code storage.
 - Steadfast API key and secret key are stored in the encrypted `credentials` model cast.
 - Provider settings support contact person, phone, warehouse, delivery fees, courier costs, return costs, COD percentage, and base URL.
+- The Courier Provider form's `Delivery Partner` section is collapsible and remains expanded by default.
+- The `Courier` sidebar group uses concise page-only menu labels: `Providers`, `Bookings`, `Status Logs`, and `Webhook Logs`; full resource titles remain on their pages.
 - Delivery status is independent from the sales Order status.
 - Normalized delivery statuses are `not_booked`, `booking_pending`, `booked`, `picked_up`, `in_transit`, `delivered`, `partial_delivered`, `returned`, `cancelled`, and `failed`.
 - Every manual or synchronized status change creates a courier status log.

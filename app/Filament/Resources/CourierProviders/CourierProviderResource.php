@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CourierProviders;
 
+use App\Filament\Clusters\Courier;
 use App\Filament\Resources\CourierProviders\Pages\CreateCourierProvider;
 use App\Filament\Resources\CourierProviders\Pages\EditCourierProvider;
 use App\Filament\Resources\CourierProviders\Pages\ListCourierProviders;
@@ -29,7 +30,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
 use Illuminate\Support\Str;
-use UnitEnum;
 
 class CourierProviderResource extends Resource
 {
@@ -37,7 +37,9 @@ class CourierProviderResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTruck;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Courier';
+    protected static ?string $cluster = Courier::class;
+
+    protected static ?string $navigationLabel = 'Providers';
 
     protected static ?int $navigationSort = 1;
 
@@ -104,7 +106,8 @@ class CourierProviderResource extends Resource
                         ->label('Active')
                         ->default(true),
                 ])
-                ->columns(2),
+                ->columns(2)
+                ->collapsible(),
 
             Section::make('Set Delivery Fees')
                 ->schema([
@@ -127,35 +130,6 @@ class CourierProviderResource extends Resource
                         ->numeric()
                         ->default(0),
                     TextInput::make('settings.delivery_fees.suburb')
-                        ->label('Suburb')
-                        ->prefix('BDT')
-                        ->numeric()
-                        ->default(0),
-                ])
-                ->columns(2)
-                ->collapsible(),
-
-            Section::make('Courier Delivery Cost')
-                ->schema([
-                    Select::make('settings.courier_cost_mode')
-                        ->label('Delivery Type')
-                        ->options([
-                            'regular' => 'Regular Delivery',
-                            'express' => 'Express Delivery',
-                        ])
-                        ->default('regular')
-                        ->native(false),
-                    TextInput::make('settings.courier_costs.inside')
-                        ->label('Inside')
-                        ->prefix('BDT')
-                        ->numeric()
-                        ->default(0),
-                    TextInput::make('settings.courier_costs.outside')
-                        ->label('Outside')
-                        ->prefix('BDT')
-                        ->numeric()
-                        ->default(0),
-                    TextInput::make('settings.courier_costs.suburb')
                         ->label('Suburb')
                         ->prefix('BDT')
                         ->numeric()

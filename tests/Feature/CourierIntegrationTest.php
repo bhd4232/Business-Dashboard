@@ -252,17 +252,17 @@ class CourierIntegrationTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/admin/courier-bookings')
+            ->get('/admin/courier/courier-bookings')
             ->assertOk()
             ->assertSee('ADMIN-COURIER-001');
 
         $this->actingAs($user)
-            ->get('/admin/courier-providers')
+            ->get('/admin/courier/courier-providers')
             ->assertOk()
             ->assertSee('Manual Courier');
 
         $this->actingAs($user)
-            ->get('/admin/courier-providers/create')
+            ->get('/admin/courier/courier-providers/create')
             ->assertOk()
             ->assertSee('Select Delivery Partner')
             ->assertSee('Set Delivery Fees');
@@ -279,7 +279,7 @@ class CourierIntegrationTest extends TestCase
 
         $this->actingAs($user)
             ->withSession(['current_company_id' => 'all'])
-            ->get('/admin/courier-providers/create')
+            ->get('/admin/courier/courier-providers/create')
             ->assertOk()
             ->assertSee('Company')
             ->assertSee('Select the company that will own this courier provider.');

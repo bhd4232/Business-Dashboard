@@ -2,6 +2,131 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-11 - Auto-notify on deploy + mobile header gap fix
+
+Reason:
+
+- Owner asked that whenever a new version is deployed to the server, users get a notification (sourced from the release notes / CHANGELOG) — no manual "post an announcement" step.
+- Owner also pointed out (with a mobile screenshot) that the gap between the header search box and the profile avatar was too wide, and asked for the avatar to sit further left, about 10px, closer to the search box.
+
+Changed files:
+
+- `app/Console/Commands/NotifyLatestRelease.php` (new) — `php artisan release:notify-deploy`. Reads `App\Support\AppRelease::latestPublished()['version']` (the CHANGELOG's top entry — same source the existing Release Notes page already parses) and compares it against an `AppSetting` key (`release.last_notified_version`). First run ever just records the baseline (no notification, so existing installs don't get spammed about every past release retroactively the moment this ships); any later run where the version differs sends a `Notification::make()->success()->sendToDatabase()` to every active user and updates the baseline.
+- `bootstrap/app.php` — scheduled the command `everyFiveMinutes()->withoutOverlapping()->onOneServer()`, alongside the existing `backup:database` / `storefront:send-abandoned-cart-reminders` / `couriers:sync-statuses` schedule entries.
+- `tests/Feature/ReleaseNotificationTest.php` (new) — 4 tests: baseline-only first run, real notification + baseline update on a version change, no duplicate on a second run for the same version, and a missing/empty-CHANGELOG fallback that doesn't error.
+- `app/Providers/Filament/AdminPanelProvider.php` — added `column-gap: 0.375rem` to `.fi-topbar-end` inside the existing `@media (max-width: 640px)` block (same block as the mobile notifications-in-profile-menu change from earlier today), reducing the default `1rem` gap and pulling the avatar in from the screen edge by the same amount.
+- `CHANGELOG.md` — added `[1.9.2]` minor entry; `tests/Feature/ReleaseNotesTest.php` bumped to v1.9.2 / Minor Version Update / 2026-07-11.
+
+Notes:
+
+- Ran `php artisan release:notify-deploy` once against the real demo database to confirm it executes cleanly end-to-end (recorded the current CHANGELOG version, `1.9.1` at the time, as the baseline; sent no notifications, which is correct first-run behavior) — then deleted that `app_settings` row afterward so the real first production run starts from a clean baseline rather than my local test run.
+- Verified the header gap fix in browser at 375×812: gap between search and avatar visibly tighter, avatar sits further from the screen edge; at 1400×900 (desktop) the gap is unchanged (still the default 16px) since the CSS is scoped to the mobile media query.
+- `php artisan test` — full suite, 233 passed (1010 assertions), no regressions.
+- `npm run build` not run — no frontend asset changes.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-11 - Courier pages merged into one page with header tabs
+
+Reason:
+
+- Owner pointed out the Courier group had four separate sidebar pages (Providers, Bookings, Status Logs, Webhook Logs) and asked for one page with the four as header tabs instead — click a tab, it loads, no navigating away to a different sidebar item.
+
+Changed files:
+
+- `app/Filament/Clusters/Courier.php` (new) — Filament's built-in Cluster feature (not a hand-rolled tab UI); `$subNavigationPosition = SubNavigationPosition::Top` renders the clustered resources as tabs across the page header instead of a nested sidebar list.
+- `app/Filament/Resources/CourierProviders/CourierProviderResource.php`, `CourierBookings/CourierBookingResource.php`, `CourierStatusLogs/CourierStatusLogResource.php`, `CourierWebhookLogs/CourierWebhookLogResource.php` — replaced `$navigationGroup = 'Courier'` with `$cluster = Courier::class` on each (Filament automatically hides clustered resources from the main sidebar, showing only the cluster's single nav item).
+- `app/Providers/Filament/AdminPanelProvider.php` — added `->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\Filament\Clusters')`.
+- `tests/Feature/CourierIntegrationTest.php` — updated 3 hardcoded URLs from `/admin/courier-*` to `/admin/courier/courier-*` (Filament's standard cluster URL prefix); confirmed no other code referenced the old paths.
+- `CHANGELOG.md` — added `[1.9.1]` patch entry; `tests/Feature/ReleaseNotesTest.php` bumped to v1.9.1 / Patch / 2026-07-11.
+
+Notes:
+
+- Verified in browser at 1400×900: sidebar shows one "Courier" entry; the Courier Providers list page shows 4 tabs (Providers, Bookings, Status Logs, Webhook Logs) across the top; navigating directly to each of the 4 new URLs renders correctly.
+- `php artisan test` — full suite, 229 passed (997 assertions) after fixing the 2 URL-dependent tests that initially failed with 404s.
+- `npm run build` not run — Filament/PHP-only change, no frontend asset changes.
+
+## 2026-07-11 - Fixed mobile tab-dropdown hidden behind sticky header (same Courier change)
+
+Reason:
+
+- Owner reported (with a mobile screenshot) that on the new Courier tab bar, the mobile "Providers ▾" dropdown opened but showed no options — the panel was rendering underneath the page's sticky header instead of above it.
+
+Changed files:
+
+- `app/Providers/Filament/AdminPanelProvider.php` — added `.fi-dropdown-panel { z-index: 30; }` to the existing `STYLES_AFTER` `<style>` block (same block that made the page header `position: sticky; z-index: 20` in an earlier session — that z-index was the root cause, since the dropdown panel had no explicit z-index of its own and lost the stacking fight).
+
+Notes:
+
+- Verified in browser at 375×812 (mobile preset): the "Providers ▾" dropdown now shows all four options (Providers, Bookings, Status Logs, Webhook Logs) clearly above the header; tapping "Bookings" correctly navigates and updates the dropdown label.
+- `php artisan test` — full suite re-run, 229 passed (997 assertions), no regressions.
+- `npm run build` not run — CSS is inlined via a PHP render hook, not a bundled asset.
+
+## 2026-07-11 - Mobile header: notification bell tucked into profile avatar
+
+Reason:
+
+- Owner asked, for mobile, to move the notification bell icon into the profile/avatar icon on the right side of the header, and add 10px of right padding after the avatar (the header was cramped with hamburger, company switcher, search, bell, and avatar all fighting for space on a 375px-wide screen).
+
+Changed files:
+
+- `app/Providers/Filament/AdminPanelProvider.php` — added a `@media (max-width: 640px)` block to the existing `STYLES_AFTER` `<style>` (same block used for the sticky header and company switcher sizing): `.fi-topbar-end` gets `position: relative; padding-inline-end: 10px`, and `.fi-topbar-database-notifications-btn` (Filament's own bell button class) is absolutely positioned over the avatar's top-right corner at 75% scale.
+- CSS-only change — no Blade/Livewire markup touched, so the bell still opens the real notifications panel and the avatar still opens the real user menu; only their visual position/size changed on narrow screens.
+
+Notes:
+
+- Verified in browser at 375×812: bell now sits as a small badge on the avatar's top-right corner, with visible padding before the screen edge; clicking the bell still opens "No notifications" panel correctly; clicking the avatar still opens the user menu (Demo Admin / theme switcher / Sign out) correctly. Desktop (1400×900) is unchanged — bell and avatar still show as separate full-size icons.
+- `php artisan test` — full suite re-run, 229 passed (997 assertions), no regressions.
+- `npm run build` not run — CSS is inlined via a PHP render hook, not a bundled asset.
+
+## 2026-07-11 - Corrected: notification bell moved inside the profile dropdown, not overlaid on the avatar
+
+Reason:
+
+- Owner clarified the previous fix (bell as a small badge floating on the avatar's corner) was not what they meant by "insert into the profile icon" — they meant the actual dropdown menu that opens when tapping the avatar on mobile (the one showing "Demo Admin" / theme switcher / Sign out); the bell should be a row inside that menu.
+
+Changed files:
+
+- `app/Providers/Filament/AdminPanelProvider.php` — replaced the absolute-position badge CSS with: `.fi-topbar-database-notifications-btn { display: none }` inside the `@media (max-width: 640px)` block (hides the topbar bell entirely on mobile) plus a new `PanelsRenderHook::USER_MENU_PROFILE_AFTER` hook rendering a real menu item. Also fixed a CSS ordering bug caught while testing: the `.zz-mobile-notifications-item { display: none }` base rule must come *before* the media query, not after, or it wins the cascade at every width and the item never shows.
+- `resources/views/filament/partials/mobile-notifications-menu-item.blade.php` (new) — a `<x-filament::dropdown.list.item>` with a bell icon and unread-count badge (`auth()->user()->unreadNotifications()->count()`), whose click handler dispatches `$dispatch('open-modal', { id: 'database-notifications' })` — Filament's own mechanism for opening that exact notifications modal (confirmed by reading `vendor/filament/support/resources/views/components/modal/index.blade.php`), so it's the same panel the topbar bell opens, not a duplicate/fake one. Only visible below 640px via the `.zz-mobile-notifications-item` class.
+
+Notes:
+
+- Verified in browser at 375×812: opening the avatar dropdown now shows "Demo Admin" header, then a "Notifications" row with a bell icon, then the theme switcher (sun/moon/system) row, then "Sign out" — tapping "Notifications" opens the real "No notifications" panel. At 1400×900 (desktop) the topbar bell still shows normally and the menu item stays hidden.
+- `php artisan test` — full suite re-run, 229 passed (997 assertions), no regressions.
+- `npm run build` not run — Blade/CSS-only change.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-09 - Dynamic shipping fee from Set Delivery Fees + dashboard cleanups
+
+Reason:
+
+- Owner asked to hide the Filament "Welcome / Sign out" account widget from the Dashboard (redundant, looked bad next to the other cards).
+- Owner pointed out the Courier Provider create/edit form had a duplicate-looking pair of sections ("Set Delivery Fees" and "Courier Delivery Cost" — identical Delivery Type + Inside/Outside/Suburb layout). Confirmed via search that neither `settings.delivery_fees.*` nor `settings.courier_costs.*` was read anywhere else in the codebase (pure UI-only fields). Owner chose to drop "Courier Delivery Cost" and asked whether "Set Delivery Fees" actually does anything dynamically across the app/storefront — it didn't (saved but never read) — owner asked to make it dynamic.
+- Clarified two business-rule questions before implementing (owner answers, not invented): (1) the Inside/Outside/Suburb zone for a new order is auto-detected from the customer's address; (2) since no courier is booked yet at order-creation time, the company's first active courier provider's fee is used; (3) since customer addresses are free text with no city/area column, zone matching is driven by an owner-managed keyword list per zone (ERP Settings → Shipping Zones), not a hardcoded city list.
+
+Changed files:
+
+- `app/Providers/Filament/AdminPanelProvider.php` — removed `AccountWidget` from `->widgets()`.
+- `app/Filament/Resources/CourierProviders/CourierProviderResource.php` — removed the "Courier Delivery Cost" section.
+- `database/migrations/2026_07_09_000000_add_shipping_fee_to_orders_table.php` (new) — `orders.shipping_zone` (nullable string), `orders.shipping_fee` (decimal, default 0). Migrated locally.
+- `app/Services/ShippingFeeService.php` (new) — `determineZone()` matches a free-text address (case-insensitive substring) against `companies.settings.shipping_zones[zone]` keyword lists; `feeFor()` combines the matched zone with the company's first active `CourierProvider`'s `settings.delivery_fees[zone]`.
+- `app/Models/Order.php` — `shipping_zone`/`shipping_fee` added to `$fillable`/casts; `creating` hook auto-populates them via `ShippingFeeService` when not already set (covers storefront checkout orders, which bypass the Filament form).
+- `app/Services/OrderWorkflowService.php` — `sync()`'s `total_amount` calculation now adds `shipping_fee`.
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php` — added a live "Shipping Fee" field (with a helper text showing the auto-detected zone) to the Totals section, recomputed whenever the customer changes; folded into the live total preview. Staff can still override the value manually.
+- `app/Filament/Pages/CompanySettings.php`, `app/Services/CompanySettingsService.php`, `resources/views/filament/pages/company-settings.blade.php` — added a "Shipping Zones" section (Inside/Outside/Suburb comma-separated area lists), persisted under `companies.settings.shipping_zones`.
+- `tests/Feature/ShippingFeeServiceTest.php` (new) — zone matching, fee lookup (with/without a configured courier), and an end-to-end order-creation test asserting `shipping_zone`/`shipping_fee`/`total_amount`.
+- `CHANGELOG.md` — added `[1.9.0]` minor entry; `tests/Feature/ReleaseNotesTest.php` bumped to v1.9.0 / Minor Version Update / 2026-07-09.
+
+Notes:
+
+- Fallback behavior when nothing matches: if the address doesn't match any configured keyword, or the company has no active courier provider yet, `shipping_fee` defaults to 0 and the order form shows a note to set it manually — no fee is invented.
+- `php artisan test` — full suite re-run, 229 passed (997 assertions), no regressions.
+- `npm run build` not run — no frontend asset changes (Filament/Blade only).
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-08 - Android WebView network-error resilience (net::ERR_SOCKET_NOT_CONNECTED)
 
 Reason:

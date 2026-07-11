@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CourierStatusLogs;
 
+use App\Filament\Clusters\Courier;
 use App\Filament\Resources\CourierStatusLogs\Pages\ListCourierStatusLogs;
 use App\Models\CourierBooking;
 use App\Models\CourierStatusLog;
@@ -12,7 +13,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class CourierStatusLogResource extends Resource
 {
@@ -20,7 +20,9 @@ class CourierStatusLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedListBullet;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Courier';
+    protected static ?string $cluster = Courier::class;
+
+    protected static ?string $navigationLabel = 'Status Logs';
 
     protected static ?int $navigationSort = 3;
 

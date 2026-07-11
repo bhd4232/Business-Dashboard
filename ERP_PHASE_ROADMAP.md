@@ -361,6 +361,8 @@ Related planning documents:
 **Completed:**
 
 - Purchase form sections made collapsible.
+- Courier Provider `Delivery Partner` section made collapsible.
+- Repeated `Courier` wording removed from the four menu labels inside the `Courier` sidebar group.
 - China-to-BD cost UI added.
 - Custom Fields section hidden when empty.
 - Coolify deployment guidance documented in `PROJECT_GUIDE.md`.

@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyThirtyMinutes()
             ->withoutOverlapping()
             ->onOneServer();
+        $schedule->command('release:notify-deploy')
+            ->everyFiveMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
     })
     ->withMiddleware(function (Middleware $middleware) {
         // Coolify terminates HTTPS at its Traefik proxy. Trust the forwarded

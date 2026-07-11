@@ -317,5 +317,35 @@
                 <button type="submit" class="zz-button" wire:loading.attr="disabled" wire:target="logoUpload,darkLogoUpload,save">Save Settings</button>
             </div>
         </section>
+
+        <section class="zz-settings-card">
+            <div class="zz-settings-header">
+                <div>
+                    <h2 class="zz-settings-title">Shipping Zones</h2>
+                    <p class="zz-settings-desc">Comma-separated area names/keywords. When a new order's customer address contains one of these, the matching zone's fee from the courier's "Set Delivery Fees" is applied automatically.</p>
+                </div>
+                <button type="submit" class="zz-button" wire:loading.attr="disabled" wire:target="logoUpload,darkLogoUpload,save">Save Settings</button>
+            </div>
+
+            <div class="zz-settings-grid">
+                <div class="zz-field zz-field-full">
+                    <label for="inside-areas">Inside Areas</label>
+                    <input id="inside-areas" class="zz-input" type="text" placeholder="e.g. Dhaka, Gulshan, Dhanmondi" wire:model="insideAreas">
+                    @error('insideAreas') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field zz-field-full">
+                    <label for="outside-areas">Outside Areas</label>
+                    <input id="outside-areas" class="zz-input" type="text" placeholder="e.g. Chittagong, Sylhet, Khulna" wire:model="outsideAreas">
+                    @error('outsideAreas') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field zz-field-full">
+                    <label for="suburb-areas">Suburb Areas</label>
+                    <input id="suburb-areas" class="zz-input" type="text" placeholder="e.g. Savar, Gazipur, Narayanganj" wire:model="suburbAreas">
+                    @error('suburbAreas') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+            </div>
+        </section>
     </form>
 </x-filament-panels::page>

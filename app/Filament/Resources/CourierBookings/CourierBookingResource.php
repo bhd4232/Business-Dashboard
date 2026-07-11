@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CourierBookings;
 
+use App\Filament\Clusters\Courier;
 use App\Filament\Resources\CourierBookings\Pages\ListCourierBookings;
 use App\Filament\Resources\CourierBookings\Pages\ViewCourierBooking;
 use App\Models\CourierBooking;
@@ -25,7 +26,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
-use UnitEnum;
 
 class CourierBookingResource extends Resource
 {
@@ -33,7 +33,9 @@ class CourierBookingResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Courier';
+    protected static ?string $cluster = Courier::class;
+
+    protected static ?string $navigationLabel = 'Bookings';
 
     protected static ?int $navigationSort = 2;
 

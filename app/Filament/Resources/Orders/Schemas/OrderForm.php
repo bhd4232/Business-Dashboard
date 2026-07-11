@@ -13,6 +13,7 @@ use App\Models\ProductVariant;
 use App\Services\CompanyContext;
 use App\Services\CustomerRiskSettingsService;
 use App\Services\ExternalCourierFraudService;
+use App\Services\ShippingFeeService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
@@ -85,12 +86,14 @@ class OrderForm
                             })
                             ->live()
                             ->required()
-                            ->afterStateUpdated(function (Set $set, $state): void {
+                            ->afterStateUpdated(function (Get $get, Set $set, $state): void {
                                 $customer = Customer::find($state);
 
                                 if ($customer) {
                                     $set('customer_name', $customer->name);
                                 }
+
+                                self::setShippingFee($get, $set, $customer);
                             }),
 
                         Hidden::make('customer_name'),
@@ -316,6 +319,21 @@ class OrderForm
                             ->live(onBlur: true)
                             ->afterStateUpdated(fn (Get $get, Set $set) => self::setOrderTotals($get, $set)),
 
+                        Hidden::make('shipping_zone'),
+
+                        TextInput::make('shipping_fee')
+                            ->label('Shipping Fee')
+                            ->numeric()
+                            ->prefix('BDT')
+                            ->default(0)
+                            ->minValue(0)
+                            ->required()
+                            ->live(onBlur: true)
+                            ->helperText(fn (Get $get): ?string => $get('shipping_zone')
+                                ? 'Auto-detected zone: '.ucfirst($get('shipping_zone')).'. Adjust if needed.'
+                                : 'Could not detect a zone from the customer address — set manually if needed.')
+                            ->afterStateUpdated(fn (Get $get, Set $set) => self::setOrderTotals($get, $set)),
+
                         TextInput::make('total_amount')
                             ->numeric()
                             ->prefix('BDT')
@@ -365,11 +383,32 @@ class OrderForm
         $items = $get($prefix.'items') ?? [];
         $subtotal = collect($items)
             ->sum(fn (array $item): float => (int) ($item['quantity'] ?? 0) * (float) ($item['unit_price'] ?? 0));
-        $total = max($subtotal - (float) ($get($prefix.'discount') ?? 0) + (float) ($get($prefix.'vat') ?? 0), 0);
+        $total = max(
+            $subtotal
+            - (float) ($get($prefix.'discount') ?? 0)
+            + (float) ($get($prefix.'vat') ?? 0)
+            + (float) ($get($prefix.'shipping_fee') ?? 0),
+            0
+        );
         $due = max($total - (float) ($get($prefix.'paid_amount') ?? 0), 0);
 
         $set($prefix.'subtotal', $subtotal);
         $set($prefix.'total_amount', $total);
         $set($prefix.'due_amount', $due);
+    }
+
+    protected static function setShippingFee(Get $get, Set $set, ?Customer $customer): void
+    {
+        $company = app(CompanyContext::class)->company();
+
+        if (! $customer || ! $company) {
+            return;
+        }
+
+        $result = app(ShippingFeeService::class)->feeFor($customer->address, $company);
+
+        $set('shipping_zone', $result['zone']);
+        $set('shipping_fee', $result['fee']);
+        self::setOrderTotals($get, $set);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use App\Services\CustomerRiskService;
 use App\Services\OrderWorkflowService;
+use App\Services\ShippingFeeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -52,6 +53,8 @@ class Order extends Model
         'subtotal',
         'discount',
         'vat',
+        'shipping_zone',
+        'shipping_fee',
         'total_amount',
         'paid_amount',
         'due_amount',
@@ -66,6 +69,7 @@ class Order extends Model
         'subtotal' => 'decimal:2',
         'discount' => 'decimal:2',
         'vat' => 'decimal:2',
+        'shipping_fee' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'due_amount' => 'decimal:2',
@@ -80,6 +84,12 @@ class Order extends Model
             $order->delivery_status ??= CourierBooking::STATUS_NOT_BOOKED;
             $order->source ??= self::SOURCE_ADMIN;
             $order->customer_name = $order->customer?->name ?? $order->customer_name;
+
+            if ($order->shipping_zone === null && $order->company) {
+                $fee = app(ShippingFeeService::class)->feeFor($order->customer?->address, $order->company);
+                $order->shipping_zone = $fee['zone'];
+                $order->shipping_fee = $fee['fee'];
+            }
         });
 
         static::saving(function (Order $order): void {

@@ -49,6 +49,7 @@ class CompanySettingsService
             'currency' => $this->value(self::CURRENCY, 'BDT'),
             'timezone' => $this->value(self::TIMEZONE, config('app.timezone', 'UTC')),
             'date_format' => $this->value(self::DATE_FORMAT, 'd M Y'),
+            'shipping_zones' => ['inside' => [], 'outside' => [], 'suburb' => []],
         ];
     }
 
@@ -64,6 +65,14 @@ class CompanySettingsService
             $settings = $company->settings ?? [];
             $settings['dark_logo'] = trim((string) ($data['dark_logo'] ?? ''));
             $settings['date_format'] = trim((string) ($data['date_format'] ?? 'd M Y'));
+
+            if (isset($data['shipping_zones'])) {
+                $settings['shipping_zones'] = [
+                    'inside' => array_values((array) ($data['shipping_zones']['inside'] ?? [])),
+                    'outside' => array_values((array) ($data['shipping_zones']['outside'] ?? [])),
+                    'suburb' => array_values((array) ($data['shipping_zones']['suburb'] ?? [])),
+                ];
+            }
 
             $company->fill([
                 'name' => trim((string) ($data['name'] ?? '')),
@@ -206,6 +215,11 @@ class CompanySettingsService
             'currency' => $company->currency ?: 'BDT',
             'timezone' => $company->timezone ?: config('app.timezone', 'UTC'),
             'date_format' => $settings['date_format'] ?? 'd M Y',
+            'shipping_zones' => [
+                'inside' => $settings['shipping_zones']['inside'] ?? [],
+                'outside' => $settings['shipping_zones']['outside'] ?? [],
+                'suburb' => $settings['shipping_zones']['suburb'] ?? [],
+            ],
         ];
     }
 }

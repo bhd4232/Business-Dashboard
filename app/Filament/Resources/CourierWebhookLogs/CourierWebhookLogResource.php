@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CourierWebhookLogs;
 
+use App\Filament\Clusters\Courier;
 use App\Filament\Resources\CourierWebhookLogs\Pages\ListCourierWebhookLogs;
 use App\Models\CourierWebhookLog;
 use BackedEnum;
@@ -11,7 +12,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class CourierWebhookLogResource extends Resource
 {
@@ -19,7 +19,9 @@ class CourierWebhookLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSignal;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Courier';
+    protected static ?string $cluster = Courier::class;
+
+    protected static ?string $navigationLabel = 'Webhook Logs';
 
     protected static ?int $navigationSort = 4;
 

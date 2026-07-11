@@ -50,6 +50,12 @@ class CompanySettings extends Page
 
     public string $dateFormat = 'd M Y';
 
+    public string $insideAreas = '';
+
+    public string $outsideAreas = '';
+
+    public string $suburbAreas = '';
+
     public function mount(): void
     {
         $settings = app(CompanySettingsService::class);
@@ -64,6 +70,9 @@ class CompanySettings extends Page
         $this->currency = (string) $profile['currency'];
         $this->timezone = (string) $profile['timezone'];
         $this->dateFormat = (string) $profile['date_format'];
+        $this->insideAreas = implode(', ', $profile['shipping_zones']['inside'] ?? []);
+        $this->outsideAreas = implode(', ', $profile['shipping_zones']['outside'] ?? []);
+        $this->suburbAreas = implode(', ', $profile['shipping_zones']['suburb'] ?? []);
     }
 
     public static function canAccess(): bool
@@ -108,17 +117,7 @@ class CompanySettings extends Page
             $this->logo = null;
         }
 
-        $settings->save([
-            'name' => $this->name,
-            'logo' => $this->logo,
-            'dark_logo' => $this->darkLogo,
-            'address' => $this->address,
-            'phone' => $this->phone,
-            'email' => $this->email,
-            'currency' => $this->currency,
-            'timezone' => $this->timezone,
-            'date_format' => $this->dateFormat,
-        ]);
+        $settings->save($this->settingsPayload());
 
         Notification::make()
             ->title($variant === 'dark' ? 'Dark logo removed' : 'Light logo removed')
@@ -138,7 +137,39 @@ class CompanySettings extends Page
             'currency' => ['required', 'string', 'max:12'],
             'timezone' => ['required', 'timezone'],
             'dateFormat' => ['required', 'string', 'max:30'],
+            'insideAreas' => ['nullable', 'string', 'max:1000'],
+            'outsideAreas' => ['nullable', 'string', 'max:1000'],
+            'suburbAreas' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    protected function settingsPayload(): array
+    {
+        return [
+            'name' => $this->name,
+            'logo' => $this->logo,
+            'dark_logo' => $this->darkLogo,
+            'address' => $this->address,
+            'phone' => $this->phone,
+            'email' => $this->email,
+            'currency' => $this->currency,
+            'timezone' => $this->timezone,
+            'date_format' => $this->dateFormat,
+            'shipping_zones' => [
+                'inside' => $this->splitAreas($this->insideAreas),
+                'outside' => $this->splitAreas($this->outsideAreas),
+                'suburb' => $this->splitAreas($this->suburbAreas),
+            ],
+        ];
+    }
+
+    protected function splitAreas(string $areas): array
+    {
+        return collect(explode(',', $areas))
+            ->map(fn (string $area): string => trim($area))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     protected function storeUploadedLogos(): void
@@ -156,17 +187,7 @@ class CompanySettings extends Page
 
     protected function persistSettings(): void
     {
-        app(CompanySettingsService::class)->save([
-            'name' => $this->name,
-            'logo' => $this->logo,
-            'dark_logo' => $this->darkLogo,
-            'address' => $this->address,
-            'phone' => $this->phone,
-            'email' => $this->email,
-            'currency' => $this->currency,
-            'timezone' => $this->timezone,
-            'date_format' => $this->dateFormat,
-        ]);
+        app(CompanySettingsService::class)->save($this->settingsPayload());
     }
 
     public function logoUrl(): ?string
