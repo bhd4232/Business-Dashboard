@@ -2,19 +2,21 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Clusters\CustomerSuccess;
 use App\Services\CustomerRiskSettingsService;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class CustomerRiskSettings extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAdjustmentsHorizontal;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Customer Success';
+    protected static ?string $cluster = CustomerSuccess::class;
+
+    protected static ?string $navigationLabel = 'Risk Settings';
 
     protected static ?int $navigationSort = 9;
 

@@ -310,13 +310,15 @@ class PurchaseForm
                                     ->label('Allocated Cost')
                                     ->numeric()
                                     ->prefix('BDT')
-                                    ->readOnly(),
+                                    ->readOnly()
+                                    ->dehydrated(false),
 
                                 TextInput::make('landed_unit_cost')
                                     ->label('Landed Unit Cost')
                                     ->numeric()
                                     ->prefix('BDT')
-                                    ->readOnly(),
+                                    ->readOnly()
+                                    ->dehydrated(false),
                             ])
                             ->columns(6)
                             ->defaultItems(1)

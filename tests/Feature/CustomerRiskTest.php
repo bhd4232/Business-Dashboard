@@ -145,15 +145,15 @@ class CustomerRiskTest extends TestCase
         $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-risk-profiles')->assertOk()->assertSee('Admin Risk Customer');
+            ->get('/admin/customer-success/customer-risk-profiles')->assertOk()->assertSee('Admin Risk Customer');
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-blacklists')->assertOk();
+            ->get('/admin/customer-success/customer-blacklists')->assertOk();
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-risk-reviews')->assertOk();
+            ->get('/admin/customer-success/customer-risk-reviews')->assertOk();
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-risk-events')->assertOk();
+            ->get('/admin/customer-success/customer-risk-events')->assertOk();
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-risk-settings')->assertOk()->assertSee('Rule thresholds and deductions');
+            ->get('/admin/customer-success/customer-risk-settings')->assertOk()->assertSee('Rule thresholds and deductions');
     }
 
     protected function customer(string $name, string $phone, string $address): array

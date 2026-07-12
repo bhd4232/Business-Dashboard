@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CustomerRiskProfiles;
 
+use App\Filament\Clusters\CustomerSuccess;
 use App\Filament\Resources\CustomerRiskProfiles\Pages\ListCustomerRiskProfiles;
 use App\Models\CustomerRiskProfile;
 use BackedEnum;
@@ -12,7 +13,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
-use UnitEnum;
 
 class CustomerRiskProfileResource extends Resource
 {
@@ -20,7 +20,9 @@ class CustomerRiskProfileResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Customer Success';
+    protected static ?string $cluster = CustomerSuccess::class;
+
+    protected static ?string $navigationLabel = 'Risk Profiles';
 
     protected static ?int $navigationSort = 1;
 

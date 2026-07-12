@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CustomerRiskEvents;
 
+use App\Filament\Clusters\CustomerSuccess;
 use App\Filament\Resources\CustomerRiskEvents\Pages\ListCustomerRiskEvents;
 use App\Models\CustomerRiskEvent;
 use BackedEnum;
@@ -11,7 +12,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
-use UnitEnum;
 
 class CustomerRiskEventResource extends Resource
 {
@@ -19,7 +19,9 @@ class CustomerRiskEventResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Customer Success';
+    protected static ?string $cluster = CustomerSuccess::class;
+
+    protected static ?string $navigationLabel = 'Risk Events';
 
     protected static ?int $navigationSort = 4;
 

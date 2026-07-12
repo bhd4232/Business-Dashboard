@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CustomerRiskReviews;
 
+use App\Filament\Clusters\CustomerSuccess;
 use App\Filament\Resources\CustomerRiskReviews\Pages\ListCustomerRiskReviews;
 use App\Models\CustomerRiskProfile;
 use App\Models\CustomerRiskReview;
@@ -17,7 +18,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
-use UnitEnum;
 
 class CustomerRiskReviewResource extends Resource
 {
@@ -25,7 +25,9 @@ class CustomerRiskReviewResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Customer Success';
+    protected static ?string $cluster = CustomerSuccess::class;
+
+    protected static ?string $navigationLabel = 'Risk Reviews';
 
     protected static ?int $navigationSort = 3;
 

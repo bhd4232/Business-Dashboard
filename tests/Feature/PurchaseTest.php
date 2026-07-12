@@ -2,18 +2,60 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Purchases\Pages\CreatePurchase;
+use App\Models\Company;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\StockMovement;
 use App\Models\Supplier;
+use App\Models\User;
+use App\Services\CompanyContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class PurchaseTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_create_purchase_form_saves_items_without_null_cost_column_error(): void
+    {
+        $company = Company::query()->create(['name' => 'Livewire Co', 'slug' => 'livewire-co', 'invoice_prefix' => 'LWC', 'currency' => 'BDT', 'timezone' => 'Asia/Dhaka', 'is_active' => true]);
+        app(CompanyContext::class)->set($company);
+
+        $supplier = Supplier::query()->create(['name' => 'Livewire Supplier']);
+        $product = Product::query()->create([
+            'name' => 'Livewire Product',
+            'sku' => 'PUR-LW-001',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 0,
+        ]);
+
+        $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $this->actingAs($user)->withSession(['current_company_id' => $company->id]);
+
+        Livewire::test(CreatePurchase::class)
+            ->fillForm([
+                'supplier_id' => $supplier->id,
+                'purchase_date' => now()->toDateString(),
+                'status' => 'draft',
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 2, 'unit_cost' => 50],
+                ],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $item = PurchaseItem::query()->where('product_id', $product->id)->firstOrFail();
+
+        $this->assertSame(2, $item->quantity);
+        $this->assertSame('50.00', $item->unit_cost);
+        $this->assertSame('0.00', $item->allocated_cost);
+        $this->assertSame('50.00', $item->landed_unit_cost);
+    }
 
     public function test_received_purchase_updates_totals_stock_and_supplier_balance(): void
     {

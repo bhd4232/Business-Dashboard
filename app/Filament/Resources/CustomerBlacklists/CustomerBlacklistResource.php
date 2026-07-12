@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CustomerBlacklists;
 
+use App\Filament\Clusters\CustomerSuccess;
 use App\Filament\Resources\CustomerBlacklists\Pages\CreateCustomerBlacklist;
 use App\Filament\Resources\CustomerBlacklists\Pages\EditCustomerBlacklist;
 use App\Filament\Resources\CustomerBlacklists\Pages\ListCustomerBlacklists;
@@ -21,7 +22,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
-use UnitEnum;
 
 class CustomerBlacklistResource extends Resource
 {
@@ -29,7 +29,9 @@ class CustomerBlacklistResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedNoSymbol;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Customer Success';
+    protected static ?string $cluster = CustomerSuccess::class;
+
+    protected static ?string $navigationLabel = 'Blacklists';
 
     protected static ?int $navigationSort = 2;
 

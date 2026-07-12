@@ -2,6 +2,55 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-12 - Fix Purchase "Save changes" always failing when an item is added
+
+Reason:
+
+- Owner reported (with a mobile screenshot): on Create/Edit Purchase, adding a product item then clicking "Save changes" always shows "Error while loading page", and the item disappears again after reloading — nothing was actually being saved.
+
+Changed files:
+
+- `app/Filament/Resources/Purchases/Schemas/PurchaseForm.php` — added `->dehydrated(false)` to the `allocated_cost` and `landed_unit_cost` read-only fields inside the `items` Repeater.
+- `tests/Feature/PurchaseTest.php` — new regression test `test_create_purchase_form_saves_items_without_null_cost_column_error`, driving the actual `CreatePurchase` Livewire page via `Livewire::test()->fillForm()->call('create')`, since the existing Purchase tests all created `PurchaseItem` rows directly and never exercised the Filament form/repeater save path where this bug lived. Verified the test fails with the exact reported `NOT NULL constraint failed: purchase_items.allocated_cost` error when the fix is reverted, and passes with it applied.
+- `CHANGELOG.md` — new `[1.9.4]` Critical Fix Update entry; `tests/Feature/ReleaseNotesTest.php` bumped to v1.9.4 / Critical Fix / 2026-07-12.
+
+Root cause:
+
+- `purchase_items.allocated_cost` and `landed_unit_cost` are `NOT NULL` columns with a schema-level `DEFAULT 0`, but both values are only ever computed after the record is saved, by `PurchaseWorkflowService::syncLandedCosts()` (called from `Purchase::saved` → `syncTotalsAndStock()`). The two form fields for them are read-only display fields that are never populated client-side, so Filament's repeater-relationship save included them as explicit `null` values in the insert. SQLite (like most databases) only applies a column's `DEFAULT` when the column is *omitted* from the insert list — an explicit `NULL` bypasses it — so every insert hit the `NOT NULL` constraint and the whole Livewire request 500'd, which is why the item appeared to "vanish" on reload (it was never actually persisted).
+- Reproduced locally via the browser preview: confirmed the exact `500` on `livewire/update` and the matching `SQLSTATE[23000]... NOT NULL constraint failed: purchase_items.allocated_cost` entry in `storage/logs/laravel.log`.
+
+Notes:
+
+- With `dehydrated(false)`, these two fields are excluded from the saved payload entirely, so the DB `DEFAULT 0` applies cleanly on insert, and the existing post-save sync then fills in the real computed values — the exact same code path that already ran correctly on every subsequent update of an existing purchase.
+- Verified in browser: created a test purchase with one item via the actual Create Purchase form — saved successfully (200 OK, redirected to the purchase's View page), and `allocated_cost`/`landed_unit_cost` were correctly computed afterward. Test purchase deleted from the demo database afterward.
+- `php artisan test` — full suite, 234 passed (1017 assertions), no regressions.
+- `npm run build` not run — PHP-only change, no frontend assets touched.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
+## 2026-07-11 - Customer Success pages merged into one page with header tabs
+
+Reason:
+
+- Owner asked to apply the same Courier-style tab consolidation to the Customer Success group (Risk Profiles, Blacklists, Risk Reviews, Risk Events — 4 separate sidebar pages), and to confirm the mobile dropdown's z-index fix applies here too. Then asked to also fold the separate "Risk Rule Settings" page (which had its own `Customer Success` sidebar group, outside the 4 resources) into the same cluster/tab bar.
+
+Changed files:
+
+- `app/Filament/Clusters/CustomerSuccess.php` (new) — same pattern as `app/Filament/Clusters/Courier.php`: `SubNavigationPosition::Top` tabs.
+- `app/Filament/Resources/CustomerRiskProfiles/CustomerRiskProfileResource.php`, `CustomerBlacklists/CustomerBlacklistResource.php`, `CustomerRiskReviews/CustomerRiskReviewResource.php`, `CustomerRiskEvents/CustomerRiskEventResource.php` — replaced `$navigationGroup = 'Customer Success'` with `$cluster = CustomerSuccess::class`; added concise `$navigationLabel`s (Risk Profiles, Blacklists, Risk Reviews, Risk Events) for the tab bar.
+- `app/Filament/Pages/CustomerRiskSettings.php` — same treatment: `$navigationGroup = 'Customer Success'` replaced with `$cluster = CustomerSuccess::class` and `$navigationLabel = 'Risk Settings'`. `Filament\Pages\Page` supports `$cluster` natively (confirmed in `vendor/filament/filament/src/Pages/Page.php`), same mechanism as resources.
+- `tests/Feature/CustomerRiskTest.php` — updated all 5 hardcoded URLs (`/admin/customer-risk-profiles`, `-blacklists`, `-reviews`, `-events`, `-settings`) to their `/admin/customer-success/...` cluster-prefixed equivalents.
+- `CHANGELOG.md` — `[1.9.3]` patch entry updated to describe all 5 tabs; `tests/Feature/ReleaseNotesTest.php` stays at v1.9.3 / Patch / 2026-07-11.
+
+Notes:
+
+- The mobile z-index fix (`.fi-dropdown-panel { z-index: 30 }`, added for the Courier cluster in v1.9.1) needed no changes — it's a generic rule that applies to every Filament dropdown panel, confirmed in browser at 375×812: opening the "Risk Profiles ▾" dropdown shows all options clearly above the header.
+- Verified in browser at 1400×900: sidebar shows one "Customer Success" entry; 5 tabs (Risk Profiles, Blacklists, Risk Reviews, Risk Events, Risk Settings) render across the header, "Risk Settings" tab renders the actual settings form correctly.
+- `php artisan test` — full suite, 233 passed (1010 assertions), no regressions.
+- `npm run build` not run — Filament/PHP-only change.
+
+Commit status: Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-11 - Auto-notify on deploy + mobile header gap fix
 
 Reason:
