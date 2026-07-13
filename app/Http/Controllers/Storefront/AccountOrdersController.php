@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Storefront\Concerns\MatchesCustomerPhone;
 use App\Models\Company;
 use App\Models\Order;
 use App\Models\StorefrontSetting;
@@ -15,6 +16,8 @@ use Illuminate\View\View;
 
 class AccountOrdersController extends Controller
 {
+    use MatchesCustomerPhone;
+
     public function __construct(protected CompanyContext $context, protected StorefrontCart $cart) {}
 
     public function index(Request $request): View
@@ -95,36 +98,23 @@ class AccountOrdersController extends Controller
         $phone = trim((string) $request->string('phone'));
         $orders = $phone === '' ? collect() : $this->ordersForPhone($company, $phone);
 
-        // Current due is only surfaced when the phone actually matches
-        // storefront orders in this company, mirroring order-history access.
-        $customerDue = $orders->isNotEmpty()
-            ? (float) ($orders->first()->customer?->current_balance ?? 0)
-            : null;
-
         return view('storefront.account.orders', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,
             'phone' => $phone,
             'orders' => $orders,
-            'customerDue' => $customerDue,
             'hasSearched' => $request->filled('phone'),
         ]);
     }
 
     protected function ordersForPhone(Company $company, string $phone): Collection
     {
-        $digits = preg_replace('/\D+/', '', $phone) ?: $phone;
-
         return Order::query()
             ->with(['customer', 'items.product'])
             ->where('company_id', $company->getKey())
             ->where('source', Order::SOURCE_STOREFRONT)
-            ->whereHas('customer', function ($query) use ($phone, $digits): void {
-                $query->where('phone', $phone)
-                    ->orWhere('phone', $digits)
-                    ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', ''), '(', '') LIKE ?", ['%'.$digits.'%']);
-            })
+            ->tap(fn ($query) => $this->whereCustomerPhoneMatches($query, $phone))
             ->latest('order_date')
             ->latest('id')
             ->get();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Storefront\Concerns\MatchesCustomerPhone;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\CourierBooking;
@@ -15,6 +16,8 @@ use Illuminate\View\View;
 
 class OrderTrackController extends Controller
 {
+    use MatchesCustomerPhone;
+
     public function __construct(protected CompanyContext $context) {}
 
     public function index(Request $request): View|RedirectResponse
@@ -22,7 +25,10 @@ class OrderTrackController extends Controller
         [$company, $setting] = $this->domainStorefront($request);
 
         if ($request->filled('order_number')) {
-            return redirect()->route('storefront.track.show', trim((string) $request->string('order_number')));
+            return redirect()->route('storefront.track.show', [
+                'orderNo' => trim((string) $request->string('order_number')),
+                'phone' => trim((string) $request->string('phone')),
+            ]);
         }
 
         return $this->trackView($company, $setting);
@@ -34,8 +40,9 @@ class OrderTrackController extends Controller
 
         if ($request->filled('order_number')) {
             return redirect()->route('storefront.preview.track.show', [
-                $company->slug,
-                trim((string) $request->string('order_number')),
+                'company' => $company->slug,
+                'orderNo' => trim((string) $request->string('order_number')),
+                'phone' => trim((string) $request->string('phone')),
             ]);
         }
 
@@ -45,19 +52,31 @@ class OrderTrackController extends Controller
     public function show(Request $request, string $orderNo): View
     {
         [$company, $setting] = $this->domainStorefront($request);
-
-        return $this->trackView($company, $setting, $this->storefrontOrder($company, $orderNo));
-    }
-
-    public function showPreview(Company $company, string $orderNo): View
-    {
-        $setting = $this->previewStorefront($company);
+        $phone = trim((string) $request->string('phone'));
 
         return $this->trackView(
             company: $company,
             setting: $setting,
-            order: $this->storefrontOrder($company, $orderNo),
+            order: $this->storefrontOrder($company, $orderNo, $phone),
+            orderNumber: trim($orderNo),
+            phone: $phone,
+            searched: true,
+        );
+    }
+
+    public function showPreview(Request $request, Company $company, string $orderNo): View
+    {
+        $setting = $this->previewStorefront($company);
+        $phone = trim((string) $request->string('phone'));
+
+        return $this->trackView(
+            company: $company,
+            setting: $setting,
+            order: $this->storefrontOrder($company, $orderNo, $phone),
             previewSlug: $company->slug,
+            orderNumber: trim($orderNo),
+            phone: $phone,
+            searched: true,
         );
     }
 
@@ -66,6 +85,9 @@ class OrderTrackController extends Controller
         StorefrontSetting $setting,
         ?Order $order = null,
         ?string $previewSlug = null,
+        ?string $orderNumber = null,
+        ?string $phone = null,
+        bool $searched = false,
     ): View {
         $order?->load(['customer', 'items.product', 'latestCourierBooking.provider', 'latestCourierBooking.statusLogs']);
 
@@ -74,6 +96,9 @@ class OrderTrackController extends Controller
             'setting' => $setting,
             'previewSlug' => $previewSlug,
             'order' => $order,
+            'orderNumber' => $orderNumber ?? $order?->order_number,
+            'phone' => $phone,
+            'notFound' => $searched && ! $order,
             'trackingUpdates' => $order ? $this->trackingUpdates($order) : collect(),
         ]);
     }
@@ -124,13 +149,27 @@ class OrderTrackController extends Controller
             ->values();
     }
 
-    protected function storefrontOrder(Company $company, string $orderNo): Order
+    /**
+     * Resolve a storefront order for public tracking. The order number alone
+     * is guessable (sequential), so a matching customer phone is required as
+     * a second factor; a mismatch simply returns null (indistinguishable from
+     * "not found") rather than revealing the order.
+     */
+    protected function storefrontOrder(Company $company, string $orderNo, string $phone): ?Order
     {
+        $orderNo = trim($orderNo);
+        $phone = trim($phone);
+
+        if ($orderNo === '' || $phone === '') {
+            return null;
+        }
+
         return Order::query()
             ->where('company_id', $company->getKey())
             ->where('source', Order::SOURCE_STOREFRONT)
-            ->where('order_number', trim($orderNo))
-            ->firstOrFail();
+            ->where('order_number', $orderNo)
+            ->tap(fn ($query) => $this->whereCustomerPhoneMatches($query, $phone))
+            ->first();
     }
 
     protected function domainStorefront(Request $request): array

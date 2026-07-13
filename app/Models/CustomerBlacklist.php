@@ -8,6 +8,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Deliberately does NOT use BelongsToCompany/CompanyScope, and is excluded
+ * from MultiCompanyIsolationTest's contract on purpose.
+ *
+ * A blacklist entry is either global (`company_id = NULL`, applies to every
+ * company) or scoped to one company. `CustomerRiskService::blacklistMatch()`
+ * queries it with an explicit `whereNull('company_id')->orWhere('company_id', ...)`
+ * so both kinds are honoured. Adding the scope would hide global entries and
+ * break that feature. The Filament resource is super-admin only, so there is
+ * no cross-company leak through the admin panel. Any new query against this
+ * model must filter company_id explicitly (global + owning company).
+ */
 class CustomerBlacklist extends Model
 {
     protected $fillable = ['company_id', 'phone', 'address', 'reason', 'is_active', 'created_by'];

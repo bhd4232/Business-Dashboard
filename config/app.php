@@ -72,6 +72,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Seeder Admin Password
+    |--------------------------------------------------------------------------
+    |
+    | Password used by the database seeder to provision the initial super
+    | admin. Read through config (not env() directly) so it keeps working
+    | under `config:cache`. Must be a strong password (see AdminPassword).
+    |
+    */
+
+    'seed_admin_password' => env('ADMIN_PASSWORD'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

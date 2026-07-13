@@ -125,6 +125,63 @@ class MultiCompanyIsolationTest extends TestCase
         );
     }
 
+    /**
+     * Documents the CompanyScope context contract (audit M-4): none() is
+     * fail-closed (denies everything), all() and the cleared/unset default are
+     * unscoped. Any change to these semantics must be deliberate — a guest
+     * request left in the cleared state reads across all companies, so guest
+     * controllers must set() the context or verify ownership themselves.
+     */
+    public function test_company_context_boundary_states(): void
+    {
+        $garments = Company::query()->create([
+            'name' => 'Boundary Garments',
+            'slug' => 'boundary-garments',
+            'invoice_prefix' => 'BG',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $solar = Company::query()->create([
+            'name' => 'Boundary Solar',
+            'slug' => 'boundary-solar',
+            'invoice_prefix' => 'BS',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+
+        foreach ([[$garments, 'BG-P'], [$solar, 'BS-P']] as [$company, $sku]) {
+            app(CompanyContext::class)->set($company);
+            Product::query()->create([
+                'name' => $company->name.' Product',
+                'sku' => $sku,
+                'price' => 100,
+                'sale_price' => 100,
+                'cost_price' => 50,
+                'stock' => 1,
+                'unit' => 'pcs',
+                'reorder_level' => 1,
+                'vat_rate' => 0,
+                'is_active' => true,
+                'status' => Product::STATUS_AVAILABLE,
+            ]);
+        }
+
+        // none() → fail closed.
+        app(CompanyContext::class)->none();
+        $this->assertSame(0, Product::query()->count());
+
+        // all() → every company.
+        app(CompanyContext::class)->all();
+        $this->assertSame(2, Product::query()->count());
+
+        // cleared/unset default → unscoped (same as all()). This is the sharp
+        // edge M-4 documents: it is NOT fail-closed.
+        app(CompanyContext::class)->clear();
+        $this->assertSame(2, Product::query()->count());
+    }
+
     public function test_new_records_and_children_inherit_current_company(): void
     {
         $company = Company::query()->create([

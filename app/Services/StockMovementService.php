@@ -5,10 +5,27 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
 class StockMovementService
 {
+    /**
+     * Signed on-hand stock for the movements matched by $query, summed in SQL.
+     * Mirrors signedQuantityFor(): sales subtract, adjustments keep their sign,
+     * everything else adds. Aggregating in the database avoids loading a
+     * product's entire movement history into memory on every recompute.
+     */
+    protected function signedStockSum(Builder $query): int
+    {
+        return (int) $query
+            ->selectRaw(
+                "COALESCE(SUM(CASE WHEN type = 'sale' THEN -ABS(quantity) "
+                ."WHEN type = 'adjustment' THEN quantity ELSE ABS(quantity) END), 0) as signed_stock"
+            )
+            ->value('signed_stock');
+    }
+
     public function prepareForSave(StockMovement $movement): void
     {
         $movement->quantity = $this->normalizeQuantity($movement->type, (int) $movement->quantity);
@@ -22,14 +39,11 @@ class StockMovementService
             return;
         }
 
-        $stockAfterDelete = StockMovement::query()
-            ->where('product_id', $movement->product_id)
-            ->whereKeyNot($movement->getKey())
-            ->get()
-            ->sum(fn (StockMovement $existingMovement): int => $this->signedQuantityFor(
-                $existingMovement->type,
-                (int) $existingMovement->quantity,
-            ));
+        $stockAfterDelete = $this->signedStockSum(
+            StockMovement::query()
+                ->where('product_id', $movement->product_id)
+                ->whereKeyNot($movement->getKey())
+        );
 
         if ($stockAfterDelete < 0) {
             throw ValidationException::withMessages([
@@ -56,13 +70,9 @@ class StockMovementService
             return;
         }
 
-        $stock = StockMovement::query()
-            ->where('product_id', $productId)
-            ->get()
-            ->sum(fn (StockMovement $movement): int => $this->signedQuantityFor(
-                $movement->type,
-                (int) $movement->quantity,
-            ));
+        $stock = $this->signedStockSum(
+            StockMovement::query()->where('product_id', $productId)
+        );
 
         Product::query()
             ->whereKey($productId)
@@ -93,14 +103,11 @@ class StockMovementService
         int $quantity,
         ?int $excludingMovementId = null,
     ): int {
-        $currentStock = StockMovement::query()
-            ->where('product_id', $productId)
-            ->when($excludingMovementId, fn ($query) => $query->whereKeyNot($excludingMovementId))
-            ->get()
-            ->sum(fn (StockMovement $movement): int => $this->signedQuantityFor(
-                $movement->type,
-                (int) $movement->quantity,
-            ));
+        $currentStock = $this->signedStockSum(
+            StockMovement::query()
+                ->where('product_id', $productId)
+                ->when($excludingMovementId, fn ($query) => $query->whereKeyNot($excludingMovementId))
+        );
 
         return $currentStock + $this->signedQuantityFor($type, $quantity);
     }

@@ -2,6 +2,34 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-13 - Code audit remediation (security + reliability hardening)
+
+Reason:
+
+- Owner asked to resolve the findings in `CODE_AUDIT_REPORT.md` one by one.
+
+Changed files:
+
+- `app/Models/Concerns/GeneratesSequentialNumber.php` (new) — retries the INSERT on a UNIQUE violation of a document-number column, regenerating the number each attempt. Applied to `Order` and `Purchase` (`app/Models/Order.php`, `app/Models/Purchase.php`). **Audit M-1.**
+- `app/Http/Controllers/Storefront/Concerns/MatchesCustomerPhone.php` (new) — shared +880/0/formatting-tolerant customer-phone match.
+- `app/Http/Controllers/Storefront/OrderTrackController.php` + `resources/views/storefront/track/show.blade.php` — order tracking now requires a matching phone as a second factor (order number alone is guessable). **Audit M-2.**
+- `app/Http/Controllers/Storefront/AccountOrdersController.php` + `resources/views/storefront/account/orders.blade.php` — removed the customer outstanding-balance figure from the phone-only history page; refactored the phone match onto the shared trait. **Audit M-3.**
+- `app/Scopes/CompanyScope.php` — documented the context contract (none=fail-closed, all/cleared=unscoped). Runtime behaviour intentionally unchanged (storefront guest binding depends on cleared=unscoped + ownership checks). **Audit M-4.**
+- `app/Services/StockMovementService.php` — stock recompute now sums signed quantity in SQL instead of loading all movements into PHP. **Audit L-3.**
+- `app/Services/StorefrontCart.php` — named `PREORDER_STOCK_CEILING` constant (**L-4**); replaced inline FQ class refs with imports (**L-6**).
+- `app/Models/CustomerBlacklist.php` — documented the deliberate `CompanyScope` omission. **Audit L-2.**
+- `config/app.php` + `app/Support/AdminPassword.php` — seeder admin password now read via `config('app.seed_admin_password')` not raw `env()`. **Audit L-6.**
+- `.env.production.example` (new), `docs/deployment.md`, `.env.example` — production hardening guidance: MySQL/Postgres not SQLite, non-sync queue + worker, `APP_ENV=production`/`APP_DEBUG=false`. **Audit H-1, H-2, L-1** (deploy/ops; app defaults unchanged by design).
+- Tests: `tests/Feature/SequentialNumberConcurrencyTest.php` (new, M-1), `tests/Feature/OrderFormTest.php` (new, L-5 form-layer), `MultiCompanyIsolationTest::test_company_context_boundary_states` (new, M-4 guard), updated `StorefrontFoundationTest`/`StorefrontB2bTest` for the new tracking/balance behaviour.
+- `CHANGELOG.md` — new `[1.10.0]` Security entry; `tests/Feature/ReleaseNotesTest.php` bumped to v1.10.0 / Security / 2026-07-13.
+- `CODE_AUDIT_REPORT.md` — marked each finding with its resolution.
+
+Verification: full `php artisan test` — 238 passed (1042 assertions). No frontend asset build needed (Blade-only view changes).
+
+Deploy notes: no new migration. H-1/H-2 are ops actions — set a real DB and a non-sync queue with a worker per `.env.production.example`.
+
+Commit status: Not committed. Commit and push require explicit owner approval.
+
 ## 2026-07-12 - Fix Purchase "Save changes" always failing when an item is added
 
 Reason:

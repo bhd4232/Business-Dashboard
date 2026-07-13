@@ -527,10 +527,16 @@ class StorefrontFoundationTest extends TestCase
             ->assertOk()
             ->assertSee('Track your storefront order');
 
-        $this->get('http://track.example.test/track?order_number='.$order->order_number)
-            ->assertRedirect('http://track.example.test/track/'.$order->order_number);
+        $this->get('http://track.example.test/track?order_number='.$order->order_number.'&phone=01711111111')
+            ->assertRedirect('http://track.example.test/track/'.$order->order_number.'?phone=01711111111');
 
+        // The order number alone is not enough — a matching phone is required.
         $this->get('http://track.example.test/track/'.$order->order_number)
+            ->assertOk()
+            ->assertDontSee('Tracking Product')
+            ->assertSee('find an order matching');
+
+        $this->get('http://track.example.test/track/'.$order->order_number.'?phone=01711111111')
             ->assertOk()
             ->assertSee($order->order_number)
             ->assertSee('Tracking Product')
@@ -555,24 +561,44 @@ class StorefrontFoundationTest extends TestCase
         $otherCompany = $this->createPublishedStorefrontCompany('Other Tracking Store', 'other-track.example.test');
 
         app(CompanyContext::class)->set($otherCompany);
+        $otherCustomer = Customer::query()->create([
+            'name' => 'Other Buyer',
+            'phone' => '01900000000',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
         $otherOrder = Order::query()->create([
+            'customer_id' => $otherCustomer->getKey(),
             'customer_name' => 'Other Buyer',
             'status' => 'draft',
             'source' => Order::SOURCE_STOREFRONT,
         ]);
 
         app(CompanyContext::class)->set($trackingCompany);
+        $adminCustomer = Customer::query()->create([
+            'name' => 'Admin Buyer',
+            'phone' => '01900000000',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
         $adminOrder = Order::query()->create([
+            'customer_id' => $adminCustomer->getKey(),
             'customer_name' => 'Admin Buyer',
             'status' => 'draft',
             'source' => Order::SOURCE_ADMIN,
         ]);
 
-        $this->get('http://safe-track.example.test/track/'.$otherOrder->order_number)
-            ->assertNotFound();
+        // Even with the correct customer phone, an order from another company
+        // or an admin-sourced order is never revealed on this storefront.
+        $this->get('http://safe-track.example.test/track/'.$otherOrder->order_number.'?phone=01900000000')
+            ->assertOk()
+            ->assertDontSee('Order items')
+            ->assertSee('find an order matching');
 
-        $this->get('http://safe-track.example.test/track/'.$adminOrder->order_number)
-            ->assertNotFound();
+        $this->get('http://safe-track.example.test/track/'.$adminOrder->order_number.'?phone=01900000000')
+            ->assertOk()
+            ->assertDontSee('Order items')
+            ->assertSee('find an order matching');
     }
 
     public function test_local_preview_order_tracking_works_without_custom_host_mapping(): void
@@ -581,7 +607,14 @@ class StorefrontFoundationTest extends TestCase
 
         app(CompanyContext::class)->set($company);
 
+        $customer = Customer::query()->create([
+            'name' => 'Preview Tracking Buyer',
+            'phone' => '01722222222',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
         $order = Order::query()->create([
+            'customer_id' => $customer->getKey(),
             'customer_name' => 'Preview Tracking Buyer',
             'status' => 'draft',
             'source' => Order::SOURCE_STOREFRONT,
@@ -592,10 +625,10 @@ class StorefrontFoundationTest extends TestCase
             ->assertSee('Preview Tracking Store')
             ->assertSee('Track your storefront order');
 
-        $this->get("http://127.0.0.1/storefront/{$company->slug}/track?order_number={$order->order_number}")
-            ->assertRedirect("http://127.0.0.1/storefront/{$company->slug}/track/{$order->order_number}");
+        $this->get("http://127.0.0.1/storefront/{$company->slug}/track?order_number={$order->order_number}&phone=01722222222")
+            ->assertRedirect("http://127.0.0.1/storefront/{$company->slug}/track/{$order->order_number}?phone=01722222222");
 
-        $this->get("http://127.0.0.1/storefront/{$company->slug}/track/{$order->order_number}")
+        $this->get("http://127.0.0.1/storefront/{$company->slug}/track/{$order->order_number}?phone=01722222222")
             ->assertOk()
             ->assertSee($order->order_number)
             ->assertSee('Draft')
@@ -609,14 +642,21 @@ class StorefrontFoundationTest extends TestCase
 
         app(CompanyContext::class)->set($company);
 
+        $customer = Customer::query()->create([
+            'name' => 'Completed Buyer',
+            'phone' => '01733333333',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
         $order = Order::query()->create([
+            'customer_id' => $customer->getKey(),
             'customer_name' => 'Completed Buyer',
             'status' => 'completed',
             'delivery_status' => CourierBooking::STATUS_NOT_BOOKED,
             'source' => Order::SOURCE_STOREFRONT,
         ]);
 
-        $this->get("http://127.0.0.1/storefront/{$company->slug}/track/{$order->order_number}")
+        $this->get("http://127.0.0.1/storefront/{$company->slug}/track/{$order->order_number}?phone=01733333333")
             ->assertOk()
             ->assertSee('Completed')
             ->assertDontSee('Not Booked')

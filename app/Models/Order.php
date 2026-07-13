@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\GeneratesSequentialNumber;
 use App\Services\CustomerRiskService;
 use App\Services\OrderWorkflowService;
 use App\Services\ShippingFeeService;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Schema;
 
 class Order extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, GeneratesSequentialNumber;
 
     public const STATUSES = [
         'draft' => 'Draft',
@@ -158,6 +159,11 @@ class Order extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    protected function sequentialNumberColumn(): string
+    {
+        return 'order_number';
     }
 
     public static function nextOrderNumber(?Company $company = null): string

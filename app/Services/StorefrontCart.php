@@ -5,11 +5,22 @@ namespace App\Services;
 use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\StorefrontCartRecord;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class StorefrontCart
 {
+    /**
+     * Effective "unlimited" stock ceiling for pre-order lines. Pre-order
+     * products may be ordered beyond current stock (the checkout collects an
+     * online advance), so their available quantity is capped at this large
+     * value rather than the real stock count.
+     */
+    public const PREORDER_STOCK_CEILING = 100000;
+
     public function __construct(protected Session $session) {}
 
     public function add(Company $company, Product $product, int $quantity = 1, ?ProductVariant $variant = null): void
@@ -66,7 +77,7 @@ class StorefrontCart
     {
         $this->session->forget($this->key($company));
 
-        $this->cartRecord($company)?->update(['status' => \App\Models\StorefrontCartRecord::STATUS_CONVERTED]);
+        $this->cartRecord($company)?->update(['status' => StorefrontCartRecord::STATUS_CONVERTED]);
     }
 
     /**
@@ -81,13 +92,13 @@ class StorefrontCart
         ]);
     }
 
-    protected function cartRecord(Company $company): ?\App\Models\StorefrontCartRecord
+    protected function cartRecord(Company $company): ?StorefrontCartRecord
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('storefront_cart_records')) {
+        if (! Schema::hasTable('storefront_cart_records')) {
             return null;
         }
 
-        return \App\Models\StorefrontCartRecord::withoutGlobalScopes()
+        return StorefrontCartRecord::withoutGlobalScopes()
             ->where('company_id', $company->getKey())
             ->where('session_id', $this->cartToken())
             ->first();
@@ -102,7 +113,7 @@ class StorefrontCart
         $token = $this->session->get('storefront_cart_token');
 
         if (! is_string($token) || $token === '') {
-            $token = (string) \Illuminate\Support\Str::uuid();
+            $token = (string) Str::uuid();
             $this->session->put('storefront_cart_token', $token);
         }
 
@@ -111,7 +122,7 @@ class StorefrontCart
 
     protected function persistCartRecord(Company $company, array $items): void
     {
-        if (! \Illuminate\Support\Facades\Schema::hasTable('storefront_cart_records')) {
+        if (! Schema::hasTable('storefront_cart_records')) {
             return;
         }
 
@@ -121,11 +132,11 @@ class StorefrontCart
             return;
         }
 
-        \App\Models\StorefrontCartRecord::withoutGlobalScopes()->updateOrCreate(
+        StorefrontCartRecord::withoutGlobalScopes()->updateOrCreate(
             ['company_id' => $company->getKey(), 'session_id' => $this->cartToken()],
             [
                 'items' => array_values($items),
-                'status' => \App\Models\StorefrontCartRecord::STATUS_ACTIVE,
+                'status' => StorefrontCartRecord::STATUS_ACTIVE,
                 'reminded_at' => null,
             ],
         );
@@ -238,7 +249,7 @@ class StorefrontCart
         // Pre-order products can be ordered beyond current stock; the
         // checkout collects an online advance payment for those lines.
         if ($product->is_preorder) {
-            return max((int) $product->stock, 100000);
+            return max((int) $product->stock, self::PREORDER_STOCK_CEILING);
         }
 
         return (int) $product->stock;

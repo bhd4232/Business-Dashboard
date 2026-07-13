@@ -67,18 +67,12 @@
                         </div>
                     </div>
                 @else
-                    @if (! is_null($customerDue) && $customerDue > 0)
-                        <div class="mt-6 flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-400/20 dark:bg-amber-400/10">
-                            <div class="text-sm font-medium text-amber-800 dark:text-amber-200">Current due with {{ $company->name }}</div>
-                            <div class="text-lg font-semibold text-amber-900 dark:text-amber-100">{{ $currency }} {{ number_format($customerDue, 2) }}</div>
-                        </div>
-                    @endif
                     <div class="mt-6 space-y-4">
                         @foreach ($orders as $order)
                             @php
                                 $trackUrl = isset($previewSlug)
-                                    ? route('storefront.preview.track.show', [$previewSlug, $order->order_number])
-                                    : route('storefront.track.show', $order->order_number);
+                                    ? route('storefront.preview.track.show', ['company' => $previewSlug, 'orderNo' => $order->order_number, 'phone' => $phone])
+                                    : route('storefront.track.show', ['orderNo' => $order->order_number, 'phone' => $phone]);
                                 $reorderUrl = isset($previewSlug)
                                     ? route('storefront.preview.account.reorder', [$previewSlug, $order->order_number])
                                     : route('storefront.account.reorder', $order->order_number);

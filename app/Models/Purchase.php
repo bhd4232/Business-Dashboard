@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\GeneratesSequentialNumber;
 use App\Services\PurchaseWorkflowService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Support\Str;
 
 class Purchase extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, GeneratesSequentialNumber;
 
     public const CHINA_TO_BD_COST_FIELDS = [
         'machine_purchase' => 'Machine Purchase',
@@ -127,6 +128,11 @@ class Purchase extends Model
     public function shipments(): HasMany
     {
         return $this->hasMany(Shipment::class);
+    }
+
+    protected function sequentialNumberColumn(): string
+    {
+        return 'purchase_number';
     }
 
     public static function nextPurchaseNumber(?Company $company = null): string

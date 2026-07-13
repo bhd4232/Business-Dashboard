@@ -99,7 +99,7 @@ class StorefrontB2bTest extends TestCase
             ->assertSee('BDT 45.00');
     }
 
-    public function test_account_orders_page_shows_customer_due(): void
+    public function test_account_orders_page_does_not_leak_customer_balance(): void
     {
         $company = $this->createPublishedStorefrontCompany('Due Store', 'due.example.test');
 
@@ -128,15 +128,14 @@ class StorefrontB2bTest extends TestCase
             'unit_price' => 900,
         ]);
 
+        // The phone-only order history shows orders, but a phone number is a
+        // weak secret, so the customer's outstanding balance is never exposed
+        // here (privacy hardening — audit M-3).
         $this->get('http://due.example.test/account/orders?phone=01755555555')
             ->assertOk()
-            ->assertSee('Current due with Due Store')
-            ->assertSee('1,500.00');
-
-        // No due banner without a matching order lookup.
-        $this->get('http://due.example.test/account/orders?phone=01700000009')
-            ->assertOk()
-            ->assertDontSee('Current due with');
+            ->assertSee($order->order_number)
+            ->assertDontSee('Current due with')
+            ->assertDontSee('1,500.00');
     }
 
     private function createProduct(string $name, string $sku, array $overrides = []): Product

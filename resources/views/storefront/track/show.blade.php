@@ -26,19 +26,36 @@
 
                 <form class="mt-8 rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/5" method="GET" action="{{ $trackIndexUrl }}">
                     <label class="text-xs font-medium text-gray-500" for="order_number">Order number</label>
+                    <input
+                        class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/10 dark:bg-gray-950"
+                        id="order_number"
+                        name="order_number"
+                        placeholder="Example: {{ $company->invoice_prefix }}-{{ now()->format('Ymd') }}-0001"
+                        type="text"
+                        value="{{ $orderNumber }}"
+                    >
+
+                    <label class="mt-4 block text-xs font-medium text-gray-500" for="phone">Phone number used on the order</label>
                     <div class="mt-2 flex flex-col gap-3 sm:flex-row">
                         <input
                             class="min-h-11 flex-1 rounded-lg border border-gray-300 bg-white px-4 text-sm outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/10 dark:bg-gray-950"
-                            id="order_number"
-                            name="order_number"
-                            placeholder="Example: {{ $company->invoice_prefix }}-{{ now()->format('Ymd') }}-0001"
-                            type="text"
-                            value="{{ $order?->order_number }}"
+                            id="phone"
+                            name="phone"
+                            placeholder="01XXXXXXXXX"
+                            type="tel"
+                            value="{{ $phone }}"
                         >
                         <button class="rounded-lg bg-gray-950 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] dark:bg-white dark:text-gray-950" type="submit">
                             Track order
                         </button>
                     </div>
+                    <p class="mt-3 text-xs leading-5 text-gray-400">For your privacy, enter the phone number used when placing the order to view its details.</p>
+
+                    @if (! empty($notFound))
+                        <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
+                            We couldn't find an order matching that order number and phone number. Please check both and try again.
+                        </p>
+                    @endif
                 </form>
             </div>
 

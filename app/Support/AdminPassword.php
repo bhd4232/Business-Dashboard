@@ -10,7 +10,7 @@ class AdminPassword
 {
     public static function fromEnvironment(): string
     {
-        $password = env('ADMIN_PASSWORD');
+        $password = config('app.seed_admin_password');
 
         if (! is_string($password) || trim($password) === '') {
             throw new RuntimeException('ADMIN_PASSWORD is required before running the database seeder.');

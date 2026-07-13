@@ -2,6 +2,27 @@
 
 This guide describes the production deployment flow for Business Dashboard.
 
+> A ready-to-edit production template lives at [`.env.production.example`](../.env.production.example).
+> Copy it to `.env` on the server rather than `.env.example` (which targets local dev).
+
+## Production Hardening (must-do)
+
+These three settings are safe for local development but **must be changed for
+production**, or the app is either insecure or unreliable under load:
+
+1. **`APP_ENV=production` and `APP_DEBUG=false`.** The dev template ships
+   `APP_ENV=local` / `APP_DEBUG=true`; leaving those on in production leaks
+   full stack traces and configuration to any visitor.
+2. **Do not run on SQLite (`DB_CONNECTION=sqlite`).** SQLite serializes all
+   writes to a single writer. The storefront (checkout, cart), admin panel,
+   courier webhooks, and scheduled jobs write concurrently and will hit
+   `database is locked` errors. Use MySQL 8+ or PostgreSQL.
+3. **Do not use the `sync` queue driver.** With `sync`, queued jobs run inside
+   the web request — courier webhook processing and the external courier fraud
+   check (which logs into merchant panels) would block checkout/webhook
+   responses, and retry/backoff never fires. Set `QUEUE_CONNECTION=database`
+   (or `redis`) and run `php artisan queue:work` as a supervised process.
+
 ## Server Requirements
 
 - PHP 8.2 or newer
