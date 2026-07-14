@@ -21,6 +21,9 @@ class TransactionLedger extends Model
         'supplier_payment' => 'Supplier Payment',
         'expense' => 'Expense',
         'income' => 'Income',
+        'voucher_credit' => 'Voucher Credit',
+        'voucher_debit' => 'Voucher Debit',
+        'fund_transfer' => 'Fund Transfer',
     ];
 
     protected $fillable = [

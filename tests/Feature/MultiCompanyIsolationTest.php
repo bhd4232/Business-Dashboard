@@ -55,6 +55,8 @@ class MultiCompanyIsolationTest extends TestCase
             Container::class, Shipment::class, StorefrontPage::class, StorefrontSetting::class,
             \App\Models\ProductCarousel::class, \App\Models\StorefrontPayment::class,
             \App\Models\StorefrontCartRecord::class,
+            \App\Models\FundSource::class, \App\Models\Voucher::class,
+            \App\Models\VoucherAttachment::class, \App\Models\FundTransfer::class,
         ];
 
         foreach ($models as $modelClass) {

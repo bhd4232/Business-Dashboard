@@ -129,6 +129,17 @@ class User extends Authenticatable implements FilamentUser
             'accounts.update',
             'reports.view',
             'reports.export',
+            'voucher.create',
+            'voucher.view',
+            'voucher.view_all',
+            'voucher.verify',
+            'voucher.approve',
+            'voucher.reject',
+            'voucher.cancel',
+            'fund_source.manage',
+            'fund_transfer.create',
+            'fund_transfer.approve',
+            'finance.dashboard',
         ],
         'sales_staff' => [
             'dashboard.view',
@@ -137,6 +148,8 @@ class User extends Authenticatable implements FilamentUser
             'sales.update',
             'inventory.view',
             'reports.view',
+            'voucher.create',
+            'voucher.view',
         ],
         'inventory_staff' => [
             'dashboard.view',
@@ -145,6 +158,8 @@ class User extends Authenticatable implements FilamentUser
             'inventory.update',
             'purchasing.view',
             'reports.view',
+            'voucher.create',
+            'voucher.view',
         ],
         'accountant' => [
             'dashboard.view',
@@ -155,6 +170,14 @@ class User extends Authenticatable implements FilamentUser
             'accounts.update',
             'reports.view',
             'reports.export',
+            'voucher.create',
+            'voucher.view',
+            'voucher.view_all',
+            'voucher.verify',
+            'voucher.cancel',
+            'fund_source.manage',
+            'fund_transfer.create',
+            'finance.dashboard',
         ],
     ];
 
@@ -181,6 +204,17 @@ class User extends Authenticatable implements FilamentUser
         'backups.manage' => 'Backups: Manage',
         'settings.manage' => 'Settings: Manage',
         'users.manage' => 'Users: Manage',
+        'voucher.create' => 'Voucher: Create',
+        'voucher.view' => 'Voucher: View (own)',
+        'voucher.view_all' => 'Voucher: View All',
+        'voucher.verify' => 'Voucher: Verify',
+        'voucher.approve' => 'Voucher: Approve',
+        'voucher.reject' => 'Voucher: Reject',
+        'voucher.cancel' => 'Voucher: Cancel',
+        'fund_source.manage' => 'Fund Source: Manage',
+        'fund_transfer.create' => 'Fund Transfer: Create',
+        'fund_transfer.approve' => 'Fund Transfer: Approve',
+        'finance.dashboard' => 'Finance Dashboard: View',
     ];
 
     public const MODEL_MODULES = [
@@ -312,6 +346,56 @@ class User extends Authenticatable implements FilamentUser
     public function canManageSettings(): bool
     {
         return $this->isSuperAdmin() || $this->hasPermission('settings.manage');
+    }
+
+    public function canCreateVoucher(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('voucher.create');
+    }
+
+    public function canViewAllVouchers(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('voucher.view_all');
+    }
+
+    public function canVerifyVoucher(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('voucher.verify');
+    }
+
+    public function canApproveVoucher(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('voucher.approve');
+    }
+
+    public function canRejectVoucher(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('voucher.reject');
+    }
+
+    public function canCancelVoucher(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('voucher.cancel');
+    }
+
+    public function canManageFundSources(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('fund_source.manage');
+    }
+
+    public function canCreateFundTransfer(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('fund_transfer.create');
+    }
+
+    public function canApproveFundTransfer(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('fund_transfer.approve');
+    }
+
+    public function canAccessFinanceDashboard(): bool
+    {
+        return $this->isSuperAdmin() || $this->hasPermission('finance.dashboard');
     }
 
     public function companies(): BelongsToMany

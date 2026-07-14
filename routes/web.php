@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ProductCsvController;
 use App\Http\Controllers\Admin\ReportExportController;
 use App\Http\Controllers\Admin\ReportPdfController;
 use App\Http\Controllers\Admin\SupplierCsvController;
+use App\Http\Controllers\Admin\VoucherReceiptController;
 use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Storefront\AccountOrdersController as StorefrontAccountOrdersController;
@@ -227,3 +228,8 @@ Route::middleware('auth')->group(function (): void {
         ->where('filename', '[A-Za-z0-9._-]+')
         ->name('backups.download');
 });
+
+// Shareable Money Receipt: signed URL, no login required, signature can't be guessed.
+Route::middleware('signed')
+    ->get('/vouchers/{voucher:voucher_number}/receipt', VoucherReceiptController::class)
+    ->name('vouchers.receipt');

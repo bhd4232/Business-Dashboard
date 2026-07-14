@@ -2,6 +2,29 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.11.0] - 2026-07-14
+
+**Release type:** Minor Feature Update
+
+New Voucher & Fund Control module (`05_VOUCHER_FUND_CONTROL_MODULE_PLAN.md`).
+
+### Added
+
+- Credit and Debit Vouchers: a documentation/approval layer in front of the existing accounting system. A voucher goes pending → (optionally) verified → approved/rejected/cancelled; approving it books the correct existing record automatically — a Customer Payment, Supplier Payment, or Expense — so all existing due calculations, ledgers, and reports keep working unchanged. Creating payments/expenses directly, without a voucher, still works exactly as before (both paths stay supported).
+- Fund Sources: named pools of money (cash, bank, mobile banking, wallet, petty cash, owner/partner investment, business profit, bank loan, customer advance, supplier credit). Account-linked types always read their balance from the existing Accounts/ledger system — never a second stored number that could drift out of sync.
+- Fund Transfers: move money between two of your own accounts with a pending → approved/rejected step, recorded as a matching pair of ledger entries.
+- Inventory purchases can now be funded from a Fund Source through a voucher, without ever creating an Expense — inventory is an asset conversion, not spend (enforced and covered by `AccountingRulesTest`).
+- Money Receipt: a printable PDF for an approved credit voucher, reachable via a signed link that needs no login (for sharing with a customer) but can't be guessed.
+- New permissions: `voucher.create/view/view_all/verify/approve/reject/cancel`, `fund_source.manage`, `fund_transfer.create/approve`, `finance.dashboard`, mapped onto the existing roles (Sales/Inventory Staff can submit vouchers; Accountant can verify; Manager/Super Admin can approve).
+
+### Technical Notes
+
+- New tables: `fund_sources`, `vouchers`, `voucher_attachments`, `fund_transfers`; `purchases` gained a `funding_sources` JSON column. All four new models use `BelongsToCompany`/`CompanyScope` and are covered by `MultiCompanyIsolationTest`'s contract test.
+- This ships with the module plan's own documented fallback: simple inline approval logic (`VoucherService`), not the shared `ApprovalGateService` from the not-yet-built Task/Approval Workflow module (that module does not exist in this codebase yet). Migrating `verify()`/`approve()` onto a shared service later is a self-contained follow-up.
+- Deliberately **not** included in this pass (flagged as follow-up, not silently skipped): automatic voucher creation from existing Purchase/Expense/SupplierPayment/Order events (module plan step 9). Wiring this in safely needs care to avoid double-booking a record that a manual voucher already created for the same event; shipping it half-done risked duplicate financial records, so it is deferred to its own change.
+- `capital_investment` vouchers are Mudarabah-ready: they only move an owner-capital Fund Source/Account today, but route through `voucher.resulting_model_type`, so a future Mudarabah investor module can link its own `investments` table without changing this module (per the plan's step 8 decision).
+- Full suite: 252 passed (1084 assertions).
+
 ## [1.10.0] - 2026-07-13
 
 **Release type:** Security

@@ -2,6 +2,37 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-14 - Voucher & Fund Control module
+
+Reason:
+
+- Owner asked to implement `05_VOUCHER_FUND_CONTROL_MODULE_PLAN.md`. Two decisions the plan flagged as needing explicit owner confirmation were confirmed before building: (1) existing direct Customer/Supplier Payment and Expense creation stays fully supported alongside vouchers (voucher is optional, not mandatory); (2) `capital_investment` vouchers stay Mudarabah-ready (route through `resulting_model_type`) rather than fully separate, since the Mudarabah investor module doesn't exist yet.
+
+Changed files:
+
+- New migration `database/migrations/2026_07_14_000000_create_voucher_and_fund_control_tables.php` — `fund_sources`, `vouchers`, `voucher_attachments`, `fund_transfers`, plus `purchases.funding_sources` (JSON).
+- New models: `app/Models/FundSource.php`, `app/Models/Voucher.php`, `app/Models/VoucherAttachment.php`, `app/Models/FundTransfer.php` — all `BelongsToCompany`, added to `MultiCompanyIsolationTest`'s contract.
+- New services: `app/Services/VoucherService.php` (submit/verify/approve/reject/cancel + the transaction-type → accounting-effect matrix, Rule 1 enforced), `app/Services/FundTransferService.php` (double-entry ledger transfer).
+- `app/Models/TransactionLedger.php` — added `voucher_credit`/`voucher_debit`/`fund_transfer` ledger types.
+- `app/Models/Purchase.php` — `funding_sources` fillable/cast.
+- `app/Models/User.php` — new `voucher.*`/`fund_source.manage`/`fund_transfer.*`/`finance.dashboard` permissions, mapped onto existing roles, plus `canX()` helper methods.
+- New Filament resources: `app/Filament/Resources/Vouchers/`, `app/Filament/Resources/FundSources/`, `app/Filament/Resources/FundTransfers/` (Verify/Approve/Reject/Cancel/Print Receipt actions).
+- Money Receipt: `app/Http/Controllers/Admin/VoucherReceiptController.php` + `resources/views/vouchers/receipt.blade.php`, reached via a signed `vouchers.receipt` route (no login required, signature can't be guessed) — added to `routes/web.php`.
+- Tests: `tests/Feature/VoucherWorkflowTest.php`, `tests/Feature/AccountingRulesTest.php` (Rule 1 + fund-transfer + over-funding guard), `tests/Feature/VoucherIsolationTest.php`.
+- `CHANGELOG.md` — new `[1.11.0]` Minor Feature entry; `tests/Feature/ReleaseNotesTest.php` bumped to v1.11.0 / Minor Feature / 2026-07-14.
+
+Deliberately deferred (flagged, not silently skipped):
+
+- Module plan step 9 (automatic voucher creation from Purchase/Expense/SupplierPayment/Order events) — wiring this in without risking a double-booked financial record (a manual voucher plus an auto one for the same event) needs its own careful pass; not rushed into this change.
+- Purchase form's funding-sources repeater UI (nice-to-have; the `purchases.funding_sources` JSON column exists and the actual fund deduction/validation already works correctly through per-source `inventory_purchase` vouchers referencing `purchase_id`).
+- Threshold-based approval routing and the shared `ApprovalGateService` — that service belongs to the not-yet-built Task/Approval Workflow module; `VoucherService` ships with simple inline approval logic per the plan's own documented fallback, with a comment marking the future migration path.
+
+Verification: full `php artisan test` — 252 passed (1084 assertions). No frontend asset build needed (Filament PHP resources + Blade-only views).
+
+Deploy notes: new migration — run `php artisan migrate` on deploy. No queue/cron/env changes.
+
+Commit status: Not committed. Commit and push require explicit owner approval.
+
 ## 2026-07-13 - Code audit remediation (security + reliability hardening)
 
 Reason:
