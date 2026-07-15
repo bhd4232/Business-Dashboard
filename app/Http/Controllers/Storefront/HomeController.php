@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductCarousel;
+use App\Models\StorefrontSlide;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -50,6 +51,7 @@ class HomeController extends Controller
                 ->take(12)
                 ->get(),
             'carousels' => ProductCarousel::forHomepage(),
+            'slides' => StorefrontSlide::forCompany($company->getKey()),
         ]);
     }
 

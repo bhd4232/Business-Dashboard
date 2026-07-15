@@ -57,8 +57,14 @@ class CartController extends Controller
      */
     protected function addToCart(Request $request, Company $company, Product $product): RedirectResponse
     {
+        $buyNow = $request->boolean('buy_now');
+
         if (! $product->has_variants) {
             $this->cart->add($company, $product, (int) $request->integer('quantity', 1));
+
+            if ($buyNow) {
+                return $this->redirectToCheckout($request, $company);
+            }
 
             return back()->with('storefront_status', "{$product->name} added to cart.");
         }
@@ -98,7 +104,20 @@ class CartController extends Controller
 
         abort_if($addedLines === 0, 422, 'Selected options are out of stock.');
 
+        if ($buyNow) {
+            return $this->redirectToCheckout($request, $company);
+        }
+
         return back()->with('storefront_status', "{$product->name} added to cart ({$addedLines} ".($addedLines === 1 ? 'option' : 'options').').');
+    }
+
+    protected function redirectToCheckout(Request $request, Company $company): RedirectResponse
+    {
+        $previewSlug = $request->route('company')?->slug;
+
+        return redirect()->to($previewSlug
+            ? route('storefront.preview.checkout.show', $previewSlug)
+            : route('storefront.checkout.show'));
     }
 
     public function update(Request $request, string $slug): RedirectResponse

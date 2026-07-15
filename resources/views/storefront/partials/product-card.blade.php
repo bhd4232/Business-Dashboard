@@ -1,26 +1,34 @@
 @php
     $productUrl = isset($previewSlug) ? route('storefront.preview.products.show', [$previewSlug, $product->slug]) : route('storefront.products.show', $product->slug);
     $cartAddUrl = isset($previewSlug) ? route('storefront.preview.cart.add', [$previewSlug, $product->slug]) : route('storefront.cart.add', $product->slug);
+    $comparePrice = (float) ($product->price ?? 0);
+    $sellingPrice = (float) $product->selling_price;
+    $discountPercent = $comparePrice > 0 && $sellingPrice > 0 && $sellingPrice < $comparePrice
+        ? (int) round((1 - ($sellingPrice / $comparePrice)) * 100)
+        : 0;
 @endphp
 
 <article class="group overflow-hidden rounded-xl border border-gray-200 bg-white transition hover:border-gray-300 hover:shadow-md dark:border-white/10 dark:bg-white/5">
     <div class="relative overflow-hidden bg-gray-100 dark:bg-white/5">
         <a href="{{ $productUrl }}" class="block">
             @if ($product->image)
-                <img class="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" src="{{ asset('storage/'.$product->image) }}" alt="{{ $product->name }}">
+                <img class="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" src="{{ asset('storage/'.$product->image) }}" alt="{{ $product->name }}" loading="lazy" decoding="async">
             @else
                 <div class="grid aspect-square w-full place-items-center text-5xl font-semibold text-[var(--storefront-brand)]">
                     {{ mb_substr($product->name, 0, 1) }}
                 </div>
             @endif
         </a>
+        @if ($discountPercent > 0)
+            <span class="absolute left-3 top-3 rounded-full bg-red-600 px-2 py-1 text-[11px] font-semibold text-white">-{{ $discountPercent }}%</span>
+        @endif
         @if ($product->stock < 1)
             <div class="absolute inset-x-0 bottom-0 {{ $product->is_preorder ? 'bg-[var(--storefront-brand)]/90' : 'bg-gray-950/80' }} px-3 py-1.5 text-center text-xs font-semibold uppercase tracking-wide text-white">
                 {{ $product->is_preorder ? 'Pre-order' : 'Out of stock' }}
             </div>
         @endif
 
-        <form class="absolute bottom-3 right-3 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100" method="POST" action="{{ $cartAddUrl }}">
+        <form class="absolute bottom-3 right-3 transition focus-within:opacity-100" method="POST" action="{{ $cartAddUrl }}">
             @csrf
             <input type="hidden" name="quantity" value="{{ $product->effectiveMoq() }}">
             <button
@@ -39,7 +47,12 @@
             <h3 class="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-gray-900 dark:text-white">{{ $product->name }}</h3>
         </a>
         <div class="mt-2 flex items-center justify-between gap-3">
-            <div class="text-base font-semibold text-gray-950 dark:text-white">BDT {{ number_format($product->selling_price, 2) }}</div>
+            <div class="flex items-baseline gap-2">
+                <span class="text-base font-semibold text-gray-950 dark:text-white">BDT {{ number_format($sellingPrice, 2) }}</span>
+                @if ($discountPercent > 0)
+                    <span class="text-xs text-gray-400 line-through dark:text-gray-500">BDT {{ number_format($comparePrice, 2) }}</span>
+                @endif
+            </div>
             @if ($product->stock > 0 && $product->stock <= 5)
                 <span class="text-xs font-medium text-amber-600 dark:text-amber-400">{{ (int) $product->stock }} left</span>
             @endif

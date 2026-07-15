@@ -61,7 +61,7 @@ class CheckoutController extends Controller
         [$company, $setting] = $this->domainStorefront($request);
         $advanceDue = self::advanceDue($this->cart->items($company));
         $this->assertPayableCheckout($setting, $advanceDue);
-        $order = $this->createOrder($request, $company);
+        $order = $this->createOrder($request, $company, $setting);
 
         if ($advanceDue > 0) {
             return $this->startAdvancePayment($company, $setting, $order, $advanceDue,
@@ -78,7 +78,7 @@ class CheckoutController extends Controller
         $setting = $this->previewStorefront($company);
         $advanceDue = self::advanceDue($this->cart->items($company));
         $this->assertPayableCheckout($setting, $advanceDue);
-        $order = $this->createOrder($request, $company);
+        $order = $this->createOrder($request, $company, $setting);
 
         if ($advanceDue > 0) {
             return $this->startAdvancePayment($company, $setting, $order, $advanceDue,
@@ -187,7 +187,7 @@ class CheckoutController extends Controller
         ]);
     }
 
-    protected function createOrder(Request $request, Company $company): Order
+    protected function createOrder(Request $request, Company $company, StorefrontSetting $setting): Order
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -195,7 +195,32 @@ class CheckoutController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['required', 'string', 'max:1000'],
             'note' => ['nullable', 'string', 'max:1000'],
+            'delivery_area' => ['nullable', 'in:inside,outside'],
+            'payment_method' => ['nullable', 'in:cod,manual_bkash,manual_nagad'],
+            'sender_number' => ['required_if:payment_method,manual_bkash,manual_nagad', 'nullable', 'string', 'max:20'],
+            'trx_id' => ['required_if:payment_method,manual_bkash,manual_nagad', 'nullable', 'string', 'max:40'],
         ]);
+
+        // Both default to the pre-Phase-3 behaviour (COD, no delivery charge)
+        // so existing integrations/tests posting the old field set keep working.
+        $data['delivery_area'] ??= 'inside';
+        $data['payment_method'] ??= 'cod';
+
+        if ($data['payment_method'] === 'cod' && ! $setting->cod_enabled) {
+            throw ValidationException::withMessages(['payment_method' => 'Cash on Delivery is not available right now. Please choose another payment method.']);
+        }
+
+        if ($data['payment_method'] === 'manual_bkash' && ! $setting->manual_bkash_number) {
+            throw ValidationException::withMessages(['payment_method' => 'bKash payment is not available right now.']);
+        }
+
+        if ($data['payment_method'] === 'manual_nagad' && ! $setting->manual_nagad_number) {
+            throw ValidationException::withMessages(['payment_method' => 'Nagad payment is not available right now.']);
+        }
+
+        $deliveryCharge = $data['delivery_area'] === 'inside'
+            ? (float) ($setting->delivery_charge_inside ?? 0)
+            : (float) ($setting->delivery_charge_outside ?? 0);
 
         $items = $this->cart->items($company);
 
@@ -203,7 +228,7 @@ class CheckoutController extends Controller
         // reminders can reach the customer if this checkout fails.
         $this->cart->rememberContact($company, $data['phone'], $data['name']);
 
-        return DB::transaction(function () use ($company, $data, $items): Order {
+        return DB::transaction(function () use ($company, $data, $items, $deliveryCharge): Order {
             abort_if($items->isEmpty(), 422, 'Your cart is empty.');
 
             foreach ($items as $item) {
@@ -241,10 +266,12 @@ class CheckoutController extends Controller
                 'order_date' => now()->toDateString(),
                 'discount' => 0,
                 'vat' => 0,
+                'shipping_zone' => $data['delivery_area'],
+                'shipping_fee' => $deliveryCharge,
                 'paid_amount' => 0,
                 'status' => 'draft',
                 'source' => Order::SOURCE_STOREFRONT,
-                'note' => trim("Storefront checkout\nDelivery address: {$data['address']}\n".(($data['note'] ?? null) ? "Customer note: {$data['note']}" : '')),
+                'note' => trim("Storefront checkout\nDelivery address: {$data['address']}\nPayment method: ".self::paymentMethodLabel($data['payment_method'])."\n".(($data['note'] ?? null) ? "Customer note: {$data['note']}" : '')),
             ]);
 
             foreach ($items as $item) {
@@ -262,6 +289,19 @@ class CheckoutController extends Controller
             }
 
             $order->refresh();
+
+            if (in_array($data['payment_method'], ['manual_bkash', 'manual_nagad'], true)) {
+                StorefrontPayment::query()->create([
+                    'company_id' => $company->getKey(),
+                    'order_id' => $order->getKey(),
+                    'gateway' => $data['payment_method'],
+                    'amount' => round((float) $order->total_amount, 2),
+                    'status' => StorefrontPayment::STATUS_PENDING,
+                    'payment_method' => $data['sender_number'],
+                    'transaction_id' => $data['trx_id'],
+                ]);
+            }
+
             $this->cart->clear($company);
 
             // Customer never sees this — the external check happens in the
@@ -271,6 +311,15 @@ class CheckoutController extends Controller
 
             return $order;
         });
+    }
+
+    protected static function paymentMethodLabel(string $method): string
+    {
+        return match ($method) {
+            'manual_bkash' => 'bKash (Send Money, pending verification)',
+            'manual_nagad' => 'Nagad (Send Money, pending verification)',
+            default => 'Cash on Delivery',
+        };
     }
 
     protected function domainStorefront(Request $request): array

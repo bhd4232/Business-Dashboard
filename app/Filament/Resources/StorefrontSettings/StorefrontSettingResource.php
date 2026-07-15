@@ -10,17 +10,20 @@ use App\Models\Company;
 use App\Models\Product;
 use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
+use App\Services\WooCommerceImportService;
 use Filament\Actions\Action;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\ColorPicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -113,6 +116,42 @@ class StorefrontSettingResource extends Resource
                         ->placeholder('Start shopping'),
                 ])
                 ->columns(2),
+
+            Section::make('Trust Strip')
+                ->description('Short reassurance lines shown as an icon row on the homepage. Leave a field blank to hide that item.')
+                ->schema([
+                    TextInput::make('trust_strip_delivery')
+                        ->label('Delivery message')
+                        ->maxLength(80)
+                        ->placeholder('Fast delivery nationwide'),
+                    TextInput::make('trust_strip_return')
+                        ->label('Return/warranty message')
+                        ->maxLength(80)
+                        ->placeholder('Easy returns within 7 days'),
+                    TextInput::make('trust_strip_payment')
+                        ->label('Payment message')
+                        ->maxLength(80)
+                        ->placeholder('Cash on delivery available'),
+                ])
+                ->columns(3),
+
+            Section::make('Offer Countdown')
+                ->description('An optional sitewide flash-sale banner with a countdown, shown on the homepage until it ends. Leave the title blank to hide it.')
+                ->schema([
+                    TextInput::make('offer_title')
+                        ->label('Offer title')
+                        ->maxLength(120)
+                        ->placeholder('Flash Sale'),
+                    TextInput::make('offer_discount_percent')
+                        ->label('Discount %')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(100),
+                    DateTimePicker::make('offer_ends_at')
+                        ->label('Ends at')
+                        ->helperText('The banner disappears automatically once this time passes.'),
+                ])
+                ->columns(3),
 
             Section::make('Domain and Launch Readiness')
                 ->description('These fields power the Storefront Settings list readiness columns.')
@@ -215,6 +254,44 @@ class StorefrontSettingResource extends Resource
                 ])
                 ->columns(2),
 
+            Section::make('Checkout & Delivery')
+                ->description('Controls shown on the one-page storefront checkout.')
+                ->schema([
+                    Toggle::make('cod_enabled')
+                        ->label('Enable Cash on Delivery')
+                        ->default(true),
+                    TextInput::make('delivery_charge_inside')
+                        ->label('Delivery charge (inside Dhaka)')
+                        ->numeric()
+                        ->prefix('BDT')
+                        ->placeholder('60'),
+                    TextInput::make('delivery_charge_outside')
+                        ->label('Delivery charge (outside Dhaka)')
+                        ->numeric()
+                        ->prefix('BDT')
+                        ->placeholder('120'),
+                    TextInput::make('manual_bkash_number')
+                        ->label('bKash Send Money number')
+                        ->maxLength(20)
+                        ->placeholder('01XXXXXXXXX'),
+                    Textarea::make('manual_bkash_instructions')
+                        ->label('bKash instructions')
+                        ->rows(2)
+                        ->maxLength(500)
+                        ->placeholder('Send Money to this number, then enter the Transaction ID below.')
+                        ->columnSpanFull(),
+                    TextInput::make('manual_nagad_number')
+                        ->label('Nagad Send Money number')
+                        ->maxLength(20)
+                        ->placeholder('01XXXXXXXXX'),
+                    Textarea::make('manual_nagad_instructions')
+                        ->label('Nagad instructions')
+                        ->rows(2)
+                        ->maxLength(500)
+                        ->columnSpanFull(),
+                ])
+                ->columns(2),
+
             Section::make('Online Payments (ZiniPay)')
                 ->description('Used to collect advance payments for pre-order items. COD stays the default for in-stock items.')
                 ->schema([
@@ -286,7 +363,7 @@ class StorefrontSettingResource extends Resource
                 ->collapsed(),
 
             Section::make('WooCommerce Import')
-                ->description('Optional. Used by "php artisan woocommerce:import-products {company-slug}" to pull published products from the old WooCommerce site.')
+                ->description('Optional. Save these credentials, then use the "Sync WooCommerce" button on this row in the list page to pull published products from the old WooCommerce site.')
                 ->schema([
                     TextInput::make('woocommerce_base_url')
                         ->label('WooCommerce site URL')
@@ -395,6 +472,7 @@ class StorefrontSettingResource extends Resource
                     ->label('Pages')
                     ->icon('heroicon-o-document-text')
                     ->url(fn (): string => StorefrontPageResource::getUrl('index')),
+                self::syncWooCommerceAction(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -474,6 +552,49 @@ class StorefrontSettingResource extends Resource
     public static function publicUrl(StorefrontSetting $record): string
     {
         return 'https://'.$record->company->domain;
+    }
+
+    public static function hasWooCommerceCredentials(StorefrontSetting $record): bool
+    {
+        return filled($record->woocommerce_base_url)
+            && filled(data_get($record->woocommerce_credentials, 'consumer_key'))
+            && filled(data_get($record->woocommerce_credentials, 'consumer_secret'));
+    }
+
+    public static function syncWooCommerceAction(): Action
+    {
+        return Action::make('syncWooCommerce')
+            ->label('Sync WooCommerce')
+            ->icon('heroicon-o-arrow-path')
+            ->color('gray')
+            ->visible(fn (StorefrontSetting $record): bool => self::hasWooCommerceCredentials($record))
+            ->requiresConfirmation()
+            ->modalDescription('Pulls published products from the WooCommerce site into this company\'s catalog. Products are matched by SKU/slug and updated; nothing is deleted.')
+            ->schema([
+                Toggle::make('download_images')
+                    ->label('Download product images')
+                    ->default(true),
+            ])
+            ->action(function (StorefrontSetting $record, array $data): void {
+                try {
+                    $result = app(WooCommerceImportService::class)->importProducts(
+                        $record->company,
+                        downloadImages: (bool) ($data['download_images'] ?? true),
+                    );
+
+                    Notification::make()
+                        ->title('WooCommerce sync complete')
+                        ->body("Created: {$result['created']}, updated: {$result['updated']}, skipped: {$result['skipped']}.")
+                        ->success()
+                        ->send();
+                } catch (\RuntimeException $exception) {
+                    Notification::make()
+                        ->title('WooCommerce sync failed')
+                        ->body($exception->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
     }
 
     public static function canViewAny(): bool

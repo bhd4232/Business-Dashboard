@@ -63,10 +63,6 @@
         <div>
             <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">{{ $product->name }}</h1>
             <div data-price class="mt-3 text-2xl font-semibold text-gray-950 dark:text-white">BDT {{ number_format($product->selling_price, 2) }}</div>
-            <p class="mt-5 max-w-xl text-base leading-7 text-gray-600 dark:text-gray-300">
-                {{ $product->description ?: 'Product details will be updated soon. Contact us for specifications, availability, and delivery details.' }}
-            </p>
-
             @if ($tiers !== [] && $variantData->isEmpty())
                 <div class="mt-6 max-w-xl overflow-hidden rounded-xl border border-gray-200 dark:border-white/15">
                     <div class="border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
@@ -120,7 +116,7 @@
                 </div>
             </dl>
 
-            <form class="mt-6" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.cart.add', [$previewSlug, $product->slug]) : route('storefront.cart.add', $product->slug) }}">
+            <form id="product-purchase-form" class="mt-6" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.cart.add', [$previewSlug, $product->slug]) : route('storefront.cart.add', $product->slug) }}">
                 @csrf
 
                 @if ($variantData->isNotEmpty())
@@ -165,9 +161,14 @@
                             <button type="button" data-qty-increment class="grid h-12 w-11 place-items-center text-lg text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Increase quantity">+</button>
                         </div>
                     @endif
-                    <button type="submit" data-add-to-cart class="inline-flex h-12 items-center rounded-lg bg-gray-950 px-7 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-950" @disabled(! $orderable || $variantData->isNotEmpty())>
+                    <button type="submit" data-add-to-cart class="inline-flex h-12 items-center rounded-lg border border-gray-950 px-7 text-sm font-medium text-gray-950 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white dark:text-white dark:hover:bg-white/10" @disabled(! $orderable || $variantData->isNotEmpty())>
                         {{ $inStock ? 'Add to cart' : ($isPreorder ? 'Pre-order now' : 'Out of stock') }}
                     </button>
+                    @if ($variantData->isEmpty())
+                        <button type="submit" name="buy_now" value="1" data-buy-now class="inline-flex h-12 items-center rounded-lg bg-gray-950 px-7 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-950" @disabled(! $orderable)>
+                            {{ $isPreorder && ! $inStock ? 'Pre-order now' : 'Buy now' }}
+                        </button>
+                    @endif
                     @if ($setting->whatsapp_number)
                         <a class="inline-flex h-12 items-center rounded-lg border border-gray-300 px-7 text-sm font-medium text-gray-900 transition hover:border-gray-950 dark:border-white/15 dark:text-white dark:hover:border-white" href="https://wa.me/{{ preg_replace('/\D+/', '', $setting->whatsapp_number) }}?text={{ rawurlencode('I am interested in '.$product->name) }}" target="_blank" rel="noopener">
                             Ask on WhatsApp
@@ -175,6 +176,37 @@
                     @endif
                 </div>
             </form>
+        </div>
+    </section>
+
+    @if ($orderable)
+        <div class="fixed inset-x-0 bottom-16 z-30 flex gap-3 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:hidden dark:border-white/10 dark:bg-gray-950/95">
+            <button type="submit" form="product-purchase-form" class="flex-1 rounded-lg border border-gray-950 px-4 py-3 text-sm font-medium text-gray-950 dark:border-white dark:text-white" @disabled($variantData->isNotEmpty())>
+                {{ $inStock ? 'Add to cart' : ($isPreorder ? 'Pre-order' : 'Out of stock') }}
+            </button>
+            @if ($variantData->isEmpty())
+                <button type="submit" form="product-purchase-form" name="buy_now" value="1" class="flex-1 rounded-lg bg-gray-950 px-4 py-3 text-sm font-medium text-white dark:bg-white dark:text-gray-950">
+                    {{ $isPreorder && ! $inStock ? 'Pre-order now' : 'Buy now' }}
+                </button>
+            @endif
+        </div>
+    @endif
+
+    <section class="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8" x-data="{ tab: 'description' }">
+        <div class="flex gap-6 border-b border-gray-200 text-sm font-medium dark:border-white/10">
+            <button type="button" @click="tab = 'description'" :class="tab === 'description' ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white' : 'border-transparent text-gray-500 dark:text-gray-400'" class="border-b-2 pb-3 transition">Description</button>
+            <button type="button" @click="tab = 'shipping'" :class="tab === 'shipping' ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white' : 'border-transparent text-gray-500 dark:text-gray-400'" class="border-b-2 pb-3 transition">Shipping &amp; Return</button>
+        </div>
+        <div class="max-w-3xl py-6 text-sm leading-7 text-gray-600 dark:text-gray-300">
+            <div x-show="tab === 'description'">
+                {{ $product->description ?: 'Product details will be updated soon. Contact us for specifications, availability, and delivery details.' }}
+            </div>
+            <div x-show="tab === 'shipping'" x-cloak>
+                <p>Orders are processed and shipped after confirmation. Delivery time and charges depend on your location and are confirmed at checkout.</p>
+                @if ($setting->whatsapp_number)
+                    <p class="mt-3">For questions about returns or exchanges, message us on WhatsApp before returning an item.</p>
+                @endif
+            </div>
         </div>
     </section>
 

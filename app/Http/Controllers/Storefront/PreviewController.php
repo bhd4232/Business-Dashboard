@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductCarousel;
 use App\Models\StorefrontSetting;
+use App\Models\StorefrontSlide;
 use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -39,6 +40,7 @@ class PreviewController extends Controller
                 ->take(12)
                 ->get(),
             'carousels' => ProductCarousel::forHomepage(),
+            'slides' => StorefrontSlide::forCompany($company->getKey()),
         ]);
     }
 

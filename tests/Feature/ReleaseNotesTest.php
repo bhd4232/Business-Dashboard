@@ -38,9 +38,9 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.11.0')
+            ->assertSee('v1.16.0')
             ->assertSee('Minor Feature')
-            ->assertSee('Released 2026-07-14')
+            ->assertSee('Released 2026-07-15')
             ->assertSee('Super Admin Database & Deployment Notes', false)
             ->assertSee('Added disposable SQLite backup restore verification')
             ->assertSee('Production Update Rules');

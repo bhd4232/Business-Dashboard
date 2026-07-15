@@ -32,15 +32,22 @@
             </div>
         </div>
 
-        @php $advancePayment = $order->storefrontPayments()->latest()->first(); @endphp
+        @php
+            $advancePayment = $order->storefrontPayments()->latest()->first();
+            $isManualPayment = $advancePayment && in_array($advancePayment->gateway, ['manual_bkash', 'manual_nagad'], true);
+        @endphp
         @if ($advancePayment)
             <div class="mt-4 rounded-xl border px-5 py-4 text-left text-sm {{ $advancePayment->status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200' }}">
                 <div class="flex justify-between font-semibold">
-                    <span>Pre-order advance payment</span>
+                    <span>{{ $isManualPayment ? ($advancePayment->gateway === 'manual_bkash' ? 'bKash payment' : 'Nagad payment') : 'Pre-order advance payment' }}</span>
                     <span>BDT {{ number_format((float) $advancePayment->amount, 2) }} &middot; {{ \App\Models\StorefrontPayment::STATUSES[$advancePayment->status] ?? ucfirst($advancePayment->status) }}</span>
                 </div>
                 @if ($advancePayment->status !== 'completed')
-                    <p class="mt-1 text-xs">If you have completed the payment, the status updates automatically within a few minutes. Otherwise the store will contact you to collect the advance.</p>
+                    <p class="mt-1 text-xs">
+                        {{ $isManualPayment
+                            ? 'We are verifying your payment. This usually takes a few hours; the store will contact you if there is any issue.'
+                            : 'If you have completed the payment, the status updates automatically within a few minutes. Otherwise the store will contact you to collect the advance.' }}
+                    </p>
                 @endif
             </div>
         @endif

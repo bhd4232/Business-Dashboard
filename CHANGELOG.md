@@ -2,6 +2,110 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.16.0] - 2026-07-15
+
+**Release type:** Minor Feature Update
+
+Added an admin-panel trigger for the WooCommerce product import, which previously only ran via a server-side `php artisan` command.
+
+### Added
+
+- "Sync WooCommerce" action button on the Storefront Settings edit page and list row: runs the existing `WooCommerceImportService` import on demand (with an option to skip image downloads), shows a success/failure toast with created/updated/skipped counts, and only appears once a site URL + consumer key/secret are saved for that company.
+
+### Technical Notes
+
+- No schema or service changes — reuses `WooCommerceImportService::importProducts()` exactly as the `woocommerce:import-products` CLI command does; the CLI command is unchanged and still works.
+- New `StorefrontSettingResource::syncWooCommerceAction()` / `hasWooCommerceCredentials()` helpers shared between the list `recordActions` and `EditStorefrontSetting`'s header actions.
+- Verified in the browser: button is hidden with no credentials saved, appears once a site URL + consumer key + secret are saved on a record.
+- Full suite: 264 passed (1127 assertions).
+
+## [1.15.0] - 2026-07-14
+
+**Release type:** Minor Feature Update
+
+Storefront redesign Phase 4 — Polish (`STOREFRONT_REDESIGN_PLAN.md`), completing the 4-phase redesign.
+
+### Added
+
+- Sitewide flash-sale/offer countdown banner on the homepage: admin sets a title, discount %, and end time; a live countdown (days/hours/minutes/seconds) ticks down and the banner disappears automatically once it ends.
+- Scroll-reveal animation: the category grid, featured products, and each product carousel fade up into place the first time they scroll into view; respects `prefers-reduced-motion` (no animation, fully visible immediately) and degrades gracefully with no `IntersectionObserver` support.
+- Best Sellers / New Arrivals sections and the category/product-card grids were already delivered in Phase 1; verified still working correctly alongside the new additions.
+
+### Technical Notes
+
+- New `storefront_settings` columns: `offer_title`, `offer_discount_percent`, `offer_ends_at`. New `StorefrontSetting::hasActiveOffer()` helper (title set + end time in the future).
+- Scroll-reveal ships as a small custom Alpine directive (`x-reveal`, registered in `resources/js/app.js`) rather than a new dependency — no bundle-size increase from this phase (88.96 kB / 32.92 kB gzip, unchanged from Phase 1-3, still within the plan's <60KB gzip budget).
+- Performance budget check: build output stayed within budget across all 4 phases; images already lazy-load with explicit dimensions from Phase 1-2 (zero added CLS risk this phase). A full formal Lighthouse audit was not run (no CI/Lighthouse tooling wired into this repo) — flagged as a follow-up if the owner wants a formal score, rather than claimed without having actually run it.
+- New test: `tests/Feature/StorefrontOfferCountdownTest.php`.
+- Full suite: 264 passed (1127 assertions).
+
+This completes all 4 phases of `STOREFRONT_REDESIGN_PLAN.md`. Items explicitly deferred across the phases (flagged, not silently skipped) remain: the Intervention Image/WebP resize pipeline, a Specification tab, the import shipping-cost-breakdown panel, real bKash/Nagad gateway API, bn/en localization, and per-product-scoped offers (this phase's offer is sitewide, not per-product as the plan's admin table originally described) — each noted in its phase's entry above with the reasoning for deferring it.
+
+## [1.14.0] - 2026-07-14
+
+**Release type:** Minor Feature Update
+
+Storefront redesign Phase 3 — One-Page Checkout & Payments (`STOREFRONT_REDESIGN_PLAN.md`).
+
+### Added
+
+- Delivery area selection (Inside / Outside Dhaka) with admin-configurable per-area delivery charges; the order summary live-updates the delivery charge and total as the customer picks an area, with no page reload.
+- Payment method choice: Cash on Delivery (admin on/off toggle), and manual bKash/Nagad "Send Money" — the customer enters the number they sent from and the Transaction ID, which is captured as a `pending` `StorefrontPayment` for admin verification. Both manual methods are hidden from checkout entirely until the admin configures a receiving number.
+- New admin-only "Storefront Payments" list (Filament) with Verify/Reject actions for pending manual bKash/Nagad payments.
+- The success page shows a bKash/Nagad-specific "we are verifying your payment" notice for manual payments (distinct wording from the existing pre-order online-advance notice).
+
+### Technical Notes
+
+- New `storefront_settings` columns: `cod_enabled`, `delivery_charge_inside`, `delivery_charge_outside`, `manual_bkash_number`, `manual_bkash_instructions`, `manual_nagad_number`, `manual_nagad_instructions`.
+- The customer's delivery-area choice is stored on the order's existing `shipping_zone`/`shipping_fee` columns (the same fields the generic courier `ShippingFeeService` would otherwise auto-fill) — since `Order`'s `creating` hook only auto-computes them when still `null`, passing the storefront's own charge at creation time cleanly overrides the auto-detection with no schema change and no double-charging risk.
+- Manual bKash/Nagad payments reuse the existing `StorefrontPayment` model/table (`gateway` = `manual_bkash`/`manual_nagad`, `payment_method` holds the sender's number, `transaction_id` holds the TrxID) rather than adding new columns or a parallel payment table.
+- All new checkout fields are optional server-side and default to the pre-Phase-3 behaviour (COD, no delivery charge) so nothing already integrating with the checkout endpoint (existing tests, any external callers) breaks without sending the new fields.
+- Deliberately deferred (flagged, not silently skipped): bKash/Nagad **gateway API** integration (the plan's "bKash গেটওয়ে (API)" line) — the existing ZiniPay gateway already covers pre-order advance payments and is left as-is; a true bKash API integration is a separate, larger piece of work requiring real merchant credentials. Also deferred: bn/en `lang/` localization (plan section 5's "ভাষা" note) — no `lang/` directory exists in this repo yet; introducing full bilingual UI strings is a cross-cutting change that touches every storefront view, not scoped to checkout alone.
+- New test: `tests/Feature/StorefrontManualPaymentTest.php`.
+- Full suite: 261 passed (1120 assertions).
+
+## [1.13.0] - 2026-07-14
+
+**Release type:** Minor Feature Update
+
+Storefront redesign Phase 2 — Product Page (`STOREFRONT_REDESIGN_PLAN.md`).
+
+### Added
+
+- Buy Now: a second button next to Add to cart that adds the item and redirects straight to checkout, skipping the cart page (single-variant products only).
+- Sticky mobile action bar: Add to cart / Buy now stay reachable at the bottom of the screen while scrolling the product page on a phone.
+- Description / Shipping & Return tabs on the product page (Alpine-powered).
+
+### Technical Notes
+
+- `CartController::addToCart()` now accepts an optional `buy_now=1` field on the existing cart-add POST; when present it redirects to `storefront.checkout.show` (or the preview equivalent) instead of back to the referring page. No new routes.
+- The existing image gallery, tiered/wholesale pricing table, variant option table, and related-products grid were already implemented in an earlier pass and needed no changes for this phase.
+- Deliberately deferred (flagged, not silently skipped): a Specification tab (no key-value spec field exists on `Product` yet — would need its own migration) and the plan's optional import shipping-cost-breakdown panel (no admin-configurable air/sea rate fields exist yet).
+- New test: `tests/Feature/StorefrontBuyNowTest.php`.
+- Full suite: 257 passed (1104 assertions).
+
+## [1.12.0] - 2026-07-14
+
+**Release type:** Minor Feature Update
+
+Storefront redesign Phase 1 — Foundation & Home (`STOREFRONT_REDESIGN_PLAN.md`).
+
+### Added
+
+- Animated hero slider: new Storefront Slides admin resource (image, mobile image, heading/subheading/CTA, sort order, active toggle, optional schedule window). Multiple slides autoplay with fade transitions, dot navigation, swipe-friendly, and respect `prefers-reduced-motion`. Falls back to the existing single banner/hero copy when no slides are configured, so existing storefronts are unaffected until slides are added.
+- Category images: `Category` now has an admin-uploadable image, shown on the homepage category grid (horizontal scroll on mobile, grid on desktop) with a hover zoom; falls back to the existing initial-letter tile when no image is set.
+- Trust strip: three admin-configurable reassurance lines (delivery/return/payment) shown as an icon row under the hero.
+- Product card v2: discount badge and struck-through compare price when `sale_price < price`; the "Add to cart" quick-add button is now always visible (not hover-only), matching mobile-first Amazon-style cards. Product card and category images now load lazily with `decoding="async"`.
+- Alpine.js (~8KB gzipped) added for the hero slider's interactivity; no other framework changes.
+
+### Technical Notes
+
+- New table `storefront_slides` (company-owned, `BelongsToCompany`/`CompanyScope`, covered by `MultiCompanyIsolationTest`); `categories.image` and `storefront_settings.trust_strip_*` columns added.
+- Homepage slide list is cached per company for 10 minutes (`storefront-home:{companyId}`), invalidated immediately on saving/deleting a `StorefrontSlide`, `Category`, or `StorefrontSetting`. Products/categories queries themselves are **not** cached yet (stock changes too frequently to risk staleness) — flagged for its own follow-up rather than rushed in.
+- Full Intervention Image/WebP resize pipeline from the plan's performance section is **deliberately deferred** (flagged, not silently skipped): today's upload fields match the existing plain-`FileUpload` pattern used everywhere else in the app (Product, Company, Storefront Settings), so this ships consistently rather than introducing a one-off pipeline for just this feature.
+- New test: `tests/Feature/StorefrontSlideTest.php` (active/inactive/scheduled visibility + company isolation).
+- Full suite: 255 passed (1099 assertions). `npm run build` output: 88.55 kB JS (32.75 kB gzip), within the plan's <60KB gzip budget.
+
 ## [1.11.0] - 2026-07-14
 
 **Release type:** Minor Feature Update

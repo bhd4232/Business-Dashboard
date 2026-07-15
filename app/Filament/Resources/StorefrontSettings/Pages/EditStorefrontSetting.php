@@ -77,6 +77,7 @@ class EditStorefrontSetting extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            StorefrontSettingResource::syncWooCommerceAction(),
             Action::make('managePages')
                 ->label('Manage Pages')
                 ->icon('heroicon-o-document-text')
