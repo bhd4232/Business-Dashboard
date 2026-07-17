@@ -43,8 +43,8 @@ class VoucherResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Voucher')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Voucher')->columnSpanFull()->schema([
                 Select::make('type')->options(Voucher::TYPES)->required()->live()->default('credit'),
                 Select::make('transaction_type')
                     ->label('Transaction Type')
@@ -57,7 +57,7 @@ class VoucherResource extends Resource
                 TextInput::make('transaction_id')->label('Transaction / Reference ID')->maxLength(120),
             ])->columns(2),
 
-            Section::make('Parties & Fund')->schema([
+            Section::make('Parties & Fund')->columnSpanFull()->schema([
                 Select::make('customer_id')->relationship('customer', 'name')->searchable()
                     ->visible(fn (Get $get) => $get('transaction_type') === 'customer_payment')
                     ->required(fn (Get $get) => $get('transaction_type') === 'customer_payment'),
@@ -80,7 +80,7 @@ class VoucherResource extends Resource
                     ->required(fn (Get $get) => $get('transaction_type') !== 'inventory_purchase'),
             ])->columns(2),
 
-            Section::make('Notes & Attachments')->schema([
+            Section::make('Notes & Attachments')->columnSpanFull()->schema([
                 Textarea::make('purpose')->rows(2),
                 Textarea::make('remarks')->rows(2),
                 Repeater::make('attachments')

@@ -39,8 +39,9 @@ class StorefrontPageResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Page')
+                ->columnSpanFull()
                 ->description('Create public storefront pages such as About, Return Policy, Privacy Policy, and Terms.')
                 ->schema([
                     Select::make('company_id')
@@ -77,6 +78,7 @@ class StorefrontPageResource extends Resource
                 ->columns(2),
 
             Section::make('SEO')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('meta_title')
                         ->maxLength(70),

@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->everyThirtyMinutes()
             ->withoutOverlapping()
             ->onOneServer();
+        $schedule->command('quotations:mark-expired')
+            ->dailyAt('00:30')
+            ->withoutOverlapping()
+            ->onOneServer();
         $schedule->command('release:notify-deploy')
             ->everyFiveMinutes()
             ->withoutOverlapping()
@@ -40,7 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             at: env('TRUSTED_PROXIES', '*'),
             headers: Request::HEADER_X_FORWARDED_TRAEFIK,
         );
-        $middleware->validateCsrfTokens(except: ['webhooks/couriers/*', 'webhooks/zinipay/*']);
+        $middleware->validateCsrfTokens(except: ['webhooks/couriers/*', 'webhooks/zinipay/*', 'webhooks/meta']);
         $middleware->appendToGroup('web', PreventDemoModeWrites::class);
         $middleware->appendToGroup('web', SetCurrentCompany::class);
         // Company context must be bound before route model binding runs,

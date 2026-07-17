@@ -20,8 +20,10 @@ class ProductForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Basic Information')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('name')
                             ->label('Product Name')
@@ -100,6 +102,7 @@ class ProductForm
                     ->persistCollapsed(),
 
                 Section::make('Pricing and Stock')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('cost_price')
                             ->label('Cost Price')
@@ -145,6 +148,7 @@ class ProductForm
                     ->persistCollapsed(),
 
                 Section::make('Wholesale (B2B)')
+                    ->columnSpanFull()
                     ->description('Optional storefront wholesale rules. Leave empty for normal retail behavior.')
                     ->schema([
                         Toggle::make('is_preorder')
@@ -190,6 +194,7 @@ class ProductForm
                     ->persistCollapsed(),
 
                 Section::make('Product Images')
+                    ->columnSpanFull()
                     ->schema([
                         FileUpload::make('image')
                             ->label('Featured Image')
@@ -220,6 +225,7 @@ class ProductForm
                     ->persistCollapsed(),
 
                 Section::make('Variations')
+                    ->columnSpanFull()
                     ->description('Enable for products that come in multiple options (size, color, model). Each variation has its own SKU, price, stock, and images — like WooCommerce variable products.')
                     ->schema([
                         Toggle::make('has_variants')
@@ -284,6 +290,7 @@ class ProductForm
                     ->persistCollapsed(),
 
                 Section::make('Description')
+                    ->columnSpanFull()
                     ->schema([
                         Textarea::make('description')
                             ->label('Description')

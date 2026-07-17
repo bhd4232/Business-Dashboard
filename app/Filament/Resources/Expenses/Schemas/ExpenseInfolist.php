@@ -10,8 +10,8 @@ class ExpenseInfolist
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Expense')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Expense')->columnSpanFull()->schema([
                 TextEntry::make('expense_number')->label('Expense Number'),
                 TextEntry::make('category.name')->label('Category'),
                 TextEntry::make('account.name')->label('Account'),

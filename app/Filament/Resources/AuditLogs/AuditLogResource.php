@@ -48,8 +48,10 @@ class AuditLogResource extends Resource
     public static function infolist(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Audit Information')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('created_at')->label('Date')->dateTime(),
                         TextEntry::make('user.name')->label('User')->placeholder('System'),
@@ -63,6 +65,7 @@ class AuditLogResource extends Resource
                     ->columns(3),
 
                 Section::make('Changed Values')
+                    ->columnSpanFull()
                     ->schema([
                         KeyValueEntry::make('old_values')
                             ->label('Before')

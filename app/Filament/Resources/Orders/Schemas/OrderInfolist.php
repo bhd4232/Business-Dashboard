@@ -16,8 +16,10 @@ class OrderInfolist
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Invoice')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('order_number')->label('Invoice Number'),
                         TextEntry::make('customer.name')->label('Customer'),
@@ -34,6 +36,7 @@ class OrderInfolist
                     ->columns(2),
 
                 Section::make('Courier')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('latestCourierBooking.provider.name')
                             ->label('Provider')
@@ -53,6 +56,7 @@ class OrderInfolist
                     ->columns(4),
 
                 Section::make('Customer Success & Risk Score')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('latestFraudCheck.risk_score')->label('Score')->placeholder('Not checked'),
                         TextEntry::make('latestFraudCheck.risk_level')->label('Risk Level')->badge()->placeholder('Not checked')
@@ -67,6 +71,7 @@ class OrderInfolist
                     ->columns(3),
 
                 Section::make('Totals')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('subtotal')->money('BDT'),
                         TextEntry::make('discount')->money('BDT'),
@@ -78,6 +83,7 @@ class OrderInfolist
                     ->columns(3),
 
                 Section::make('Items')
+                    ->columnSpanFull()
                     ->schema([
                         RepeatableEntry::make('items')
                             ->label('')

@@ -15,8 +15,10 @@ class StockMovementForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Movement Details')
+                    ->columnSpanFull()
                     ->schema([
                         Select::make('product_id')
                             ->label('Product')

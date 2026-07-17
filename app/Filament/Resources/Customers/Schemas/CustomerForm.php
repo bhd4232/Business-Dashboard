@@ -17,8 +17,10 @@ class CustomerForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Customer Information')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('name')
                             ->required()
@@ -39,6 +41,7 @@ class CustomerForm
                     ->columns(2),
 
                 Section::make('Reseller')
+                    ->columnSpanFull()
                     ->description('Storefront reseller applications land here as "Application pending". Approve to mark this customer as a wholesale reseller.')
                     ->schema([
                         \Filament\Forms\Components\Select::make('reseller_status')
@@ -58,6 +61,7 @@ class CustomerForm
                     ->collapsible(),
 
                 Section::make('Balance')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('opening_balance')
                             ->numeric()
@@ -76,6 +80,7 @@ class CustomerForm
                     ->columns(2),
 
                 Section::make('Address')
+                    ->columnSpanFull()
                     ->schema([
                         Textarea::make('address')
                             ->rows(3)

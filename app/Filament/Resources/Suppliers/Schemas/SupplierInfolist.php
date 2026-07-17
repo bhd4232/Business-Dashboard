@@ -12,8 +12,10 @@ class SupplierInfolist
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Supplier')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('name'),
                         TextEntry::make('company_name')->label('Company'),
@@ -24,6 +26,7 @@ class SupplierInfolist
                     ->columns(2),
 
                 Section::make('Balance')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('opening_balance')->money('BDT'),
                         TextEntry::make('current_balance')->money('BDT'),

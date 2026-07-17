@@ -13,14 +13,16 @@ class AccountForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Account')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('name')->required()->maxLength(255),
                     Select::make('type')->options(Account::TYPES)->default('cash')->required(),
                     Toggle::make('is_active')->label('Active')->default(true),
                 ])->columns(2),
             Section::make('Balance')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('opening_balance')->numeric()->prefix('BDT')->default(0)->required(),
                     TextInput::make('current_balance')->numeric()->prefix('BDT')->disabled()->dehydrated(false),

@@ -36,8 +36,8 @@ class FundTransferResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Fund Transfer')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Fund Transfer')->columnSpanFull()->schema([
                 Select::make('from_account_id')->relationship('fromAccount', 'name')->label('From Account')->required(),
                 Select::make('to_account_id')->relationship('toAccount', 'name')->label('To Account')->required(),
                 TextInput::make('amount')->numeric()->prefix('BDT')->required(),

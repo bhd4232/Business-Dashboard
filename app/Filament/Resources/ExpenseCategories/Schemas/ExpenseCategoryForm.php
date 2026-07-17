@@ -13,8 +13,8 @@ class ExpenseCategoryForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Category')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Category')->columnSpanFull()->schema([
                 TextInput::make('name')
                     ->required()
                     ->live(onBlur: true)

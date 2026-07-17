@@ -37,8 +37,10 @@ class OrderForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Invoice Details')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('order_number')
                             ->label('Invoice Number')
@@ -188,6 +190,7 @@ class OrderForm
                     ->persistCollapsed(),
 
                 Section::make('Items')
+                    ->columnSpanFull()
                     ->schema([
                         Repeater::make('items')
                             ->relationship()
@@ -295,6 +298,7 @@ class OrderForm
                     ->persistCollapsed(),
 
                 Section::make('Totals')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('subtotal')
                             ->numeric()
@@ -358,6 +362,7 @@ class OrderForm
                     ->persistCollapsed(),
 
                 Section::make('Note')
+                    ->columnSpanFull()
                     ->schema([
                         Textarea::make('note')
                             ->rows(3)

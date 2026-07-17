@@ -14,8 +14,9 @@ class SupplierPaymentForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Payment')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('payment_number')
                         ->label('Payment Number')
@@ -38,7 +39,7 @@ class SupplierPaymentForm
                     Select::make('method')->options(SupplierPayment::METHODS)->default('cash')->required(),
                     TextInput::make('reference')->maxLength(255),
                 ])->columns(2),
-            Section::make('Note')->schema([
+            Section::make('Note')->columnSpanFull()->schema([
                 Textarea::make('note')->rows(3)->columnSpanFull(),
             ]),
         ]);

@@ -19,6 +19,7 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -53,8 +54,9 @@ class StorefrontSettingResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Storefront Publishing')
+                ->columnSpanFull()
                 ->description('Connect a company to its public storefront and control whether it is visible.')
                 ->schema([
                     Select::make('company_id')
@@ -94,9 +96,11 @@ class StorefrontSettingResource extends Resource
                         ->required()
                         ->helperText('Used for a visitor\'s first visit only; their own light/dark toggle choice is remembered after that.'),
                 ])
-                ->columns(2),
+                ->columns(2)
+                ->collapsible(),
 
             Section::make('Homepage Content')
+                ->columnSpanFull()
                 ->description('Override the default homepage hero copy. Leave blank to use the automatic default.')
                 ->schema([
                     TextInput::make('hero_heading')
@@ -115,9 +119,11 @@ class StorefrontSettingResource extends Resource
                         ->maxLength(40)
                         ->placeholder('Start shopping'),
                 ])
-                ->columns(2),
+                ->columns(2)
+                ->collapsible(),
 
             Section::make('Trust Strip')
+                ->columnSpanFull()
                 ->description('Short reassurance lines shown as an icon row on the homepage. Leave a field blank to hide that item.')
                 ->schema([
                     TextInput::make('trust_strip_delivery')
@@ -133,9 +139,11 @@ class StorefrontSettingResource extends Resource
                         ->maxLength(80)
                         ->placeholder('Cash on delivery available'),
                 ])
-                ->columns(3),
+                ->columns(3)
+                ->collapsible(),
 
             Section::make('Offer Countdown')
+                ->columnSpanFull()
                 ->description('An optional sitewide flash-sale banner with a countdown, shown on the homepage until it ends. Leave the title blank to hide it.')
                 ->schema([
                     TextInput::make('offer_title')
@@ -151,9 +159,11 @@ class StorefrontSettingResource extends Resource
                         ->label('Ends at')
                         ->helperText('The banner disappears automatically once this time passes.'),
                 ])
-                ->columns(3),
+                ->columns(3)
+                ->collapsible(),
 
             Section::make('Domain and Launch Readiness')
+                ->columnSpanFull()
                 ->description('These fields power the Storefront Settings list readiness columns.')
                 ->schema([
                     TextInput::make('company_domain')
@@ -207,9 +217,11 @@ class StorefrontSettingResource extends Resource
                             $component->state($record ? (string) self::pageCount($record) : '0');
                         }),
                 ])
-                ->columns(2),
+                ->columns(2)
+                ->collapsible(),
 
             Section::make('Branding')
+                ->columnSpanFull()
                 ->schema([
                     FileUpload::make('logo')
                         ->label('Logo (light mode)')
@@ -231,30 +243,22 @@ class StorefrontSettingResource extends Resource
                         ->imageEditor()
                         ->downloadable()
                         ->openable(),
-                    FileUpload::make('banner_images')
-                        ->label('Banner images (desktop)')
-                        ->helperText('Wide aspect-ratio banner shown on desktop and tablet.')
-                        ->image()
-                        ->multiple()
-                        ->reorderable()
-                        ->disk('public')
-                        ->directory('storefront/banners')
-                        ->imageEditor()
-                        ->downloadable()
-                        ->openable(),
-                    FileUpload::make('banner_image_mobile')
-                        ->label('Banner image (mobile)')
-                        ->helperText('Optional. Vertical/square banner shown on phones instead of the desktop banner.')
-                        ->image()
-                        ->disk('public')
-                        ->directory('storefront/banners')
-                        ->imageEditor()
-                        ->downloadable()
-                        ->openable(),
+                    self::bannerRepeater(
+                        name: 'banner_images',
+                        label: 'Banner images (desktop)',
+                        description: 'Shown on desktop/tablet when no hero slides are configured. Multiple banners rotate automatically. Recommended: 1600x680px (~21:9 wide aspect ratio). Supports any image format — JPG, PNG, WEBP, GIF, SVG, BMP, AVIF, etc.',
+                    ),
+                    self::bannerRepeater(
+                        name: 'banner_images_mobile',
+                        label: 'Banner images (mobile)',
+                        description: 'Optional. Shown on phones instead of the desktop banners above. Recommended: 900x1200px (~3:4 vertical aspect ratio). Falls back to the desktop banners if left empty. Supports any image format.',
+                    ),
                 ])
-                ->columns(2),
+                ->columns(2)
+                ->collapsible(),
 
             Section::make('Checkout & Delivery')
+                ->columnSpanFull()
                 ->description('Controls shown on the one-page storefront checkout.')
                 ->schema([
                     Toggle::make('cod_enabled')
@@ -290,9 +294,11 @@ class StorefrontSettingResource extends Resource
                         ->maxLength(500)
                         ->columnSpanFull(),
                 ])
-                ->columns(2),
+                ->columns(2)
+                ->collapsible(),
 
             Section::make('Online Payments (ZiniPay)')
+                ->columnSpanFull()
                 ->description('Used to collect advance payments for pre-order items. COD stays the default for in-stock items.')
                 ->schema([
                     Toggle::make('online_payment_enabled')
@@ -316,6 +322,7 @@ class StorefrontSettingResource extends Resource
                 ->collapsed(),
 
             Section::make('Abandoned Cart Reminders')
+                ->columnSpanFull()
                 ->description('Automatic SMS/WhatsApp reminders for carts left behind after a checkout attempt. Runs hourly via the scheduler.')
                 ->schema([
                     Toggle::make('abandoned_cart_reminders_enabled')
@@ -363,6 +370,7 @@ class StorefrontSettingResource extends Resource
                 ->collapsed(),
 
             Section::make('WooCommerce Import')
+                ->columnSpanFull()
                 ->description('Optional. Save these credentials, then use the "Sync WooCommerce" button on this row in the list page to pull published products from the old WooCommerce site.')
                 ->schema([
                     TextInput::make('woocommerce_base_url')
@@ -387,6 +395,7 @@ class StorefrontSettingResource extends Resource
                 ->collapsed(),
 
             Section::make('SEO')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('meta_title')
                         ->maxLength(70),
@@ -395,7 +404,8 @@ class StorefrontSettingResource extends Resource
                         ->maxLength(160)
                         ->columnSpanFull(),
                 ])
-                ->columns(2),
+                ->columns(2)
+                ->collapsible(),
         ]);
     }
 
@@ -559,6 +569,50 @@ class StorefrontSettingResource extends Resource
         return filled($record->woocommerce_base_url)
             && filled(data_get($record->woocommerce_credentials, 'consumer_key'))
             && filled(data_get($record->woocommerce_credentials, 'consumer_secret'));
+    }
+
+    public static function bannerRepeater(string $name, string $label, string $description): Repeater
+    {
+        return Repeater::make($name)
+            ->label($label)
+            ->helperText($description)
+            ->reorderable()
+            ->collapsible()
+            ->addActionLabel('Add banner')
+            ->itemLabel(fn (array $state): string => filled($state['product_id'] ?? null)
+                ? (Product::withoutGlobalScopes()->find($state['product_id'])?->name ?? 'Banner')
+                : 'Banner')
+            ->schema([
+                FileUpload::make('image')
+                    ->label('Image')
+                    ->required()
+                    ->image()
+                    ->disk('public')
+                    ->directory('storefront/banners')
+                    ->imageEditor()
+                    ->downloadable()
+                    ->openable(),
+                Select::make('product_id')
+                    ->label('Link to product (optional)')
+                    ->helperText('Clicking this banner sends visitors straight to the tagged product\'s page. Leave blank for no link.')
+                    ->searchable()
+                    ->options(function (Get $get, ?StorefrontSetting $record) {
+                        $companyId = $record?->company_id ?? $get('../../company_id');
+
+                        return $companyId
+                            ? Product::withoutGlobalScopes()->where('company_id', $companyId)->orderBy('name')->limit(100)->pluck('name', 'id')
+                            : [];
+                    })
+                    ->getSearchResultsUsing(function (string $search, Get $get, ?StorefrontSetting $record) {
+                        $companyId = $record?->company_id ?? $get('../../company_id');
+
+                        return $companyId
+                            ? Product::withoutGlobalScopes()->where('company_id', $companyId)->where('name', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')
+                            : [];
+                    })
+                    ->getOptionLabelUsing(fn ($value): ?string => Product::withoutGlobalScopes()->find($value)?->name),
+            ])
+            ->columnSpanFull();
     }
 
     public static function syncWooCommerceAction(): Action

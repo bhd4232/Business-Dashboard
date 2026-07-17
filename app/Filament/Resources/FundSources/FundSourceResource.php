@@ -38,8 +38,8 @@ class FundSourceResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Fund Source')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Fund Source')->columnSpanFull()->schema([
                 TextInput::make('name')->required()->maxLength(255),
                 Select::make('type')->options(FundSource::TYPES)->required()->live()->default('cash'),
                 Select::make('account_id')

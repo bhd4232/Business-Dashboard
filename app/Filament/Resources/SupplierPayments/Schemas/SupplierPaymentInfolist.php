@@ -10,8 +10,8 @@ class SupplierPaymentInfolist
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Payment')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Payment')->columnSpanFull()->schema([
                 TextEntry::make('payment_number')->label('Payment Number'),
                 TextEntry::make('supplier.name')->label('Supplier'),
                 TextEntry::make('account.name')->label('Account'),

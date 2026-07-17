@@ -2,6 +2,31 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.17.0] - 2026-07-17
+
+**Release type:** Minor Feature Update
+
+Full Lead/CRM module (`02_LEAD_CRM_MODULE_PLAN.md` steps 1–14): leads and quotations, a WhatsApp/Messenger conversation inbox with click-to-order links, and a grounded AI auto-reply assistant with a 72-hour CTWA ad reply window. Also ships multi-image product-taggable storefront banners and an app-wide single-column admin form layout.
+
+### Added
+
+- **Leads & Quotations (CRM nav group):** Lead resource with sources/statuses, activity log, follow-up reminders (overdue highlighted), convert-to-customer action; Quotation resource with product/variant repeater, auto totals, public share page (`/quotation/{number}`), WhatsApp share, convert-to-order (draft order flows through the existing confirm/stock/balance pipeline), and a daily `quotations:mark-expired` scheduled command.
+- **Conversation Inbox:** Meta webhook endpoint (`/webhooks/meta`) with per-channel HMAC signature verification and dedupe, queued WhatsApp/Messenger message ingestion with media download, auto-linking of contacts to existing customers/leads (or auto-creating a lead), and a Filament Inbox page (unread badge, status filters, reply/notes, WhatsApp-style thread) styled with native Filament components.
+- **Click-to-Order chat links:** one-tap `/o/{token}` mobile order form (Bengali) prefilled from the conversation — creates a draft order (source `chat`), locks the link, marks the lead won, and sends an automatic confirmation message back into the chat.
+- **AI auto-reply assistant:** per-company tool-calling agent (Anthropic or OpenAI, admin-configurable encrypted API key) that answers only from live company data via tools (product/price lookup, FAQ, delivery charge, order-link creation). Code-enforced guardrails: every money amount in a reply is cross-checked against tool results ("Never Echo"), confidence threshold, complaint/discount keywords bypass the LLM straight to human handoff, consecutive-reply limit, 24h AI pause after a human reply, and an "I'm the assistant" transparency prefix. Handoffs set the conversation to pending with a "needs review" badge + database notification.
+- **CTWA Free Entry Point:** conversations that start from a WhatsApp ad get the 72-hour reply window (vs 24h) with a live countdown badge in the Inbox.
+- **FAQs resource:** keyword-matched FAQs answer instantly without an LLM call.
+- **AI Assistant settings page** (super admin): provider, model, confidence threshold, reply limit, brand voice, encrypted API key (never round-tripped to the browser).
+- **Storefront banners:** desktop and mobile banners are now multi-image carousels, and each banner can be tagged to a product so tapping it opens that product page.
+- **Admin UX:** all Filament form/infolist sections app-wide now render in a single-column layout (37 resources touched) for a consistent, less cramped editing experience.
+
+### Technical Notes
+
+- New tables: `leads`, `lead_activities`, `quotations`, `quotation_items`, `conversation_channels`, `conversations`, `conversation_messages`, `chat_order_links`, `company_faqs`; new columns on `conversations`/`conversation_messages` (AI + CTWA fields) and `storefront_settings.banner_images_mobile` (with data migration from the old single mobile image). Deploy needs `php artisan migrate`; scheduler + queue worker already required.
+- All new company-owned models use `BelongsToCompany` + `CompanyScope` and are registered in the `MultiCompanyIsolationTest` contract; queued jobs set/clear `CompanyContext` explicitly.
+- Channel access tokens/app secrets and the per-company AI API key are encrypted at rest; all external credentials are admin-configurable settings.
+- New tests: `LeadTest`, `LeadConversionTest`, `QuotationTest`, `ConversationIngestTest`, `ChatOrderLinkTest`, `AiAutoReplyTest` (all LLM/Graph API calls mocked), `StorefrontBannerTest`. Full suite: 304 passed (1266 assertions).
+
 ## [1.16.0] - 2026-07-15
 
 **Release type:** Minor Feature Update

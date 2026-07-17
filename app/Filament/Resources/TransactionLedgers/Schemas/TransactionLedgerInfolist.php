@@ -10,8 +10,8 @@ class TransactionLedgerInfolist
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Transaction')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Transaction')->columnSpanFull()->schema([
                 TextEntry::make('account.name')->label('Account'),
                 TextEntry::make('type')->badge(),
                 TextEntry::make('direction')->badge(),

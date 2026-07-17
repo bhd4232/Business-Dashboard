@@ -49,8 +49,9 @@ class CompanyResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Company Profile')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('name')
                         ->required()
@@ -79,6 +80,7 @@ class CompanyResource extends Resource
                 ->columns(2),
 
             Section::make('Branding and Contact')
+                ->columnSpanFull()
                 ->schema([
                     FileUpload::make('logo')
                         ->image()
@@ -105,6 +107,7 @@ class CompanyResource extends Resource
                 ->columns(2),
 
             Section::make('Localization')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('currency')
                         ->default('BDT')

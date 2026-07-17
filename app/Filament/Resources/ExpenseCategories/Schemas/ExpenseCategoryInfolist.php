@@ -11,8 +11,8 @@ class ExpenseCategoryInfolist
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Category')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Category')->columnSpanFull()->schema([
                 TextEntry::make('name'),
                 TextEntry::make('slug'),
                 IconEntry::make('is_active')->boolean(),

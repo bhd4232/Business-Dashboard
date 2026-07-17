@@ -84,6 +84,11 @@ class Customer extends Model
         return $this->hasOne(CustomerRiskProfile::class)->latestOfMany();
     }
 
+    public function originLead(): HasOne
+    {
+        return $this->hasOne(Lead::class, 'converted_customer_id');
+    }
+
     public static function typeOptions(): array
     {
         $customTypes = static::query()

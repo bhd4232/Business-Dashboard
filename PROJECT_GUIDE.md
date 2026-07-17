@@ -644,6 +644,37 @@ Audit behavior:
 - Audit logs store user, action, model type, model id, changed values, IP address, and user agent.
 - Sensitive user fields are not stored in audit payloads.
 
+### Lead/CRM Module
+
+Tracks business inquiries (Facebook/WhatsApp/phone/walk-in) and converts them to customers and orders.
+
+Flow:
+
+- `Lead` (status: new → contacted → quoted → won/lost) with follow-up activities (`LeadActivity`).
+- `Quotation` (+ `QuotationItem`) with auto QT-number (`GeneratesSequentialNumber`), reactive item repeater, auto total recalculation.
+- Public, unauthenticated quotation page: `GET /quotation/{quotationNumber}` (`quotation.public`) with a WhatsApp share action in the admin table.
+- `LeadConversionService` (`app/Services/Crm/`) converts Lead → Customer (phone-deduplicated, idempotent) and accepted Quotation → draft Order (`source = crm`); stock/totals/balances flow through the existing Order lifecycle.
+- `quotations:mark-expired` runs daily at 00:30 to expire past-`valid_until` sent quotations.
+- All three company-owned models (`Lead`, `Quotation`, `QuotationItem`) use `BelongsToCompany` and are covered by `MultiCompanyIsolationTest`.
+
+Admin resources live under the "CRM" navigation group: `app/Filament/Resources/Leads/`, `app/Filament/Resources/Quotations/`.
+
+Conversation Inbox and chat-to-order:
+
+- `ConversationChannel` (per-company WhatsApp Cloud API / Messenger channel, encrypted `access_token`/`app_secret`, admin-configurable), `Conversation`, `ConversationMessage` (permanent local archive of every incoming/outgoing message; media copied off Meta CDN by `DownloadConversationMediaJob`).
+- Webhook endpoint `GET|POST /webhooks/meta` (`MetaWebhookController`) — hub.challenge handshake + `X-Hub-Signature-256` verification per channel, then `StoreIncomingMessageJob` (dedupe on wamid/mid, auto-link Customer/Lead by phone, auto-create Lead when enabled, `CompanyContext` set/clear).
+- Outgoing replies via `ConversationMessengerService` (WhatsApp Cloud + Messenger drivers, manual/phone conversations archive-only) with 24h reply-window indicator.
+- Filament "Inbox" page (`app/Filament/Pages/Inbox.php`, CRM group, 10s polling): conversation list with unread badges, chat thread, reply box, manual conversation logging, "Send order form" quick action.
+- Chat order links: `ChatOrderLink` token links (`GET|POST /o/{token}`, throttled + honeypot, 7-day default expiry). Submission creates a draft Order (`source = chat`) through the existing lifecycle, converts Lead → Customer, locks the link, and archives a confirmation message to the thread.
+
+AI auto-reply (grounded-only assistant):
+
+- `AiReplyService` (`app/Services/Crm/`) — tool-calling agent (Anthropic or OpenAI via `AiLlmClient`, per-company encrypted settings in `companies.settings['ai']` via `AiSettingsService`, admin page "AI Assistant"). Dispatched by `AiAutoReplyJob` after every incoming text message.
+- Tools: `lookup_product`, `lookup_faq` (`CompanyFaq` model + FAQs resource, keyword shortcut answers without any LLM call), `lookup_delivery_charge`, `create_order_link`, `escalate_to_human`, `submit_reply`.
+- Guardrails: replies only via structured `submit_reply`; confidence threshold; code-level price cross-check (every ৳ amount must match a tool result — "Never Echo"); complaint/negotiation/human-request keywords skip AI entirely; max consecutive AI replies then handoff; human reply pauses AI for 24h (`human_handled_until`); first AI message self-identifies. Handoff sets conversation to `pending` + database notification.
+- CTWA Free Entry Point: conversations opened from a Click-to-WhatsApp ad (`entry_point = 'ctwa_ad'`, parsed from the webhook `referral`) get a 72h messaging window instead of 24h; the Inbox badge shows hours left.
+- AI messages saved with `generated_by = 'ai'`, `ai_confidence`, and `ai_meta` (tool trace + token usage). LLM calls are always `Http::fake()`d in tests.
+
 ## 4. Admin Panel
 
 Filament admin panel is configured in:

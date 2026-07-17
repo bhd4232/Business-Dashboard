@@ -89,8 +89,9 @@ class CourierBookingResource extends Resource
 
     public static function infolist(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Booking')
+                ->columnSpanFull()
                 ->schema([
                     TextEntry::make('tracking_id'),
                     TextEntry::make('provider_reference')->label('Consignment ID'),
@@ -107,6 +108,7 @@ class CourierBookingResource extends Resource
                 ->columns(2),
 
             Section::make('Status Logs')
+                ->columnSpanFull()
                 ->schema([
                     RepeatableEntry::make('statusLogs')
                         ->label('')

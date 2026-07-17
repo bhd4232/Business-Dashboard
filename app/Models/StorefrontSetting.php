@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class StorefrontSetting extends Model
@@ -22,7 +23,7 @@ class StorefrontSetting extends Model
         'logo',
         'logo_dark',
         'banner_images',
-        'banner_image_mobile',
+        'banner_images_mobile',
         'whatsapp_number',
         'phone_number',
         'hero_heading',
@@ -56,6 +57,7 @@ class StorefrontSetting extends Model
 
     protected $casts = [
         'banner_images' => 'array',
+        'banner_images_mobile' => 'array',
         'is_published' => 'boolean',
         'offer_discount_percent' => 'integer',
         'offer_ends_at' => 'datetime',
@@ -86,5 +88,22 @@ class StorefrontSetting extends Model
     public function hasActiveOffer(): bool
     {
         return filled($this->offer_title) && $this->offer_ends_at && $this->offer_ends_at->isFuture();
+    }
+
+    /**
+     * Normalizes banner_images / banner_images_mobile into a consistent
+     * [{image, product_id}] shape, since older rows may still hold plain
+     * image-path strings from before per-banner product tagging existed.
+     *
+     * @return Collection<int, array{image: string, product_id: int|null}>
+     */
+    public function bannerSlides(string $column): Collection
+    {
+        return collect($this->{$column} ?? [])
+            ->map(fn ($item) => is_array($item)
+                ? ['image' => (string) ($item['image'] ?? ''), 'product_id' => $item['product_id'] ?? null]
+                : ['image' => (string) $item, 'product_id' => null])
+            ->filter(fn (array $item): bool => filled($item['image']))
+            ->values();
     }
 }

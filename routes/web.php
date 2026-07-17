@@ -32,6 +32,21 @@ Route::middleware(ResolveCompanyFromDomain::class.':optional')
     ->get('/', StorefrontHomeController::class)
     ->name('marketing.home');
 
+Route::get('/quotation/{quotationNumber}', [App\Http\Controllers\QuotationPublicController::class, 'show'])
+    ->name('quotation.public');
+
+Route::get('/webhooks/meta', [App\Http\Controllers\MetaWebhookController::class, 'verify'])
+    ->name('webhooks.meta.verify');
+Route::post('/webhooks/meta', [App\Http\Controllers\MetaWebhookController::class, 'handle'])
+    ->name('webhooks.meta.handle');
+
+Route::middleware('throttle:30,1')->group(function (): void {
+    Route::get('/o/{token}', [App\Http\Controllers\ChatOrderController::class, 'show'])
+        ->name('chat-order.show');
+    Route::post('/o/{token}', [App\Http\Controllers\ChatOrderController::class, 'store'])
+        ->name('chat-order.store');
+});
+
 Route::middleware(ResolveCompanyFromDomain::class.':optional')
     ->get('/pages/{slug}', [StorefrontPageController::class, 'show'])
     ->name('storefront.pages.show');

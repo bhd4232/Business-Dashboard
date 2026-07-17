@@ -5,7 +5,7 @@
     $logoDarkUrl = $setting->logo_dark ? asset('storage/'.$setting->logo_dark) : null;
     $title = $setting->meta_title ?: $company->name;
     $description = $setting->meta_description ?: 'Shop products from '.$company->name;
-    $bannerImage = collect($setting->banner_images ?? [])->filter()->first();
+    $bannerImage = $setting->bannerSlides('banner_images')->first()['image'] ?? null;
     $shareImageUrl = $bannerImage ? asset('storage/'.$bannerImage) : ($logoUrl ?: null);
     $homeUrl = isset($previewSlug) ? route('storefront.preview.show', $previewSlug) : route('marketing.home');
     $productsUrl = isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index');

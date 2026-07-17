@@ -14,8 +14,10 @@ class ProductInfolist
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Product Details')
+                    ->columnSpanFull()
                     ->schema([
                         ImageEntry::make('image')
                             ->label('Image')
@@ -57,6 +59,7 @@ class ProductInfolist
                     ->columns(2),
 
                 Section::make('Pricing and Inventory')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('cost_price')
                             ->label('Cost Price')
@@ -83,6 +86,7 @@ class ProductInfolist
                     ->columns(2),
 
                 Section::make('Description')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('description')
                             ->label('Description')

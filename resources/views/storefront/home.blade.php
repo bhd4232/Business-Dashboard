@@ -3,9 +3,25 @@
 @section('content')
     @php
         $heroProduct = $products->first();
-        $bannerImage = collect($setting->banner_images ?? [])->filter()->first();
-        $bannerUrl = $bannerImage ? asset('storage/'.$bannerImage) : null;
-        $bannerMobileUrl = $setting->banner_image_mobile ? asset('storage/'.$setting->banner_image_mobile) : null;
+        $desktopBanners = $setting->bannerSlides('banner_images');
+        $mobileBanners = $setting->bannerSlides('banner_images_mobile');
+        $mobileBanners = $mobileBanners->isNotEmpty() ? $mobileBanners : $desktopBanners;
+        $bannerProductIds = $desktopBanners->pluck('product_id')->merge($mobileBanners->pluck('product_id'))->filter()->unique();
+        $bannerProductSlugs = $bannerProductIds->isNotEmpty()
+            ? \App\Models\Product::withoutGlobalScopes()->whereIn('id', $bannerProductIds)->pluck('slug', 'id')
+            : collect();
+        $bannerPreviewSlug = $previewSlug ?? null;
+        $bannerLink = function (?int $productId) use ($bannerProductSlugs, $bannerPreviewSlug) {
+            if (! $productId || ! $bannerProductSlugs->has($productId)) {
+                return null;
+            }
+
+            $slug = $bannerProductSlugs->get($productId);
+
+            return $bannerPreviewSlug
+                ? route('storefront.preview.products.show', [$bannerPreviewSlug, $slug])
+                : route('storefront.products.show', $slug);
+        };
         $heroHeading = $setting->hero_heading ?: 'Shop the latest from '.$company->name.'.';
         $heroSubheading = $setting->hero_subheading ?: 'Browse current products, order directly, and track purchases from one clean storefront.';
         $heroCta = $setting->hero_cta_label ?: 'Start shopping';
@@ -111,13 +127,9 @@
                 </div>
 
                 <div class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5">
-                    @if ($bannerUrl)
-                        <picture>
-                            @if ($bannerMobileUrl)
-                                <source media="(max-width: 639px)" srcset="{{ $bannerMobileUrl }}">
-                            @endif
-                            <img class="aspect-[4/3] w-full object-cover" src="{{ $bannerUrl }}" alt="{{ $company->name }} storefront banner">
-                        </picture>
+                    @if ($desktopBanners->isNotEmpty())
+                        @include('storefront.partials.banner-carousel', ['banners' => $desktopBanners, 'bannerLink' => $bannerLink, 'class' => 'hidden sm:block'])
+                        @include('storefront.partials.banner-carousel', ['banners' => $mobileBanners, 'bannerLink' => $bannerLink, 'class' => 'sm:hidden'])
                     @elseif ($heroProduct?->image)
                         <img class="aspect-[4/3] w-full object-cover" src="{{ asset('storage/'.$heroProduct->image) }}" alt="{{ $heroProduct->name }}">
                     @else

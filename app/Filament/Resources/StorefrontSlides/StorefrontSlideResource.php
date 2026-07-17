@@ -40,8 +40,9 @@ class StorefrontSlideResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Slide')
+                ->columnSpanFull()
                 ->schema([
                     Select::make('company_id')
                         ->relationship('company', 'name')

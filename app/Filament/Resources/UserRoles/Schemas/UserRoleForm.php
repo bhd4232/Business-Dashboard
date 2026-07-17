@@ -16,8 +16,10 @@ class UserRoleForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Role Details')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('name')
                             ->required()
@@ -40,6 +42,7 @@ class UserRoleForm
                     ->columns(2),
 
                 Section::make('Permissions')
+                    ->columnSpanFull()
                     ->schema([
                         CheckboxList::make('permissions')
                             ->options(User::CUSTOM_PERMISSION_OPTIONS)

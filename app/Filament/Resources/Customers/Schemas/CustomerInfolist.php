@@ -14,8 +14,10 @@ class CustomerInfolist
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Customer')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('name'),
                         TextEntry::make('phone'),
@@ -34,6 +36,7 @@ class CustomerInfolist
                     ->columns(2),
 
                 Section::make('Balance')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('opening_balance')->money('BDT'),
                         TextEntry::make('current_balance')->money('BDT'),
@@ -41,6 +44,7 @@ class CustomerInfolist
                     ->columns(2),
 
                 Section::make('Customer Success & Risk Score')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('riskProfile.risk_score')->label('Risk Score')->placeholder('Not evaluated'),
                         TextEntry::make('riskProfile.risk_level')->label('Risk Level')->badge()->placeholder('Not evaluated')

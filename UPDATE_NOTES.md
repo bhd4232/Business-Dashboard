@@ -2,6 +2,29 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-17 - Lead/CRM module (steps 1–14), banners, single-column admin layout
+
+Reason:
+
+- Owner attached `02_LEAD_CRM_MODULE_PLAN.md` and asked to implement it step by step. All plan steps (1–11, 13–14) are done: Lead/Quotation core, Conversation Inbox + click-to-order links, and the AI auto-reply assistant with CTWA 72h window. Also includes the earlier pending multi-image product-taggable storefront banners and the app-wide single-column Filament form layout.
+
+Changed files (high level):
+
+- New migrations: `2026_07_16_090000` (banner tags), `2026_07_17_000000` (lead/quotation tables), `2026_07_17_010000` (conversations/chat-order tables), `2026_07_17_020000` (AI + CTWA fields, `company_faqs`).
+- New models: Lead, LeadActivity, Quotation, QuotationItem, ConversationChannel, Conversation, ConversationMessage, ChatOrderLink, CompanyFaq (+ Customer/Order/StorefrontSetting additions).
+- New services: `app/Services/Crm/` (LeadConversionService, ConversationMessengerService, AiSettingsService, AiLlmClient, AiReplyService); jobs StoreIncomingMessageJob, DownloadConversationMediaJob, AiAutoReplyJob; command `quotations:mark-expired`.
+- Controllers/routes: MetaWebhookController (`/webhooks/meta`, CSRF-exempt), QuotationPublicController (`/quotation/{number}`), ChatOrderController (`/o/{token}`).
+- Filament: Leads, Quotations, ConversationChannels, CompanyFaqs resources; Inbox + AI Assistant Settings pages; 37 existing form/infolist files switched to single-column sections.
+- Views: `resources/views/quotations/`, `chat-order/`, `filament/pages/{inbox,ai-assistant-settings}.blade.php`, storefront `banner-carousel` partial + home/layout updates.
+- Tests: LeadTest, LeadConversionTest, QuotationTest, ConversationIngestTest, ChatOrderLinkTest, AiAutoReplyTest, StorefrontBannerTest; isolation contract extended; ReleaseNotesTest bumped to v1.17.0.
+- Docs: `CHANGELOG.md` [1.17.0]; `PROJECT_GUIDE.md` Lead/CRM section; plan file status marks.
+
+Verification: full `php artisan test` — 304 passed (1266 assertions). Browser-verified: Leads/Quotations pages, Inbox (Filament-styled), manual conversation → order link → public form → order created, AI Assistant Settings and FAQs pages. Smoke-test data cleaned from the demo DB afterwards.
+
+Deploy notes: run `php artisan migrate`; a queue worker must be running (webhook ingest + AI replies are queued); scheduler already required (`quotations:mark-expired` daily 00:30). Meta webhook URL + verify token per channel are set in the new Conversation Channels resource; AI provider key in AI Assistant settings — all encrypted, admin-configurable.
+
+Commit status: Committed and pushed with owner approval on 2026-07-17.
+
 ## 2026-07-15 - WooCommerce sync button
 
 Reason:

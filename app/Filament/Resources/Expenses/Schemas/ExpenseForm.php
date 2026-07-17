@@ -16,8 +16,9 @@ class ExpenseForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Expense')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('expense_number')
                         ->label('Expense Number')
@@ -65,7 +66,7 @@ class ExpenseForm
                     TextInput::make('amount')->numeric()->prefix('BDT')->minValue(0.01)->required(),
                     TextInput::make('reference')->maxLength(255),
                 ])->columns(2),
-            Section::make('Note')->schema([
+            Section::make('Note')->columnSpanFull()->schema([
                 Textarea::make('note')->rows(3)->columnSpanFull(),
             ]),
         ]);

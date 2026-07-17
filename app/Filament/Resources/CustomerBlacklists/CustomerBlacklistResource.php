@@ -37,8 +37,8 @@ class CustomerBlacklistResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Section::make('Blacklist Entry')->schema([
+        return $schema->columns(1)->components([
+            Section::make('Blacklist Entry')->columnSpanFull()->schema([
                 Select::make('company_id')->relationship('company', 'name')->placeholder('All companies (global)'),
                 TextInput::make('phone')->tel()->maxLength(40)->helperText('Provide phone, address, or both.'),
                 Textarea::make('address')->rows(3),

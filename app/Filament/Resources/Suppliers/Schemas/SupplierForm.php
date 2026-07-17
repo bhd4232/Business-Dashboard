@@ -15,8 +15,10 @@ class SupplierForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Supplier Information')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('name')
                             ->required()
@@ -37,6 +39,7 @@ class SupplierForm
                     ->columns(2),
 
                 Section::make('Balance')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('opening_balance')
                             ->numeric()
@@ -55,6 +58,7 @@ class SupplierForm
                     ->columns(2),
 
                 Section::make('Address')
+                    ->columnSpanFull()
                     ->schema([
                         Textarea::make('address')
                             ->rows(3)

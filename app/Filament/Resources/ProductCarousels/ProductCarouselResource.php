@@ -41,8 +41,9 @@ class ProductCarouselResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Carousel')
+                ->columnSpanFull()
                 ->description('Curated, titled product sections shown on the storefront homepage. Products are hand-picked; only active, available products are shown publicly.')
                 ->schema([
                     Select::make('company_id')
@@ -71,6 +72,7 @@ class ProductCarouselResource extends Resource
                 ->columns(2),
 
             Section::make('Products')
+                ->columnSpanFull()
                 ->description('Hand-pick the products for this carousel. Only products of the selected company are listed.')
                 ->schema([
                     Select::make('products')

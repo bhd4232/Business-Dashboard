@@ -13,8 +13,10 @@ class PurchaseInfolist
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Purchase')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('purchase_number')->label('Purchase Number'),
                         TextEntry::make('supplier.name')->label('Supplier'),
@@ -24,6 +26,7 @@ class PurchaseInfolist
                     ->columns(2),
 
                 Section::make('Document Tracking')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('lc_number')
                             ->label('LC Number')
@@ -50,10 +53,12 @@ class PurchaseInfolist
                     ->columns(3),
 
                 Section::make('China to BD Costs')
+                    ->columnSpanFull()
                     ->schema(self::chinaToBdCostEntries())
                     ->columns(3),
 
                 Section::make('Totals')
+                    ->columnSpanFull()
                     ->schema([
                         TextEntry::make('subtotal')->money('BDT'),
                         TextEntry::make('china_to_bd_cost_total')
@@ -73,6 +78,7 @@ class PurchaseInfolist
                     ->columns(3),
 
                 Section::make('Items')
+                    ->columnSpanFull()
                     ->schema([
                         RepeatableEntry::make('items')
                             ->label('')

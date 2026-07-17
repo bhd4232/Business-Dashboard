@@ -21,8 +21,10 @@ class UserForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('User Information')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('name')
                             ->required()
@@ -89,6 +91,7 @@ class UserForm
                     ->columns(2),
 
                 Section::make('Password')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('password')
                             ->password()
@@ -100,6 +103,7 @@ class UserForm
                     ]),
 
                 Section::make('Company Access')
+                    ->columnSpanFull()
                     ->schema([
                         Select::make('company_ids')
                             ->label('Assigned Companies')

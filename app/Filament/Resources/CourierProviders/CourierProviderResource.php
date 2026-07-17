@@ -47,8 +47,9 @@ class CourierProviderResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             Section::make('Delivery Partner')
+                ->columnSpanFull()
                 ->schema([
                     Select::make('company_id')
                         ->label('Company')
@@ -110,6 +111,7 @@ class CourierProviderResource extends Resource
                 ->collapsible(),
 
             Section::make('Set Delivery Fees')
+                ->columnSpanFull()
                 ->schema([
                     Select::make('settings.delivery_fee_mode')
                         ->label('Delivery Type')
@@ -139,6 +141,7 @@ class CourierProviderResource extends Resource
                 ->collapsible(),
 
             Section::make('Courier Return Cost')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('settings.return_costs.inside')
                         ->label('Inside')
@@ -165,6 +168,7 @@ class CourierProviderResource extends Resource
                 ->collapsible(),
 
             Section::make('API Integration')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('settings.base_url')
                         ->label('Base URL')
@@ -270,6 +274,7 @@ class CourierProviderResource extends Resource
                 ->collapsible(),
 
             Section::make('External Fraud Check (Merchant Panel Login)')
+                ->columnSpanFull()
                 ->description('Optional. Lets staff look up a phone number\'s delivery success/cancel history on this courier\'s own merchant panel before booking. These are the courier\'s website login credentials, separate from the API keys above.')
                 ->schema([
                     TextInput::make('credentials.fraud_check.username')
@@ -290,6 +295,7 @@ class CourierProviderResource extends Resource
                 ->collapsed(),
 
             Section::make('Monitoring & Alerts')
+                ->columnSpanFull()
                 ->schema([
                     TextInput::make('settings.stale_after_days')
                         ->label('Stale Booking Alert (days)')

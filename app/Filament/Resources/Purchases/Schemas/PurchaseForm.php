@@ -28,8 +28,10 @@ class PurchaseForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->components([
                 Section::make('Purchase Details')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('purchase_number')
                             ->label('Purchase Number')
@@ -107,6 +109,7 @@ class PurchaseForm
                     ->collapsible(),
 
                 Section::make('Document Tracking')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('lc_number')
                             ->label('LC Number')
@@ -133,6 +136,7 @@ class PurchaseForm
                     ->collapsible(),
 
                 Section::make('Items')
+                    ->columnSpanFull()
                     ->schema([
                         Repeater::make('items')
                             ->relationship()
@@ -331,6 +335,7 @@ class PurchaseForm
                     ->collapsible(),
 
                 Section::make('China to BD Costs')
+                    ->columnSpanFull()
                     ->schema([
                         ...self::chinaToBdCostFields(),
                         Actions::make([
@@ -372,6 +377,7 @@ class PurchaseForm
                     ->collapsible(),
 
                 Section::make('Totals')
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('subtotal')
                             ->numeric()
@@ -429,6 +435,7 @@ class PurchaseForm
                     ->collapsible(),
 
                 Section::make('Note')
+                    ->columnSpanFull()
                     ->schema([
                         Textarea::make('note')
                             ->rows(3)

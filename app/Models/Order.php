@@ -40,9 +40,15 @@ class Order extends Model
 
     public const SOURCE_STOREFRONT = 'storefront';
 
+    public const SOURCE_CRM = 'crm';
+
+    public const SOURCE_CHAT = 'chat';
+
     public const SOURCES = [
         self::SOURCE_ADMIN => 'Admin',
         self::SOURCE_STOREFRONT => 'Storefront',
+        self::SOURCE_CRM => 'CRM',
+        self::SOURCE_CHAT => 'Chat',
     ];
 
     protected $fillable = [
