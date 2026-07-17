@@ -2,6 +2,23 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-17 - Hotfix: orders.status enum breaks order creation on MySQL (live 500)
+
+Reason:
+
+- Owner reported: submitting the chat order form (`/o/{token}`) on the live server returns 500, while local works. Root cause: `orders.status` is still the original `enum('pending','processing','completed','cancelled')` from the 2026-05-25 migration; the app writes `'draft'`/`'confirmed'`. SQLite (local) ignores enum constraints; MySQL strict mode (production per `docs/deployment.md`) rejects the insert.
+
+Changed files:
+
+- New migration `database/migrations/2026_07_17_030000_change_orders_status_to_string.php` — `orders.status` → `string(20)` default `draft`.
+- `CHANGELOG.md` [1.17.1] hotfix entry; `ReleaseNotesTest` bumped to v1.17.1.
+
+Verification: full `php artisan test` — 304 passed (1266 assertions).
+
+Deploy notes: run `php artisan migrate` on the live server after pulling. If the 500 persists afterwards, check `storage/logs/laravel.log` for the actual exception.
+
+Commit status: Not committed yet — awaiting owner approval.
+
 ## 2026-07-17 - Lead/CRM module (steps 1–14), banners, single-column admin layout
 
 Reason:

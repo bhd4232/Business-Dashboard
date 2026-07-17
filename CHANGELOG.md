@@ -2,6 +2,22 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.17.1] - 2026-07-17
+
+**Release type:** Hotfix
+
+Fixed a production 500 error when submitting the chat order form (`/o/{token}`) — and potentially any order-creating flow — on MySQL.
+
+### Fixed
+
+- `orders.status` was still defined as the original `enum('pending','processing','completed','cancelled')` even though the application has long used `draft`/`confirmed`. SQLite (local/demo) doesn't enforce enums so everything worked locally, but MySQL in strict mode rejects the `'draft'` insert, so the chat order submit crashed with a 500 on the live server. New migration converts the column to a plain `string(20)` (valid values enforced in code via `Order::STATUSES`).
+
+### Technical Notes
+
+- Migration `2026_07_17_030000_change_orders_status_to_string.php`; `down()` intentionally keeps the string type since reverting to the enum would reject legitimate `draft`/`confirmed` rows. Deploy needs `php artisan migrate`.
+- Audited all remaining `enum()` columns: the voucher-module enums match the values the code writes; only `orders.status` was stale.
+- Full suite: 304 passed (1266 assertions).
+
 ## [1.17.0] - 2026-07-17
 
 **Release type:** Minor Feature Update
