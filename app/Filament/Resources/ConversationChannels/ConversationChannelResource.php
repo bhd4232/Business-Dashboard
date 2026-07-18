@@ -5,7 +5,9 @@ namespace App\Filament\Resources\ConversationChannels;
 use App\Filament\Resources\ConversationChannels\Pages\CreateConversationChannel;
 use App\Filament\Resources\ConversationChannels\Pages\EditConversationChannel;
 use App\Filament\Resources\ConversationChannels\Pages\ListConversationChannels;
+use App\Models\Company;
 use App\Models\ConversationChannel;
+use App\Services\CompanyContext;
 use BackedEnum;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -37,6 +39,22 @@ class ConversationChannelResource extends Resource
     {
         return $schema->columns(1)->components([
             Section::make('Channel')->columnSpanFull()->schema([
+                // In "All Companies" mode there is no active company for the
+                // BelongsToCompany hook to assign, so the record would silently
+                // fall back to the default company and "disappear" from the
+                // owner's real company — make the target company explicit.
+                \Filament\Forms\Components\Select::make('company_id')
+                    ->label('Company')
+                    ->options(fn (): array => Company::query()
+                        ->where('is_active', true)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->preload()
+                    ->required(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                    ->visible(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                    ->helperText('Select the company that will own this chat channel.'),
                 \Filament\Forms\Components\Select::make('provider')
                     ->options(ConversationChannel::PROVIDERS)
                     ->required()
@@ -50,7 +68,17 @@ class ConversationChannelResource extends Resource
                     ->label('Phone Number ID / Page ID')
                     ->helperText('WhatsApp: the WABA phone_number_id. Messenger: the Facebook page_id.')
                     ->required()
-                    ->maxLength(255),
+                    ->maxLength(255)
+                    // The provider+external_id pair is globally unique (the
+                    // webhook resolves a channel by external_id alone), so a
+                    // duplicate must fail as a form message, not a DB 500.
+                    ->unique(
+                        ignoreRecord: true,
+                        modifyRuleUsing: fn (\Illuminate\Validation\Rules\Unique $rule, \Filament\Schemas\Components\Utilities\Get $get) => $rule->where('provider', $get('provider')),
+                    )
+                    ->validationMessages([
+                        'unique' => 'A chat channel with this Phone Number ID / Page ID already exists (possibly under another company).',
+                    ]),
                 Toggle::make('auto_create_leads')
                     ->label('Auto-create leads for unknown contacts')
                     ->default(true),
@@ -86,6 +114,9 @@ class ConversationChannelResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
+            TextColumn::make('company.name')
+                ->label('Company')
+                ->visible(fn (): bool => app(CompanyContext::class)->isAllCompanies()),
             TextColumn::make('display_name')->label('Name')->searchable(),
             TextColumn::make('provider')
                 ->badge()

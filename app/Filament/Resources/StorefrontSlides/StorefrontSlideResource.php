@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StorefrontSlides;
 
+use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\StorefrontSlides\Pages\CreateStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\EditStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\ListStorefrontSlides;
@@ -28,6 +29,8 @@ use UnitEnum;
 
 class StorefrontSlideResource extends Resource
 {
+    use OptimizesUploadedImages;
+
     protected static ?string $model = StorefrontSlide::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPhoto;
@@ -54,20 +57,22 @@ class StorefrontSlideResource extends Resource
                         ->default(true),
                     FileUpload::make('image')
                         ->label('Image (desktop)')
-                        ->helperText('Recommended: wide banner, at least 1600x600px.')
+                        ->helperText('Recommended: wide banner, at least 1600x600px. Automatically compressed to WebP on upload.')
                         ->image()
                         ->maxSize(2048)
                         ->disk('public')
                         ->directory('storefront/slides')
                         ->imageEditor()
+                        ->saveUploadedFileUsing(static::optimizeImageUpload())
                         ->required(),
                     FileUpload::make('image_mobile')
                         ->label('Image (mobile)')
-                        ->helperText('Optional. Vertical/square image shown on phones instead of the desktop image.')
+                        ->helperText('Optional. Vertical/square image shown on phones instead of the desktop image. Automatically compressed to WebP on upload.')
                         ->image()
                         ->maxSize(2048)
                         ->disk('public')
-                        ->directory('storefront/slides'),
+                        ->directory('storefront/slides')
+                        ->saveUploadedFileUsing(static::optimizeImageUpload()),
                     TextInput::make('heading')
                         ->maxLength(120),
                     TextInput::make('subheading')

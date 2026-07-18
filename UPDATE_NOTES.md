@@ -2,6 +2,33 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-18 - Automatic image optimization (WebP) + R2 storage groundwork
+
+Reason:
+
+- Pre-existing WIP found in the working tree (image optimizer wired into forms but its composer packages were never installed — uploads would have fataled). Owner asked to complete it.
+
+Changed files:
+
+- `app/Services/ImageOptimizerService.php` + `app/Filament/Concerns/OptimizesUploadedImages.php` (new, were untracked) — resize + EXIF-strip + WebP re-encode on upload; SVG/animated-GIF passthrough.
+- Form opt-ins (were already edited): ProductForm (featured + gallery), CategoryForm, CompanyResource logo, StorefrontSettingResource logos/banners, StorefrontSlideResource images.
+- `composer.json` + `composer.lock` — `intervention/image` ^3.9 and `league/flysystem-aws-s3-v3` ^3.25 now actually installed (lock updated; this was the missing piece).
+- `config/filesystems.php` + `.env.example` — inactive `r2` disk + `R2_*` vars (activation needs a Cloudflare bucket/token from the owner; no app code references the disk yet).
+- `tests/Feature/ImageOptimizerTest.php` (new) — 5 tests: resize to 1600px cap, no upscaling, 800px compact cap, SVG untouched, GIF untouched.
+- `CHANGELOG.md` [1.19.0]; `ReleaseNotesTest` bumped to v1.19.0 / 2026-07-18.
+
+Also in this batch — Chat Channel not saving on live:
+
+- Root cause: with "All Companies" selected, `BelongsToCompany` falls back to the default company on create, so the channel saved under "Main Company" and never showed under the owner's real company; retrying then hit the global `provider+external_id` unique index as a 500. Reproduced/ruled out DB issues against a scratch MySQL 8.4 database (model-level creates succeed, encrypted casts fine).
+- `app/Filament/Resources/ConversationChannels/ConversationChannelResource.php` — required Company selector visible only in All-Companies mode (Courier Provider pattern); Company column in the table in that mode; `unique` validation on external_id scoped to provider with a human-readable message.
+- `tests/Feature/ConversationChannelResourceTest.php` (new) — 3 tests.
+
+Verification: `ImageOptimizerTest` 5 passed (13 assertions) — real GD WebP encode through Livewire's temporary-upload path; GD WebP support confirmed on this machine; r2 disk config shape validated with throwaway creds. Full `php artisan test` — 315 passed (1318 assertions) including the Chat Channel fix below.
+
+Deploy notes: run `composer install` on the live server after pulling; PHP GD extension with WebP support required (standard on most hosts). No migration.
+
+Commit status: Not committed yet — awaiting owner approval.
+
 ## 2026-07-17 - Chat-order UX polish, WhatsApp Business-style Inbox, realtime chat, catalog with images, app pull-to-refresh
 
 Reason:
@@ -23,7 +50,7 @@ Changed files:
 
 Verification: `ChatOrderLinkTest|ConversationIngestTest|AiAutoReplyTest` (24 passed) + new `InboxPageTest` (3 passed); `view:cache` compiles clean; browser-verified locally: live total recalculates instantly (qty 2→5: ৳4,400→৳11,000), product image renders on the order form. Full `php artisan test` — 307 passed (1282 assertions). Smoke-test data removed from the demo DB.
 
-Commit status: Not committed yet — awaiting owner approval.
+Commit status: Committed and pushed with owner approval on 2026-07-18 (`859eed09`, v1.18.0).
 
 ## 2026-07-17 - Hotfix: orders.status enum breaks order creation on MySQL (live 500)
 

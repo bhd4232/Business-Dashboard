@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Companies;
 
+use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
 use App\Filament\Resources\Companies\Pages\EditCompany;
 use App\Filament\Resources\Companies\Pages\ListCompanies;
@@ -37,6 +38,8 @@ use UnitEnum;
 
 class CompanyResource extends Resource
 {
+    use OptimizesUploadedImages;
+
     protected static ?string $model = Company::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingStorefront;
@@ -83,10 +86,12 @@ class CompanyResource extends Resource
                 ->columnSpanFull()
                 ->schema([
                     FileUpload::make('logo')
+                        ->helperText('Automatically compressed to WebP on upload.')
                         ->image()
                         ->disk('public')
                         ->directory('companies')
                         ->imageEditor()
+                        ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
                         ->downloadable()
                         ->openable(),
                     TextInput::make('phone')

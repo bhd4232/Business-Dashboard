@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\Schemas;
 
+use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Models\Category;
 use App\Models\Product;
 use Filament\Forms\Components\FileUpload;
@@ -17,6 +18,8 @@ use Illuminate\Support\Str;
 
 class ProductForm
 {
+    use OptimizesUploadedImages;
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -198,17 +201,18 @@ class ProductForm
                     ->schema([
                         FileUpload::make('image')
                             ->label('Featured Image')
-                            ->helperText('Main image shown in product lists and as the default on the product page. Recommended: square, at least 800x800px.')
+                            ->helperText('Main image shown in product lists and as the default on the product page. Recommended: square, at least 800x800px. Automatically compressed to WebP on upload.')
                             ->image()
                             ->maxSize(2048)
                             ->disk('public')
                             ->directory('products')
                             ->imageEditor()
+                            ->saveUploadedFileUsing(static::optimizeImageUpload())
                             ->downloadable()
                             ->openable(),
                         FileUpload::make('gallery_images')
                             ->label('Gallery Images')
-                            ->helperText('Additional product photos shown as a gallery on the product page. Drag to reorder.')
+                            ->helperText('Additional product photos shown as a gallery on the product page. Drag to reorder. Automatically compressed to WebP on upload.')
                             ->image()
                             ->multiple()
                             ->reorderable()
@@ -217,6 +221,7 @@ class ProductForm
                             ->disk('public')
                             ->directory('products/gallery')
                             ->imageEditor()
+                            ->saveUploadedFileUsing(static::optimizeImageUpload())
                             ->downloadable()
                             ->openable(),
                     ])

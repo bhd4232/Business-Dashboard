@@ -2,6 +2,25 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.19.0] - 2026-07-18
+
+**Release type:** Minor Feature Update
+
+Automatic image optimization: every admin-uploaded image is compressed and converted to WebP before it's stored, so the storefront never serves untouched multi-megabyte camera photos. Also lays the groundwork for optional Cloudflare R2 object storage.
+
+### Added
+
+- **Automatic WebP compression on upload:** product featured/gallery images, category images, company logos, storefront logos, banners, and slides are all resized (product photos/banners capped at 1600px, logos/category tiles at 800px on the longest edge), stripped of EXIF metadata, and re-encoded as compressed WebP the moment they're uploaded in the admin panel. SVGs and animated GIFs/WebPs are stored untouched (re-encoding would break them).
+- **Chat Channel save fix (live):** creating a Chat Channel while "All Companies" was selected silently assigned it to the default company, so it never appeared under the owner's real company (and retrying crashed on the duplicate Phone Number ID). The form now shows a required Company selector in All-Companies mode (same pattern as Courier Providers), the channel list shows a Company column in that mode, and a duplicate Phone Number ID / Page ID shows a proper validation message instead of a server error.
+- **Cloudflare R2 disk (prepared, not active):** an S3-compatible `r2` filesystem disk plus `R2_*` env variables are in place for a future migration of public media off the server disk. Nothing switches over until a bucket + API token are created in the Cloudflare dashboard and the env vars are set.
+
+### Technical Notes
+
+- New `ImageOptimizerService` (Intervention Image v3, GD driver, WebP quality 82/85) wired into Filament `FileUpload::saveUploadedFileUsing()` via the `OptimizesUploadedImages` trait — single implementation, six forms opted in.
+- New composer packages: `intervention/image` ^3.9, `league/flysystem-aws-s3-v3` ^3.25 (deploy: run `composer install`; server needs the PHP GD extension with WebP support — verified present locally).
+- No schema changes, no migration. New `ImageOptimizerTest` (resize cap, no upscaling, compact cap, SVG/animated-GIF passthrough) — 5 passed. R2 disk config shape validated with throwaway credentials (adapter + URL builder resolve); no app code references the `r2` disk yet.
+- Chat Channel diagnosis: channel creation was reproduced against a scratch MySQL 8.4 database (schema + encrypted-cast inserts all succeed), ruling out a SQLite-vs-MySQL schema issue — the failure is the All-Companies default-company fallback. New `ConversationChannelResourceTest` (saves into active company; All-Companies mode requires an explicit company; duplicate external_id → validation error, same ID under the other provider allowed).
+
 ## [1.18.0] - 2026-07-17
 
 **Release type:** Minor Feature Update

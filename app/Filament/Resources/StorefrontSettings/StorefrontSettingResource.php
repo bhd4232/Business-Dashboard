@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StorefrontSettings;
 
+use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\StorefrontPages\StorefrontPageResource;
 use App\Filament\Resources\StorefrontSettings\Pages\CreateStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
@@ -42,6 +43,8 @@ use UnitEnum;
 
 class StorefrontSettingResource extends Resource
 {
+    use OptimizesUploadedImages;
+
     protected static ?string $model = StorefrontSetting::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;
@@ -225,19 +228,21 @@ class StorefrontSettingResource extends Resource
                 ->schema([
                     FileUpload::make('logo')
                         ->label('Logo (light mode)')
-                        ->helperText('Full horizontal logo, transparent PNG/SVG preferred. Recommended: 400x100px (4:1 ratio); shown at 40px height. When uploaded, it replaces the site name text in the storefront header.')
+                        ->helperText('Full horizontal logo, transparent PNG/SVG preferred. Recommended: 400x100px (4:1 ratio); shown at 40px height. When uploaded, it replaces the site name text in the storefront header. Raster images are automatically compressed to WebP; SVGs are kept as-is.')
                         ->image()
                         ->maxSize(1024)
                         ->disk('public')
                         ->directory('storefront/logos')
                         ->imageEditor()
+                        ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
                         ->downloadable()
                         ->openable(),
                     FileUpload::make('logo_dark')
                         ->label('Logo (dark mode)')
-                        ->helperText('Optional. Light-colored logo version for dark mode visitors. Same recommended size: 400x100px. If empty, the light-mode logo is used in both modes.')
+                        ->helperText('Optional. Light-colored logo version for dark mode visitors. Same recommended size: 400x100px. If empty, the light-mode logo is used in both modes. Raster images are automatically compressed to WebP; SVGs are kept as-is.')
                         ->image()
                         ->maxSize(1024)
+                        ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
                         ->disk('public')
                         ->directory('storefront/logos')
                         ->imageEditor()
@@ -585,11 +590,13 @@ class StorefrontSettingResource extends Resource
             ->schema([
                 FileUpload::make('image')
                     ->label('Image')
+                    ->helperText('Automatically compressed to WebP on upload.')
                     ->required()
                     ->image()
                     ->disk('public')
                     ->directory('storefront/banners')
                     ->imageEditor()
+                    ->saveUploadedFileUsing(static::optimizeImageUpload())
                     ->downloadable()
                     ->openable(),
                 Select::make('product_id')
