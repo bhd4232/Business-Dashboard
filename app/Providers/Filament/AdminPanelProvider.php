@@ -221,8 +221,84 @@ class AdminPanelProvider extends PanelProvider
                         // notification and dispatches this browser event. Reload so the
                         // page always reflects the freshly persisted state.
                         window.addEventListener('notificationsSent', () => {
+                            // Pages that manage their own live state (e.g. the
+                            // Inbox chat) opt out — a full reload would wipe the
+                            // open conversation mid-chat.
+                            if (document.querySelector('[data-zz-no-reload]')) {
+                                return;
+                            }
+
                             window.location.reload();
                         });
+
+                        // Chrome-style pull-to-refresh for the mobile app.
+                        // The Capacitor webview has no reload UI, so dragging
+                        // down from the very top of the page reloads it. Real
+                        // mobile browsers already ship native pull-to-refresh,
+                        // so this only activates inside the app's webview.
+                        (() => {
+                            const inAppWebView = !! window.Capacitor
+                                || /; wv\)/.test(navigator.userAgent);
+
+                            if (! inAppWebView || window.__zzPullToRefresh) {
+                                return;
+                            }
+                            window.__zzPullToRefresh = true;
+
+                            const THRESHOLD = 80;
+                            const indicator = document.createElement('div');
+                            indicator.style.cssText = 'position:fixed;top:-3.5rem;left:50%;z-index:9999;width:2.5rem;height:2.5rem;margin-left:-1.25rem;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;transition:none;pointer-events:none;';
+                            indicator.innerHTML = '<svg viewBox="0 0 24 24" style="width:1.35rem;height:1.35rem;fill:none;stroke:rgb(217 119 6);stroke-width:2.5;stroke-linecap:round;"><path d="M20 11A8 8 0 1 0 18.7 16"/><path d="M20 5v6h-6"/></svg>';
+                            document.body.appendChild(indicator);
+
+                            let startY = null;
+                            let pulling = false;
+                            let distance = 0;
+
+                            const atTop = () => (document.scrollingElement?.scrollTop ?? 0) <= 0;
+
+                            const innerScrolled = (el) => {
+                                for (; el && el !== document.body; el = el.parentElement) {
+                                    if (el.scrollTop > 0) return true;
+                                }
+                                return false;
+                            };
+
+                            document.addEventListener('touchstart', (e) => {
+                                startY = (atTop() && ! innerScrolled(e.target)) ? e.touches[0].clientY : null;
+                                pulling = false;
+                                distance = 0;
+                            }, { passive: true });
+
+                            document.addEventListener('touchmove', (e) => {
+                                if (startY === null || ! atTop()) return;
+                                distance = (e.touches[0].clientY - startY) * 0.45;
+                                pulling = distance > 10;
+                                if (! pulling) return;
+                                const shift = Math.min(distance, THRESHOLD * 1.4);
+                                indicator.style.transition = 'none';
+                                indicator.style.top = (shift - 56) + 'px';
+                                indicator.style.transform = 'rotate(' + shift * 3 + 'deg)';
+                            }, { passive: true });
+
+                            document.addEventListener('touchend', () => {
+                                if (pulling && distance >= THRESHOLD) {
+                                    indicator.style.transition = 'top .15s';
+                                    indicator.style.top = '14px';
+                                    indicator.firstElementChild.style.animation = 'zz-ptr-spin .7s linear infinite';
+                                    window.location.reload();
+                                } else {
+                                    indicator.style.transition = 'top .2s';
+                                    indicator.style.top = '-3.5rem';
+                                }
+                                startY = null;
+                                pulling = false;
+                            }, { passive: true });
+
+                            const style = document.createElement('style');
+                            style.textContent = '@keyframes zz-ptr-spin { to { transform: rotate(360deg); } }';
+                            document.head.appendChild(style);
+                        })();
                     </script>
                 HTML),
             )

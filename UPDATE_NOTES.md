@@ -2,6 +2,29 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-17 - Chat-order UX polish, WhatsApp Business-style Inbox, realtime chat, catalog with images, app pull-to-refresh
+
+Reason:
+
+- Owner's live testing feedback, batch 1: (a) random "Error while loading page" toast in the app's Inbox; (b) order links in chat bubbles were plain text; (c) thank-you page needed a back-to-inbox button; (d) order form/thank-you pages should feel premium/modern; (e) the Capacitor app has no way to reload a page.
+- Batch 2: (f) Inbox should feel like WhatsApp Business (desktop + mobile) while keeping Filament UI; (g) catalog sending with product images; (h) sending an order form closed the open chat back to the empty state; (i) sent messages took ~10s (poll) to appear; (j) order form quantity change didn't recalculate the total; (k) new messages didn't surface/scroll like WhatsApp.
+
+Changed files:
+
+- `resources/views/chat-order/{layout,show,success,closed}.blade.php` — full modern redesign (Hind Siliguri font, gradients, animated checkmark, dark mode); success/closed pages show "ইনবক্সে ফিরে যান" for logged-in staff, "ফিরে যান" (history back) for customers; `show` adds product image thumbnails + vanilla-JS live grand-total recalculation on quantity change.
+- `resources/views/filament/pages/inbox.blade.php` — WhatsApp Business-style rewrite: avatars + last-message previews + unread pills in the list, mobile list ⇄ full-screen thread with back button, chat wallpaper, date separators, delivery ticks, image bubbles, auto-scroll/follow-scroll (Alpine + MutationObserver), pill composer (Enter sends, auto-grow), "+" catalog panel with image preview; `wire:poll.visible.5s`; root `data-zz-no-reload`.
+- `app/Filament/Pages/Inbox.php` — `deselectConversation()` (mobile back), catalog panel state, order-form message now carries product name/price + image; scroll-bottom dispatches after send/select.
+- `app/Models/ConversationMessage.php` — `bodyHtml()` linkify helper + new `mediaImageUrl()`.
+- `app/Models/Conversation.php` — `latestMessage()` `latestOfMany` relation for list previews.
+- `app/Services/Crm/ConversationMessengerService.php` — optional media URL: WhatsApp image+caption message, Messenger image then text; archives `media_path`/`media_mime`.
+- `app/Providers/Filament/AdminPanelProvider.php` — Chrome-style pull-to-refresh script (Capacitor/Android WebView only); `notificationsSent` reload now skips pages with `data-zz-no-reload` (fixes the Inbox closing after "Order link sent.").
+- `tests/Feature/InboxPageTest.php` — new (reply archiving + state kept, catalog image on link/message, `mediaImageUrl()` resolution).
+- `CHANGELOG.md` [1.18.0]; `ReleaseNotesTest` at v1.18.0.
+
+Verification: `ChatOrderLinkTest|ConversationIngestTest|AiAutoReplyTest` (24 passed) + new `InboxPageTest` (3 passed); `view:cache` compiles clean; browser-verified locally: live total recalculates instantly (qty 2→5: ৳4,400→৳11,000), product image renders on the order form. Full `php artisan test` — 307 passed (1282 assertions). Smoke-test data removed from the demo DB.
+
+Commit status: Not committed yet — awaiting owner approval.
+
 ## 2026-07-17 - Hotfix: orders.status enum breaks order creation on MySQL (live 500)
 
 Reason:
@@ -17,7 +40,7 @@ Verification: full `php artisan test` — 304 passed (1266 assertions).
 
 Deploy notes: run `php artisan migrate` on the live server after pulling. If the 500 persists afterwards, check `storage/logs/laravel.log` for the actual exception.
 
-Commit status: Not committed yet — awaiting owner approval.
+Commit status: Committed and pushed with owner approval on 2026-07-17 (`86879f4c`, v1.17.1). Confirmed fixed on live: order ZZIN-20260717-0001 succeeded.
 
 ## 2026-07-17 - Lead/CRM module (steps 1–14), banners, single-column admin layout
 

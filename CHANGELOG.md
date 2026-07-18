@@ -2,6 +2,36 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.18.0] - 2026-07-17
+
+**Release type:** Minor Feature Update
+
+Chat-order UX polish after live testing plus a WhatsApp Business-style Inbox overhaul: premium redesign of the customer order form and thank-you pages, clickable order links, catalog (product card with image) sending, near-realtime chat, pull-to-refresh in the mobile app, and fewer spurious "Error while loading page" toasts.
+
+### Added
+
+- **WhatsApp Business-style Inbox:** avatar + last-message-preview conversation list with unread badges, full-screen thread with back button on mobile (list ⇄ chat navigation like the WhatsApp app), chat wallpaper, date separators (আজ/গতকাল), delivery ticks (✓ sent, ✓✓ delivered/read, ⚠ failed), auto-scroll to the newest message, and a WhatsApp-style composer (rounded pill input that grows as you type, Enter sends / Shift+Enter for a new line, round send button, "+" attach button).
+- **Catalog sending with product image:** the "+" button opens a catalog panel — pick a product (with live image/price preview) and quantity, and the customer receives a product card: on WhatsApp the product photo goes as an image message with name/price/order-link caption; on Messenger the photo is sent followed by the text. The image also shows in the Inbox thread bubble and on the customer's order form.
+- **Chat order form + thank-you page redesign:** modern mobile-first look (Hind Siliguri Bengali font, brand mark header, gradient confirm button, focus rings, animated success checkmark, dashed order-number chip, trust footer) with full dark-mode support; the closed/expired page got the same treatment.
+- **Back button on the thank-you page:** logged-in staff see "ইনবক্সে ফিরে যান" (returns to `/admin/inbox`); customers see a plain "ফিরে যান" (history back).
+- **Clickable links in Inbox chat bubbles:** URLs in any message (e.g. order-form links) are now real links that open in a new tab, with XSS-safe escaping.
+- **Pull-to-refresh in the mobile app:** dragging down from the top of any admin page inside the Android (Capacitor) app shows a Chrome-style spinner and reloads the page. Activates only inside the app's webview — normal mobile browsers keep their native pull-to-refresh.
+
+### Fixed
+
+- **Sending an order form no longer closes the open chat.** The global "reload after any success notification" script was resetting the whole Inbox page (back to the empty two-pane state) every time "Order link sent." fired. The Inbox now opts out of that reload; sent messages and order forms appear in the thread instantly on the same request.
+- **Messages feel realtime:** your own sends render immediately (no more waiting for the next poll), and incoming messages arrive via a 5-second visible-only poll with WhatsApp-style follow-scroll (the thread stays pinned to the newest message when you're at the bottom).
+- Inbox polling runs only while the tab/app is visible (`wire:poll.visible`), so background polls on flaky mobile connections no longer surface Filament's "Error while loading page" toast for no user-visible reason. (That toast is Filament's generic notification for any failed Livewire request — a momentary network drop or a hit during a deploy triggers it.)
+- **Order form quantity now recalculates the total live:** changing quantity on `/o/{token}` updates the grand total instantly in the browser (server still recomputes from real prices on submit).
+
+### Technical Notes
+
+- New `ConversationMessage::bodyHtml()` (escape-then-linkify, `target="_blank" rel="noopener noreferrer"`) and `mediaImageUrl()` (resolves catalog URLs and downloaded webhook media paths to displayable image URLs, images only).
+- `ConversationMessengerService::send()` accepts an optional media URL — WhatsApp sends an image message with caption, Messenger sends the image then the text; the archived `conversation_messages` row stores `media_path`/`media_mime`. New `Conversation::latestMessage()` (`latestOfMany`) powers the list previews without N+1 queries.
+- The `notificationsSent` reload listener now skips pages carrying a `data-zz-no-reload` attribute (the Inbox manages its own live state).
+- Pull-to-refresh ships as a small vanilla-JS render hook in `AdminPanelProvider` (touch tracking with resistance, inner-scrollable detection so the thread list doesn't trigger it); detected via `window.Capacitor` / Android WebView UA.
+- No schema changes. New `InboxPageTest` (reply archiving + state kept after send, catalog image on link/message, media URL resolution). Full suite: 307 passed (1282 assertions). Verified in the browser: new order form renders, live total recalculates (qty 2→5 updated ৳4,400→৳11,000 instantly), product image shows on the form; a test order previously submitted end-to-end; smoke-test data removed from the demo DB afterwards.
+
 ## [1.17.1] - 2026-07-17
 
 **Release type:** Hotfix

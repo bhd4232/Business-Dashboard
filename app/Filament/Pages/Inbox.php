@@ -44,6 +44,8 @@ class Inbox extends Page
 
     public int $orderFormQuantity = 1;
 
+    public bool $showCatalogPanel = false;
+
     public static function getNavigationBadge(): ?string
     {
         $unread = (int) Conversation::query()->sum('unread_count');
@@ -55,7 +57,7 @@ class Inbox extends Page
     {
         return Conversation::query()
             ->when($this->statusFilter !== 'all', fn ($query) => $query->where('status', $this->statusFilter))
-            ->with(['lead', 'customer'])
+            ->with(['lead', 'customer', 'latestMessage'])
             ->orderByDesc('last_message_at')
             ->limit(100)
             ->get();
@@ -70,7 +72,7 @@ class Inbox extends Page
 
     public function getProductsProperty(): Collection
     {
-        return Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'sale_price']);
+        return Product::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'sale_price', 'image']);
     }
 
     public function selectConversation(int $conversationId): void
@@ -78,6 +80,13 @@ class Inbox extends Page
         $this->selectedConversationId = $conversationId;
         $this->replyBody = '';
         Conversation::query()->find($conversationId)?->markRead();
+        $this->dispatch('zz-scroll-bottom');
+    }
+
+    public function deselectConversation(): void
+    {
+        $this->selectedConversationId = null;
+        $this->replyBody = '';
     }
 
     public function setStatusFilter(string $status): void
@@ -104,6 +113,7 @@ class Inbox extends Page
             $type = in_array($conversation->provider, ['whatsapp', 'messenger'], true) ? 'text' : 'note';
             app(ConversationMessengerService::class)->send($conversation, trim($this->replyBody), Auth::user(), $type);
             $this->replyBody = '';
+            $this->dispatch('zz-scroll-bottom');
         } catch (ValidationException $exception) {
             Notification::make()->title($exception->getMessage())->danger()->send();
         } catch (\Throwable $exception) {
@@ -144,6 +154,8 @@ class Inbox extends Page
             return;
         }
 
+        $imageUrl = $product->image ? asset('storage/'.$product->image) : null;
+
         $link = ChatOrderLink::query()->create([
             'conversation_id' => $conversation->getKey(),
             'lead_id' => $conversation->lead_id,
@@ -153,6 +165,7 @@ class Inbox extends Page
                     'name' => $product->name,
                     'quantity' => max(1, $this->orderFormQuantity),
                     'unit_price' => (float) $product->sale_price,
+                    'image' => $product->image,
                 ]],
                 'name' => $conversation->contact_name,
                 'phone' => $conversation->contact_phone,
@@ -161,12 +174,17 @@ class Inbox extends Page
             'created_by' => Auth::id(),
         ]);
 
+        $body = "🛍️ {$product->name}\n"
+            .'৳'.number_format((float) $product->sale_price, 2)."\n\n"
+            ."অর্ডার করতে এই লিংকে ক্লিক করুন: {$link->publicUrl()}";
+
         try {
             app(ConversationMessengerService::class)->send(
                 $conversation,
-                "অর্ডার করতে এই লিংকে ক্লিক করুন: {$link->publicUrl()}",
+                $body,
                 Auth::user(),
                 'order_form',
+                $imageUrl,
             );
             Notification::make()->title('Order link sent.')->success()->send();
         } catch (\Throwable $exception) {
@@ -175,6 +193,8 @@ class Inbox extends Page
                 'direction' => 'outgoing',
                 'type' => 'order_form',
                 'body' => "Order link: {$link->publicUrl()}",
+                'media_path' => $imageUrl,
+                'media_mime' => $imageUrl ? 'image/*' : null,
                 'delivery_status' => 'failed',
                 'sent_by' => Auth::id(),
                 'sent_at' => now(),
@@ -187,5 +207,7 @@ class Inbox extends Page
 
         $this->orderFormProductId = null;
         $this->orderFormQuantity = 1;
+        $this->showCatalogPanel = false;
+        $this->dispatch('zz-scroll-bottom');
     }
 }

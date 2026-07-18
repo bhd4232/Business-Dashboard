@@ -48,6 +48,11 @@ class Conversation extends Model
         return $this->hasMany(ConversationMessage::class);
     }
 
+    public function latestMessage(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ConversationMessage::class)->latestOfMany('id');
+    }
+
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);

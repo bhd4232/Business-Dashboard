@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
  */
 class ConversationMessengerService
 {
-    public function send(Conversation $conversation, string $body, ?User $sender = null, string $type = 'text'): ConversationMessage
+    public function send(Conversation $conversation, string $body, ?User $sender = null, string $type = 'text', ?string $mediaUrl = null): ConversationMessage
     {
         $externalId = null;
 
@@ -29,8 +29,8 @@ class ConversationMessengerService
             }
 
             $externalId = $conversation->provider === 'whatsapp'
-                ? $this->sendWhatsApp($channel->external_id, (string) $channel->access_token, $conversation->external_contact_id, $body)
-                : $this->sendMessenger((string) $channel->access_token, $conversation->external_contact_id, $body);
+                ? $this->sendWhatsApp($channel->external_id, (string) $channel->access_token, $conversation->external_contact_id, $body, $mediaUrl)
+                : $this->sendMessenger((string) $channel->access_token, $conversation->external_contact_id, $body, $mediaUrl);
         }
 
         $message = ConversationMessage::query()->create([
@@ -38,6 +38,8 @@ class ConversationMessengerService
             'direction' => 'outgoing',
             'type' => $type,
             'body' => $body,
+            'media_path' => $mediaUrl,
+            'media_mime' => $mediaUrl ? 'image/*' : null,
             'external_message_id' => $externalId,
             'delivery_status' => 'sent',
             'sent_by' => $sender?->getKey(),
@@ -62,14 +64,19 @@ class ConversationMessengerService
         return $message;
     }
 
-    protected function sendWhatsApp(string $phoneNumberId, string $accessToken, ?string $to, string $body): ?string
+    protected function sendWhatsApp(string $phoneNumberId, string $accessToken, ?string $to, string $body, ?string $mediaUrl = null): ?string
     {
+        // With an image URL the message goes out as a WhatsApp image with the
+        // text as caption (catalog card), otherwise as a plain text message.
+        $payload = $mediaUrl
+            ? ['type' => 'image', 'image' => ['link' => $mediaUrl, 'caption' => $body]]
+            : ['type' => 'text', 'text' => ['body' => $body]];
+
         $response = Http::withToken($accessToken)
             ->post("https://graph.facebook.com/v19.0/{$phoneNumberId}/messages", [
                 'messaging_product' => 'whatsapp',
                 'to' => $to,
-                'type' => 'text',
-                'text' => ['body' => $body],
+                ...$payload,
             ])
             ->throw()
             ->json();
@@ -77,16 +84,25 @@ class ConversationMessengerService
         return data_get($response, 'messages.0.id');
     }
 
-    protected function sendMessenger(string $accessToken, ?string $psid, string $body): ?string
+    protected function sendMessenger(string $accessToken, ?string $psid, string $body, ?string $mediaUrl = null): ?string
     {
-        $response = Http::post(
-            'https://graph.facebook.com/v19.0/me/messages?access_token='.urlencode($accessToken),
-            [
+        $endpoint = 'https://graph.facebook.com/v19.0/me/messages?access_token='.urlencode($accessToken);
+
+        // Messenger has no caption on image attachments — send the image
+        // first (best effort), then the text with the link.
+        if ($mediaUrl !== null) {
+            Http::post($endpoint, [
                 'recipient' => ['id' => $psid],
-                'message' => ['text' => $body],
+                'message' => ['attachment' => ['type' => 'image', 'payload' => ['url' => $mediaUrl, 'is_reusable' => true]]],
                 'messaging_type' => 'RESPONSE',
-            ],
-        )
+            ]);
+        }
+
+        $response = Http::post($endpoint, [
+            'recipient' => ['id' => $psid],
+            'message' => ['text' => $body],
+            'messaging_type' => 'RESPONSE',
+        ])
             ->throw()
             ->json();
 
