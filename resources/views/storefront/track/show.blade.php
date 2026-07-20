@@ -43,9 +43,11 @@
                             name="phone"
                             placeholder="01XXXXXXXXX"
                             type="tel"
+                            inputmode="tel"
+                            autocomplete="tel"
                             value="{{ $phone }}"
                         >
-                        <button class="rounded-lg bg-gray-950 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] dark:bg-white dark:text-gray-950" type="submit">
+                        <button class="rounded-lg bg-[var(--storefront-brand)] px-6 py-2.5 text-sm font-medium text-white transition hover:opacity-90" type="submit">
                             Track order
                         </button>
                     </div>
@@ -53,7 +55,7 @@
 
                     @if (! empty($notFound))
                         <p class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200">
-                            We couldn't find an order matching that order number and phone number. Please check both and try again.
+                            We couldn&rsquo;t find an order matching that order number and phone number. Please check both and try again.
                         </p>
                     @endif
                 </form>

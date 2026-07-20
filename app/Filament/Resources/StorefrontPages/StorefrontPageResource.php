@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StorefrontPages;
 
+use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\StorefrontPages\Pages\CreateStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\EditStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\ListStorefrontPages;
@@ -10,6 +11,8 @@ use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -27,6 +30,8 @@ use UnitEnum;
 
 class StorefrontPageResource extends Resource
 {
+    use OptimizesUploadedImages;
+
     protected static ?string $model = StorefrontPage::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
@@ -65,10 +70,20 @@ class StorefrontPageResource extends Resource
                     Textarea::make('excerpt')
                         ->rows(2)
                         ->maxLength(500)
+                        ->helperText('Short subtitle shown under the page title.')
                         ->columnSpanFull(),
-                    Textarea::make('content')
+                    FileUpload::make('cover_image')
+                        ->label('Cover image (optional)')
+                        ->helperText('Wide banner shown at the top of the page. Automatically compressed to WebP on upload.')
+                        ->image()
+                        ->maxSize(2048)
+                        ->disk('public')
+                        ->directory('storefront/pages')
+                        ->imageEditor()
+                        ->saveUploadedFileUsing(static::optimizeImageUpload())
+                        ->columnSpanFull(),
+                    RichEditor::make('content')
                         ->required()
-                        ->rows(12)
                         ->columnSpanFull(),
                     TextInput::make('sort_order')
                         ->numeric()

@@ -35,6 +35,24 @@
         @php
             $advancePayment = $order->storefrontPayments()->latest()->first();
             $isManualPayment = $advancePayment && in_array($advancePayment->gateway, ['manual_bkash', 'manual_nagad'], true);
+            $trackUrl = isset($previewSlug)
+                ? route('storefront.preview.track.show', [
+                    'company' => $previewSlug,
+                    'orderNo' => $order->order_number,
+                    'phone' => $order->customer?->phone,
+                ])
+                : Illuminate\Support\Facades\URL::temporarySignedRoute(
+                    'storefront.track.show',
+                    now()->addDays(7),
+                    ['orderNo' => $order->order_number],
+                );
+            $orderHistoryUrl = isset($previewSlug)
+                ? route('storefront.preview.account.orders', [
+                    'company' => $previewSlug,
+                    'phone' => $order->customer?->phone,
+                ])
+                : route('storefront.account.orders');
+            $showOrderHistoryLink = isset($previewSlug) || (bool) ($setting->customer_accounts_enabled ?? true);
         @endphp
         @if ($advancePayment)
             <div class="mt-4 rounded-xl border px-5 py-4 text-left text-sm {{ $advancePayment->status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200' }}">
@@ -53,18 +71,20 @@
         @endif
 
         <div class="mt-8 flex flex-wrap justify-center gap-3">
-            <a class="inline-flex rounded-lg bg-gray-950 px-6 py-3 text-sm font-medium text-white dark:bg-white dark:text-gray-950" href="{{ isset($previewSlug) ? route('storefront.preview.track.show', [$previewSlug, $order->order_number]) : route('storefront.track.show', $order->order_number) }}">
+            <a class="inline-flex rounded-lg bg-[var(--storefront-brand)] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90" href="{{ $trackUrl }}">
                 Track this order
             </a>
-            <a class="inline-flex rounded-lg border border-gray-300 px-6 py-3 text-sm font-medium text-gray-900 dark:border-white/10 dark:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">
+            <a class="inline-flex rounded-lg border border-gray-300 px-6 py-3 text-sm font-medium text-gray-900 transition hover:border-[var(--storefront-brand)] dark:border-white/10 dark:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">
                 Continue shopping
             </a>
         </div>
-        <p class="mt-5 text-sm text-gray-500 dark:text-gray-400">
-            Want to see all your storefront orders? Visit
-            <a class="font-medium text-[var(--storefront-brand)]" href="{{ isset($previewSlug) ? route('storefront.preview.account.orders', ['company' => $previewSlug, 'phone' => $order->customer?->phone]) : route('storefront.account.orders', ['phone' => $order->customer?->phone]) }}">
-                order history
-            </a>.
-        </p>
+        @if ($showOrderHistoryLink)
+            <p class="mt-5 text-sm text-gray-500 dark:text-gray-400">
+                Want to see all your storefront orders? Visit
+                <a class="font-medium text-[var(--storefront-brand)]" href="{{ $orderHistoryUrl }}">
+                    order history
+                </a>.
+            </p>
+        @endif
     </section>
 @endsection

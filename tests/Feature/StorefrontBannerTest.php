@@ -5,11 +5,16 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\Product;
 use App\Models\StorefrontSetting;
+use App\Models\StorefrontSlide;
 use App\Services\CompanyContext;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Homepage banners are hero slides (the old Storefront Settings banner
+ * repeaters were merged into StorefrontSlide in v1.20.0).
+ */
 class StorefrontBannerTest extends TestCase
 {
     use RefreshDatabase;
@@ -22,7 +27,7 @@ class StorefrontBannerTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
-    public function test_product_tagged_banner_links_to_the_products_page(): void
+    public function test_product_tagged_slide_links_to_the_products_page(): void
     {
         $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banners.example.test');
 
@@ -43,59 +48,85 @@ class StorefrontBannerTest extends TestCase
             'status' => Product::STATUS_AVAILABLE,
         ]);
 
-        $company->storefrontSetting->update([
-            'banner_images' => [
-                ['image' => 'storefront/banners/one.jpg', 'product_id' => $product->getKey()],
-            ],
+        StorefrontSlide::query()->create([
+            'company_id' => $company->getKey(),
+            'image' => 'storefront/slides/one.jpg',
+            'product_id' => $product->getKey(),
+            'is_active' => true,
         ]);
 
         $this->get('http://banners.example.test/')
             ->assertOk()
-            ->assertSee('storage/storefront/banners/one.jpg', false)
+            ->assertSee('storage/storefront/slides/one.jpg', false)
             ->assertSee('href="'.route('storefront.products.show', 'fast-charger').'"', false);
     }
 
-    public function test_untagged_banner_renders_without_a_product_link(): void
+    public function test_cta_url_wins_over_the_product_link(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banners-cta.example.test');
+
+        app(CompanyContext::class)->set($company);
+
+        $product = Product::query()->create([
+            'name' => 'Power Bank',
+            'sku' => 'POWER-BANK-001',
+            'slug' => 'power-bank',
+            'price' => 2200,
+            'cost_price' => 1500,
+            'stock' => 5,
+            'unit' => 'pcs',
+            'reorder_level' => 2,
+            'vat_rate' => 0,
+            // Hidden from the product grid so the only possible product link
+            // on the page would come from the slide itself.
+            'is_active' => false,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+
+        StorefrontSlide::query()->create([
+            'company_id' => $company->getKey(),
+            'image' => 'storefront/slides/cta.jpg',
+            'cta_url' => 'https://example.com/offer',
+            'product_id' => $product->getKey(),
+            'is_active' => true,
+        ]);
+
+        $this->get('http://banners-cta.example.test/')
+            ->assertOk()
+            ->assertSee('href="https://example.com/offer"', false)
+            ->assertDontSee('href="'.route('storefront.products.show', 'power-bank').'"', false);
+    }
+
+    public function test_untagged_slide_renders_without_a_product_link(): void
     {
         $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banners-plain.example.test');
 
-        $company->storefrontSetting->update([
-            'banner_images' => [
-                ['image' => 'storefront/banners/plain.jpg', 'product_id' => null],
-            ],
+        StorefrontSlide::query()->create([
+            'company_id' => $company->getKey(),
+            'image' => 'storefront/slides/plain.jpg',
+            'is_active' => true,
         ]);
 
         $this->get('http://banners-plain.example.test/')
             ->assertOk()
-            ->assertSee('storage/storefront/banners/plain.jpg', false);
+            ->assertSee('storage/storefront/slides/plain.jpg', false);
     }
 
-    public function test_mobile_banners_fall_back_to_desktop_banners_when_empty(): void
+    public function test_mobile_image_renders_as_a_picture_source(): void
     {
         $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banners-mobile.example.test');
 
-        $company->storefrontSetting->update([
-            'banner_images' => [
-                ['image' => 'storefront/banners/desktop.jpg', 'product_id' => null],
-            ],
+        StorefrontSlide::query()->create([
+            'company_id' => $company->getKey(),
+            'image' => 'storefront/slides/desktop.jpg',
+            'image_mobile' => 'storefront/slides/mobile.jpg',
+            'is_active' => true,
         ]);
 
         $this->get('http://banners-mobile.example.test/')
             ->assertOk()
-            ->assertSeeInOrder(['storefront/banners/desktop.jpg', 'storefront/banners/desktop.jpg']);
-    }
-
-    public function test_legacy_plain_string_banner_entries_still_render(): void
-    {
-        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banners-legacy.example.test');
-
-        $company->storefrontSetting->update([
-            'banner_images' => ['storefront/banners/legacy.jpg'],
-        ]);
-
-        $this->get('http://banners-legacy.example.test/')
-            ->assertOk()
-            ->assertSee('storage/storefront/banners/legacy.jpg', false);
+            ->assertSee('storefront/slides/desktop.jpg', false)
+            ->assertSee('storefront/slides/mobile.jpg', false);
     }
 
     private function createPublishedStorefrontCompany(string $name, string $domain): Company

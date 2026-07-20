@@ -12,7 +12,7 @@
     <div class="relative overflow-hidden bg-gray-100 dark:bg-white/5">
         <a href="{{ $productUrl }}" class="block">
             @if ($product->image)
-                <img class="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" src="{{ asset('storage/'.$product->image) }}" alt="{{ $product->name }}" loading="lazy" decoding="async">
+                <img class="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" src="{{ \App\Support\StorageUrl::for($product->image) }}" alt="{{ $product->name }}" width="800" height="800" loading="lazy" decoding="async">
             @else
                 <div class="grid aspect-square w-full place-items-center text-5xl font-semibold text-[var(--storefront-brand)]">
                     {{ mb_substr($product->name, 0, 1) }}
@@ -28,18 +28,32 @@
             </div>
         @endif
 
-        <form class="absolute bottom-3 right-3 transition focus-within:opacity-100" method="POST" action="{{ $cartAddUrl }}">
-            @csrf
-            <input type="hidden" name="quantity" value="{{ $product->effectiveMoq() }}">
-            <button
-                class="grid h-10 w-10 place-items-center rounded-full bg-white text-gray-900 shadow-md transition hover:bg-gray-950 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-900 dark:text-white"
-                type="submit"
-                title="Quick add to cart"
-                @disabled($product->stock < 1 && ! $product->is_preorder)
+        @if ($product->has_variants)
+            <a
+                class="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-white text-gray-900 shadow-md transition hover:bg-[var(--storefront-brand)] hover:text-white dark:bg-gray-900 dark:text-white"
+                href="{{ $productUrl }}"
+                title="Choose options"
+                aria-label="Choose options for {{ $product->name }}"
+                data-choose-options
             >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14"/></svg>
-            </button>
-        </form>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M6 14v6"/></svg>
+            </a>
+        @else
+            <form class="absolute bottom-3 right-3 transition focus-within:opacity-100" method="POST" action="{{ $cartAddUrl }}" data-quick-add-form>
+                @csrf
+                <input type="hidden" name="quantity" value="{{ $product->effectiveMoq() }}">
+                <button
+                    class="grid h-10 w-10 place-items-center rounded-full bg-white text-gray-900 shadow-md transition hover:bg-[var(--storefront-brand)] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-900 dark:text-white"
+                    type="submit"
+                    title="Quick add to cart"
+                    aria-label="Add {{ $product->name }} to cart"
+                    data-pending-label="Adding {{ $product->name }} to cart"
+                    @disabled($product->stock < 1 && ! $product->is_preorder)
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14"/></svg>
+                </button>
+            </form>
+        @endif
     </div>
     <div class="p-4">
         <div class="text-xs font-medium text-gray-400">{{ $product->category?->name ?? 'Product' }}</div>
@@ -64,3 +78,36 @@
         @endif
     </div>
 </article>
+
+@if (! $product->has_variants)
+    @once
+        <script>
+            document.addEventListener('submit', function (event) {
+                var form = event.target.closest && event.target.closest('[data-quick-add-form]');
+                if (!form) return;
+
+                if (form.dataset.submitting === 'true') {
+                    event.preventDefault();
+                    return;
+                }
+
+                form.dataset.submitting = 'true';
+
+                window.setTimeout(function () {
+                    if (event.defaultPrevented) {
+                        delete form.dataset.submitting;
+                        return;
+                    }
+
+                    var button = form.querySelector('button[type="submit"]');
+                    if (!button) return;
+
+                    button.disabled = true;
+                    button.setAttribute('aria-busy', 'true');
+                    button.setAttribute('aria-label', button.getAttribute('data-pending-label') || 'Adding to cart');
+                    button.textContent = '…';
+                }, 0);
+            });
+        </script>
+    @endonce
+@endif

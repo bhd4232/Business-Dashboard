@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class StorefrontSetting extends Model
@@ -22,10 +21,11 @@ class StorefrontSetting extends Model
         'theme_color',
         'logo',
         'logo_dark',
-        'banner_images',
-        'banner_images_mobile',
+        'customer_accounts_enabled',
         'whatsapp_number',
         'phone_number',
+        'contact_email',
+        'contact_hours',
         'hero_heading',
         'hero_subheading',
         'hero_cta_label',
@@ -52,13 +52,14 @@ class StorefrontSetting extends Model
         'woocommerce_credentials',
         'meta_title',
         'meta_description',
+        'header_menu',
+        'footer_menu',
         'is_published',
     ];
 
     protected $casts = [
-        'banner_images' => 'array',
-        'banner_images_mobile' => 'array',
         'is_published' => 'boolean',
+        'customer_accounts_enabled' => 'boolean',
         'offer_discount_percent' => 'integer',
         'offer_ends_at' => 'datetime',
         'woocommerce_credentials' => 'encrypted:array',
@@ -70,6 +71,8 @@ class StorefrontSetting extends Model
         'abandoned_cart_reminders_enabled' => 'boolean',
         'abandoned_cart_delay_hours' => 'integer',
         'notification_credentials' => 'encrypted:array',
+        'header_menu' => 'array',
+        'footer_menu' => 'array',
     ];
 
     protected static function booted(): void
@@ -77,6 +80,7 @@ class StorefrontSetting extends Model
         static::creating(function (StorefrontSetting $setting): void {
             $setting->theme_color ??= '#0F766E';
             $setting->is_published ??= false;
+            $setting->customer_accounts_enabled ??= true;
             $setting->theme_mode ??= 'system';
             $setting->cod_enabled ??= true;
         });
@@ -88,22 +92,5 @@ class StorefrontSetting extends Model
     public function hasActiveOffer(): bool
     {
         return filled($this->offer_title) && $this->offer_ends_at && $this->offer_ends_at->isFuture();
-    }
-
-    /**
-     * Normalizes banner_images / banner_images_mobile into a consistent
-     * [{image, product_id}] shape, since older rows may still hold plain
-     * image-path strings from before per-banner product tagging existed.
-     *
-     * @return Collection<int, array{image: string, product_id: int|null}>
-     */
-    public function bannerSlides(string $column): Collection
-    {
-        return collect($this->{$column} ?? [])
-            ->map(fn ($item) => is_array($item)
-                ? ['image' => (string) ($item['image'] ?? ''), 'product_id' => $item['product_id'] ?? null]
-                : ['image' => (string) $item, 'product_id' => null])
-            ->filter(fn (array $item): bool => filled($item['image']))
-            ->values();
     }
 }

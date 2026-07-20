@@ -22,7 +22,7 @@
                 <div class="item">
                     <span style="min-width: 0; display: flex; align-items: center; gap: .65rem;">
                         @if (! empty($item['image']))
-                            <img src="{{ asset('storage/'.$item['image']) }}" alt="{{ $item['name'] ?? 'Item' }}" style="width: 3.25rem; height: 3.25rem; object-fit: cover; border-radius: .65rem; flex: none;">
+                            <img src="{{ \App\Support\StorageUrl::for($item['image']) }}" alt="{{ $item['name'] ?? 'Item' }}" style="width: 3.25rem; height: 3.25rem; object-fit: cover; border-radius: .65rem; flex: none;">
                         @endif
                         <span style="min-width: 0;">
                             <span class="item-name">

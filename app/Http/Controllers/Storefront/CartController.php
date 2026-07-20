@@ -220,7 +220,9 @@ class CartController extends Controller
             ->where('slug', $slug)
             ->where('is_active', true)
             ->where('status', Product::STATUS_AVAILABLE)
-            ->where('stock', '>', 0)
+            ->where(fn ($query) => $query
+                ->where('stock', '>', 0)
+                ->orWhere('is_preorder', true))
             ->firstOrFail();
     }
 }

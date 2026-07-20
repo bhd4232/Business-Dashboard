@@ -128,10 +128,10 @@ class StorefrontB2bTest extends TestCase
             'unit_price' => 900,
         ]);
 
-        // The phone-only order history shows orders, but a phone number is a
-        // weak secret, so the customer's outstanding balance is never exposed
-        // here (privacy hardening — audit M-3).
-        $this->get('http://due.example.test/account/orders?phone=01755555555')
+        // Account authentication protects the order list; customer balance is
+        // still intentionally reserved for staff-facing ERP screens.
+        $this->actingAs($customer, 'customer')
+            ->get('http://due.example.test/account/orders')
             ->assertOk()
             ->assertSee($order->order_number)
             ->assertDontSee('Current due with')

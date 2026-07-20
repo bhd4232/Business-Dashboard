@@ -1,0 +1,251 @@
+{
+  "name": "Image Send tool",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        0,
+        -64
+      ],
+      "id": "2e85a0d9-2ce5-4e0b-a700-278767afd5a4",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v19.0/922737424262274/messages",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "={{ $env.META_MESSENGER_IMAGE_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"26120025164298627\"\n  },\n  \"message\": {\n    \"attachment\": {\n      \"type\": \"image\",\n      \"payload\": {\n        \"url\": \"{{ $json['Product Image Link (Public)'] }}\",\n        \"is_reusable\": true\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        720,
+        -48
+      ],
+      "id": "e58c54e4-8918-4440-8811-a36a7b9742f1",
+      "name": "image send"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        512,
+        -48
+      ],
+      "id": "0a585c1f-5076-437b-8a50-a85445b8134a",
+      "name": "Wait4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5bb8e73a-461f-4c54-9574-30a8f5caf322",
+              "name": "Product Image Link (Public)",
+              "value": "={{ $json['Product Image Link (Public)'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -208,
+        -64
+      ],
+      "id": "58ef8461-ed73-4f7c-9c15-4b9efbeeff23",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "19lsJXobDfz-yj7qCDsjwBIZrr2W275kNN7W_3aMMmfo",
+          "mode": "list",
+          "cachedResultName": "Get Product Detials Tools Home Food",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19lsJXobDfz-yj7qCDsjwBIZrr2W275kNN7W_3aMMmfo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Product Details",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19lsJXobDfz-yj7qCDsjwBIZrr2W275kNN7W_3aMMmfo/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -416,
+        -64
+      ],
+      "id": "c4980c25-2404-432a-bcd6-ab4dbf8526dc",
+      "name": "Image Send Tools"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -624,
+        -64
+      ],
+      "id": "a5fb7cbc-e39e-4aad-88d1-8fde2afcc4ab",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d3a027a7-4683-450a-82fa-7a229cdcc62d",
+              "name": "status",
+              "value": "Success",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        272,
+        -192
+      ],
+      "id": "8137caa3-0b20-4cc4-9daf-cc5ec51187b9",
+      "name": "Edit Fields",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst elements = [];\n\nlet senderId;\ntry {\n  senderId = $(\"Webhook\").first().json.body.entry[0].messaging[0].sender.id;\n} catch (e) {\n  senderId = \"26120025164298627\"; \n}\n\nitems.slice(0, 10).forEach(item => {\n  // Ekhane sure hobe j column nam 'Product Name (Bangla)' ebong 'Product ID' ki na\n  const productName = item.json[\"Product Name (Bangla)\"] || \"Unknown\";\n  const productId = item.json[\"Product ID\"] || \"NoID\"; \n  \n  elements.push({\n    \"title\": productName,\n    \"image_url\": item.json[\"Product Image Link (Public)\"],\n    \"subtitle\": (item.json[\"Price (৳)\"] || \"0\") + \" Tk\",\n    \"buttons\": [\n      {\n        \"type\": \"postback\",\n        \"title\": \"Order Now\",\n        // Ekhane amra dynamic productId variable-ti use korchi\n        \"payload\": \"ORDER_ITEM_\" + productName + \"_\" + productId\n      }\n    ]\n  });\n});\n\nreturn {\n  recipient_id: senderId,\n  elements: elements\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        -16
+      ],
+      "id": "42479cd4-2b3f-482f-a646-b285317bbd59",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "image send": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "image send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Send Tools": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Image Send Tools",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "tags": []
+}

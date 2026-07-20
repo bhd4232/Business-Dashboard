@@ -154,11 +154,11 @@ class CompanySettingsTest extends TestCase
             ->assertOk()
             ->assertSee('ZamZam Trading')
             ->assertSee('Dhaka, Bangladesh')
-            ->assertSee('USD 100.00')
+            ->assertSee('Unit Price (USD)')
+            ->assertSee('100.00')
             ->assertDontSee('Discount')
             ->assertDontSee('VAT')
-            ->assertDontSee('Paid:')
-            ->assertDontSee('<td>Paid</td>', false)
+            ->assertDontSee('>Paid<', false)
             ->assertSee('invoice-print-button')
             ->assertSee('window.print()');
     }
@@ -204,10 +204,9 @@ class CompanySettingsTest extends TestCase
             ->assertOk()
             ->assertSee('Discount')
             ->assertSee('VAT')
-            ->assertSee('Paid: -USD 20.00')
-            ->assertSee('<td>Paid</td>', false)
-            ->assertSee('<td class="amount">-USD 20.00</td>', false)
-            ->assertSee('USD 75.00');
+            ->assertSee('<td class="t-label">Paid</td>', false)
+            ->assertSee('-20.00')
+            ->assertSee('75.00');
     }
 
     public function test_company_settings_livewire_save_updates_profile(): void

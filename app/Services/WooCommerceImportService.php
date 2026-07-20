@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StorefrontSetting;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -22,6 +23,12 @@ use RuntimeException;
  */
 class WooCommerceImportService
 {
+    protected string $baseUrl = '';
+
+    protected string $key = '';
+
+    protected string $secret = '';
+
     public function __construct(protected CompanyContext $context) {}
 
     /**
@@ -46,6 +53,9 @@ class WooCommerceImportService
         $this->context->set($company);
 
         $baseUrl = rtrim($setting->woocommerce_base_url, '/');
+        $this->baseUrl = $baseUrl;
+        $this->key = $key;
+        $this->secret = $secret;
         $page = 1;
         $result = ['created' => 0, 'updated' => 0, 'skipped' => 0];
 
@@ -106,15 +116,27 @@ class WooCommerceImportService
         $regularPrice = $this->toPrice($payload['regular_price'] ?? null) ?? $this->toPrice($payload['price'] ?? null) ?? 0.0;
         $salePrice = $this->toPrice($payload['sale_price'] ?? null) ?? $regularPrice;
 
+        // Full description first — the short description alone loses most of
+        // the product information written on the old site.
+        $description = trim(strip_tags((string) (($payload['description'] ?? '') ?: ($payload['short_description'] ?? '')))) ?: null;
+
         $attributes = [
             'name' => $name,
-            'description' => trim(strip_tags((string) (($payload['short_description'] ?? '') ?: ($payload['description'] ?? '')))) ?: null,
+            'description' => $description,
             'price' => $regularPrice,
             'sale_price' => $salePrice,
             'is_active' => true,
             'status' => Product::STATUS_AVAILABLE,
             'category_id' => $this->resolveCategory($payload['categories'] ?? [])?->getKey(),
         ];
+
+        if (is_numeric($payload['weight'] ?? null) && (float) $payload['weight'] > 0) {
+            $attributes['weight_kg'] = (float) $payload['weight'];
+        }
+
+        if ($brand = $this->resolveBrand($payload)) {
+            $attributes['brand'] = $brand;
+        }
 
         $isNew = ! $product;
 
@@ -142,9 +164,167 @@ class WooCommerceImportService
             }
         }
 
+        // Remaining WooCommerce images become the gallery (only filled once,
+        // so admin-curated galleries are never overwritten on re-sync).
+        if ($downloadImages && blank($product->gallery_images)) {
+            $gallery = collect($payload['images'] ?? [])
+                ->skip(1)
+                ->map(fn ($image) => $this->downloadImage((string) (data_get($image, 'src') ?? '')))
+                ->filter()
+                ->values()
+                ->all();
+
+            if ($gallery !== []) {
+                $product->gallery_images = $gallery;
+            }
+        }
+
         $product->save();
 
+        if (($payload['type'] ?? '') === 'variable') {
+            $this->importVariations($product, $payload, $downloadImages);
+        }
+
         return $isNew ? 'created' : 'updated';
+    }
+
+    /**
+     * Pulls a variable product's variations and upserts them as ProductVariant
+     * rows (matched by variation SKU, falling back to the options signature).
+     * Variant stock is NOT imported — same rule as product stock.
+     */
+    protected function importVariations(Product $product, array $payload, bool $downloadImages): void
+    {
+        $wooProductId = (int) ($payload['id'] ?? 0);
+
+        if ($wooProductId <= 0) {
+            return;
+        }
+
+        // Attribute names used for variations (e.g. Size, Color) — stored on
+        // the product for reference in the admin form.
+        $variationAttributes = collect($payload['attributes'] ?? [])
+            ->filter(fn ($attribute) => (bool) data_get($attribute, 'variation'))
+            ->mapWithKeys(fn ($attribute) => [(string) data_get($attribute, 'name') => array_map('strval', (array) data_get($attribute, 'options', []))])
+            ->all();
+
+        $page = 1;
+        $sortOrder = 0;
+
+        do {
+            $response = Http::timeout(30)
+                ->retry(2, 1000)
+                ->withBasicAuth($this->key, $this->secret)
+                ->get("{$this->baseUrl}/wp-json/wc/v3/products/{$wooProductId}/variations", [
+                    'per_page' => 50,
+                    'page' => $page,
+                ]);
+
+            if ($response->failed()) {
+                return; // Keep the base product; variations can be re-synced later.
+            }
+
+            $variations = $response->json();
+
+            if (! is_array($variations)) {
+                return;
+            }
+
+            foreach ($variations as $variation) {
+                $this->importVariation($product, (array) $variation, $downloadImages, $sortOrder);
+                $sortOrder++;
+            }
+
+            $page++;
+        } while (count($variations) === 50);
+
+        if ($sortOrder > 0) {
+            $product->forceFill([
+                'has_variants' => true,
+                'variant_attributes' => $variationAttributes ?: $product->variant_attributes,
+            ])->save();
+        }
+    }
+
+    protected function importVariation(Product $product, array $variation, bool $downloadImages, int $sortOrder): void
+    {
+        $options = collect($variation['attributes'] ?? [])
+            ->mapWithKeys(fn ($attribute) => [(string) data_get($attribute, 'name') => (string) data_get($attribute, 'option')])
+            ->filter(fn ($value, $key) => $key !== '' && $value !== '')
+            ->all();
+
+        if ($options === []) {
+            return;
+        }
+
+        $sku = trim((string) ($variation['sku'] ?? ''));
+
+        $variant = null;
+
+        if ($sku !== '' && $sku !== $product->sku) {
+            $variant = ProductVariant::query()->where('product_id', $product->getKey())->where('sku', $sku)->first();
+        }
+
+        $variant ??= ProductVariant::query()
+            ->where('product_id', $product->getKey())
+            ->get()
+            ->first(fn (ProductVariant $existing): bool => $this->optionsSignature($existing->options ?? []) === $this->optionsSignature($options));
+
+        $regularPrice = $this->toPrice($variation['regular_price'] ?? null) ?? $this->toPrice($variation['price'] ?? null);
+        $salePrice = $this->toPrice($variation['sale_price'] ?? null) ?? $regularPrice;
+
+        $attributes = [
+            'options' => $options,
+            'sale_price' => $salePrice,
+            'is_active' => ($variation['status'] ?? 'publish') === 'publish',
+            'sort_order' => (int) ($variation['menu_order'] ?? $sortOrder) ?: $sortOrder,
+        ];
+
+        if ($variant) {
+            $variant->fill($attributes);
+        } else {
+            $variant = new ProductVariant([
+                ...$attributes,
+                'product_id' => $product->getKey(),
+                'sku' => ($sku !== '' && $sku !== $product->sku) ? $sku : null,
+                'stock' => 0,
+            ]);
+            $variant->company_id = $product->company_id;
+        }
+
+        if ($downloadImages && blank($variant->images)) {
+            $imageUrl = (string) (data_get($variation, 'image.src') ?? '');
+
+            if ($imageUrl !== '' && ($path = $this->downloadImage($imageUrl))) {
+                $variant->images = [$path];
+            }
+        }
+
+        $variant->save();
+    }
+
+    protected function optionsSignature(array $options): string
+    {
+        $normalized = collect($options)
+            ->mapWithKeys(fn ($value, $key) => [mb_strtolower(trim((string) $key)) => mb_strtolower(trim((string) $value))])
+            ->sortKeys()
+            ->all();
+
+        return json_encode($normalized) ?: '';
+    }
+
+    /**
+     * WooCommerce core has no brand field; most stores expose it as a
+     * product attribute named "Brand".
+     */
+    protected function resolveBrand(array $payload): ?string
+    {
+        $brand = collect($payload['attributes'] ?? [])
+            ->first(fn ($attribute) => mb_strtolower(trim((string) data_get($attribute, 'name'))) === 'brand');
+
+        $value = trim((string) (data_get($brand, 'options.0') ?? ''));
+
+        return $value !== '' ? $value : null;
     }
 
     protected function resolveCategory(array $categories): ?Category

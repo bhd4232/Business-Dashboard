@@ -49,6 +49,41 @@ class StorefrontPreorderPaymentTest extends TestCase
         $this->assertSame(4, $cart->items($company)->first()['quantity']);
     }
 
+    public function test_zero_stock_preorder_can_be_added_and_cart_quantity_matches_moq_and_preorder_ceiling(): void
+    {
+        $company = $this->createStore('preorder-cart.example.test');
+
+        app(CompanyContext::class)->set($company);
+
+        $product = $this->createProduct('Preorder Cart Item', 'PRE-CART-01', [
+            'stock' => 0,
+            'moq' => 4,
+            'is_preorder' => true,
+        ]);
+
+        $this->post('http://preorder-cart.example.test/cart/items/'.$product->slug, [
+            'quantity' => 1,
+        ])->assertRedirect();
+
+        $cart = app(StorefrontCart::class);
+        $this->assertSame(4, $cart->items($company)->first()['quantity']);
+
+        $this->get('http://preorder-cart.example.test/cart')
+            ->assertOk()
+            ->assertSee('Available for pre-order')
+            ->assertSee('name="quantity" min="4" max="'.StorefrontCart::PREORDER_STOCK_CEILING.'" value="4"', false)
+            ->assertDontSee('0 in stock');
+
+        $this->patch('http://preorder-cart.example.test/cart/items/'.$product->slug, [
+            'quantity' => StorefrontCart::PREORDER_STOCK_CEILING + 1,
+        ])->assertRedirect();
+
+        $this->assertSame(
+            StorefrontCart::PREORDER_STOCK_CEILING,
+            $cart->items($company)->first()['quantity'],
+        );
+    }
+
     public function test_preorder_checkout_creates_payment_and_redirects_to_gateway(): void
     {
         $company = $this->createStore('pay.example.test', zinipay: true);
@@ -80,6 +115,17 @@ class StorefrontPreorderPaymentTest extends TestCase
 
         $response->assertRedirect('https://pay.zinipay.com/invoice/INV-12345');
 
+        Http::assertSent(function ($request): bool {
+            $redirectUrl = (string) $request['redirect_url'];
+            $cancelUrl = (string) $request['cancel_url'];
+
+            return str_contains($request->url(), '/v1/payment/create')
+                && $redirectUrl === $cancelUrl
+                && str_contains($redirectUrl, '/checkout/success/')
+                && str_contains($redirectUrl, 'expires=')
+                && str_contains($redirectUrl, 'signature=');
+        });
+
         $payment = StorefrontPayment::withoutGlobalScopes()->first();
         $this->assertNotNull($payment);
         $this->assertSame(1000.0, (float) $payment->amount); // 2 x 1000 x 50%
@@ -104,11 +150,24 @@ class StorefrontPreorderPaymentTest extends TestCase
 
         app(StorefrontCart::class)->add($company, $product, 1);
 
+        $checkout = $this->get('http://nopay.example.test/checkout')
+            ->assertOk()
+            ->assertSee('Online payment is currently unavailable.');
+        $this->assertMatchesRegularExpression(
+            '/<button(?=[^>]*data-checkout-submit)(?=[^>]*disabled)[^>]*>/',
+            $checkout->getContent(),
+        );
+
         $this->post('http://nopay.example.test/checkout', [
             'name' => 'Blocked Buyer',
             'phone' => '01712340000',
             'address' => 'Dhaka',
         ])->assertSessionHasErrors('payment');
+
+        $this->get('http://nopay.example.test/checkout')
+            ->assertOk()
+            ->assertSee('Pre-order items require an online advance payment')
+            ->assertSee('id="checkout-payment-errors"', false);
 
         $this->assertSame(0, Order::withoutGlobalScopes()->count());
     }

@@ -22,3 +22,121 @@
 [x-cloak] {
     display: none !important;
 }
+
+/*
+ * Storefront-wide keyboard and touch defaults. These are scoped to the
+ * storefront shell so Filament and other application surfaces keep their own
+ * interaction styles.
+ */
+.storefront-shell :where(a, button, summary, select, input, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+    outline: 2px solid rgb(37 99 235);
+    outline-offset: 3px;
+}
+.dark .storefront-shell :where(a, button, summary, select, input, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+    outline-color: rgb(147 197 253);
+}
+.storefront-shell :where(a, button, summary, select, [role='button']) {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgb(15 23 42 / 0.12);
+}
+.dark .storefront-shell :where(a, button, summary, select, [role='button']) {
+    -webkit-tap-highlight-color: rgb(255 255 255 / 0.16);
+}
+
+/*
+ * Merchant-selected brand colours can be very light. Automatically use the
+ * WCAG contrast foreground calculated by storefront/layout.blade.php whenever
+ * white text is placed directly on that colour.
+ */
+.storefront-shell [class~='bg-[var(--storefront-brand)]'][class~='text-white'],
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white'],
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/70'],
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/80'],
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/85'],
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/90'],
+.storefront-shell [class~='hover:bg-[var(--storefront-brand)]'][class~='hover:text-white']:hover {
+    color: var(--storefront-brand-contrast);
+}
+
+.storefront-catalog-grid > * {
+    min-width: 0;
+}
+.storefront-catalog-grid article [class~='items-baseline'] {
+    flex-wrap: wrap;
+    column-gap: 0.5rem;
+    row-gap: 0.125rem;
+}
+@media (max-width: 639px) {
+    .storefront-catalog-grid article > div:last-child {
+        padding: 0.75rem;
+    }
+}
+
+@media (forced-colors: active) {
+    .storefront-shell :where(a, button, summary, select, input, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+        outline-color: Highlight;
+    }
+}
+
+/*
+ * Typography for admin-authored rich content on storefront pages (About,
+ * Terms, Privacy, Return Policy, etc. — see storefront/pages/show.blade.php).
+ * No @tailwindcss/typography plugin is installed, so headings/lists/links
+ * inside RichEditor-produced HTML are styled directly here instead.
+ */
+.storefront-richtext > * + * {
+    margin-top: 1rem;
+}
+.storefront-richtext h1,
+.storefront-richtext h2 {
+    margin-top: 2rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+.storefront-richtext h3 {
+    margin-top: 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+.storefront-richtext ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+}
+.storefront-richtext ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+}
+.storefront-richtext li + li {
+    margin-top: 0.5rem;
+}
+.storefront-richtext a {
+    color: var(--storefront-brand);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.storefront-richtext strong {
+    font-weight: 600;
+}
+.storefront-richtext blockquote {
+    border-left: 3px solid var(--storefront-brand);
+    padding-left: 1rem;
+    font-style: italic;
+    color: rgb(107 114 128);
+}
+.dark .storefront-richtext blockquote {
+    color: rgb(156 163 175);
+}
+.storefront-richtext table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.storefront-richtext td,
+.storefront-richtext th {
+    border: 1px solid rgb(229 231 235);
+    padding: 0.5rem 0.75rem;
+}
+.dark .storefront-richtext td,
+.dark .storefront-richtext th {
+    border-color: rgb(255 255 255 / 0.1);
+}

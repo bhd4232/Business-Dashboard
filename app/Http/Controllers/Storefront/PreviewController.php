@@ -37,7 +37,7 @@ class PreviewController extends Controller
                 ->where('is_active', true)
                 ->where('status', Product::STATUS_AVAILABLE)
                 ->latest()
-                ->take(12)
+                ->take(23)
                 ->get(),
             'carousels' => ProductCarousel::forHomepage(),
             'slides' => StorefrontSlide::forCompany($company->getKey()),
@@ -53,6 +53,7 @@ class PreviewController extends Controller
             : null;
 
         $sort = $request->string('sort')->value();
+        $search = trim((string) $request->string('q'));
 
         return view('storefront.products.index', [
             'company' => $company,
@@ -68,12 +69,14 @@ class PreviewController extends Controller
                 ->where('is_active', true)
                 ->where('status', Product::STATUS_AVAILABLE)
                 ->when($category, fn ($query) => $query->whereBelongsTo($category))
+                ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")))
                 ->when($sort === 'price_asc', fn ($query) => $query->orderByRaw('COALESCE(sale_price, price) asc'))
                 ->when($sort === 'price_desc', fn ($query) => $query->orderByRaw('COALESCE(sale_price, price) desc'))
                 ->when(! in_array($sort, ['price_asc', 'price_desc'], true), fn ($query) => $query->latest())
                 ->paginate(24)
                 ->withQueryString(),
             'sort' => $sort,
+            'search' => $search,
         ]);
     }
 

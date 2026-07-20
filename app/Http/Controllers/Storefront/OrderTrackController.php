@@ -12,6 +12,7 @@ use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class OrderTrackController extends Controller
@@ -57,7 +58,7 @@ class OrderTrackController extends Controller
         return $this->trackView(
             company: $company,
             setting: $setting,
-            order: $this->storefrontOrder($company, $orderNo, $phone),
+            order: $this->storefrontOrderForRequest($request, $company, $orderNo, $phone),
             orderNumber: trim($orderNo),
             phone: $phone,
             searched: true,
@@ -168,6 +169,45 @@ class OrderTrackController extends Controller
             ->where('company_id', $company->getKey())
             ->where('source', Order::SOURCE_STOREFRONT)
             ->where('order_number', $orderNo)
+            ->tap(fn ($query) => $this->whereCustomerPhoneMatches($query, $phone))
+            ->first();
+    }
+
+    /**
+     * Signed links can open one order without placing customer contact data in
+     * the URL. Logged-in customers may also open their own orders directly;
+     * everyone else must still provide the checkout phone as a second factor.
+     */
+    protected function storefrontOrderForRequest(
+        Request $request,
+        Company $company,
+        string $orderNo,
+        string $phone,
+    ): ?Order {
+        $orderNo = trim($orderNo);
+
+        if ($orderNo === '') {
+            return null;
+        }
+
+        $query = Order::query()
+            ->where('company_id', $company->getKey())
+            ->where('source', Order::SOURCE_STOREFRONT)
+            ->where('order_number', $orderNo);
+
+        if ($request->hasValidSignature()) {
+            return $query->first();
+        }
+
+        if ($customer = Auth::guard('customer')->user()) {
+            return $query->where('customer_id', $customer->getKey())->first();
+        }
+
+        if (trim($phone) === '') {
+            return null;
+        }
+
+        return $query
             ->tap(fn ($query) => $this->whereCustomerPhoneMatches($query, $phone))
             ->first();
     }

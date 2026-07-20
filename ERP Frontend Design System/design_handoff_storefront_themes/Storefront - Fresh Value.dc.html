@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+  </style>
+</helmet>
+
+<div style="font-family: 'Nunito Sans', sans-serif; background: #F3F7FC; color: #14202B; min-height: 100vh;">
+
+  <!-- Utility bar -->
+  <div style="background: #FFC220; color: #10233A; font-size: 12.5px; font-weight: 700; padding: 8px 0; text-align: center;">
+    ☀️ Free installation consultation on every solar kit &middot; Call 16247 for same-day quote
+  </div>
+
+  <!-- Header -->
+  <header style="background: #0071CE; padding: 16px 0;">
+    <div style="max-width: 1320px; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 24px;">
+      <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+        <div style="width:40px; height:40px; border-radius:50%; background:#FFC220; display:grid; place-items:center; font-family:'Poppins',sans-serif; font-weight:800; color:#0071CE; font-size:16px;">S</div>
+        <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:21px; color:#fff;">Solar Items Co.</div>
+      </div>
+
+      <div style="flex:1; display:flex; max-width:640px; border-radius:999px; overflow:hidden;">
+        <input type="text" placeholder="Search solar panels, batteries, inverters..." style="flex:1; border:none; padding:12px 18px; font-size:14px; outline:none;">
+        <button style="background:#FFC220; border:none; padding:0 20px; cursor:pointer;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#10233A" stroke-width="2.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:20px; color:#fff; flex-shrink:0;">
+        <a href="#" style="color:#fff; text-decoration:none; font-size:13.5px; font-weight:700;">Store finder</a>
+        <a href="#" style="color:#fff; text-decoration:none; font-size:13.5px; font-weight:700;">Account</a>
+        <div style="background:#FFC220; color:#10233A; border-radius:999px; padding:9px 18px; font-weight:800; font-size:13.5px; display:flex; align-items:center; gap:8px;">
+          Cart <span style="background:#0071CE; color:#fff; border-radius:50%; width:19px; height:19px; display:grid; place-items:center; font-size:11px;">2</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="max-width:1320px; margin:14px auto 0; padding:0 32px; display:flex; gap:28px; font-size:14px; font-weight:700; color:#DCEBFB;">
+      <a href="#" style="color:#fff; text-decoration:none;">Solar Panels</a>
+      <a href="#" style="color:#DCEBFB; text-decoration:none;">Batteries</a>
+      <a href="#" style="color:#DCEBFB; text-decoration:none;">Inverters</a>
+      <a href="#" style="color:#DCEBFB; text-decoration:none;">Solar Lights</a>
+      <a href="#" style="color:#DCEBFB; text-decoration:none;">Installation Kits</a>
+      <a href="#" style="color:#FFC220; text-decoration:none;">Rollback prices</a>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section style="max-width:1320px; margin:26px auto 0; padding:0 32px;">
+    <div style="background:linear-gradient(120deg,#0071CE,#00539B); border-radius:20px; padding:56px; display:grid; grid-template-columns:1.1fr 0.9fr; gap:40px; align-items:center; overflow:hidden;">
+      <div>
+        <div style="display:inline-block; background:#FFC220; color:#10233A; font-weight:800; font-size:13px; padding:7px 16px; border-radius:999px;">ROLLBACK &middot; This week only</div>
+        <h1 style="font-family:'Poppins',sans-serif; font-weight:800; color:#fff; font-size:42px; line-height:1.15; margin:20px 0 14px;">Power your home for less, every day.</h1>
+        <p style="color:#DCEBFB; font-size:15.5px; line-height:1.7; margin:0 0 26px; max-width:440px;">Solar kits, batteries, and inverters at everyday low prices — with free delivery on orders over ৳5,000.</p>
+        <button style="background:#FFC220; color:#10233A; border:none; padding:14px 30px; border-radius:999px; font-weight:800; font-size:15px; cursor:pointer;">Shop rollbacks</button>
+      </div>
+      <div style="width:100%; aspect-ratio:4/3; background:rgba(255,255,255,0.12); border-radius:16px;"></div>
+    </div>
+  </section>
+
+  <!-- Value props -->
+  <section style="max-width:1320px; margin:30px auto 0; padding:0 32px; display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+    <sc-for list="{{ valueProps }}" as="v" hint-placeholder-count="4">
+      <div style="background:#fff; border-radius:16px; padding:20px; text-align:center;">
+        <div style="font-size:26px; margin-bottom:8px;">{{ v.icon }}</div>
+        <div style="font-weight:800; font-size:14px; font-family:'Poppins',sans-serif;">{{ v.title }}</div>
+        <div style="font-size:12.5px; color:#5C6C7A; margin-top:4px;">{{ v.sub }}</div>
+      </div>
+    </sc-for>
+  </section>
+
+  <!-- Rollback grid -->
+  <section style="max-width:1320px; margin:44px auto 0; padding:0 32px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+      <div style="background:#FFC220; color:#10233A; font-family:'Poppins',sans-serif; font-weight:800; font-size:20px; padding:6px 18px; border-radius:999px;">Rollback</div>
+      <div style="font-size:14px; color:#5C6C7A;">Prices dropped this week</div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:18px;">
+      <sc-for list="{{ rollbackProducts }}" as="p" hint-placeholder-count="4">
+        <div style="background:#fff; border-radius:16px; padding:16px; position:relative;">
+          <div style="position:absolute; top:16px; left:16px; background:#00913C; color:#fff; font-size:11.5px; font-weight:800; padding:5px 10px; border-radius:999px; z-index:1;">Save ৳{{ p.saveAmount }}</div>
+          <div style="width:100%; aspect-ratio:1; border-radius:12px; background:#EDF3FA;"></div>
+          <div style="font-size:14px; font-weight:700; margin-top:12px; line-height:1.4; min-height:38px;">{{ p.name }}</div>
+          <div style="margin-top:10px; display:flex; align-items:baseline; gap:8px;">
+            <span style="font-family:'Poppins',sans-serif; font-weight:800; font-size:20px; color:#0071CE;">৳{{ p.price }}</span>
+            <span style="font-size:13px; color:#93A2AF; text-decoration:line-through;">৳{{ p.oldPrice }}</span>
+          </div>
+          <button style="margin-top:12px; width:100%; background:#0071CE; color:#fff; border:none; padding:11px; border-radius:999px; font-weight:800; font-size:13px; cursor:pointer;">Add to cart</button>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Category tiles -->
+  <section style="max-width:1320px; margin:48px auto 0; padding:0 32px;">
+    <h2 style="font-family:'Poppins',sans-serif; font-weight:800; font-size:22px; margin:0 0 18px;">Shop by need</h2>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+      <sc-for list="{{ needTiles }}" as="n" hint-placeholder-count="4">
+        <div style="background:{{ n.bg }}; border-radius:16px; padding:24px; color:#fff;">
+          <div style="font-family:'Poppins',sans-serif; font-weight:800; font-size:17px; margin-bottom:6px;">{{ n.title }}</div>
+          <div style="font-size:12.5px; opacity:0.85; margin-bottom:16px;">{{ n.sub }}</div>
+          <a href="#" style="color:#fff; font-size:13px; font-weight:700; text-decoration:underline;">Shop now</a>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="margin-top:56px; background:#10233A; color:#B7C6D4;">
+    <div style="max-width:1320px; margin:0 auto; padding:44px 32px; display:grid; grid-template-columns:repeat(4,1fr); gap:32px;">
+      <div>
+        <div style="color:#fff; font-weight:800; font-size:14px; margin-bottom:14px; font-family:'Poppins',sans-serif;">Customer care</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <a href="#" style="color:#B7C6D4; text-decoration:none;">Track your order</a>
+          <a href="#" style="color:#B7C6D4; text-decoration:none;">Returns</a>
+          <a href="#" style="color:#B7C6D4; text-decoration:none;">Installation help</a>
+        </div>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:800; font-size:14px; margin-bottom:14px; font-family:'Poppins',sans-serif;">Shop</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <a href="#" style="color:#B7C6D4; text-decoration:none;">Solar panels</a>
+          <a href="#" style="color:#B7C6D4; text-decoration:none;">Batteries</a>
+          <a href="#" style="color:#B7C6D4; text-decoration:none;">Rollbacks</a>
+        </div>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:800; font-size:14px; margin-bottom:14px; font-family:'Poppins',sans-serif;">Company</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <a href="#" style="color:#B7C6D4; text-decoration:none;">About us</a>
+          <a href="#" style="color:#B7C6D4; text-decoration:none;">Store locations</a>
+        </div>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:800; font-size:14px; margin-bottom:14px; font-family:'Poppins',sans-serif;">Contact</div>
+        <div style="font-size:13px;">Hotline: 16247</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid #1D3A54; padding:18px 32px; text-align:center; font-size:12px;">
+      &copy; 2026 Solar Items Company
+    </div>
+  </footer>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  renderVals() {
+    const valueProps = [
+      { icon: '🚚', title: 'Free delivery ৳5,000+', sub: 'Nationwide shipping' },
+      { icon: '💳', title: 'Easy monthly plans', sub: '0% installment available' },
+      { icon: '🔧', title: 'Free consultation', sub: 'Book a site visit' },
+      { icon: '🛡️', title: '2-year warranty', sub: 'On panels & batteries' },
+    ];
+    const rollbackNames = ['150W Mono Solar Panel', '12V 100Ah Lithium Battery', '1000VA Hybrid Inverter', 'Solar Garden Light (Pack of 4)'];
+    const rollbackProducts = rollbackNames.map((name, i) => ({
+      name, saveAmount: [400, 1200, 900, 150][i],
+      price: (3200 + i*4100).toLocaleString(), oldPrice: (3600 + i*5000).toLocaleString(),
+    }));
+    const needTiles = [
+      { title: 'Home backup power', sub: 'Batteries & inverters', bg: '#0071CE' },
+      { title: 'Rooftop solar kits', sub: 'Complete panel systems', bg: '#00913C' },
+      { title: 'Outdoor lighting', sub: 'Garden & street solar lights', bg: '#F2994A' },
+      { title: 'Commercial solar', sub: 'Factory & warehouse systems', bg: '#5B4FCF' },
+    ];
+    return { valueProps, rollbackProducts, needTiles };
+  }
+}
+
+</script>
+</body>
+</html>

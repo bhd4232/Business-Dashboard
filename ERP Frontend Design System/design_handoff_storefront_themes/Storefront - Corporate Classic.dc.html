@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+  </style>
+</helmet>
+
+<div style="font-family: 'Source Sans 3', sans-serif; background: #FBFAF7; color: #1C1C1A; min-height: 100vh;">
+
+  <!-- Utility bar -->
+  <div style="background: #1C2A1F; color: #C9CFC2; font-size: 12px; padding: 8px 0;">
+    <div style="max-width: 1280px; margin: 0 auto; padding: 0 40px; display: flex; justify-content: space-between;">
+      <span>A member of the ZamZam Group of Companies</span>
+      <span>Head office: Dhaka, Bangladesh</span>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header style="background:#FBFAF7; border-bottom: 2px solid #7A1F2B;">
+    <div style="max-width: 1280px; margin: 0 auto; padding: 22px 40px; display: flex; align-items: center; justify-content: space-between; gap:24px;">
+      <div style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
+        <div style="width:46px; height:46px; border:2px solid #7A1F2B; display:grid; place-items:center; font-family:'Source Serif 4',serif; font-weight:700; font-size:19px; color:#7A1F2B; flex-shrink:0;">GF</div>
+        <div>
+          <div style="font-family:'Source Serif 4',serif; font-weight:700; font-size:20px; letter-spacing:0.01em; white-space:nowrap;">Gift Trading Holdings</div>
+          <div style="font-size:10.5px; color:#6B6B63; letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap;">Corporate &amp; wholesale supply</div>
+        </div>
+      </div>
+      <nav style="display:flex; gap:26px; font-size:13.5px; font-weight:600; color:#3A3A34; flex-shrink:0;">
+        <a href="#" style="color:#1C1C1A; text-decoration:none; white-space:nowrap;">Products</a>
+        <a href="#" style="color:#3A3A34; text-decoration:none; white-space:nowrap;">Wholesale</a>
+        <a href="#" style="color:#3A3A34; text-decoration:none; white-space:nowrap;">About the Group</a>
+        <a href="#" style="color:#3A3A34; text-decoration:none; white-space:nowrap;">Contact</a>
+      </nav>
+      <button style="background:#7A1F2B; color:#fff; border:none; padding:12px 22px; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; flex-shrink:0;">Open an account</button>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section style="max-width:1280px; margin:0 auto; padding:64px 40px; display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; border-bottom:1px solid #E3E0D6;">
+    <div>
+      <div style="font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#7A1F2B; font-weight:700; margin-bottom:18px;">Established 2004</div>
+      <h1 style="font-family:'Source Serif 4',serif; font-weight:600; font-size:40px; line-height:1.25; margin:0 0 20px;">Dependable supply, decades of relationships.</h1>
+      <p style="font-size:15px; line-height:1.8; color:#4A4A44; margin:0 0 28px; max-width:460px;">Gift Trading Holdings supplies curated gift and lifestyle goods to retailers and corporate buyers across Bangladesh, backed by a nationwide distribution network.</p>
+      <div style="display:flex; gap:16px;">
+        <button style="background:#1C2A1F; color:#fff; border:none; padding:13px 26px; font-weight:700; font-size:14px; cursor:pointer;">View catalog</button>
+        <button style="background:none; border:1.5px solid #1C2A1F; color:#1C2A1F; padding:13px 26px; font-weight:700; font-size:14px; cursor:pointer;">Request a proposal</button>
+      </div>
+    </div>
+    <div style="width:100%; aspect-ratio:4/3; background:#EDEAE0; border:1px solid #E3E0D6;"></div>
+  </section>
+
+  <!-- Numbered services -->
+  <section style="max-width:1280px; margin:0 auto; padding:64px 40px; border-bottom:1px solid #E3E0D6;">
+    <div style="font-size:12px; letter-spacing:0.12em; text-transform:uppercase; color:#7A1F2B; font-weight:700; margin-bottom:12px;">What we offer</div>
+    <h2 style="font-family:'Source Serif 4',serif; font-weight:600; font-size:28px; margin:0 0 40px;">A complete supply relationship</h2>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0;">
+      <sc-for list="{{ services }}" as="s" hint-placeholder-count="4">
+        <div style="border-left:1px solid #E3E0D6; padding:0 28px;">
+          <div style="font-family:'Source Serif 4',serif; font-size:34px; color:#D9D4C4; margin-bottom:14px;">{{ s.num }}</div>
+          <div style="font-weight:700; font-size:15px; margin-bottom:10px;">{{ s.title }}</div>
+          <p style="font-size:13px; color:#5C5C56; line-height:1.7; margin:0;">{{ s.desc }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Catalog table -->
+  <section style="max-width:1280px; margin:0 auto; padding:64px 40px; border-bottom:1px solid #E3E0D6;">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:22px;">
+      <h2 style="font-family:'Source Serif 4',serif; font-weight:600; font-size:26px; margin:0;">Product categories</h2>
+      <a href="#" style="color:#7A1F2B; font-weight:700; font-size:13.5px; text-decoration:none;">Full catalog &rarr;</a>
+    </div>
+    <div>
+      <sc-for list="{{ categories }}" as="c" hint-placeholder-count="5">
+        <div style="display:grid; grid-template-columns: 2fr 3fr 1fr; gap:20px; align-items:center; padding:20px 0; border-top:1px solid #E3E0D6;">
+          <div style="font-family:'Source Serif 4',serif; font-weight:600; font-size:17px;">{{ c.name }}</div>
+          <div style="font-size:13.5px; color:#5C5C56;">{{ c.desc }}</div>
+          <a href="#" style="justify-self:end; color:#1C1C1A; font-weight:700; font-size:13px; text-decoration:none; border-bottom:1px solid #1C1C1A;">Enquire</a>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="margin-top:0; background:#1C2A1F; color:#C9CFC2;">
+    <div style="max-width:1280px; margin:0 auto; padding:48px 40px; display:grid; grid-template-columns:2fr 1fr 1fr; gap:36px;">
+      <div>
+        <div style="font-family:'Source Serif 4',serif; font-weight:700; font-size:19px; color:#fff; margin-bottom:14px;">Gift Trading Holdings</div>
+        <p style="font-size:13px; line-height:1.8; max-width:300px; margin:0;">A member of the ZamZam Group of Companies, supplying gift and lifestyle goods since 2004.</p>
+      </div>
+      <div>
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#8B9182; margin-bottom:14px;">Company</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13.5px;">
+          <a href="#" style="color:#C9CFC2; text-decoration:none;">About the Group</a>
+          <a href="#" style="color:#C9CFC2; text-decoration:none;">Governance</a>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#8B9182; margin-bottom:14px;">Contact</div>
+        <div style="font-size:13.5px;">enquiries@zamzamgroup.com</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid #2C3D2F; padding:18px 40px; text-align:center; font-size:12px;">
+      &copy; 2026 Gift Trading Holdings, a ZamZam Group company.
+    </div>
+  </footer>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  renderVals() {
+    const services = [
+      { num: '01', title: 'Wholesale supply', desc: 'Volume pricing and standing orders for retail partners.' },
+      { num: '02', title: 'Custom sourcing', desc: 'We source and import against your specification.' },
+      { num: '03', title: 'Nationwide logistics', desc: 'Warehousing and delivery across all divisions.' },
+      { num: '04', title: 'Account management', desc: 'A dedicated contact for every corporate account.' },
+    ];
+    const categories = [
+      { name: 'Gift Sets', desc: 'Curated boxed sets for retail and corporate gifting.' },
+      { name: 'Home & Decor', desc: 'Seasonal and evergreen home accessory lines.' },
+      { name: 'Stationery', desc: 'Branded and unbranded stationery for bulk order.' },
+      { name: 'Festive Collections', desc: 'Seasonal collections for Eid, New Year, and beyond.' },
+      { name: 'Corporate Gifting', desc: 'Bulk-branded gifting programs for businesses.' },
+    ];
+    return { services, categories };
+  }
+}
+
+</script>
+</body>
+</html>

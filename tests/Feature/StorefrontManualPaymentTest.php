@@ -98,6 +98,77 @@ class StorefrontManualPaymentTest extends TestCase
             'payment_method' => 'manual_bkash',
         ])->assertSessionHasErrors(['sender_number', 'trx_id']);
 
+        $this->get('http://bkash-missing.example.test/checkout')
+            ->assertOk()
+            ->assertSee('Please review the highlighted checkout details.')
+            ->assertSee('data-checkout-errors', false)
+            ->assertSee('aria-invalid="true"', false);
+
+        $this->assertSame(0, Order::withoutGlobalScopes()->count());
+    }
+
+    public function test_checkout_uses_shared_manual_fields_and_defaults_to_an_available_method(): void
+    {
+        $company = $this->createStore('manual-default.example.test', [
+            'cod_enabled' => false,
+            'manual_bkash_number' => '01700000000',
+            'manual_nagad_number' => '01800000000',
+        ]);
+
+        app(CompanyContext::class)->set($company);
+
+        $product = $this->createProduct('Manual Default Item', 'MANUAL-DEFAULT-001');
+        app(StorefrontCart::class)->add($company, $product, 1);
+
+        $response = $this->get('http://manual-default.example.test/checkout')->assertOk();
+        $content = $response->getContent();
+
+        $this->assertSame(1, substr_count($content, 'name="sender_number"'));
+        $this->assertSame(1, substr_count($content, 'name="trx_id"'));
+        $this->assertMatchesRegularExpression('/id="payment-method-bkash"[^>]*checked/', $content);
+        $response
+            ->assertDontSee('payment-method-cod', false)
+            ->assertSee('id="checkout-delivery-area"', false)
+            ->assertSee('id="checkout-payment-method"', false)
+            ->assertSeeInOrder(['Order summary', 'Place order']);
+
+        $this->post('http://manual-default.example.test/checkout', [
+            'name' => 'Default Method Buyer',
+            'phone' => '01755556666',
+            'address' => 'Dhaka',
+            'sender_number' => '01799998888',
+            'trx_id' => 'DEFAULT123',
+        ])->assertRedirectContains('/checkout/success/');
+
+        $this->assertSame('manual_bkash', StorefrontPayment::withoutGlobalScopes()->first()?->gateway);
+    }
+
+    public function test_checkout_is_blocked_when_no_payment_method_is_available(): void
+    {
+        $company = $this->createStore('no-payment.example.test', [
+            'cod_enabled' => false,
+        ]);
+
+        app(CompanyContext::class)->set($company);
+
+        $product = $this->createProduct('Unavailable Payment Item', 'NO-PAYMENT-001');
+        app(StorefrontCart::class)->add($company, $product, 1);
+
+        $response = $this->get('http://no-payment.example.test/checkout')
+            ->assertOk()
+            ->assertSee('No payment method is available right now.');
+
+        $this->assertMatchesRegularExpression(
+            '/<button(?=[^>]*data-checkout-submit)(?=[^>]*disabled)[^>]*>/',
+            $response->getContent(),
+        );
+
+        $this->post('http://no-payment.example.test/checkout', [
+            'name' => 'Blocked Buyer',
+            'phone' => '01755557777',
+            'address' => 'Dhaka',
+        ])->assertSessionHasErrors('payment_method');
+
         $this->assertSame(0, Order::withoutGlobalScopes()->count());
     }
 

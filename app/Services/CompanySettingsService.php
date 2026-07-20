@@ -53,6 +53,62 @@ class CompanySettingsService
         ];
     }
 
+    public const INVOICE_DEFAULTS = [
+        'hotline' => '',
+        'support_hotline' => '',
+        'facebook_url' => '',
+        'facebook_label' => '',
+        'whatsapp' => '',
+        'website' => '',
+        'thank_you' => 'Thank You For Purchasing From Us.',
+        'show_images' => true,
+        'show_weight' => true,
+        'show_barcode' => true,
+        'show_slip' => true,
+    ];
+
+    public function invoice(?Company $company = null): array
+    {
+        $company ??= $this->currentCompany();
+        $stored = (array) (((array) $company?->settings)['invoice'] ?? []);
+
+        $merged = array_merge(self::INVOICE_DEFAULTS, array_intersect_key($stored, self::INVOICE_DEFAULTS));
+
+        foreach (['show_images', 'show_weight', 'show_barcode', 'show_slip'] as $flag) {
+            $merged[$flag] = (bool) $merged[$flag];
+        }
+
+        return $merged;
+    }
+
+    public function saveInvoice(array $data): void
+    {
+        $company = $this->currentCompany();
+
+        if (! $company && Schema::hasTable('companies')) {
+            $company = Company::defaultCompany();
+        }
+
+        if (! $company) {
+            return;
+        }
+
+        $invoice = self::INVOICE_DEFAULTS;
+
+        foreach ($invoice as $key => $default) {
+            if (is_bool($default)) {
+                $invoice[$key] = (bool) ($data[$key] ?? $default);
+            } else {
+                $invoice[$key] = trim((string) ($data[$key] ?? $default));
+            }
+        }
+
+        $settings = $company->settings ?? [];
+        $settings['invoice'] = $invoice;
+
+        $company->forceFill(['settings' => $settings])->save();
+    }
+
     public function save(array $data): void
     {
         $company = $this->currentCompany();

@@ -71,7 +71,7 @@ class ConversationMessage extends Model
 
         return str_starts_with((string) $this->media_path, 'http')
             ? $this->media_path
-            : asset('storage/'.ltrim((string) $this->media_path, '/'));
+            : \App\Support\StorageUrl::for(ltrim((string) $this->media_path, '/'));
     }
 
     public function conversation(): BelongsTo

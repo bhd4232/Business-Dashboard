@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+  </style>
+</helmet>
+
+<div style="font-family: 'Source Sans 3', sans-serif; background: #F5F6F8; color: #14181F; min-height: 100vh;">
+
+  <div style="background: #071A2C; color: #C7D3DE; font-size: 12.5px; padding: 7px 0;">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 0 32px; display: flex; justify-content: space-between;">
+      <span>Free delivery on orders over ৳2,500</span>
+      <a href="Storefront - Marketplace Pro.dc.html" style="color:#C7D3DE; text-decoration:none;">&larr; Back to home</a>
+    </div>
+  </div>
+
+  <header style="background: #0F2A43; padding: 18px 0;">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 28px;">
+      <a href="Storefront - Marketplace Pro.dc.html" style="display:flex; align-items:center; gap:10px; text-decoration:none;">
+        <div style="width:38px; height:38px; border-radius:9px; background:#FF6A00; display:grid; place-items:center; font-family:'Manrope',sans-serif; font-weight:800; color:#0F2A43; font-size:18px;">GM</div>
+        <div style="font-family:'Manrope',sans-serif; font-weight:800; font-size:20px; color:#fff;">Garments Machinery Co.</div>
+      </a>
+      <div style="flex:1; display:flex; min-width:0; max-width:520px;">
+        <input type="text" placeholder="Search spare parts, machines..." style="flex:1; min-width:0; border:none; border-radius:8px 0 0 8px; padding:0 16px; font-size:14.5px; outline:none;">
+        <button style="flex-shrink:0; background:#FF6A00; border:none; padding:0 22px; border-radius:0 8px 8px 0; cursor:pointer;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F2A43" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <a href="Storefront - Marketplace Pro - Cart.dc.html" style="display:flex; align-items:center; gap:6px; color:#fff; text-decoration:none;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M2.25 3h1.386c.51 0 .955.343 1.087.836l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 1.874-4.708 2.25-7.183a1.125 1.125 0 0 0-1.11-1.317H5.25M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/></svg>
+        <span style="font-weight:700; font-size:14px;">Cart</span>
+      </a>
+    </div>
+  </header>
+
+  <div style="max-width:1360px; margin:0 auto; padding:16px 32px 0; font-size:13px; color:#6B7885;">
+    <a href="Storefront - Marketplace Pro.dc.html" style="color:#6B7885; text-decoration:none;">Home</a> /
+    <a href="Storefront - Marketplace Pro - Listing.dc.html" style="color:#6B7885; text-decoration:none;">Circular Knitting Machines</a> /
+    <span style="color:#14181F; font-weight:600;">Single Jersey Circular Machine 30", 96F</span>
+  </div>
+
+  <!-- Product main -->
+  <section style="max-width:1360px; margin:20px auto 0; padding:0 32px; display:grid; grid-template-columns: 0.9fr 1fr 0.7fr; gap:28px;">
+
+    <!-- Gallery -->
+    <div style="display:flex; gap:12px;">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <sc-for list="{{ thumbs }}" as="t" hint-placeholder-count="4">
+          <div style="width:64px; height:64px; border-radius:8px; background:#EEF1F4; border:2px solid {{ t.border }};"></div>
+        </sc-for>
+      </div>
+      <div style="flex:1; background:#fff; border-radius:12px; aspect-ratio:1;"></div>
+    </div>
+
+    <!-- Info -->
+    <div>
+      <div style="font-size:12.5px; color:#0A6CFF; font-weight:700; margin-bottom:8px;">Circular Knitting Machines</div>
+      <h1 style="font-family:'Manrope',sans-serif; font-size:26px; font-weight:800; margin:0 0 10px; line-height:1.3;">Single Jersey Circular Machine 30", 96 Feeders</h1>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+        <div style="display:flex; gap:2px;">
+          <sc-for list="{{ stars }}" as="s" hint-placeholder-count="5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#FF9A00"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+          </sc-for>
+        </div>
+        <span style="font-size:13px; color:#0A6CFF; font-weight:600;">128 ratings</span>
+        <span style="color:#DDE3E9;">|</span>
+        <span style="font-size:13px; color:#1A7F37; font-weight:700;">In stock</span>
+      </div>
+
+      <div style="border-top:1px solid #E5E8EB; border-bottom:1px solid #E5E8EB; padding:18px 0; margin-bottom:18px;">
+        <div style="display:flex; align-items:baseline; gap:10px;">
+          <span style="font-family:'Manrope',sans-serif; font-weight:800; font-size:30px; color:#C4001D;">৳192,000</span>
+          <span style="font-size:15px; color:#96A2AC; text-decoration:line-through;">৳225,000</span>
+          <span style="background:#FEE7E9; color:#C4001D; font-weight:700; font-size:12.5px; padding:3px 8px; border-radius:5px;">Save 15%</span>
+        </div>
+        <div style="font-size:12.5px; color:#5C6672; margin-top:6px;">Price includes VAT. Bulk pricing available for 3+ units.</div>
+      </div>
+
+      <div style="margin-bottom:8px; font-weight:700; font-size:14px;">Key specifications</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:13.5px; color:#3D4952;">
+        <sc-for list="{{ specs }}" as="s" hint-placeholder-count="6">
+          <div><span style="color:#8A97A3;">{{ s.k }}:</span> {{ s.v }}</div>
+        </sc-for>
+      </div>
+
+      <div style="margin-top:22px;">
+        <div style="font-weight:700; font-size:14px; margin-bottom:8px;">About this machine</div>
+        <p style="font-size:13.5px; line-height:1.8; color:#3D4952; margin:0;">Precision-engineered circular knitting machine built for continuous production of lightweight to mid-weight single jersey fabrics. Includes variable-speed drive, digital tension control, and a 12-month parts warranty. Installation and operator training available on request.</p>
+      </div>
+    </div>
+
+    <!-- Buy box -->
+    <div style="align-self:start;">
+      <div style="background:#fff; border-radius:12px; padding:22px; position:sticky; top:20px;">
+        <div style="font-family:'Manrope',sans-serif; font-weight:800; font-size:24px; margin-bottom:4px;">৳192,000</div>
+        <div style="font-size:13px; color:#1A7F37; font-weight:700; margin-bottom:18px;">In stock &middot; Ships in 2-3 business days</div>
+
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+          <div style="display:flex; align-items:center; border:1px solid #DDE3E9; border-radius:8px;" data-qty-stepper>
+            <button style="border:none; background:none; width:34px; height:34px; font-size:16px; cursor:pointer;" data-qty-decrement>&minus;</button>
+            <input type="text" value="1" style="width:36px; text-align:center; border:none; font-size:14px;" data-qty-input>
+            <button style="border:none; background:none; width:34px; height:34px; font-size:16px; cursor:pointer;" data-qty-increment>+</button>
+          </div>
+          <span style="font-size:12.5px; color:#8A97A3;">3 units left at this price</span>
+        </div>
+
+        <button style="width:100%; background:#FF6A00; color:#fff; border:none; padding:13px; border-radius:8px; font-weight:700; font-size:14.5px; cursor:pointer; margin-bottom:10px;">Add to cart</button>
+        <button style="width:100%; background:#0F2A43; color:#fff; border:none; padding:13px; border-radius:8px; font-weight:700; font-size:14.5px; cursor:pointer;">Buy now</button>
+
+        <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px; font-size:12.5px; color:#3D4952;">
+          <sc-for list="{{ buyboxPerks }}" as="perk" hint-placeholder-count="3">
+            <div style="display:flex; gap:8px; align-items:flex-start;">
+              <span>{{ perk.icon }}</span> {{ perk.text }}
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Related -->
+  <section style="max-width:1360px; margin:52px auto 0; padding:0 32px 60px;">
+    <h2 style="font-family:'Manrope',sans-serif; font-size:20px; font-weight:800; margin:0 0 16px;">You may also like</h2>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+      <sc-for list="{{ related }}" as="p" hint-placeholder-count="4">
+        <div style="background:#fff; border-radius:12px; padding:14px;">
+          <div style="width:100%; aspect-ratio:1; border-radius:8px; background:#EEF1F4;"></div>
+          <div style="font-size:13.5px; font-weight:600; margin-top:10px; line-height:1.4; min-height:38px;">{{ p.name }}</div>
+          <div style="margin-top:8px; font-family:'Manrope',sans-serif; font-weight:800; font-size:16px;">৳{{ p.price }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <footer style="background:#071A2C; color:#C7D3DE; padding:24px 32px; text-align:center; font-size:12px;">
+    &copy; 2026 Garments Machinery Company. All rights reserved.
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  renderVals() {
+    const stars5 = [1,2,3,4,5];
+    const thumbs = [0,1,2,3].map(i => ({ border: i === 0 ? '#FF6A00' : 'transparent' }));
+    const specs = [
+      { k: 'Cylinder diameter', v: '30 inch' },
+      { k: 'Feeders', v: '96F' },
+      { k: 'Max speed', v: '32 RPM' },
+      { k: 'Power', v: '7.5 HP' },
+      { k: 'Gauge', v: '24GG' },
+      { k: 'Weight', v: '1,650 kg' },
+    ];
+    const buyboxPerks = [
+      { icon: '🚚', text: 'Free delivery within Dhaka; nationwide freight quoted at checkout' },
+      { icon: '🛠️', text: 'Installation and operator training available on request' },
+      { icon: '↩️', text: '7-day inspection period, 12-month parts warranty' },
+    ];
+    const relatedNames = ['Rib Knitting Machine 26"', 'Auto Stripper Circular Machine', 'Feeder Motor 3HP', 'Digital Speed Controller'];
+    const related = relatedNames.map((name, i) => ({ name, price: (24000 + i*15000).toLocaleString() }));
+    return { stars: stars5, thumbs, specs, buyboxPerks, related };
+  }
+}
+
+</script>
+</body>
+</html>

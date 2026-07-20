@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StorefrontSetting;
 use App\Services\WooCommerceImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -61,6 +62,82 @@ class WooCommerceImportTest extends TestCase
         $result = app(WooCommerceImportService::class)->importProducts($company, downloadImages: false);
         $this->assertSame(['created' => 0, 'updated' => 2, 'skipped' => 0], $result);
         $this->assertSame(2, Product::withoutGlobalScopes()->where('company_id', $company->getKey())->count());
+    }
+
+    public function test_variable_product_imports_its_variations(): void
+    {
+        $company = $this->createCompanyWithWooCredentials('woo-variable');
+
+        $productPayload = [
+            'id' => 77,
+            'type' => 'variable',
+            'name' => 'Vari Hoodie',
+            'sku' => 'WOO-HOODIE',
+            'slug' => 'vari-hoodie',
+            'regular_price' => '',
+            'price' => '900',
+            'description' => '<p>Full hoodie description with all the details.</p>',
+            'short_description' => '<p>Short.</p>',
+            'attributes' => [
+                ['name' => 'Size', 'options' => ['M', 'L'], 'variation' => true],
+                ['name' => 'Brand', 'options' => ['ZamZam'], 'variation' => false],
+            ],
+            'categories' => [['name' => 'Clothing']],
+            'images' => [],
+        ];
+
+        $variations = [
+            [
+                'id' => 771,
+                'sku' => 'WOO-HOODIE-M',
+                'regular_price' => '900',
+                'sale_price' => '850',
+                'status' => 'publish',
+                'menu_order' => 0,
+                'attributes' => [['name' => 'Size', 'option' => 'M']],
+                'image' => null,
+            ],
+            [
+                'id' => 772,
+                'sku' => '',
+                'regular_price' => '950',
+                'sale_price' => '',
+                'status' => 'publish',
+                'menu_order' => 1,
+                'attributes' => [['name' => 'Size', 'option' => 'L']],
+                'image' => null,
+            ],
+        ];
+
+        Http::fake([
+            'old-shop.example.test/wp-json/wc/v3/products/77/variations*' => Http::response($variations),
+            'old-shop.example.test/wp-json/wc/v3/products*' => Http::response([$productPayload]),
+        ]);
+
+        $result = app(WooCommerceImportService::class)->importProducts($company, downloadImages: false);
+        $this->assertSame(['created' => 1, 'updated' => 0, 'skipped' => 0], $result);
+
+        $product = Product::withoutGlobalScopes()->where('sku', 'WOO-HOODIE')->first();
+        $this->assertNotNull($product);
+        $this->assertTrue((bool) $product->has_variants);
+        $this->assertSame(['Size' => ['M', 'L']], $product->variant_attributes);
+        $this->assertSame('Full hoodie description with all the details.', $product->description);
+        $this->assertSame('ZamZam', $product->brand);
+
+        $variants = ProductVariant::withoutGlobalScopes()->where('product_id', $product->getKey())->orderBy('sort_order')->get();
+        $this->assertCount(2, $variants);
+        $this->assertSame('WOO-HOODIE-M', $variants[0]->sku);
+        $this->assertSame(['Size' => 'M'], $variants[0]->options);
+        $this->assertSame(850.0, (float) $variants[0]->sale_price);
+        $this->assertNull($variants[1]->sku);
+        $this->assertSame(['Size' => 'L'], $variants[1]->options);
+        $this->assertSame(950.0, (float) $variants[1]->sale_price);
+        $this->assertSame($company->getKey(), $variants[0]->company_id);
+
+        // Re-sync updates the same variants instead of duplicating them.
+        $result = app(WooCommerceImportService::class)->importProducts($company, downloadImages: false);
+        $this->assertSame(['created' => 0, 'updated' => 1, 'skipped' => 0], $result);
+        $this->assertSame(2, ProductVariant::withoutGlobalScopes()->where('product_id', $product->getKey())->count());
     }
 
     public function test_import_fails_without_configured_credentials(): void

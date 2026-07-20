@@ -169,6 +169,35 @@ class ProductVariantTest extends TestCase
             ->assertSee('BDT 950.00');
     }
 
+    public function test_variable_product_card_requires_options_and_product_page_syncs_both_add_buttons(): void
+    {
+        $this->withoutVite();
+        $this->company->update(['domain' => 'variant-ui.example.test', 'domain_verified' => true]);
+
+        \App\Models\StorefrontSetting::query()->create([
+            'company_id' => $this->company->getKey(),
+            'theme_color' => '#0F766E',
+            'meta_title' => 'Variant UI',
+            'is_published' => true,
+        ]);
+
+        $product = $this->makeVariableProduct();
+        $product->variants()->create(['options' => ['Size' => 'M'], 'stock' => 5, 'is_active' => true]);
+
+        $this->get('http://variant-ui.example.test/products')
+            ->assertOk()
+            ->assertSee('data-choose-options', false)
+            ->assertSee('Choose options for Variable Shirt', false)
+            ->assertDontSee('data-quick-add-form', false);
+
+        $this->get('http://variant-ui.example.test/product/'.$product->slug)
+            ->assertOk()
+            ->assertSee('data-add-to-cart-mobile', false)
+            ->assertSee('data-mobile-purchase-spacer', false)
+            ->assertSee("document.querySelectorAll('[data-add-to-cart]')", false)
+            ->assertSee('bottom: calc(4rem + env(safe-area-inset-bottom));', false);
+    }
+
     public function test_variant_gets_company_id_from_product(): void
     {
         $product = $this->makeVariableProduct();

@@ -12,7 +12,9 @@
             ->filter()
             ->values();
 
-        $variants = $product->has_variants
+        $isVariableProduct = (bool) $product->has_variants;
+
+        $variants = $isVariableProduct
             ? $product->activeVariants()->get()
             : collect();
 
@@ -22,13 +24,19 @@
             'price' => $variant->effectiveSalePrice(),
             'stock' => (int) $variant->stock,
             'sku' => $variant->sku ?: $product->sku,
-            'images' => collect($variant->images ?? [])->map(fn ($img) => asset('storage/'.$img))->values()->all(),
+            'images' => collect($variant->images ?? [])->map(fn ($img) => \App\Support\StorageUrl::for($img))->values()->all(),
         ])->values();
 
         $inStock = $product->stock > 0;
         $isPreorder = (bool) $product->is_preorder;
-        $orderable = $inStock || $isPreorder;
+        $orderable = $isVariableProduct
+            ? $variantData->contains(fn (array $variant): bool => $variant['stock'] > 0)
+            : ($inStock || $isPreorder);
         $moq = $product->effectiveMoq();
+        $maxOrderQuantity = $isPreorder
+            ? max((int) $product->stock, \App\Services\StorefrontCart::PREORDER_STOCK_CEILING)
+            : max(1, (int) $product->stock);
+        $minOrderQuantity = min($moq, $maxOrderQuantity);
         $tiers = $product->normalizedTiers();
     @endphp
 
@@ -45,11 +53,11 @@
     <section class="mx-auto grid w-full max-w-7xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8" data-product-page>
         <div class="lg:sticky lg:top-24 lg:self-start">
             @if ($galleryImages->isNotEmpty())
-                <img data-main-image class="aspect-square w-full rounded-2xl border border-gray-200 bg-white object-cover dark:border-white/10 dark:bg-white/5" src="{{ asset('storage/'.$galleryImages->first()) }}" alt="{{ $product->name }}">
+                <img data-main-image class="aspect-square w-full rounded-2xl border border-gray-200 bg-white object-cover dark:border-white/10 dark:bg-white/5" src="{{ \App\Support\StorageUrl::for($galleryImages->first()) }}" alt="{{ $product->name }}" width="1200" height="1200" fetchpriority="high">
                 <div data-thumbnails class="mt-3 grid grid-cols-5 gap-2 {{ $galleryImages->count() < 2 && $variantData->pluck('images')->flatten()->isEmpty() ? 'hidden' : '' }}">
                     @foreach ($galleryImages as $galleryImage)
-                        <button type="button" data-thumb data-src="{{ asset('storage/'.$galleryImage) }}" class="overflow-hidden rounded-lg border border-gray-200 transition hover:border-[var(--storefront-brand)] dark:border-white/10">
-                            <img class="aspect-square w-full object-cover" src="{{ asset('storage/'.$galleryImage) }}" alt="{{ $product->name }} photo {{ $loop->iteration }}">
+                        <button type="button" data-thumb data-src="{{ \App\Support\StorageUrl::for($galleryImage) }}" class="overflow-hidden rounded-lg border border-gray-200 transition hover:border-[var(--storefront-brand)] dark:border-white/10">
+                            <img class="aspect-square w-full object-cover" src="{{ \App\Support\StorageUrl::for($galleryImage) }}" alt="{{ $product->name }} photo {{ $loop->iteration }}" width="240" height="240" loading="lazy" decoding="async">
                         </button>
                     @endforeach
                 </div>
@@ -63,7 +71,7 @@
         <div>
             <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">{{ $product->name }}</h1>
             <div data-price class="mt-3 text-2xl font-semibold text-gray-950 dark:text-white">BDT {{ number_format($product->selling_price, 2) }}</div>
-            @if ($tiers !== [] && $variantData->isEmpty())
+            @if ($tiers !== [] && ! $isVariableProduct)
                 <div class="mt-6 max-w-xl overflow-hidden rounded-xl border border-gray-200 dark:border-white/15">
                     <div class="border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
                         Wholesale pricing
@@ -116,56 +124,62 @@
                 </div>
             </dl>
 
-            <form id="product-purchase-form" class="mt-6" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.cart.add', [$previewSlug, $product->slug]) : route('storefront.cart.add', $product->slug) }}">
+            <form id="product-purchase-form" class="mt-6" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.cart.add', [$previewSlug, $product->slug]) : route('storefront.cart.add', $product->slug) }}" data-purchase-form>
                 @csrf
 
-                @if ($variantData->isNotEmpty())
+                @if ($isVariableProduct)
                     <div class="mb-5">
                         <div class="mb-2 text-sm font-semibold text-gray-900 dark:text-white">Choose options and quantities</div>
-                        <div class="divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 dark:divide-white/10 dark:border-white/15" data-variant-rows>
-                            @foreach ($variantData as $variant)
-                                <div class="flex items-center justify-between gap-3 px-4 py-3 {{ $variant['stock'] < 1 ? 'opacity-50' : '' }}" data-variant-row data-variant='@json($variant)'>
-                                    <button type="button" data-variant-preview class="min-w-0 flex-1 text-left">
-                                        <div class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ $variant['label'] }}</div>
-                                        <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                            BDT {{ number_format($variant['price'], 2) }}
-                                            &middot;
-                                            @if ($variant['stock'] > 0)
-                                                {{ $variant['stock'] }} in stock
-                                            @else
-                                                <span class="font-medium text-red-600 dark:text-red-400">Out of stock</span>
-                                            @endif
-                                        </div>
-                                    </button>
-                                    @if ($variant['stock'] > 0)
-                                        <div class="flex shrink-0 items-center rounded-lg border border-gray-300 dark:border-white/15" data-qty-stepper>
-                                            <button type="button" data-qty-decrement class="grid h-10 w-9 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Decrease quantity">&minus;</button>
-                                            <label class="sr-only" for="variant-qty-{{ $variant['id'] }}">Quantity for {{ $variant['label'] }}</label>
-                                            <input id="variant-qty-{{ $variant['id'] }}" data-qty-input data-variant-qty class="h-10 w-12 border-x border-gray-300 bg-transparent text-center text-sm font-semibold text-gray-950 outline-none dark:border-white/15 dark:text-white" type="number" name="quantities[{{ $variant['id'] }}]" value="0" min="0" max="{{ $variant['stock'] }}">
-                                            <button type="button" data-qty-increment class="grid h-10 w-9 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Increase quantity">+</button>
-                                        </div>
-                                    @endif
-                                </div>
-                            @endforeach
-                        </div>
-                        <p data-variant-hint class="mt-2 text-xs text-gray-500 dark:text-gray-400">Set the quantity for each option you want, then add everything to your cart in one click.</p>
+                        @if ($variantData->isNotEmpty())
+                            <div class="divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200 dark:divide-white/10 dark:border-white/15" data-variant-rows>
+                                @foreach ($variantData as $variant)
+                                    <div class="flex items-center justify-between gap-3 px-4 py-3 {{ $variant['stock'] < 1 ? 'opacity-50' : '' }}" data-variant-row data-variant='@json($variant)'>
+                                        <button type="button" data-variant-preview class="min-w-0 flex-1 text-left">
+                                            <div class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ $variant['label'] }}</div>
+                                            <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                                BDT {{ number_format($variant['price'], 2) }}
+                                                &middot;
+                                                @if ($variant['stock'] > 0)
+                                                    {{ $variant['stock'] }} in stock
+                                                @else
+                                                    <span class="font-medium text-red-600 dark:text-red-400">Out of stock</span>
+                                                @endif
+                                            </div>
+                                        </button>
+                                        @if ($variant['stock'] > 0)
+                                            <div class="flex shrink-0 items-center rounded-lg border border-gray-300 dark:border-white/15" data-qty-stepper>
+                                                <button type="button" data-qty-decrement class="grid h-10 w-9 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white [touch-action:manipulation]" aria-label="Decrease quantity">&minus;</button>
+                                                <label class="sr-only" for="variant-qty-{{ $variant['id'] }}">Quantity for {{ $variant['label'] }}</label>
+                                                <input id="variant-qty-{{ $variant['id'] }}" data-qty-input data-variant-qty class="h-10 w-12 border-x border-gray-300 bg-transparent text-center text-sm font-semibold text-gray-950 outline-none focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:text-white" type="number" name="quantities[{{ $variant['id'] }}]" value="0" min="0" max="{{ $variant['stock'] }}" autocomplete="off">
+                                                <button type="button" data-qty-increment class="grid h-10 w-9 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white [touch-action:manipulation]" aria-label="Increase quantity">+</button>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                            <p data-variant-hint class="mt-2 text-xs text-gray-500 dark:text-gray-400">Set the quantity for each option you want, then add everything to your cart in one click.</p>
+                        @else
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
+                                Options are currently unavailable. Please check back later or contact us for availability.
+                            </div>
+                        @endif
                     </div>
                 @endif
 
                 <div class="flex flex-wrap items-center gap-3">
-                    @if ($variantData->isEmpty())
+                    @if (! $isVariableProduct)
                         <div class="flex items-center rounded-lg border border-gray-300 dark:border-white/15" data-qty-stepper>
-                            <button type="button" data-qty-decrement class="grid h-12 w-11 place-items-center text-lg text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Decrease quantity">&minus;</button>
+                            <button type="button" data-qty-decrement class="grid h-12 w-11 place-items-center text-lg text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white [touch-action:manipulation]" aria-label="Decrease quantity">&minus;</button>
                             <label class="sr-only" for="quantity">Quantity</label>
-                            <input id="quantity" data-qty-input class="h-12 w-14 border-x border-gray-300 bg-transparent text-center text-sm font-semibold text-gray-950 outline-none dark:border-white/15 dark:text-white" type="number" name="quantity" value="{{ $isPreorder ? $moq : min($moq, max(1, (int) $product->stock)) }}" min="{{ $moq }}" max="{{ $isPreorder ? 100000 : max(1, (int) $product->stock) }}">
-                            <button type="button" data-qty-increment class="grid h-12 w-11 place-items-center text-lg text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white" aria-label="Increase quantity">+</button>
+                            <input id="quantity" data-qty-input class="h-12 w-14 border-x border-gray-300 bg-transparent text-center text-sm font-semibold text-gray-950 outline-none focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:text-white" type="number" name="quantity" value="{{ $minOrderQuantity }}" min="{{ $minOrderQuantity }}" max="{{ $maxOrderQuantity }}" autocomplete="off">
+                            <button type="button" data-qty-increment class="grid h-12 w-11 place-items-center text-lg text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white [touch-action:manipulation]" aria-label="Increase quantity">+</button>
                         </div>
                     @endif
-                    <button type="submit" data-add-to-cart class="inline-flex h-12 items-center rounded-lg border border-gray-950 px-7 text-sm font-medium text-gray-950 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white dark:text-white dark:hover:bg-white/10" @disabled(! $orderable || $variantData->isNotEmpty())>
+                    <button type="submit" data-add-to-cart data-idle-label="{{ $inStock ? 'Add to cart' : ($isPreorder ? 'Pre-order now' : 'Out of stock') }}" data-pending-label="Adding&hellip;" class="inline-flex h-12 items-center rounded-lg border border-gray-950 px-7 text-sm font-medium text-gray-950 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white dark:text-white dark:hover:bg-white/10" @disabled(! $orderable || $isVariableProduct)>
                         {{ $inStock ? 'Add to cart' : ($isPreorder ? 'Pre-order now' : 'Out of stock') }}
                     </button>
-                    @if ($variantData->isEmpty())
-                        <button type="submit" name="buy_now" value="1" data-buy-now class="inline-flex h-12 items-center rounded-lg bg-gray-950 px-7 text-sm font-medium text-white transition hover:bg-[var(--storefront-brand)] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-950" @disabled(! $orderable)>
+                    @if (! $isVariableProduct)
+                        <button type="submit" name="buy_now" value="1" data-buy-now data-pending-label="Opening checkout&hellip;" class="inline-flex h-12 items-center rounded-lg bg-[var(--storefront-brand)] px-7 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50" @disabled(! $orderable)>
                             {{ $isPreorder && ! $inStock ? 'Pre-order now' : 'Buy now' }}
                         </button>
                     @endif
@@ -180,12 +194,12 @@
     </section>
 
     @if ($orderable)
-        <div class="fixed inset-x-0 bottom-16 z-30 flex gap-3 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:hidden dark:border-white/10 dark:bg-gray-950/95">
-            <button type="submit" form="product-purchase-form" class="flex-1 rounded-lg border border-gray-950 px-4 py-3 text-sm font-medium text-gray-950 dark:border-white dark:text-white" @disabled($variantData->isNotEmpty())>
+        <div class="fixed inset-x-0 z-30 flex gap-3 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:hidden dark:border-white/10 dark:bg-gray-950/95" style="bottom: calc(4rem + env(safe-area-inset-bottom));" data-mobile-purchase-bar>
+            <button type="submit" form="product-purchase-form" data-add-to-cart data-add-to-cart-mobile data-idle-label="{{ $inStock ? 'Add to cart' : ($isPreorder ? 'Pre-order' : 'Out of stock') }}" data-pending-label="Adding&hellip;" class="flex-1 rounded-lg border border-gray-950 px-4 py-3 text-sm font-medium text-gray-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white dark:text-white" @disabled($isVariableProduct)>
                 {{ $inStock ? 'Add to cart' : ($isPreorder ? 'Pre-order' : 'Out of stock') }}
             </button>
-            @if ($variantData->isEmpty())
-                <button type="submit" form="product-purchase-form" name="buy_now" value="1" class="flex-1 rounded-lg bg-gray-950 px-4 py-3 text-sm font-medium text-white dark:bg-white dark:text-gray-950">
+            @if (! $isVariableProduct)
+                <button type="submit" form="product-purchase-form" name="buy_now" value="1" data-pending-label="Opening checkout&hellip;" class="flex-1 rounded-lg bg-[var(--storefront-brand)] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90">
                     {{ $isPreorder && ! $inStock ? 'Pre-order now' : 'Buy now' }}
                 </button>
             @endif
@@ -193,15 +207,41 @@
     @endif
 
     <section class="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8" x-data="{ tab: 'description' }">
-        <div class="flex gap-6 border-b border-gray-200 text-sm font-medium dark:border-white/10">
-            <button type="button" @click="tab = 'description'" :class="tab === 'description' ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white' : 'border-transparent text-gray-500 dark:text-gray-400'" class="border-b-2 pb-3 transition">Description</button>
-            <button type="button" @click="tab = 'shipping'" :class="tab === 'shipping' ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white' : 'border-transparent text-gray-500 dark:text-gray-400'" class="border-b-2 pb-3 transition">Shipping &amp; Return</button>
+        <div class="flex gap-6 border-b border-gray-200 text-sm font-medium dark:border-white/10" role="tablist" aria-label="Product information">
+            <button
+                id="product-tab-description"
+                x-ref="descriptionTab"
+                type="button"
+                role="tab"
+                aria-controls="product-panel-description"
+                :aria-selected="(tab === 'description').toString()"
+                :tabindex="tab === 'description' ? 0 : -1"
+                @click="tab = 'description'"
+                @keydown.right.prevent="tab = 'shipping'; $nextTick(() => $refs.shippingTab.focus())"
+                @keydown.end.prevent="tab = 'shipping'; $nextTick(() => $refs.shippingTab.focus())"
+                :class="tab === 'description' ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white' : 'border-transparent text-gray-500 dark:text-gray-400'"
+                class="border-b-2 pb-3 transition"
+            >Description</button>
+            <button
+                id="product-tab-shipping"
+                x-ref="shippingTab"
+                type="button"
+                role="tab"
+                aria-controls="product-panel-shipping"
+                :aria-selected="(tab === 'shipping').toString()"
+                :tabindex="tab === 'shipping' ? 0 : -1"
+                @click="tab = 'shipping'"
+                @keydown.left.prevent="tab = 'description'; $nextTick(() => $refs.descriptionTab.focus())"
+                @keydown.home.prevent="tab = 'description'; $nextTick(() => $refs.descriptionTab.focus())"
+                :class="tab === 'shipping' ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white' : 'border-transparent text-gray-500 dark:text-gray-400'"
+                class="border-b-2 pb-3 transition"
+            >Shipping &amp; Return</button>
         </div>
         <div class="max-w-3xl py-6 text-sm leading-7 text-gray-600 dark:text-gray-300">
-            <div x-show="tab === 'description'">
+            <div id="product-panel-description" role="tabpanel" aria-labelledby="product-tab-description" tabindex="0" x-show="tab === 'description'">
                 {{ $product->description ?: 'Product details will be updated soon. Contact us for specifications, availability, and delivery details.' }}
             </div>
-            <div x-show="tab === 'shipping'" x-cloak>
+            <div id="product-panel-shipping" role="tabpanel" aria-labelledby="product-tab-shipping" tabindex="0" x-show="tab === 'shipping'" x-cloak>
                 <p>Orders are processed and shipped after confirmation. Delivery time and charges depend on your location and are confirmed at checkout.</p>
                 @if ($setting->whatsapp_number)
                     <p class="mt-3">For questions about returns or exchanges, message us on WhatsApp before returning an item.</p>
@@ -219,6 +259,10 @@
                 @endforeach
             </div>
         </section>
+    @endif
+
+    @if ($orderable)
+        <div class="sm:hidden" style="height: calc(4.5rem + env(safe-area-inset-bottom));" aria-hidden="true" data-mobile-purchase-spacer></div>
     @endif
 
     <script>
@@ -241,22 +285,52 @@
 
             bindThumbs();
 
+            var purchaseForm = document.querySelector('[data-purchase-form]');
+            if (purchaseForm) {
+                purchaseForm.addEventListener('submit', function (event) {
+                    if (purchaseForm.dataset.submitting === 'true') {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    purchaseForm.dataset.submitting = 'true';
+
+                    window.setTimeout(function () {
+                        if (event.defaultPrevented) {
+                            delete purchaseForm.dataset.submitting;
+                            return;
+                        }
+
+                        purchaseForm.setAttribute('aria-busy', 'true');
+                        document.querySelectorAll('#product-purchase-form button[type="submit"], button[form="product-purchase-form"]').forEach(function (button) {
+                            button.disabled = true;
+                            button.setAttribute('aria-busy', 'true');
+                            if (button.hasAttribute('data-pending-label')) {
+                                button.textContent = button.getAttribute('data-pending-label');
+                            }
+                        });
+                    }, 0);
+                });
+            }
+
             var rows = page.querySelectorAll('[data-variant-row]');
             if (!rows.length) return;
 
-            var addBtn = page.querySelector('[data-add-to-cart]');
+            var addButtons = document.querySelectorAll('[data-add-to-cart]');
             var qtyInputs = page.querySelectorAll('[data-variant-qty]');
 
             function refreshAddButton() {
-                if (!addBtn) return;
                 var total = 0;
                 qtyInputs.forEach(function (input) {
-                    total += parseInt(input.value, 10) || 0;
+                    total += Math.max(0, parseInt(input.value, 10) || 0);
                 });
-                addBtn.disabled = total < 1;
-                addBtn.textContent = total > 0
-                    ? 'Add to cart (' + total + ')'
-                    : 'Add to cart';
+
+                addButtons.forEach(function (button) {
+                    button.disabled = total < 1;
+                    button.textContent = total > 0
+                        ? 'Add to cart (' + total + ')'
+                        : (button.getAttribute('data-idle-label') || 'Add to cart');
+                });
             }
 
             refreshAddButton();
@@ -285,7 +359,7 @@
                         if (variant.images && variant.images.length) {
                             thumbsWrap.classList.remove('hidden');
                             thumbsWrap.innerHTML = variant.images.map(function (src) {
-                                return '<button type="button" data-thumb data-src="' + src + '" class="overflow-hidden rounded-lg border border-gray-200 transition hover:border-[var(--storefront-brand)] dark:border-white/10"><img class="aspect-square w-full object-cover" src="' + src + '" alt=""></button>';
+                                return '<button type="button" data-thumb data-src="' + src + '" class="overflow-hidden rounded-lg border border-gray-200 transition hover:border-[var(--storefront-brand)] dark:border-white/10"><img class="aspect-square w-full object-cover" src="' + src + '" alt="" width="240" height="240" loading="lazy" decoding="async"></button>';
                             }).join('');
                             mainImage.src = variant.images[0];
                         } else {

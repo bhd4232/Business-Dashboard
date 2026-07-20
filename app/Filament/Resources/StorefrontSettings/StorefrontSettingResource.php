@@ -79,6 +79,10 @@ class StorefrontSettingResource extends Resource
                         ->label('Published')
                         ->default(false)
                         ->helperText('Unpublished storefronts return a 404 on public domain routes.'),
+                    Toggle::make('customer_accounts_enabled')
+                        ->label('Enable customer login & registration')
+                        ->default(true)
+                        ->helperText('Turn off to hide login/register and fall back to guest phone-number order lookup only.'),
                     ColorPicker::make('theme_color')
                         ->label('Theme color')
                         ->default('#0F766E')
@@ -92,6 +96,16 @@ class StorefrontSettingResource extends Resource
                         ->tel()
                         ->maxLength(40)
                         ->helperText('Optional. Shows a "Call" button next to WhatsApp for customers who prefer to call.'),
+                    TextInput::make('contact_email')
+                        ->label('Support email')
+                        ->email()
+                        ->maxLength(255)
+                        ->helperText('Shown on the Contact page. Leave blank to use the company\'s business email.'),
+                    TextInput::make('contact_hours')
+                        ->label('Support hours')
+                        ->maxLength(120)
+                        ->placeholder('Saturday-Friday, 10:00 AM to 10:00 PM')
+                        ->helperText('Shown on the Contact page under the Call Us card.'),
                     Select::make('theme_mode')
                         ->label('Default color mode')
                         ->options(StorefrontSetting::THEME_MODES)
@@ -248,16 +262,8 @@ class StorefrontSettingResource extends Resource
                         ->imageEditor()
                         ->downloadable()
                         ->openable(),
-                    self::bannerRepeater(
-                        name: 'banner_images',
-                        label: 'Banner images (desktop)',
-                        description: 'Shown on desktop/tablet when no hero slides are configured. Multiple banners rotate automatically. Recommended: 1600x680px (~21:9 wide aspect ratio). Supports any image format — JPG, PNG, WEBP, GIF, SVG, BMP, AVIF, etc.',
-                    ),
-                    self::bannerRepeater(
-                        name: 'banner_images_mobile',
-                        label: 'Banner images (mobile)',
-                        description: 'Optional. Shown on phones instead of the desktop banners above. Recommended: 900x1200px (~3:4 vertical aspect ratio). Falls back to the desktop banners if left empty. Supports any image format.',
-                    ),
+                    \Filament\Schemas\Components\Text::make('Homepage banners are managed in Storefront → Hero Slides (images, product links, scheduling, and mobile variants all live there).')
+                        ->columnSpanFull(),
                 ])
                 ->columns(2)
                 ->collapsible(),
@@ -399,6 +405,16 @@ class StorefrontSettingResource extends Resource
                 ->collapsible()
                 ->collapsed(),
 
+            Section::make('Navigation Menus')
+                ->columnSpanFull()
+                ->description('Links shown in the storefront header navigation and the footer "Quick links" column. Leave empty to use the automatic defaults (Shop all, Track order, Account / published pages).')
+                ->schema([
+                    self::menuRepeater('header_menu', 'Header menu'),
+                    self::menuRepeater('footer_menu', 'Footer menu'),
+                ])
+                ->collapsible()
+                ->collapsed(),
+
             Section::make('SEO')
                 ->columnSpanFull()
                 ->schema([
@@ -412,6 +428,68 @@ class StorefrontSettingResource extends Resource
                 ->columns(2)
                 ->collapsible(),
         ]);
+    }
+
+    protected static function menuRepeater(string $name, string $label): Repeater
+    {
+        $companyId = fn (Get $get, ?StorefrontSetting $record): ?int => $get('../../company_id') ?: $record?->company_id;
+
+        return Repeater::make($name)
+            ->label($label)
+            ->columnSpanFull()
+            ->reorderable()
+            ->collapsible()
+            ->defaultItems(0)
+            ->itemLabel(fn (array $state): ?string => $state['label'] ?? null)
+            ->addActionLabel('Add menu item')
+            ->schema([
+                TextInput::make('label')
+                    ->required()
+                    ->maxLength(40),
+                Select::make('type')
+                    ->label('Link type')
+                    ->options([
+                        'shop' => 'Shop all products',
+                        'category' => 'Category',
+                        'page' => 'Content page',
+                        'track' => 'Track order',
+                        'account' => 'My account',
+                        'reseller' => 'Become a reseller',
+                        'custom' => 'Custom URL',
+                    ])
+                    ->default('shop')
+                    ->required()
+                    ->live(),
+                Select::make('category_id')
+                    ->label('Category')
+                    ->visible(fn (Get $get): bool => $get('type') === 'category')
+                    ->required(fn (Get $get): bool => $get('type') === 'category')
+                    ->options(fn (Get $get, ?StorefrontSetting $record) => \App\Models\Category::withoutGlobalScopes()
+                        ->where('company_id', $companyId($get, $record))
+                        ->where('is_active', true)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')),
+                Select::make('page_id')
+                    ->label('Page')
+                    ->visible(fn (Get $get): bool => $get('type') === 'page')
+                    ->required(fn (Get $get): bool => $get('type') === 'page')
+                    ->options(fn (Get $get, ?StorefrontSetting $record) => StorefrontPage::withoutGlobalScopes()
+                        ->where('company_id', $companyId($get, $record))
+                        ->where('is_published', true)
+                        ->orderBy('title')
+                        ->pluck('title', 'id')),
+                TextInput::make('url')
+                    ->label('Custom URL')
+                    ->visible(fn (Get $get): bool => $get('type') === 'custom')
+                    ->required(fn (Get $get): bool => $get('type') === 'custom')
+                    ->maxLength(500)
+                    ->placeholder('https://example.com or /some-path'),
+                Toggle::make('new_tab')
+                    ->label('Open in new tab')
+                    ->default(false)
+                    ->inline(false),
+            ])
+            ->columns(2);
     }
 
     public static function table(Table $table): Table
@@ -503,7 +581,10 @@ class StorefrontSettingResource extends Resource
             'Domain added' => filled($record->company?->domain),
             'Domain verified' => (bool) $record->company?->domain_verified,
             'Logo uploaded' => filled($record->logo),
-            'Banner uploaded' => collect($record->banner_images ?? [])->filter()->isNotEmpty(),
+            'Hero slide added' => \App\Models\StorefrontSlide::withoutGlobalScopes()
+                ->where('company_id', $record->company_id)
+                ->where('is_active', true)
+                ->exists(),
             'SEO completed' => filled($record->meta_title) && filled($record->meta_description),
             'WhatsApp added' => filled($record->whatsapp_number),
             'Content pages' => self::pageCount($record) > 0,
@@ -574,52 +655,6 @@ class StorefrontSettingResource extends Resource
         return filled($record->woocommerce_base_url)
             && filled(data_get($record->woocommerce_credentials, 'consumer_key'))
             && filled(data_get($record->woocommerce_credentials, 'consumer_secret'));
-    }
-
-    public static function bannerRepeater(string $name, string $label, string $description): Repeater
-    {
-        return Repeater::make($name)
-            ->label($label)
-            ->helperText($description)
-            ->reorderable()
-            ->collapsible()
-            ->addActionLabel('Add banner')
-            ->itemLabel(fn (array $state): string => filled($state['product_id'] ?? null)
-                ? (Product::withoutGlobalScopes()->find($state['product_id'])?->name ?? 'Banner')
-                : 'Banner')
-            ->schema([
-                FileUpload::make('image')
-                    ->label('Image')
-                    ->helperText('Automatically compressed to WebP on upload.')
-                    ->required()
-                    ->image()
-                    ->disk('public')
-                    ->directory('storefront/banners')
-                    ->imageEditor()
-                    ->saveUploadedFileUsing(static::optimizeImageUpload())
-                    ->downloadable()
-                    ->openable(),
-                Select::make('product_id')
-                    ->label('Link to product (optional)')
-                    ->helperText('Clicking this banner sends visitors straight to the tagged product\'s page. Leave blank for no link.')
-                    ->searchable()
-                    ->options(function (Get $get, ?StorefrontSetting $record) {
-                        $companyId = $record?->company_id ?? $get('../../company_id');
-
-                        return $companyId
-                            ? Product::withoutGlobalScopes()->where('company_id', $companyId)->orderBy('name')->limit(100)->pluck('name', 'id')
-                            : [];
-                    })
-                    ->getSearchResultsUsing(function (string $search, Get $get, ?StorefrontSetting $record) {
-                        $companyId = $record?->company_id ?? $get('../../company_id');
-
-                        return $companyId
-                            ? Product::withoutGlobalScopes()->where('company_id', $companyId)->where('name', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')
-                            : [];
-                    })
-                    ->getOptionLabelUsing(fn ($value): ?string => Product::withoutGlobalScopes()->find($value)?->name),
-            ])
-            ->columnSpanFull();
     }
 
     public static function syncWooCommerceAction(): Action

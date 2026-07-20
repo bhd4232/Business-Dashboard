@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+  </style>
+</helmet>
+
+<div style="font-family: 'IBM Plex Sans', sans-serif; background: #FAF9F6; color: #10161C; min-height: 100vh;">
+
+  <!-- Utility bar -->
+  <div style="background: #05131F; color: #93A4AF; font-size: 12px; padding: 8px 0; letter-spacing: 0.02em;">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 0 32px; display: flex; justify-content: space-between;">
+      <div style="display:flex; gap:24px;">
+        <span>ISO 9001:2015 Certified Manufacturer</span>
+        <span style="color:#2E4152;">|</span>
+        <span>Exporting to 34 countries</span>
+      </div>
+      <div style="display:flex; gap:24px;">
+        <span>+880 2-XXXX-XXXX</span>
+        <span style="color:#2E4152;">|</span>
+        <span>export@tasneemknitting.com</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header style="background: #0B2036; padding: 0;">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="width:44px; height:44px; border-radius:6px; background:#F2A93B; display:grid; place-items:center; font-family:'Space Grotesk',sans-serif; font-weight:700; color:#0B2036; font-size:18px;">TK</div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; color:#fff; letter-spacing:-0.01em;">Tasneem Knitting Industry</div>
+          <div style="font-size:11px; color:#7C93A4; letter-spacing:0.08em; text-transform:uppercase;">Circular &amp; Flat Knitting Machinery</div>
+        </div>
+      </div>
+
+      <nav style="display:flex; gap:32px; font-size:14px; font-weight:500; color:#C3D2DC;">
+        <a href="#" style="color:#fff; text-decoration:none;">Machinery</a>
+        <a href="#" style="color:#C3D2DC; text-decoration:none;">Spare Parts</a>
+        <a href="#" style="color:#C3D2DC; text-decoration:none;">Custom Solutions</a>
+        <a href="#" style="color:#C3D2DC; text-decoration:none;">Export &amp; Logistics</a>
+        <a href="#" style="color:#C3D2DC; text-decoration:none;">About</a>
+      </nav>
+
+      <div style="display:flex; align-items:center; gap:12px;">
+        <a href="#" style="color:#C3D2DC; font-size:13.5px; font-weight:500; text-decoration:none;">Track shipment</a>
+        <button style="background:#F2A93B; color:#0B2036; border:none; padding:11px 22px; border-radius:4px; font-weight:700; font-size:13.5px; cursor:pointer;">Request a Quote</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section style="position:relative; background:#0B2036; min-height:520px; display:flex; align-items:center; overflow:hidden;">
+    <div style="position:absolute; inset:0; width:100%; height:100%; background:linear-gradient(135deg,#132C46,#0B2036);"></div>
+    <div style="position:absolute; inset:0; background:linear-gradient(100deg, rgba(11,32,54,0.95) 0%, rgba(11,32,54,0.82) 45%, rgba(11,32,54,0.35) 100%);"></div>
+    <div style="position:relative; max-width:1360px; margin:0 auto; padding:0 32px; width:100%;">
+      <div style="max-width:640px;">
+        <div style="display:inline-flex; align-items:center; gap:8px; background:rgba(242,169,59,0.14); border:1px solid rgba(242,169,59,0.4); color:#F2A93B; font-size:12px; font-weight:600; padding:6px 14px; border-radius:3px; letter-spacing:0.04em; text-transform:uppercase;">Est. 1998 &middot; Bangladesh</div>
+        <h1 style="font-family:'Space Grotesk',sans-serif; font-size:44px; font-weight:700; color:#fff; margin:20px 0 16px; line-height:1.18;">Precision knitting machinery, engineered for scale.</h1>
+        <p style="color:#B8C6D1; font-size:16px; line-height:1.7; margin:0 0 30px; max-width:540px;">
+          From single-jersey circular machines to full jacquard lines — Tasneem Knitting Industry supplies, installs, and services machinery for garment manufacturers across South Asia and beyond.
+        </p>
+        <div style="display:flex; gap:14px;">
+          <button style="background:#F2A93B; color:#0B2036; border:none; padding:14px 26px; border-radius:4px; font-weight:700; font-size:14.5px; cursor:pointer;">Browse machinery catalog</button>
+          <button style="background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,0.35); padding:14px 26px; border-radius:4px; font-weight:600; font-size:14.5px; cursor:pointer;">Talk to an engineer</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:0; margin-top:56px; max-width:640px; border-top:1px solid rgba(255,255,255,0.14); padding-top:26px;">
+        <sc-for list="{{ heroStats }}" as="stat" hint-placeholder-count="4">
+          <div style="flex:1; padding-right:24px;">
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:600; color:#fff;">{{ stat.value }}</div>
+            <div style="font-size:12.5px; color:#8DA0AF; margin-top:4px;">{{ stat.label }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- Certifications strip -->
+  <section style="background:#fff; border-bottom:1px solid #E4E1D8;">
+    <div style="max-width:1360px; margin:0 auto; padding:22px 32px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+      <div style="font-size:12px; color:#7A8790; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">Certified &amp; Trusted</div>
+      <div style="display:flex; gap:36px; flex-wrap:wrap;">
+        <sc-for list="{{ certifications }}" as="cert" hint-placeholder-count="4">
+          <div style="display:flex; align-items:center; gap:8px; color:#3D4952; font-weight:600; font-size:13.5px;">
+            <div style="width:8px; height:8px; border-radius:50%; background:#F2A93B;"></div>
+            {{ cert }}
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- Machinery lines -->
+  <section style="max-width:1360px; margin:64px auto 0; padding:0 32px;">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:30px;">
+      <div>
+        <div style="font-size:12.5px; color:#F2A93B; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">Product Lines</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif; font-size:28px; font-weight:700; margin:0;">Machinery built for continuous production</h2>
+      </div>
+      <a href="#" style="color:#0B2036; font-weight:700; font-size:13.5px; text-decoration:none; border-bottom:2px solid #F2A93B; padding-bottom:2px;">Full catalog &rarr;</a>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:22px;">
+      <sc-for list="{{ machineLines }}" as="m" hint-placeholder-count="3">
+        <div style="background:#fff; border:1px solid #E4E1D8; border-radius:6px; overflow:hidden;">
+          <div style="width:100%; height:200px; background:#EEEBE2;"></div>
+          <div style="padding:22px;">
+            <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px;">{{ m.name }}</div>
+            <p style="font-size:13.5px; color:#5B6770; line-height:1.6; margin:0 0 16px;">{{ m.desc }}</p>
+            <div style="display:flex; justify-content:space-between; border-top:1px solid #E4E1D8; padding-top:14px;">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:#3E7CB1; font-weight:600;">{{ m.spec }}</div>
+              <a href="#" style="font-size:12.5px; font-weight:700; color:#0B2036; text-decoration:none;">Spec sheet &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Quote / RFQ band -->
+  <section style="max-width:1360px; margin:64px auto 0; padding:0 32px;">
+    <div style="background:#0B2036; border-radius:8px; padding:40px 44px; display:grid; grid-template-columns:1.3fr 1fr; gap:40px; align-items:center;">
+      <div>
+        <div style="font-size:12.5px; color:#F2A93B; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Bulk &amp; Export Orders</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:700; color:#fff; margin:0 0 12px;">Need a custom machinery package for your factory?</h2>
+        <p style="color:#B8C6D1; font-size:14.5px; line-height:1.7; margin:0;">Our engineering team scopes production capacity, financing, and shipping timelines — tailored to your factory line.</p>
+      </div>
+      <div style="display:flex; gap:12px; justify-content:flex-end;">
+        <button style="background:#F2A93B; color:#0B2036; border:none; padding:14px 24px; border-radius:4px; font-weight:700; font-size:14px; cursor:pointer; white-space:nowrap;">Request a Quote</button>
+        <button style="background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,0.35); padding:14px 24px; border-radius:4px; font-weight:600; font-size:14px; cursor:pointer; white-space:nowrap;">Download brochure</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Global reach -->
+  <section style="max-width:1360px; margin:64px auto 0; padding:0 32px; display:grid; grid-template-columns:1fr 1fr; gap:44px; align-items:center;">
+    <div>
+      <div style="font-size:12.5px; color:#F2A93B; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px;">Global Reach</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif; font-size:26px; font-weight:700; margin:0 0 16px;">Supplying manufacturers across South Asia, Africa, and the Middle East</h2>
+      <p style="font-size:14.5px; color:#5B6770; line-height:1.7; margin:0 0 24px;">
+        Every machine ships with full documentation, installation supervision, and a dedicated regional service partner.
+      </p>
+      <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px;">
+        <sc-for list="{{ reachStats }}" as="r" hint-placeholder-count="4">
+          <div style="border-left:3px solid #F2A93B; padding-left:14px;">
+            <div style="font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;">{{ r.value }}</div>
+            <div style="font-size:12.5px; color:#7A8790; margin-top:3px;">{{ r.label }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="width:100%; height:340px; border-radius:8px; background:#EEEBE2;"></div>
+  </section>
+
+  <!-- Client logos -->
+  <section style="max-width:1360px; margin:64px auto 0; padding:0 32px;">
+    <div style="font-size:12px; color:#7A8790; text-transform:uppercase; letter-spacing:0.08em; font-weight:600; text-align:center; margin-bottom:24px;">Trusted by leading garment manufacturers</div>
+    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:16px;">
+      <sc-for list="{{ clientLogos }}" as="c" hint-placeholder-count="6">
+        <div style="background:#fff; border:1px solid #E4E1D8; border-radius:6px; height:72px; display:grid; place-items:center; color:#9AA6AC; font-weight:600; font-size:12.5px;">{{ c }}</div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="margin-top:64px; background:#05131F; color:#93A4AF;">
+    <div style="max-width:1360px; margin:0 auto; padding:48px 32px; display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:36px;">
+      <div>
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; color:#fff; margin-bottom:12px;">Tasneem Knitting Industry</div>
+        <p style="font-size:13px; line-height:1.7; max-width:280px; margin:0;">Plot 14, Export Processing Zone, Chattogram, Bangladesh. Manufacturing circular and flat knitting machinery since 1998.</p>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:600; font-size:13px; margin-bottom:14px;">Products</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <a href="#" style="color:#93A4AF; text-decoration:none;">Circular knitting</a>
+          <a href="#" style="color:#93A4AF; text-decoration:none;">Flat knitting</a>
+          <a href="#" style="color:#93A4AF; text-decoration:none;">Spare parts</a>
+        </div>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:600; font-size:13px; margin-bottom:14px;">Company</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <a href="#" style="color:#93A4AF; text-decoration:none;">About us</a>
+          <a href="#" style="color:#93A4AF; text-decoration:none;">Export &amp; logistics</a>
+          <a href="#" style="color:#93A4AF; text-decoration:none;">Careers</a>
+        </div>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:600; font-size:13px; margin-bottom:14px;">Contact</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <span>export@tasneemknitting.com</span>
+          <span>+880 2-XXXX-XXXX</span>
+        </div>
+      </div>
+    </div>
+    <div style="border-top:1px solid #16232E; padding:18px 32px; text-align:center; font-size:12px;">
+      &copy; 2026 Tasneem Knitting Industry. All rights reserved.
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const heroStats = [
+      { value: '26+', label: 'Years in operation' },
+      { value: '34', label: 'Export countries' },
+      { value: '1,200+', label: 'Machines installed' },
+      { value: '48h', label: 'Parts dispatch' },
+    ];
+    const certifications = ['ISO 9001:2015', 'CE Marked', 'BSTI Approved', 'RoHS Compliant'];
+    const machineLines = [
+      { slotId: 'ml-1', name: 'Single Jersey Circular Machines', desc: '30"-34" cylinder diameter, 24-96 feeders, variable-speed drive for lightweight to heavyweight fabrics.', spec: '800-1600 RPM' },
+      { slotId: 'ml-2', name: 'Rib &amp; Interlock Machines', desc: 'Precision needle-cam systems for consistent rib structure at high production volumes.', spec: '20"-30" dia.' },
+      { slotId: 'ml-3', name: 'Computerized Jacquard Lines', desc: 'Electronic pattern control for complex jacquard designs with rapid changeover.', spec: '24-Feed Auto' },
+    ];
+    const reachStats = [
+      { value: '34', label: 'Countries served' },
+      { value: '1,200+', label: 'Machines in field' },
+      { value: '98%', label: 'On-time delivery' },
+      { value: '24/7', label: 'Regional support' },
+    ];
+    const clientLogos = ['Alpha Textiles', 'Beximco', 'Northern Knit', 'Delta Apparel', 'Unity Garments', 'Prime Fabrics'];
+    return { heroStats, certifications, machineLines, reachStats, clientLogos };
+  }
+}
+</script>
+</body>
+</html>

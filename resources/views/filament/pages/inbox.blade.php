@@ -319,7 +319,7 @@
                             @if ($selectedProduct)
                                 <div class="zz-catalog-preview">
                                     @if ($selectedProduct->image)
-                                        <img src="{{ asset('storage/'.$selectedProduct->image) }}" alt="{{ $selectedProduct->name }}">
+                                        <img src="{{ \App\Support\StorageUrl::for($selectedProduct->image) }}" alt="{{ $selectedProduct->name }}">
                                     @endif
                                     <span>
                                         <strong>{{ $selectedProduct->name }}</strong><br>

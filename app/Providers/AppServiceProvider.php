@@ -30,11 +30,14 @@ use App\Models\TransactionLedger;
 use App\Models\User;
 use App\Observers\AuditObserver;
 use App\Services\CompanyContext;
+use App\Services\StorageSettingsService;
 use Filament\Notifications\Livewire\Notifications;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
+use Throwable;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -49,6 +52,8 @@ class AppServiceProvider extends ServiceProvider
         if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
+
+        $this->configureCloudStorage();
 
         Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
             $subject = $arguments[0] ?? null;
@@ -93,5 +98,30 @@ class AppServiceProvider extends ServiceProvider
         Livewire::component('app.filament.resources.category-resource.pages.create-category', CreateCategory::class);
         Livewire::component('app.filament.resources.category-resource.pages.edit-category', EditCategory::class);
         Livewire::component('filament.livewire.notifications', Notifications::class);
+    }
+
+    /**
+     * If an owner has saved Cloudflare R2 credentials on the Storage
+     * settings page and enabled it, point the "public" filesystem disk at
+     * R2 for the rest of this request. Every existing FileUpload field and
+     * `Storage::disk('public')`/`StorageUrl::for()` call then transparently
+     * targets R2 without any other code change.
+     *
+     * Wrapped defensively: this runs on every boot, including early
+     * artisan commands (key:generate, migrate on a fresh install) before
+     * the database or app_settings table necessarily exists.
+     */
+    protected function configureCloudStorage(): void
+    {
+        try {
+            $settings = $this->app->make(StorageSettingsService::class);
+
+            if ($settings->enabled() && $settings->isConfigured()) {
+                Config::set('filesystems.disks.public', $settings->diskConfig());
+            }
+        } catch (Throwable) {
+            // Database not reachable yet (fresh install, artisan key:generate,
+            // etc.) — fall back to the default local "public" disk.
+        }
     }
 }

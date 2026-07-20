@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+  </style>
+</helmet>
+
+<div style="font-family: 'Work Sans', sans-serif; background: #0A0A0A; color: #F5F5F0; min-height: 100vh;">
+
+  <!-- Header -->
+  <header style="border-bottom: 1px solid #232323;">
+    <div style="max-width: 1320px; margin: 0 auto; padding: 22px 32px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="font-family:'Archivo',sans-serif; font-weight:900; font-size:22px; letter-spacing:-0.02em;">GADGET<span style="color:#C6FF3D;">.</span></div>
+      <nav style="display:flex; gap:34px; font-size:13.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;">
+        <a href="#" style="color:#F5F5F0; text-decoration:none;">New</a>
+        <a href="#" style="color:#8A8A85; text-decoration:none;">Audio</a>
+        <a href="#" style="color:#8A8A85; text-decoration:none;">Wearables</a>
+        <a href="#" style="color:#8A8A85; text-decoration:none;">Smart Home</a>
+      </nav>
+      <div style="display:flex; align-items:center; gap:20px;">
+        <a href="#" style="color:#F5F5F0; text-decoration:none; font-size:13px;">Search</a>
+        <div style="background:#C6FF3D; color:#0A0A0A; font-weight:800; font-size:12.5px; padding:9px 18px; border-radius:2px;">Cart (1)</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section style="max-width:1320px; margin:0 auto; padding:80px 32px 0;">
+    <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:30px; align-items:end;">
+      <h1 style="font-family:'Archivo',sans-serif; font-weight:900; font-size:96px; line-height:0.94; letter-spacing:-0.03em; margin:0;">
+        SOUND<br>THAT<br><span style="color:#C6FF3D;">HITS</span> DIFFERENT.
+      </h1>
+      <div style="padding-bottom:14px;">
+        <p style="font-size:15px; line-height:1.7; color:#B4B4AE; margin:0 0 24px;">The new Aeroline wireless series. Studio-tuned drivers, 40-hour battery, zero compromise.</p>
+        <button style="background:#C6FF3D; color:#0A0A0A; border:none; padding:15px 30px; font-weight:800; font-size:14px; cursor:pointer; border-radius:2px;">Shop Aeroline &rarr;</button>
+      </div>
+    </div>
+    <div style="width:100%; aspect-ratio:21/8; background:#1A1A1A; margin-top:40px; border-radius:4px;"></div>
+  </section>
+
+  <!-- Bold stat strip -->
+  <section style="max-width:1320px; margin:64px auto 0; padding:0 32px;">
+    <div style="border-top:1px solid #232323; border-bottom:1px solid #232323; display:grid; grid-template-columns:repeat(4,1fr);">
+      <sc-for list="{{ stats }}" as="s" hint-placeholder-count="4">
+        <div style="padding:28px 0; border-right:1px solid #232323;">
+          <div style="font-family:'Archivo',sans-serif; font-weight:900; font-size:34px; color:#C6FF3D;">{{ s.value }}</div>
+          <div style="font-size:12.5px; color:#8A8A85; text-transform:uppercase; letter-spacing:0.06em; margin-top:6px;">{{ s.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Asymmetric product grid -->
+  <section style="max-width:1320px; margin:64px auto 0; padding:0 32px;">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:26px;">
+      <h2 style="font-family:'Archivo',sans-serif; font-weight:800; font-size:28px; margin:0;">DROP 04</h2>
+      <a href="#" style="color:#C6FF3D; font-size:13px; font-weight:700; text-decoration:none;">VIEW ALL &rarr;</a>
+    </div>
+    <div style="display:grid; grid-template-columns: 1.6fr 1fr; gap:20px;">
+      <div style="background:#151515; border-radius:4px; padding:28px; display:flex; flex-direction:column; justify-content:flex-end; min-height:420px;">
+        <div style="width:100%; aspect-ratio:16/10; background:#232323; border-radius:4px; margin-bottom:20px;"></div>
+        <div style="font-family:'Archivo',sans-serif; font-weight:800; font-size:22px;">Aeroline Max — Over-ear</div>
+        <div style="color:#8A8A85; font-size:13.5px; margin-top:6px;">Active noise cancelling &middot; 40h battery</div>
+        <div style="font-family:'Archivo',sans-serif; font-weight:900; font-size:24px; margin-top:14px;">৳18,900</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:20px;">
+        <sc-for list="{{ sideProducts }}" as="p" hint-placeholder-count="2">
+          <div style="background:#151515; border-radius:4px; padding:22px; flex:1; display:flex; flex-direction:column; justify-content:flex-end;">
+            <div style="width:100%; aspect-ratio:4/3; background:#232323; border-radius:4px; margin-bottom:16px;"></div>
+            <div style="font-family:'Archivo',sans-serif; font-weight:700; font-size:16px;">{{ p.name }}</div>
+            <div style="font-family:'Archivo',sans-serif; font-weight:900; font-size:18px; margin-top:8px; color:#C6FF3D;">{{ p.price }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="margin-top:80px; border-top:1px solid #232323;">
+    <div style="max-width:1320px; margin:0 auto; padding:44px 32px; display:grid; grid-template-columns:2fr 1fr 1fr; gap:32px;">
+      <div>
+        <div style="font-family:'Archivo',sans-serif; font-weight:900; font-size:20px; margin-bottom:14px;">GADGET<span style="color:#C6FF3D;">.</span></div>
+        <p style="font-size:13px; color:#8A8A85; max-width:280px; line-height:1.7; margin:0;">Gadget Items Company — audio, wearables, and smart home tech.</p>
+      </div>
+      <div>
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:#8A8A85; margin-bottom:14px;">Shop</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13.5px;">
+          <a href="#" style="color:#F5F5F0; text-decoration:none;">Audio</a>
+          <a href="#" style="color:#F5F5F0; text-decoration:none;">Wearables</a>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:#8A8A85; margin-bottom:14px;">Support</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13.5px;">
+          <a href="#" style="color:#F5F5F0; text-decoration:none;">Track order</a>
+          <a href="#" style="color:#F5F5F0; text-decoration:none;">Warranty</a>
+        </div>
+      </div>
+    </div>
+    <div style="border-top:1px solid #232323; padding:18px 32px; text-align:center; font-size:11.5px; color:#5C5C57;">
+      &copy; 2026 Gadget Items Company
+    </div>
+  </footer>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  renderVals() {
+    const stats = [
+      { value: '40H', label: 'Battery life' },
+      { value: '4.9', label: 'Average rating' },
+      { value: '02D', label: 'Fast shipping' },
+      { value: '1YR', label: 'Warranty' },
+    ];
+    const sideProducts = [
+      { name: 'Aeroline Buds', price: '৳7,400' },
+      { name: 'Pulse Smartwatch', price: '৳11,200' },
+    ];
+    return { stats, sideProducts };
+  }
+}
+
+</script>
+</body>
+</html>

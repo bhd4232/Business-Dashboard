@@ -54,20 +54,21 @@ class StorefrontReorderTest extends TestCase
             'unit_price' => 900,
         ]);
 
-        $this->post("http://reorder.example.test/account/orders/{$order->order_number}/reorder", [
-            'phone' => '01728174614',
-        ])->assertRedirect('http://reorder.example.test/cart');
+        $this->actingAs($customer, 'customer');
+
+        $this->post("http://reorder.example.test/account/orders/{$order->order_number}/reorder")
+            ->assertRedirect('http://reorder.example.test/cart');
 
         $this->get('http://reorder.example.test/cart')
             ->assertOk()
             ->assertSee('Rechargeable Fan');
 
-        $this->get('http://reorder.example.test/account/orders?phone=01728174614')
+        $this->get('http://reorder.example.test/account/orders')
             ->assertOk()
             ->assertSee('Reorder');
     }
 
-    public function test_reorder_requires_matching_phone_and_same_company_storefront_order(): void
+    public function test_reorder_requires_the_owning_customer_and_same_company_storefront_order(): void
     {
         $company = $this->createPublishedStorefrontCompany('Reorder Guard Store', 'reorder-guard.example.test');
         $otherCompany = $this->createPublishedStorefrontCompany('Other Store', 'reorder-other.example.test');
@@ -97,19 +98,26 @@ class StorefrontReorderTest extends TestCase
             'unit_price' => 500,
         ]);
 
-        // Wrong phone is rejected.
-        $this->post("http://reorder-guard.example.test/account/orders/{$order->order_number}/reorder", [
+        $intruder = Customer::query()->create([
+            'name' => 'Another Buyer',
             'phone' => '01999999999',
-        ])->assertNotFound();
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
 
-        // Missing phone is rejected.
+        // Guest requests do not reveal whether the order exists.
         $this->post("http://reorder-guard.example.test/account/orders/{$order->order_number}/reorder")
+            ->assertRedirect('http://reorder-guard.example.test/account/login');
+
+        // Another customer cannot reorder the owner's items.
+        $this->actingAs($intruder, 'customer')
+            ->post("http://reorder-guard.example.test/account/orders/{$order->order_number}/reorder")
             ->assertNotFound();
 
         // Another company's storefront cannot reorder this order.
-        $this->post("http://reorder-other.example.test/account/orders/{$order->order_number}/reorder", [
-            'phone' => '01911111111',
-        ])->assertNotFound();
+        $this->actingAs($customer, 'customer')
+            ->post("http://reorder-other.example.test/account/orders/{$order->order_number}/reorder")
+            ->assertNotFound();
     }
 
     private function createProduct(string $name, string $sku): Product

@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Storefront\Concerns\MatchesCustomerPhone;
 use App\Models\Company;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class AccountOrdersController extends Controller
@@ -20,7 +22,7 @@ class AccountOrdersController extends Controller
 
     public function __construct(protected CompanyContext $context, protected StorefrontCart $cart) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         [$company, $setting] = $this->domainStorefront($request);
 
@@ -36,9 +38,33 @@ class AccountOrdersController extends Controller
 
     public function reorder(Request $request, string $orderNo): RedirectResponse
     {
-        [$company] = $this->domainStorefront($request);
+        [$company, $setting] = $this->domainStorefront($request);
 
-        $this->reorderIntoCart($request, $company, $orderNo);
+        if (! $setting->customer_accounts_enabled) {
+            return redirect()
+                ->route('storefront.track.index')
+                ->with('storefront_status', 'Enter your order number and checkout phone to find an order.');
+        }
+
+        $customer = Auth::guard('customer')->user();
+
+        if (! $customer) {
+            return redirect()
+                ->route('storefront.account.login')
+                ->with('storefront_status', 'Log in to reorder from your order history.');
+        }
+
+        $order = Order::query()
+            ->with(['items.product'])
+            ->where('company_id', $company->getKey())
+            ->where('source', Order::SOURCE_STOREFRONT)
+            ->where('customer_id', $customer->getKey())
+            ->where('order_number', trim($orderNo))
+            ->first();
+
+        abort_unless($order, 404);
+
+        $this->addOrderItemsToCart($company, $order);
 
         return redirect()->route('storefront.cart.show');
     }
@@ -47,28 +73,28 @@ class AccountOrdersController extends Controller
     {
         $this->previewStorefront($company);
 
-        $this->reorderIntoCart($request, $company, $orderNo);
-
-        return redirect()->route('storefront.preview.cart.show', $company->slug);
-    }
-
-    protected function reorderIntoCart(Request $request, Company $company, string $orderNo): void
-    {
         $phone = trim((string) $request->string('phone'));
 
         abort_if($phone === '', 404);
 
         $order = $this->ordersForPhone($company, $phone)
-            ->firstWhere('order_number', $orderNo);
+            ->firstWhere('order_number', trim($orderNo));
 
         abort_unless($order, 404);
 
+        $this->addOrderItemsToCart($company, $order);
+
+        return redirect()->route('storefront.preview.cart.show', $company->slug);
+    }
+
+    protected function addOrderItemsToCart(Company $company, Order $order): void
+    {
         $added = 0;
 
         foreach ($order->items as $item) {
             $product = $item->product;
 
-            if (! $product || ! $product->is_active || $product->status !== \App\Models\Product::STATUS_AVAILABLE) {
+            if (! $product || ! $product->is_active || $product->status !== Product::STATUS_AVAILABLE) {
                 continue;
             }
 
@@ -94,7 +120,41 @@ class AccountOrdersController extends Controller
         Company $company,
         StorefrontSetting $setting,
         ?string $previewSlug = null,
-    ): View {
+    ): View|RedirectResponse {
+        if ($previewSlug === null) {
+            if (! $setting->customer_accounts_enabled) {
+                return redirect()
+                    ->route('storefront.track.index')
+                    ->with('storefront_status', 'Enter your order number and checkout phone to find an order.');
+            }
+
+            $customer = Auth::guard('customer')->user();
+
+            if (! $customer) {
+                return redirect()
+                    ->route('storefront.account.login')
+                    ->with('storefront_status', 'Log in to view your order history.');
+            }
+
+            $orders = Order::query()
+                ->with(['customer', 'items.product'])
+                ->where('company_id', $company->getKey())
+                ->where('source', Order::SOURCE_STOREFRONT)
+                ->where('customer_id', $customer->getKey())
+                ->latest('order_date')
+                ->latest('id')
+                ->get();
+
+            return view('storefront.account.orders', [
+                'company' => $company,
+                'setting' => $setting,
+                'previewSlug' => $previewSlug,
+                'phone' => null,
+                'orders' => $orders,
+                'hasSearched' => true,
+            ]);
+        }
+
         $phone = trim((string) $request->string('phone'));
         $orders = $phone === '' ? collect() : $this->ordersForPhone($company, $phone);
 

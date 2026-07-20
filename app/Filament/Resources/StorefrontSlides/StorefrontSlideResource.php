@@ -6,6 +6,7 @@ use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\StorefrontSlides\Pages\CreateStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\EditStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\ListStorefrontSlides;
+use App\Models\Product;
 use App\Models\StorefrontSlide;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
@@ -18,6 +19,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\ImageColumn;
@@ -51,7 +53,8 @@ class StorefrontSlideResource extends Resource
                         ->relationship('company', 'name')
                         ->required()
                         ->searchable()
-                        ->preload(),
+                        ->preload()
+                        ->live(),
                     Toggle::make('is_active')
                         ->label('Active')
                         ->default(true),
@@ -83,6 +86,25 @@ class StorefrontSlideResource extends Resource
                         ->url()
                         ->maxLength(255)
                         ->helperText('Full URL or a relative path such as /products.'),
+                    Select::make('product_id')
+                        ->label('Link to product (optional)')
+                        ->helperText('Clicking the slide image sends visitors to this product\'s page. The CTA URL above wins if both are set.')
+                        ->searchable()
+                        ->options(function (Get $get, ?StorefrontSlide $record): array {
+                            $companyId = $get('company_id') ?? $record?->company_id;
+
+                            return $companyId
+                                ? Product::withoutGlobalScopes()->where('company_id', $companyId)->orderBy('name')->limit(100)->pluck('name', 'id')->all()
+                                : [];
+                        })
+                        ->getSearchResultsUsing(function (string $search, Get $get, ?StorefrontSlide $record) {
+                            $companyId = $get('company_id') ?? $record?->company_id;
+
+                            return $companyId
+                                ? Product::withoutGlobalScopes()->where('company_id', $companyId)->where('name', 'like', "%{$search}%")->limit(50)->pluck('name', 'id')
+                                : [];
+                        })
+                        ->getOptionLabelUsing(fn ($value): ?string => Product::withoutGlobalScopes()->find($value)?->name),
                     TextInput::make('sort_order')
                         ->numeric()
                         ->default(0)

@@ -1,0 +1,357 @@
+{
+  "name": "Tayef voice and image send",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "Quary"
+            },
+            {
+              "name": "number_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -624,
+        -96
+      ],
+      "id": "c7a039ae-50b0-4beb-a081-2a3849cc311e",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "text",
+              "value": "=নিয়মিত ২০ থেকে ৩০ মিনিট সময় দিয়ে প্রেক্টিস করতে হবে। আর সপ্তাহে ৪/৫ দিন প্রেক্টিস করতে পারলেই হবে। \n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        496,
+        -288
+      ],
+      "id": "80b2fc3d-f63f-4b04-b019-2bcbbc3f815d",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        272,
+        96
+      ],
+      "id": "d40a242b-7142-43e1-8eef-ab6772df6b28",
+      "name": "Wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "audioUrl",
+              "value": "https://5minuteartsacademy.com/wp-content/uploads/2026/02/H-W-Details.ogg"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        496,
+        96
+      ],
+      "id": "d2524645-1881-4ef6-b8b4-13ac1327f440",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input theke data neya hocche\nlet rawNumberId = $json[\"number_id\"]; // Example: \"8801739049039@s.whatsapp.net\"\nlet name = $json[\"body.customer_name\"] || \"N/A\";\nlet email = $json[\"body.customer_email\"] || \"N/A\";\nlet orderId = $json[\"body.order_id\"] || \"N/A\";\n\nlet formattedPhone = null;\n\n// Jodi number_id thake, tobe formatting logic kaj korbe\nif (rawNumberId) {\n  // Shob non-numeric character (mathay thaka @s.whatsapp.net) remove kora hocche\n  let cleanPhone = rawNumberId.split('@')[0].replace(/\\D/g, '');\n\n  // Bangladesh formatting logic\n  // 0 diye shuru hole +880 add\n  if (cleanPhone.startsWith('0')) {\n    cleanPhone = '+880' + cleanPhone.substring(1);\n  }\n  // 880 diye shuru hole kintu + nai\n  else if (cleanPhone.startsWith('880')) {\n    cleanPhone = '+' + cleanPhone;\n  }\n  // Sudhu 1 diye shuru hole (e.g. 1739...)\n  else if (cleanPhone.length === 10 && cleanPhone.startsWith('1')) {\n    cleanPhone = '+880' + cleanPhone;\n  }\n  // Jodi age thekei '+' thake ba onno format thake, clean format ensure kora\n  else if (!cleanPhone.startsWith('+')) {\n    // Basic fallback: jodi 880 diye shuru na hoy kintu valid length thake\n    if (cleanPhone.length === 13 && cleanPhone.startsWith('880')) {\n        cleanPhone = '+' + cleanPhone;\n    }\n  }\n\n  formattedPhone = cleanPhone;\n}\n\n// ✅ Final Output\nreturn {\n  customer_name: name,\n  customer_email: email,\n  formatted_phone: formattedPhone,\n  order_id: orderId,\n  original_id: rawNumberId\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        -96
+      ],
+      "id": "dfd77ea4-b87e-45e2-91b6-713c665a1584",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "number_id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -96
+      ],
+      "id": "48087a30-02f3-4726-a033-6f612b8e30c0",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        272,
+        -288
+      ],
+      "id": "8e0b15a7-0d6d-436b-b2a9-77b2a3700d5e",
+      "name": "Wait1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "87abd52f-a186-4850-8e2b-afa8f1a6473c",
+              "name": "number_id",
+              "value": "={{ $json.number_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        -96
+      ],
+      "id": "45c6dee7-22a5-4355-b39d-6e39f0896eba",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "text",
+              "value": "=যদি রেগুলার প্রাক্টিস করেন, তাহলে ১৫ থেকে ২০ দিনের ভিতরে লেখা ঠিক করতে পারবেন। আর যদি রেগুলার প্রেক্টিস করতে না পারেন, তাহলে একটু বেশি সময় লাগবে, মাস খানিক সময় লাগতে পারে, তবে এই কোর্সে সময়ের কোনো সীমাবদ্ধতা নেই, যতদিন না পর্যন্ত আপনার লেখা সুন্দর এবং দ্রুত হচ্ছে, ততদিন পর্যন্ত আমার সাপোর্ট এবং গাইডলাইন থাকবে।\n\n\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        496,
+        -96
+      ],
+      "id": "aba2eca1-2b10-477a-a5bc-399072e30ba7",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        272,
+        -96
+      ],
+      "id": "7bc215c7-921d-44e9-922a-ba68e018cfa6",
+      "name": "Wait3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d67889f2-6ad3-4e76-89cf-1e8413ba9d66",
+              "name": "=success",
+              "value": "={{ $json.success }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        96
+      ],
+      "id": "b9e069c0-fccf-43d9-85cb-67f66f20da5d",
+      "name": "Edit Fields1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "tags": []
+}

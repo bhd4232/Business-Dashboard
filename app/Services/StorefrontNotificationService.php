@@ -19,6 +19,11 @@ use Illuminate\Support\Facades\Log;
  */
 class StorefrontNotificationService
 {
+    public function smsConfigured(StorefrontSetting $setting): bool
+    {
+        return filled(data_get($setting->notification_credentials, 'sms_api_url'));
+    }
+
     public function sendSms(StorefrontSetting $setting, string $phone, string $message): bool
     {
         $credentials = $setting->notification_credentials ?? [];

@@ -321,6 +321,76 @@
         <section class="zz-settings-card">
             <div class="zz-settings-header">
                 <div>
+                    <h2 class="zz-settings-title">Invoice Settings</h2>
+                    <p class="zz-settings-desc">Contact details, thank-you message, and layout options printed on order invoices and the courier cut-slip.</p>
+                </div>
+                <button type="submit" class="zz-button" wire:loading.attr="disabled" wire:target="logoUpload,darkLogoUpload,save">Save Settings</button>
+            </div>
+
+            <div class="zz-settings-grid">
+                <div class="zz-field">
+                    <label for="invoice-hotline">Header Hotline</label>
+                    <input id="invoice-hotline" class="zz-input" type="text" placeholder="e.g. 01811754232" wire:model="invoice.hotline">
+                    @error('invoice.hotline') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field">
+                    <label for="invoice-support-hotline">Footer Hotline</label>
+                    <input id="invoice-support-hotline" class="zz-input" type="text" placeholder="e.g. 01894449445" wire:model="invoice.support_hotline">
+                    @error('invoice.support_hotline') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field">
+                    <label for="invoice-facebook-url">Facebook Page URL</label>
+                    <input id="invoice-facebook-url" class="zz-input" type="text" placeholder="https://facebook.com/yourpage" wire:model="invoice.facebook_url">
+                    @error('invoice.facebook_url') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field">
+                    <label for="invoice-facebook-label">Facebook Page Label</label>
+                    <input id="invoice-facebook-label" class="zz-input" type="text" placeholder="fb.com/yourpage" wire:model="invoice.facebook_label">
+                    @error('invoice.facebook_label') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field">
+                    <label for="invoice-whatsapp">WhatsApp Number</label>
+                    <input id="invoice-whatsapp" class="zz-input" type="text" placeholder="e.g. 01678413888" wire:model="invoice.whatsapp">
+                    @error('invoice.whatsapp') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field">
+                    <label for="invoice-website">Website</label>
+                    <input id="invoice-website" class="zz-input" type="text" placeholder="e.g. zamzamint.com" wire:model="invoice.website">
+                    @error('invoice.website') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field zz-field-full">
+                    <label for="invoice-thank-you">Thank You Message</label>
+                    <input id="invoice-thank-you" class="zz-input" type="text" wire:model="invoice.thank_you">
+                    @error('invoice.thank_you') <span class="zz-error">{{ $message }}</span> @enderror
+                </div>
+
+                <div class="zz-field">
+                    <label><input type="checkbox" wire:model="invoice.show_images" style="margin-right: 8px;">Show product images column</label>
+                </div>
+
+                <div class="zz-field">
+                    <label><input type="checkbox" wire:model="invoice.show_weight" style="margin-right: 8px;">Show weight column</label>
+                </div>
+
+                <div class="zz-field">
+                    <label><input type="checkbox" wire:model="invoice.show_barcode" style="margin-right: 8px;">Show invoice barcode</label>
+                </div>
+
+                <div class="zz-field">
+                    <label><input type="checkbox" wire:model="invoice.show_slip" style="margin-right: 8px;">Show courier cut-slip (last page)</label>
+                </div>
+            </div>
+        </section>
+
+        <section class="zz-settings-card">
+            <div class="zz-settings-header">
+                <div>
                     <h2 class="zz-settings-title">Shipping Zones</h2>
                     <p class="zz-settings-desc">Comma-separated area names/keywords. When a new order's customer address contains one of these, the matching zone's fee from the courier's "Set Delivery Fees" is applied automatically.</p>
                 </div>

@@ -1,0 +1,2566 @@
+{
+  "name": "Whatsapp Chatbot + Order Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "configure-whatsapp-chatbot-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1696,
+        -176
+      ],
+      "id": "090df2fd-5ce6-4950-8564-bd92991edd41",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "text",
+              "value": "=আপনার অর্ডারটি সাকসেসফুল হয়েছে ✅\n\nAssalamualikum 🥰 \n\nএখানেই আপনাকে নিয়মিত ক্লাস দেওয়া হবে এবং এখানে অবশ্যই নিয়মিত হোমওয়ার্ক করে আমাকে পাঠাতে হবে। তারপর আমি হোমওয়ার্ক দেখবো, কোথায় কি ভুল হলো সেগুলো বের করে কিভাবে ভুল ঠিক করতে হবে আপনাকে বুজিয়ে দিবো। ইন শা আল্লাহ ।\n\nআপনি অনলাইনে থাকলে কাইন্ডলি একটু রেসপন্স করবেন।\n\nরেজিস্ট্রেশন নাম্বার : {{ $json.order_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -288,
+        480
+      ],
+      "id": "a1fb5a58-11b4-4765-a89b-fe3c0be536bb",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -528,
+        640
+      ],
+      "id": "4d8ba62f-a1b0-497f-ad2c-7cdee7e8ac16",
+      "name": "Wait"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "audioUrl",
+              "value": "https://5minuteartsacademy.com/wp-content/uploads/2026/01/Confrim-Order.ogg"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -288,
+        640
+      ],
+      "id": "726123ea-de58-44c2-beef-38d9d470240e",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input theke data neya hochche\nlet phone = $json[\"body.billing.phone\"];\nlet id = $json[\"body.id\"];\n\n// Jodi phone number thake, tobe formatting logic kaj korbe\nif (phone) {\n  // Shob non-numeric character (space, dash) muche fela\n  let cleanPhone = phone.toString().replace(/\\D/g, '');\n\n  // Logic: 0 diye shuru hole +880 add korbe\n  if (cleanPhone.startsWith('0')) {\n    cleanPhone = '+880' + cleanPhone.substring(1);\n  } \n  // Jodi 880 diye shuru hoy kintu + nei\n  else if (cleanPhone.startsWith('880')) {\n    cleanPhone = '+' + cleanPhone;\n  }\n  // Jodi shudhu 1 die shuru hoy (e.g. 194...)\n  else if (cleanPhone.startsWith('1') || cleanPhone.startsWith('1')) {\n    cleanPhone = '+880' + cleanPhone;\n  }\n\n  // Final output\n  return {\n    formatted_phone: cleanPhone,\n    order_id: id\n  };\n}\n\n// Jodi phone na thake tobe default return\nreturn {\n  formatted_phone: null,\n  order_id: id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        480
+      ],
+      "id": "e5b7ed8b-710a-443f-97ce-e608261d56cb",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -1472,
+        -272
+      ],
+      "id": "1f472fe6-1b52-4760-9acf-8a4886ecf141",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.billing.phone, body.id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1024,
+        480
+      ],
+      "id": "f45292a9-bdda-4774-853c-f31a7821f9d3",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "amount": 7
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -528,
+        480
+      ],
+      "id": "94c62e1f-c707-404e-8d12-5e234ddb1951",
+      "name": "Wait1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "text",
+              "value": "=ভয়েজটা কাইন্ডলি শুনে রিপ্লাই দিবেন প্লিজ,,"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -288,
+        800
+      ],
+      "id": "c0ae34bb-3536-4176-a38f-3ec19957b1a7",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "amount": 35
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -528,
+        800
+      ],
+      "id": "8f76a966-69a3-4991-9a55-b55ea6649853",
+      "name": "Wait2"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1184,
+        480
+      ],
+      "id": "58565c1d-e258-404e-b155-d77b9be2c143",
+      "name": "Wait3"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "text",
+              "value": "=আপনার অর্ডারটি সাকসেসফুল হয়েছে ✅\n\nকোর্স : কোরআন শিক্ষা\n\nAssalamualikum 🥰 \n\nএখানেই আপনাকে নিয়মিত ক্লাস দেওয়া হবে এবং এখানে অবশ্যই নিয়মিত হোমওয়ার্ক করে আমাকে পাঠাতে হবে। তারপর আমি হোমওয়ার্ক দেখবো, কোথায় কি ভুল হলো সেগুলো বের করে কিভাবে ভুল ঠিক করতে হবে আপনাকে বুজিয়ে দিবো। ইন শা আল্লাহ ।\n\nনোট : কোরআন শিক্ষা সহীহ শুদ্ধ হওয়া পর্যন্ত আমাদের সাপোর্ট থাকবে। ইন শা আল্লাহ। \n\nআপনি অনলাইনে থাকলে কাইন্ডলি একটু রেসপন্স করবেন।\n\nরেজিস্ট্রেশন নাম্বার : {{ $json.order_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -288,
+        32
+      ],
+      "id": "2c5c1549-7a90-4fa7-a086-5f599a8cf9c6",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -512,
+        176
+      ],
+      "id": "b95a44be-2d67-42e8-9a4e-9c5a56f20bff",
+      "name": "Wait4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "audioUrl",
+              "value": "https://5minuteartsacademy.com/wp-content/uploads/2026/02/QS-Confrimation-Voice.ogg"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -288,
+        176
+      ],
+      "id": "524260b9-deb1-425d-877d-eae27b70a61f",
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input theke data neya hochche\nlet phone = $json[\"body.billing.phone\"];\nlet id = $json[\"body.id\"];\n\n// Jodi phone number thake, tobe formatting logic kaj korbe\nif (phone) {\n  // Shob non-numeric character (space, dash) muche fela\n  let cleanPhone = phone.toString().replace(/\\D/g, '');\n\n  // Logic: 0 diye shuru hole +880 add korbe\n  if (cleanPhone.startsWith('0')) {\n    cleanPhone = '+880' + cleanPhone.substring(1);\n  } \n  // Jodi 880 diye shuru hoy kintu + nei\n  else if (cleanPhone.startsWith('880')) {\n    cleanPhone = '+' + cleanPhone;\n  }\n  // Jodi shudhu 1 die shuru hoy (e.g. 194...)\n  else if (cleanPhone.startsWith('1') || cleanPhone.startsWith('1')) {\n    cleanPhone = '+880' + cleanPhone;\n  }\n\n  // Final output\n  return {\n    formatted_phone: cleanPhone,\n    order_id: id\n  };\n}\n\n// Jodi phone na thake tobe default return\nreturn {\n  formatted_phone: null,\n  order_id: id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        128
+      ],
+      "id": "a1991c2c-41c5-47cb-949a-10813dfe5f9a",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.billing.phone, body.id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1024,
+        128
+      ],
+      "id": "f96712f0-4b50-4628-a7c1-36a04fe101c9",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "amount": 7
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -512,
+        32
+      ],
+      "id": "f5bef488-3775-4518-93de-486b24c38eeb",
+      "name": "Wait5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $json.formatted_phone }}"
+            },
+            {
+              "name": "text",
+              "value": "=ভয়েজটা কাইন্ডলি শুনে রিপ্লাই দিবেন প্লিজ,,"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -288,
+        320
+      ],
+      "id": "c8cf9a73-7c10-4d5c-94c0-a2481552baba",
+      "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "amount": 35
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -512,
+        320
+      ],
+      "id": "dada16dc-a322-4703-bf08-52ba91d727e8",
+      "name": "Wait6"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1200,
+        128
+      ],
+      "id": "d547e9fb-a0dc-4f1f-99c2-c429cbc45aae",
+      "name": "Wait7"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.billing.first_name, body.billing.phone, body.line_items[0].name, body.billing.address_1, body.id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1232,
+        -560
+      ],
+      "id": "0e9eff35-bf3b-4bd4-892f-0033a4c1fce2",
+      "name": "Split Out2"
+    },
+    {
+      "parameters": {
+        "chatId": "8046507075",
+        "text": "=New Order Alart ({{ $json['body.id'] }}) \nProduct : {{ $json['body.line_items[0].name'] }}\n\nCustomer: {{ $json['body.billing.first_name'] }}\nAddress: {{ $json['body.billing.address_1'] }}\nNumber: {{ $json['body.billing.phone'] }}\n\nঅর্ডারটি কনফার্ম হয়েছে।",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "New Order ",
+                    "additionalFields": {
+                      "callback_data": "order"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1056,
+        -656
+      ],
+      "id": "8cddcbb1-c38a-43e1-b5fc-baf12ff1255d",
+      "name": "Send a text message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "=8801953955884"
+            },
+            {
+              "name": "text",
+              "value": "=New Order Alart ({{ $json['body.id'] }}) \nProduct : {{ $json['body.line_items[0].name'] }}\n\nCustomer: {{ $json['body.billing.first_name'] }}\nAddress: {{ $json['body.billing.address_1'] }}\nNumber: {{ $json['body.billing.phone'] }}\n\nঅর্ডারটি কনফার্ম হয়েছে।"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -896,
+        -112
+      ],
+      "id": "c8552396-0d7a-46b3-8b16-22c1876538e2",
+      "name": "HTTP Request6"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "=8801328859573"
+            },
+            {
+              "name": "text",
+              "value": "=New Order Alart ({{ $json['body.id'] }}) \nProduct : {{ $json['body.line_items[0].name'] }}\n\nCustomer: {{ $json['body.billing.first_name'] }}\nAddress: {{ $json['body.billing.address_1'] }}\nNumber: {{ $json['body.billing.phone'] }}\n\nঅর্ডারটি কনফার্ম হয়েছে।"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -896,
+        -464
+      ],
+      "id": "6e2d0762-7f43-47da-871a-1e5c283d54eb",
+      "name": "HTTP Request7"
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1056,
+        -112
+      ],
+      "id": "1cb7753f-dcf2-4db0-9c4b-a165e4cad183",
+      "name": "Wait8"
+    },
+    {
+      "parameters": {
+        "amount": 12
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1056,
+        -464
+      ],
+      "id": "5fbe7059-9959-4e7b-8119-bc91d441bd48",
+      "name": "Wait9"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.billing.first_name, body.billing.phone, body.line_items[0].name, body.billing.address_1, body.id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -1232,
+        -112
+      ],
+      "id": "bc5ea2f9-b2e5-4889-a5a4-bfa3a28d2bb2",
+      "name": "Split Out3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=User message Text: {{ $json.body.data.messages.messageBody }}\naudio message: {{ $json.output }}\n",
+        "options": {
+          "systemMessage": "=## 🎯 IDENTITY\nYou are the official AI Assistant of **5-Minute Academy (৫-মিনিট একাডেমি)**.\n- New session হলে একবারই intro দাও। বারবার দিও না।\n- কখনো নিজেকে human বলবে না।\n\n---\n\n## 🌐 LANGUAGE\n- Bangla message → Bangla reply (casual mixed English OK)\n- English message → English reply\n- \"Hi/Hello/Thanks\" → Bangla reply\n- Style: natural, friendly, conversational — literary Bangla এড়িয়ে চলো\n\n---\n\n## 📦 COURSE INFO (HW01 — একমাত্র কোর্স)\n**কোর্স:** ৩০ মিনিটে সুন্দর হবে হাতের লেখা | Trainer: Tayef Ahmed\n**ফি:** ৬৯৯ + ১০০ ডেলিভারি = **মোট ৭৯৯ টাকা** (Cash on Delivery)\n**Special Offer:** ৬৯৯ টাকা (ডেলিভারি ফ্রি)\n**Double Enrollment:** ৬৯৯ + ৩৫০ + ১০০ = **১১৪৯ টাকা**\n\nকোর্সে আছে: ৩৪+ ভিডিও, ফ্রি প্র্যাকটিস শিট, ফ্রি ই-বুক, প্রাইভেট গ্রুপ সাপোর্ট, লাইফটাইম সাপোর্ট, পরীক্ষা, প্রতিযোগিতা, সার্টিফিকেট। বিষয়: বাংলা, ইংরেজি, সংখ্যা, আরবি।\n\n---\n\n## 🔁 NEW SESSION RULE\nনতুন session এ প্রথম message এ **\"2 sms send tools\"** call করো (শুধু একবার)।\nTool return \"true\" হলে শুধু এই fixed SMS পাঠাও:\n> \"ভয়েজটা কাইন্ডলি শুনে রিপ্লাই দিবেন প্লিজ,,\"\n\nStudent positive reply দিলে (hmm/nibo/order korte chai) → enrollment form পাঠাও।\n\n---\n\n## 📋 KEYWORD → FIXED TEMPLATE MAP\n\n**কোর্সে কী কী আছে?**\n> ৩০ মিনিটে সুন্দর হবে হাতের লেখা কোর্স এটি একটি হাতের লেখা সুন্দর করার জন্য পারফেক্ট কোর্স।\n> কোর্সে থাকছে: ✅ ৩৪টি+ ভিডিও ✅ ফ্রি প্রাকটিস শিট ✅ ফ্রি ই-বুক ✅ প্রাইভেট গ্রুপ সাপোর্ট ✅ 24 hours Live Support ✅ হাতের লেখা সুন্দর হওয়া পর্যন্ত সাপোর্ট ✅ পরীক্ষা ✅ প্রতিযোগিতা ✅ সার্টিফিকেট\n> বিষয়: বাংলা, ইংরেজি, সংখ্যা ও আরবী।\n\n**কতদিন লাগবে / সময়সীমা?**\n> যদি রেগুলার প্রাক্টিস করেন, ১৫-২০ দিনে লেখা ঠিক হবে। না পারলে মাস খানিক। কোর্সে সময়ের কোনো সীমাবদ্ধতা নেই — লেখা সুন্দর হওয়া পর্যন্ত সাপোর্ট থাকবে।\n\n**আমি কি পারব?**\n> যদি আমার দেখানো কৌশল ফলো করে কোর্সটি শেষ করতে পারেন, তাহলে আপনার হাতের লেখায় অসাধারণ পরিবর্তন আসবে ইন শা আল্লাহ।\n\n**সাপোর্ট কীভাবে?**\n> কোর্স + প্র্যাকটিস শিটের পাশাপাশি থাকবে স্পেশাল লাইভ সাপোর্ট — প্রতিটি স্টুডেন্টের জন্য আলাদা। সম্পূর্ণ ফ্রি। লেখা সুন্দর হওয়া পর্যন্ত।\n\n**ক্লাস কীভাবে?**\n> WhatsApp এ ক্লাস দেওয়া হবে। HW করে পাঠাবেন → আমি দেখব, ভুল বের করব, বুঝিয়ে দিব → পরের দিন আবার HW জমা দিবেন।\n\n**ফি / payment?**\n> কোর্স ফি: ৬৯৯ টাকা | প্র্যাকটিস শিট: ফ্রি | ডেলিভারি: ১০০ টাকা | **মোট: ৭৯৯ টাকা**\n> ডেলিভারি ম্যান থেকে পার্সেল নিয়েই ৭৯৯ টাকা দিবেন।\n\n**Demo/Free class?**\n> ফ্রি ক্লাস বা ডেমো নেই — এটি live course না। পার্সেল পেলে ৯ সংখ্যার Student ID পাবেন → ID দিলে আমি লিংক generate করে দিব।\n\n**Order করতে চাই / নিতে চাই:**\n> কোর্সে যুক্ত হতে ফর্মটি ফিলআপ করুন:\n> নাম:\n> ফোন নাম্বার:\n> ঠিকানা:\n\n**কোর্সটি কাদের জন্য? (বয়স/শ্রেণি জিজ্ঞেস করলে)** → **\"only image send tools teyef\"** call → return \"true\" হলে:\n> আমাদের কোর্সটি সর্বনিম্ন চার বছরের স্টুডেন্ট থেকে যেকোনো বয়সের জন্য উপযুক্ত।\n\n**পরে করব / ভাবব / bye:**\n> অবশ্যই দেখুন! তবে জেনে রাখুন: আজকে limited time অফার, প্রতিদিন স্টুডেন্ট যুক্ত হচ্ছে, কয়েক দিনের মধ্যে অফার শেষ হবে। অফারে যুক্ত হতে চাইলে দ্রুত জানান! 😊\n\n**দাম বেশি:**\n> বুঝতে পারছি। একজন টিউটর রাখলে মাসে ২০০০+ টাকা, শুধু ১ মাস সাপোর্ট। আমাদের কোর্সে: একবার ৬৯৯ টাকা, লাইফটাইম সাপোর্ট, ৩৪+ ভিডিও, সার্টিফিকেট। কোনটা বেশি সাশ্রয়ী ভেবে দেখুন।\n\n**Discount চাইলে (1st time):**\n> কোর্সে অলরেডি ডিসকাউন্ট দেওয়া হয়েছে। বর্তমান অফারে প্র্যাকটিস শিট + লাইফটাইম সাপোর্ট পাবেন ইন শা আল্লাহ।\n\n**Discount বারবার চাইলে (2nd time):**\n> কোর্সে অলরেডি ডিসকাউন্ট দেওয়া হয়েছে। বর্তমান অফারে প্র্যাকটিস শিট + লাইফটাইম সাপোর্ট পাবেন ইন শা আল্লাহ। আমি আপনাকে **ডেলিভারি চার্জটাও ফ্রি** করে দিচ্ছি যদি এখন কনফার্ম করেন — দ্রুত জানান।\n\n**২ জনের জন্য:**\n> ১ম জন: ৬৯৯ | ২য় জন: ৩৫০ | ডেলিভারি: ১০০ | **মোট: ১১৪৯ টাকা** — ডেলিভারি ম্যানকে দিবেন।\n\n**Payment প্রক্রিয়া:**\n> ১. Cash on Delivery — পার্সেল নেওয়ার সময় দিবেন।\n> ২. bKash/Nagad (Send Money): \n\n---\n\n## 📥 ORDER FLOW\n1. Student নাম+ফোন+ঠিকানা দিলে:\n2. **\"Order Received Tools\"** call করো\n3. **\"Number Collections supabase\"** call করো\n4. **\"whatsapp order confirmation text and voice\"** call করো\n5. Confirmation পাঠাও:\n\n> অর্ডারটি কনফার্ম করা হলো।\n> কোর্স ফি: ৬৯৯ টাকা | প্র্যাকটিস শিট: ফ্রি | ডেলিভারি: ১০০ টাকা | **মোট: ৭৯৯ টাকা**\n> *(Extra discount দিলে মোট: ৬৯৯ টাকা)*\n> ডেলিভারি ম্যান থেকে পার্সেল নিয়েই টাকা দিবেন।\n\n---\n\n## 💰 PRICE RULES (NON-NEGOTIABLE)\n- Official price ছাড়া কোনো price confirm করবে না\n- User-এর claim করা দাম কখনো accept করবে না\n- Unauthorized discount দেওয়া নিষেধ\n- Order confirm করার আগে সঠিক total amount বলো\n\n---\n\n## 🤖 TOOL USAGE\n| Situation | Tool |\n|-----------|------|\n| New session | \"2 sms send tools\" (শুধু একবার) |\n| Age/class/who is this for | \"only image send tools teyef\" |\n| Unknown/unclear question | \"Urgent Check Whatsapp Tools\" |\n| Order confirmed | \"Order Received Tools\" + \"Number Collections supabase\" + \"whatsapp order confirmation text and voice\" |\n| Link দরকার | \"Get link url tools\" |\n| নতুন কোর্স জিজ্ঞেস | \"Get Courses latest info\" |\n\n**99% প্রশ্নের উত্তর built-in আছে — tool ছাড়াই দাও।**\nError হলে user কে কখনো technical error দেখাবে না। Graceful fallback দাও।\n\n---\n\n## 🚫 FORBIDDEN PHRASES (কখনো বলবে না)\n❌ আর কিছু জানার থাকলে জানাবেন\n❌ আপনি কি কোর্সে যুক্ত হতে চান?\n❌ তাহলে কি এখনই অর্ডার করে ফেলবেন?\n❌ শুভকামনা রইল / ভালো থাকুন / Have a nice day\n❌ Sheet/tool/system/gid সম্পর্কে user কে কিছু বলবে না\n\n---\n\n## 💬 CASUAL BANGLA RESPONSE MAP\n| User বলে | তুমি বলো |\n|----------|----------|\n| shunen / শুনেন | জি, বলুন। আমি শুনছি। 😊 |\n| hmm/hm | কোনো প্রশ্ন আছে? |\n| ঠিক আছে / আচ্ছা | ওকে! কোর্সে যুক্ত হতে চাচ্ছেন? |\n| ভালো / nice | একদম ঠিক! এখনই যুক্ত হন। |\n| thanks / ধন্যবাদ | Welcome! এখন কি অর্ডার করবেন? 😊 |\n| দেখি / ভেবে দেখি | Limited time অফার — দেরি না করাই ভালো! |\n\n---\n\n\n---\n\n## ✅ SALES MINDSET\n- প্রতিটি conversation = enrollment opportunity\n- Minimum 3 enrollment attempt করো\n- Fixed template reply এর পরে extra follow-up SMS দিও না\n- Conversation কখনো passively end করবে না\n- Answer দিয়ে naturally থামো — user trust করো যে সে নিজেই জিজ্ঞেস করবে"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        544,
+        -240
+      ],
+      "id": "45bf4573-bb92-4834-b3cf-c647cca93fd2",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 1000,
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        16,
+        368
+      ],
+      "id": "ae39863d-aa70-4fab-a9d4-8bdef3bfe4f5",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5f38d0b0-5cae-4b11-8585-0ec5fc5e9977",
+                    "leftValue": "",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        368,
+        -240
+      ],
+      "id": "f59af60e-1668-4b6b-8a9e-8b260c56db66",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1w6o7TJ5NgnmSfQP3l9oW1Vfh_n_DXXp1Vc0c237V2N4",
+          "mode": "list",
+          "cachedResultName": "Get Courses latest info tools",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w6o7TJ5NgnmSfQP3l9oW1Vfh_n_DXXp1Vc0c237V2N4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w6o7TJ5NgnmSfQP3l9oW1Vfh_n_DXXp1Vc0c237V2N4/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        272,
+        368
+      ],
+      "id": "4811b84c-9d51-45e3-bf5c-b355ce50e5b9",
+      "name": "Get Courses latest info tools"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1erLvt2mRRKzH4DAw550vu8AE46Qr5N4JJMFh_ovDzR8",
+          "mode": "list",
+          "cachedResultName": "Get FAQ Tools",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1erLvt2mRRKzH4DAw550vu8AE46Qr5N4JJMFh_ovDzR8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1erLvt2mRRKzH4DAw550vu8AE46Qr5N4JJMFh_ovDzR8/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        400,
+        368
+      ],
+      "id": "79453156-b995-440f-9244-1a4eba5ec48a",
+      "name": "Get FAQ Tools"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1t8Lx8LjfgT0mWMk7HXMkhp-9f_C-D-cxRLXHWfDVLiY",
+          "mode": "list",
+          "cachedResultName": "Get link url tools",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1t8Lx8LjfgT0mWMk7HXMkhp-9f_C-D-cxRLXHWfDVLiY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1t8Lx8LjfgT0mWMk7HXMkhp-9f_C-D-cxRLXHWfDVLiY/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        528,
+        368
+      ],
+      "id": "5db54f99-1a01-4245-a233-e40a4f04723c",
+      "name": "Get link url tools"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "13nF1DEwdF1bmpkmZxKa7R4QJPQpWs2-QLcWgLiwTU1U",
+          "mode": "list",
+          "cachedResultName": "Order Received Tools tayef",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/13nF1DEwdF1bmpkmZxKa7R4QJPQpWs2-QLcWgLiwTU1U/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/13nF1DEwdF1bmpkmZxKa7R4QJPQpWs2-QLcWgLiwTU1U/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Student_Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Student_Name', ``, 'string') }}",
+            "Course_Name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Course_Name', ``, 'string') }}",
+            "Price": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Price', ``, 'string') }}",
+            "Registration_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Registration_id', ``, 'string') }}",
+            "Address": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Address', ``, 'string') }}",
+            "Phone_number": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Phone_number', ``, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Student_Name",
+              "displayName": "Student_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Course_Name",
+              "displayName": "Course_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Price",
+              "displayName": "Price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Registration_id",
+              "displayName": "Registration_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone_number",
+              "displayName": "Phone_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        656,
+        368
+      ],
+      "id": "1727dec8-9d3e-422a-8ec1-d657ac8aef47",
+      "name": "Order Received Tools"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=user message always translate user text to bangla text ok please \n{{ $json.text }}\n",
+        "options": {
+          "systemMessage": "=You are a professional translator. Your only task is to translate any input text into clear and natural Bengali. Follow these rules strictly: 1. Provide only the translated Bengali text as output. 2. Do not include any introductory phrases like 'Here is the translation' or 'The Bengali text is'. 3. Do not use any double quotes (\"), single quotes ('), or markdown formatting. 4. If the input is already in Bengali, just repeat it as is. 5. Maintain the original meaning and tone. and your vision course sell not  other physical typer another product our mian product hocce online course  \n\nআমাদের ২টি কোর্স রয়েছে:  \n১. হাতের লেখা সুন্দর করার কোর্স  \n২. কোরআন শিক্ষা কোর্স  "
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        64,
+        -144
+      ],
+      "id": "14b42083-e95f-4a84-94a3-0f93caac1853",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 500
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        80
+      ],
+      "id": "42b79d48-84ff-4865-928e-f7e72a74143b",
+      "name": "OpenAI Chat Model1"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Switch2').item.json.body.data.messages.key.remoteJid }}",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        144,
+        368
+      ],
+      "id": "1c802a2b-d564-4ae1-b50a-fbbaa065f55e",
+      "name": "Postgres Chat Memory"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.data.messages.message.imageMessage.mimetype }}",
+                    "rightValue": "image/jpeg",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5563a788-1eba-4ce8-9bf9-c650ff317997"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "afef80c6-bbb8-4a69-94c3-8e6f74b94c89",
+                    "leftValue": "={{ $json.body.data.messages.message.audioMessage.mimetype }}",
+                    "rightValue": "audio/ogg; codecs=opus",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1d63496c-a3be-498b-bad9-33bf105afcfe",
+                    "leftValue": "={{ $json.body.data.messages.messageBody }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -720,
+        -288
+      ],
+      "id": "1171dea8-c3a1-4a2e-bdb0-088321aa0758",
+      "name": "Switch2"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of items) {\n  let text = item.json.output || \"\";\n\n  if (typeof text === 'string') {\n    // 1. Carriage return (\\r) remove kora\n    text = text.replace(/\\r/g, \"\");\n\n    // 2. Joto jaygay \\n er pore dash (-) ba space thake, shegulo ke clean kora\n    // Eta apnar screenshot-er \\n\\n- problem-ta solve korbe\n    text = text.replace(/\\n\\s*[-]*\\s*\\n+/g, \"\\n\");\n\n    // 3. Ekhon double newline (\\n\\n) ke single newline (\\n) kora\n    text = text.replace(/\\n+/g, \"\\n\");\n\n    // 4. Shuru ebong shesh-er faka jayga muche fela\n    text = text.trim();\n\n    // 5. WhatsApp-e pathanor jonno JSON escape kora\n    // Logic: Prothome raw newline fix kora, tarpor escape kora\n    item.json.output = text = text.replace(/\\\\n/g, \"\\n\");\n  }\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -240
+      ],
+      "id": "27656ef2-7b51-445e-82ba-7187e21efb98",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.wasenderapi.com/api/decrypt-media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"data\": {\n    \"messages\": {\n      \"key\": {\n        \"id\": \"{{ $('Respond to Webhook').item.json.body.data.messages.key.id }}\" \n      },\n      \"message\": {\n        \"audioMessage\": {\n          \"url\": \"{{ $json.body.data.messages.message.audioMessage.url }}\",\n          \"mimetype\": \"audio/ogg; codecs=opus\",\n          \"mediaKey\": \"{{ $json.body.data.messages.message.audioMessage.mediaKey }}\"\n        }\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "28c9e185-bf46-438f-be95-251caa40c0a7",
+      "name": "Get Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -496,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.publicUrl }}",
+        "options": {}
+      },
+      "id": "0139d09a-7c65-4d66-ac58-5f610e942641",
+      "name": "Download Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -320,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "98afe527-1854-4565-9e3c-0b813759e54c",
+      "name": "Whisper Transcribe",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1024,
+        -240
+      ],
+      "id": "63bb0dc2-073d-41cf-b2ca-2cf3bbd4839b",
+      "name": "Wait10"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=this is user message \" {{ $json.success }}",
+        "options": {
+          "systemMessage": "=reply fixed template always bellow template  used for reply\n\n\"আপনার পাঠানো ছবিটি আমরা পেয়েছি। আমাদের একজন প্রতিনিধি এটি পর্যালোচনা করে খুব শীঘ্রই আপনাকে রেসপন্স করবেন। ধন্যবাদ\"\n\nalways call this tools (Homework Submit tools)"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -32,
+        -560
+      ],
+      "id": "ffa67238-e15d-4747-9c1c-85fbb4196d4f",
+      "name": "AI Agent1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.key.senderPn }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Code in JavaScript2').item.json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1168,
+        -240
+      ],
+      "id": "58685966-d825-4f07-8eaa-9393c595275b",
+      "name": "HTTP Request8"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.wasenderapi.com/api/decrypt-media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"data\": {\n    \"messages\": {\n      \"key\": {\n        \"id\": \"{{ $json.body.data.messages.key.id }}\"\n      },\n      \"message\": {\n        \"imageMessage\": {\n          \"url\": \"{{ $json.body.data.messages.message.imageMessage.url }}\",\n          \"mimetype\": \"image/jpeg\",\n          \"mediaKey\": \"{{ $json.body.data.messages.message.imageMessage.mediaKey }}\"\n        }\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -480,
+        -560
+      ],
+      "id": "c290a7f7-a50d-428e-b0dc-012a41447dcb",
+      "name": "HTTP Request10"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.publicUrl }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -256,
+        -560
+      ],
+      "id": "94b0e62d-7982-4338-9021-8c6a0d241d27",
+      "name": "HTTP Request11"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 50
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -32,
+        -336
+      ],
+      "id": "976df243-80bb-498b-889d-8f2951345241",
+      "name": "OpenAI Chat Model2"
+    },
+    {
+      "parameters": {
+        "description": "=Bhai, apnar AI Agent-er description-ta arektu specific ebong \"Strict\" kora dorkar jate shey puraton data niye kaj na kore. Ami description-ta nicher moto kore organize kore diyechi:\n\nUpdated Tool Description:\n\"CRITICAL: Use this tool ONLY for new sessions, new students, or newly registered customers. Strictly avoid sending data or querying for any existing students or old customers. This tool triggers the first-time registration and SMS template process. You must wait for the tool to return a 'true' message before proceeding. Once 'true' is received, you are authorized to move forward with the fixed template SMS and follow the system instructions for new orders. Do not trigger this for recurring entries.\"",
+        "workflowId": {
+          "__rl": true,
+          "value": "5eok6J6avXUp164mm0GXP",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/5eok6J6avXUp164mm0GXP",
+          "cachedResultName": "Tayef voice and image send"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "quary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('quary', ``, 'string') }}",
+            "number_id": "={{ $('Edit Fields').item.json.body.data.messages.key.senderPn }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "quary",
+              "displayName": "quary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "number_id",
+              "displayName": "number_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        368
+      ],
+      "id": "002460e0-fbe5-4835-bbe0-83eab6d8a93a",
+      "name": "2 sms send tools"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Switch2').item.json.body.data.messages.key.remoteJid }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        96,
+        -336
+      ],
+      "id": "f3d57401-5297-4bef-8c6d-4fe70b3caeae",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "=8801328859573"
+            },
+            {
+              "name": "text",
+              "value": "=এই স্টুডেন্ট\nName: {{ $('Switch2').item.json.body.data.messages.pushName }}\nNumber: {{ $('Switch2').item.json.body.data.messages.key.cleanedSenderPn }}\nএকটি পিকচার সেন্ড করেছে। দ্রুত তার ছবিটি চেক করে রেসপন্স করুন।"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        560,
+        -640
+      ],
+      "id": "47b4f6a4-f594-4b06-95d9-ab3cb8f292f3",
+      "name": "HTTP Request9",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "amount": 6
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        352,
+        -640
+      ],
+      "id": "c446d335-4bac-4d63-acfa-e50afbb207fd",
+      "name": "Wait11"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wasenderapi.com/api/send-message",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.META_WHATSAPP_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "=8801953955884"
+            },
+            {
+              "name": "text",
+              "value": "=এই স্টুডেন্ট \nName: {{ $('Switch2').item.json.body.data.messages.pushName }}\nNumber: {{ $('Switch2').item.json.body.data.messages.key.cleanedSenderPn }}\nএকটি পিকচার সেন্ড করেছে। দ্রুত তার ছবিটি চেক করে রেসপন্স করুন।"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        576,
+        -416
+      ],
+      "id": "e0202e45-b249-41e8-9e6b-a48c83f8b468",
+      "name": "HTTP Request12",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "amount": 6
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        368,
+        -416
+      ],
+      "id": "a98a2abf-6156-4e07-a112-e623147890da",
+      "name": "Wait12"
+    },
+    {
+      "parameters": {
+        "chatId": "8046507075",
+        "text": "=এই স্টুডেন্ট \nName: {{ $('Switch2').item.json.body.data.messages.pushName }}\nNumber: {{ $('Switch2').item.json.body.data.messages.key.cleanedSenderPn }}\nকে কোর্স নিয়ে আরও ভালোভাবে সাহায্য করতে দ্রুত রেসপন্স করুন।",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "New Check",
+                    "additionalFields": {
+                      "callback_data": "defaults "
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegramTool",
+      "typeVersion": 1.2,
+      "position": [
+        912,
+        368
+      ],
+      "id": "33c43532-be99-47eb-8573-1f5ec5fcce7f",
+      "name": "Urgent Check Whatsapp Tools"
+    },
+    {
+      "parameters": {
+        "multipleMethods": true,
+        "path": "configure-whatsapp-sms-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1696,
+        -368
+      ],
+      "id": "ce0de158-091f-4cf0-9832-8f2f9d6b72ce",
+      "name": "Whatsapp  SMS",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "student_number",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone_number",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.billing.phone }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1232,
+        -272
+      ],
+      "id": "09eb0282-07b4-4dba-adcf-713f7e617905",
+      "name": "Get many rows1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e7d76fb2-6ad3-477c-b331-78dabcef4ea6",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1056,
+        -272
+      ],
+      "id": "a86e4e7a-c1c9-44e7-b674-5a729eb2d29a",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "tableId": "student_number",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $('Edit Fields').item.json.body.data.messages.key.cleanedSenderPn }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabaseTool",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        368
+      ],
+      "id": "e2f54c87-47b6-417b-9d4e-00cbc5d85871",
+      "name": "Number Collections supabase"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bb8e877d-6417-4053-9e06-a9936bf14156",
+              "name": "body.data.messages.key.remoteJid",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.key.remoteJid }}",
+              "type": "string"
+            },
+            {
+              "id": "b04b3c87-1504-4f39-9310-9dfb7c1781aa",
+              "name": "body.data.messages.key.senderPn",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.key.senderPn }}",
+              "type": "string"
+            },
+            {
+              "id": "809ac66c-6661-4c2b-a28e-7d1f15e3cf22",
+              "name": "body.data.messages.key.cleanedSenderPn",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.key.cleanedSenderPn }}",
+              "type": "string"
+            },
+            {
+              "id": "9f5a470f-5fda-4933-bd6d-bf73961c53b4",
+              "name": "body.data.messages.pushName",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.pushName }}",
+              "type": "string"
+            },
+            {
+              "id": "8f8c2c73-ce0e-4b5f-b27e-f6d7572918c1",
+              "name": "body.data.messages.messageBody",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.messageBody }}",
+              "type": "string"
+            },
+            {
+              "id": "28fcda0c-35eb-405b-9be0-6b78d86f71f0",
+              "name": "body.data.messages.key.id",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.key.id }}",
+              "type": "string"
+            },
+            {
+              "id": "5d6bef6b-9e0b-446c-8fd0-85aac1a819b7",
+              "name": "body.data.messages.message.audioMessage.mimetype",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.message.audioMessage.mimetype }}",
+              "type": "string"
+            },
+            {
+              "id": "567e122e-7535-4d79-b4c3-4a1454ddf2a9",
+              "name": "body.data.messages.message.audioMessage.url",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.message.audioMessage.url }}",
+              "type": "string"
+            },
+            {
+              "id": "2d99faef-48d5-405a-a9d3-680b34844865",
+              "name": "body.data.messages.message.audioMessage.directPath",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.message.audioMessage.directPath }}",
+              "type": "string"
+            },
+            {
+              "id": "8e143ebd-eb54-4055-bd9c-21f865bcf44b",
+              "name": "body.data.messages.message.audioMessage.mediaKey",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.message.audioMessage.mediaKey }}",
+              "type": "string"
+            },
+            {
+              "id": "46e0acdd-67f3-46bf-92a2-58d380668155",
+              "name": "body.data.messages.message.imageMessage.url",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.message.imageMessage.url }}",
+              "type": "string"
+            },
+            {
+              "id": "f578949c-a5ce-4b1d-926f-938e4b8af9d9",
+              "name": "body.data.messages.message.imageMessage.mimetype",
+              "value": "={{ $('Respond to Webhook').item.json.body.data.messages.message.imageMessage.mimetype }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -896,
+        -272
+      ],
+      "id": "bf62a89a-e775-497d-baa3-f92fc2293c21",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "tableId": "student_number",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.formatted_phone }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        656
+      ],
+      "id": "dd9dfeb5-ad26-4b2f-98dc-85f73e8313bc",
+      "name": "Create a row"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input theke data neya hochche - apnar image onujayi path thik kora hoyeche\nlet phone = $json.body?.billing?.phone || $json.phone_number || $json.phone;\nlet id = $json.body?.id || $json.id;\n\n// Jodi phone number thake\nif (phone) {\n  // Shob non-numeric character (+, space, dash) muche fela\n  let cleanPhone = phone.toString().replace(/\\D/g, '');\n\n  // Case 1: Jodi 8801... diye shuru hoy (13 digits)\n  if (cleanPhone.startsWith('880') && cleanPhone.length === 13) {\n    // Already thik ache, kisu korar dorkar nai\n  }\n  // Case 2: Jodi 01... diye shuru hoy (11 digits)\n  else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {\n    cleanPhone = '88' + cleanPhone;\n  }\n  // Case 3: Jodi shudhu 1... diye shuru hoy (10 digits)\n  else if (cleanPhone.startsWith('1') && cleanPhone.length === 10) {\n    cleanPhone = '880' + cleanPhone;\n  }\n  // Case 4: Jodi bhule extra 88 thake (e.g., 888801...)\n  else if (cleanPhone.length > 13 && cleanPhone.includes('880')) {\n     cleanPhone = cleanPhone.substring(cleanPhone.indexOf('880'));\n  }\n\n  return {\n    formatted_phone: cleanPhone,\n    order_id: id\n  };\n}\n\n// Phone na thakle null return korbe\nreturn {\n  formatted_phone: null,\n  order_id: id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        656
+      ],
+      "id": "e2acf368-6498-48d5-9ec9-52c24728653d",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7db8adf5-ea7e-493c-9ebe-eb82c05b2c0c",
+              "name": "body.billing.phone",
+              "value": "={{ $('Respond to Webhook').item.json.body.billing.phone }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1184,
+        656
+      ],
+      "id": "9a796f19-198f-4fcd-9a03-9cba7903d9b1",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "tableId": "student_number",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "phone_number",
+              "fieldValue": "={{ $json.formatted_phone }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -864,
+        272
+      ],
+      "id": "1ec9fd8c-9b18-4606-ac70-18da859fe3bc",
+      "name": "Create a row1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input theke data neya hochche - apnar image onujayi path thik kora hoyeche\nlet phone = $json.body?.billing?.phone || $json.phone_number || $json.phone;\nlet id = $json.body?.id || $json.id;\n\n// Jodi phone number thake\nif (phone) {\n  // Shob non-numeric character (+, space, dash) muche fela\n  let cleanPhone = phone.toString().replace(/\\D/g, '');\n\n  // Case 1: Jodi 8801... diye shuru hoy (13 digits)\n  if (cleanPhone.startsWith('880') && cleanPhone.length === 13) {\n    // Already thik ache, kisu korar dorkar nai\n  }\n  // Case 2: Jodi 01... diye shuru hoy (11 digits)\n  else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {\n    cleanPhone = '88' + cleanPhone;\n  }\n  // Case 3: Jodi shudhu 1... diye shuru hoy (10 digits)\n  else if (cleanPhone.startsWith('1') && cleanPhone.length === 10) {\n    cleanPhone = '880' + cleanPhone;\n  }\n  // Case 4: Jodi bhule extra 88 thake (e.g., 888801...)\n  else if (cleanPhone.length > 13 && cleanPhone.includes('880')) {\n     cleanPhone = cleanPhone.substring(cleanPhone.indexOf('880'));\n  }\n\n  return {\n    formatted_phone: cleanPhone,\n    order_id: id\n  };\n}\n\n// Phone na thakle null return korbe\nreturn {\n  formatted_phone: null,\n  order_id: id\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        272
+      ],
+      "id": "84a6c6d1-572b-44e4-8bde-e0ad3187cc93",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7db8adf5-ea7e-493c-9ebe-eb82c05b2c0c",
+              "name": "body.billing.phone",
+              "value": "={{ $('Respond to Webhook').item.json.body.billing.phone }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1200,
+        272
+      ],
+      "id": "73247828-d928-4e2a-84c8-158d47fc9ca7",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "bddfdea8-db69-4c5a-ba23-8f08ad240db9",
+                    "leftValue": "={{ $json.body.line_items[0].name }}",
+                    "rightValue": "কোরআন শিক্ষা কোর্স",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "কোরআন শিক্ষা কোর্স"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.line_items[0].name }}",
+                    "rightValue": "৩০মিনিটে সুন্দর হবে হাতের লেখা কোর্স",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "dde1254b-30b4-44ea-bea3-f495d5b08daf"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "৩০মিনিটে সুন্দর হবে হাতের লেখা কোর্স"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ad24ecf5-b326-4d2c-9b7d-dfe6e4ab69ad",
+                    "leftValue": "={{ $json.body.line_items[0].name }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "exists",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1456,
+        320
+      ],
+      "id": "5345641a-f8de-4a1c-99df-934935365dd6",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "description": "=Use this tool ONLY when a student or customer explicitly confirms their order and provides all necessary information for delivery. This tool triggers the backend process to save the order details, initiate the automated voice confirmation, and finalize the workflow. Once called, it will return a 'true' message. Only after receiving this 'true' response should you send the final order confirmation text to the user as per your system prompt. Do not call this tool for general inquiries or until all required info is received.",
+        "workflowId": {
+          "__rl": true,
+          "value": "puE2HNVfX9qbkrH3IyBdI",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/puE2HNVfX9qbkrH3IyBdI",
+          "cachedResultName": "whatsapp order confirmation text and voice"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Quary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Quary', ``, 'string') }}",
+            "number_id": "={{ $('Edit Fields').item.json.body.data.messages.key.senderPn }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Quary",
+              "displayName": "Quary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "number_id",
+              "displayName": "number_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1168,
+        368
+      ],
+      "id": "dde621f8-b41a-4fa7-b07e-09cc33b7a914",
+      "name": "whatsapp order confirmation text and voice"
+    },
+    {
+      "parameters": {
+        "description": "=Use this tool immediately if the user mentions their class (e.g., Class 1 to University), age, profession (e.g., Teacher, Busy person), or asks 'Who is this course for?' (course ti kader jonno). This tool sends a specific curriculum/course image based on these keywords. You MUST call this tool first before giving any detailed answer. The tool will return a 'true' message. Only after receiving 'true', you should proceed to the next step of the conversation or provide additional details as per system instructions.",
+        "workflowId": {
+          "__rl": true,
+          "value": "K2Tfw5W7GwsYDxQxfR04k",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/K2Tfw5W7GwsYDxQxfR04k",
+          "cachedResultName": "only image send tools teyef"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Quary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Quary', ``, 'string') }}",
+            "number_id": "={{ $('Edit Fields').item.json.body.data.messages.key.senderPn }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Quary",
+              "displayName": "Quary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "number_id",
+              "displayName": "number_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        368
+      ],
+      "id": "0edc0e47-e45e-4cd2-9349-7b6e39b90f7b",
+      "name": "'only image send tools teyef'"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Split Out2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split Out3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get many rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait5",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait5": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait6": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait7": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait8": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait9": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out3": {
+      "main": [
+        [
+          {
+            "node": "Wait8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Courses latest info tools": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get FAQ Tools": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get link url tools": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order Received Tools": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request10",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Media",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Wait10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Media": {
+      "main": [
+        [
+          {
+            "node": "Download Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Audio": {
+      "main": [
+        [
+          {
+            "node": "Whisper Transcribe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper Transcribe": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait10": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Wait11",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request10": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request11": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2 sms send tools": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait11": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait12": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Urgent Check Whatsapp Tools": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whatsapp  SMS": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Number Collections supabase": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Create a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait7",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "whatsapp order confirmation text and voice": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "'only image send tools teyef'": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "tags": []
+}

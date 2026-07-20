@@ -48,7 +48,7 @@ class HomeController extends Controller
                 ->where('is_active', true)
                 ->where('status', Product::STATUS_AVAILABLE)
                 ->latest()
-                ->take(12)
+                ->take(23)
                 ->get(),
             'carousels' => ProductCarousel::forHomepage(),
             'slides' => StorefrontSlide::forCompany($company->getKey()),

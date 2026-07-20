@@ -154,7 +154,7 @@ class Inbox extends Page
             return;
         }
 
-        $imageUrl = $product->image ? asset('storage/'.$product->image) : null;
+        $imageUrl = \App\Support\StorageUrl::for($product->image);
 
         $link = ChatOrderLink::query()->create([
             'conversation_id' => $conversation->getKey(),

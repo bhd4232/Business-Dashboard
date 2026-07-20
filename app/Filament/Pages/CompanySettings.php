@@ -50,6 +50,8 @@ class CompanySettings extends Page
 
     public string $dateFormat = 'd M Y';
 
+    public array $invoice = [];
+
     public string $insideAreas = '';
 
     public string $outsideAreas = '';
@@ -70,6 +72,7 @@ class CompanySettings extends Page
         $this->currency = (string) $profile['currency'];
         $this->timezone = (string) $profile['timezone'];
         $this->dateFormat = (string) $profile['date_format'];
+        $this->invoice = $settings->invoice();
         $this->insideAreas = implode(', ', $profile['shipping_zones']['inside'] ?? []);
         $this->outsideAreas = implode(', ', $profile['shipping_zones']['outside'] ?? []);
         $this->suburbAreas = implode(', ', $profile['shipping_zones']['suburb'] ?? []);
@@ -137,6 +140,17 @@ class CompanySettings extends Page
             'currency' => ['required', 'string', 'max:12'],
             'timezone' => ['required', 'timezone'],
             'dateFormat' => ['required', 'string', 'max:30'],
+            'invoice.hotline' => ['nullable', 'string', 'max:60'],
+            'invoice.support_hotline' => ['nullable', 'string', 'max:60'],
+            'invoice.facebook_url' => ['nullable', 'string', 'max:255'],
+            'invoice.facebook_label' => ['nullable', 'string', 'max:120'],
+            'invoice.whatsapp' => ['nullable', 'string', 'max:60'],
+            'invoice.website' => ['nullable', 'string', 'max:255'],
+            'invoice.thank_you' => ['nullable', 'string', 'max:255'],
+            'invoice.show_images' => ['boolean'],
+            'invoice.show_weight' => ['boolean'],
+            'invoice.show_barcode' => ['boolean'],
+            'invoice.show_slip' => ['boolean'],
             'insideAreas' => ['nullable', 'string', 'max:1000'],
             'outsideAreas' => ['nullable', 'string', 'max:1000'],
             'suburbAreas' => ['nullable', 'string', 'max:1000'],
@@ -187,7 +201,9 @@ class CompanySettings extends Page
 
     protected function persistSettings(): void
     {
-        app(CompanySettingsService::class)->save($this->settingsPayload());
+        $settings = app(CompanySettingsService::class);
+        $settings->save($this->settingsPayload());
+        $settings->saveInvoice($this->invoice);
     }
 
     public function logoUrl(): ?string

@@ -4,14 +4,23 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\ValidatesEmailAddress;
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
-class Customer extends Model
+/**
+ * Also doubles as the storefront customer-login Authenticatable (guard
+ * "customer" in config/auth.php). A Customer row starts as a plain CRM/order
+ * record with no password; it only becomes a login-capable account once
+ * CustomerAccountService::register() sets one, so admin/checkout-created
+ * customers are unaffected.
+ */
+class Customer extends Model implements AuthenticatableContract
 {
-    use BelongsToCompany, ValidatesEmailAddress;
+    use Authenticatable, BelongsToCompany, ValidatesEmailAddress;
 
     public const TYPES = [
         'regular' => 'Regular',
@@ -45,6 +54,12 @@ class Customer extends Model
         'is_active',
     ];
 
+    protected $hidden = [
+        'password',
+        'remember_token',
+        'password_reset_code',
+    ];
+
     public const RESELLER_STATUSES = [
         'none' => 'Not a reseller',
         'pending' => 'Application pending',
@@ -56,6 +71,7 @@ class Customer extends Model
         'opening_balance' => 'decimal:2',
         'current_balance' => 'decimal:2',
         'is_active' => 'boolean',
+        'password_reset_expires_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -67,6 +83,15 @@ class Customer extends Model
         static::saved(function (Customer $customer): void {
             $customer->syncCurrentBalance();
         });
+    }
+
+    /**
+     * Whether this record has a storefront login (password set). Every
+     * Customer starts as a plain CRM/order record with no login.
+     */
+    public function isRegistered(): bool
+    {
+        return filled($this->password);
     }
 
     public function orders(): HasMany

@@ -18,6 +18,7 @@ use App\Services\CompanyContext;
 use App\Services\ReportService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class StorefrontFoundationTest extends TestCase
@@ -64,9 +65,8 @@ class StorefrontFoundationTest extends TestCase
             ->assertSee('Gadget Store')
             ->assertSee('Fast Charger')
             ->assertSee('Account')
-            ->assertSee('Official storefront - live catalog, direct ordering')
             ->assertSee('property="og:title"', false)
-            ->assertSee('http://shop.example.test/account/orders', false);
+            ->assertSee('http://shop.example.test/account/login', false);
 
         $this->get('http://shop.example.test/product/'.$product->slug)
             ->assertOk()
@@ -350,7 +350,20 @@ class StorefrontFoundationTest extends TestCase
 
         $order = Order::query()->where('source', Order::SOURCE_STOREFRONT)->first();
 
-        $response->assertRedirect('http://checkout.example.test/checkout/success/'.$order->getKey());
+        $response->assertRedirectContains('http://checkout.example.test/checkout/success/'.$order->getKey());
+        $signedSuccessUrl = (string) $response->headers->get('Location');
+        $this->assertStringContainsString('expires=', $signedSuccessUrl);
+        $this->assertStringContainsString('signature=', $signedSuccessUrl);
+
+        $this->get('http://checkout.example.test/checkout/success/'.$order->getKey())
+            ->assertNotFound();
+        $this->get($signedSuccessUrl)
+            ->assertOk()
+            ->assertSee('Track this order')
+            ->assertDontSee(urlencode('+8801700111222'), false);
+        $this->actingAs($order->customer, 'customer')
+            ->get('http://checkout.example.test/checkout/success/'.$order->getKey())
+            ->assertOk();
 
         $this->assertDatabaseHas('customers', [
             'company_id' => $company->getKey(),
@@ -601,6 +614,68 @@ class StorefrontFoundationTest extends TestCase
             ->assertSee('find an order matching');
     }
 
+    public function test_storefront_order_tracking_accepts_signed_or_owning_customer_access_without_phone_in_url(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Private Tracking Store', 'private-track.example.test');
+
+        app(CompanyContext::class)->set($company);
+
+        $customer = Customer::query()->create([
+            'name' => 'Private Tracking Buyer',
+            'phone' => '01744444444',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
+        $product = Product::query()->create([
+            'name' => 'Private Tracking Item',
+            'sku' => 'PRIVATE-TRACK-001',
+            'price' => 750,
+            'cost_price' => 500,
+            'stock' => 5,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+        $order = Order::query()->create([
+            'customer_id' => $customer->getKey(),
+            'customer_name' => $customer->name,
+            'status' => 'draft',
+            'source' => Order::SOURCE_STOREFRONT,
+        ]);
+        OrderItem::query()->create([
+            'order_id' => $order->getKey(),
+            'product_id' => $product->getKey(),
+            'quantity' => 1,
+            'unit_price' => 750,
+        ]);
+
+        URL::forceRootUrl('http://private-track.example.test');
+        $signedUrl = URL::temporarySignedRoute(
+            'storefront.track.show',
+            now()->addMinutes(10),
+            ['orderNo' => $order->order_number],
+        );
+        URL::forceRootUrl(null);
+
+        $this->assertStringNotContainsString('phone=', $signedUrl);
+
+        $this->get('http://private-track.example.test/track/'.$order->order_number)
+            ->assertOk()
+            ->assertDontSee('Private Tracking Item')
+            ->assertSee('find an order matching');
+
+        $this->get($signedUrl)
+            ->assertOk()
+            ->assertSee('Private Tracking Item');
+
+        $this->actingAs($customer, 'customer')
+            ->get('http://private-track.example.test/track/'.$order->order_number)
+            ->assertOk()
+            ->assertSee('Private Tracking Item');
+    }
+
     public function test_local_preview_order_tracking_works_without_custom_host_mapping(): void
     {
         $company = $this->createPublishedStorefrontCompany('Preview Tracking Store', 'preview-track.example.test');
@@ -665,7 +740,7 @@ class StorefrontFoundationTest extends TestCase
             ->assertDontSee('Delivered');
     }
 
-    public function test_storefront_customer_order_history_shows_matching_phone_orders(): void
+    public function test_storefront_customer_order_history_shows_only_the_signed_in_customers_orders(): void
     {
         $company = $this->createPublishedStorefrontCompany('Account Store', 'account.example.test');
 
@@ -705,16 +780,18 @@ class StorefrontFoundationTest extends TestCase
         $order->refresh();
 
         $this->get('http://account.example.test/account/orders')
-            ->assertOk()
-            ->assertSee('Find your storefront orders.');
+            ->assertRedirect('http://account.example.test/account/login');
 
-        $this->get('http://account.example.test/account/orders?phone=01728174614')
+        $this->actingAs($customer, 'customer')
+            ->get('http://account.example.test/account/orders')
             ->assertOk()
+            ->assertSee('Your order history.')
             ->assertSee($order->order_number)
             ->assertSee('Draft')
             ->assertSee('BDT 2,000.00')
             ->assertSee('Track order')
-            ->assertSee('http://account.example.test/track/'.$order->order_number, false);
+            ->assertSee('http://account.example.test/track/'.$order->order_number, false)
+            ->assertDontSee('phone=01728174614', false);
     }
 
     public function test_storefront_customer_order_history_does_not_leak_other_company_or_admin_orders(): void
@@ -750,9 +827,10 @@ class StorefrontFoundationTest extends TestCase
             'source' => Order::SOURCE_ADMIN,
         ]);
 
-        $this->get('http://safe-account.example.test/account/orders?phone=01728174614')
+        $this->actingAs($adminCustomer, 'customer')
+            ->get('http://safe-account.example.test/account/orders')
             ->assertOk()
-            ->assertSee('No storefront orders found')
+            ->assertSee('No orders yet')
             ->assertDontSee($otherOrder->order_number)
             ->assertDontSee($adminOrder->order_number);
     }

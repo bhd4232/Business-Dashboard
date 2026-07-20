@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  </style>
+</helmet>
+
+<div style="font-family: 'Source Sans 3', sans-serif; background: #F5F6F8; color: #14181F; min-height: 100vh;">
+
+  <!-- Utility bar -->
+  <div style="background: #071A2C; color: #C7D3DE; font-size: 12.5px; padding: 7px 0;">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 0 32px; display: flex; justify-content: space-between; align-items: center;">
+      <div style="display:flex; gap:22px;">
+        <span>Free delivery on orders over ৳2,500</span>
+        <span style="color:#5A6E80;">|</span>
+        <span>Corporate &amp; wholesale accounts available</span>
+      </div>
+      <div style="display:flex; gap:22px;">
+        <a href="Storefront - Marketplace Pro - Track.dc.html" style="color:#C7D3DE; text-decoration:none;">Track your order</a>
+        <a href="#" style="color:#C7D3DE; text-decoration:none;">Help center</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header style="background: #0F2A43; padding: 18px 0;">
+    <div style="max-width: 1360px; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 18px;">
+      <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+        <div style="width:38px; height:38px; border-radius:9px; background:#FF6A00; display:grid; place-items:center; font-family:'Manrope',sans-serif; font-weight:800; color:#0F2A43; font-size:18px;">GM</div>
+        <div style="font-family:'Manrope',sans-serif; font-weight:800; font-size:20px; color:#fff; letter-spacing:-0.02em; white-space:nowrap;">Garments Machinery Co.</div>
+      </div>
+
+      <div style="flex:1; display:flex; min-width:0; max-width:520px;">
+        <select style="flex-shrink:0; border:none; border-radius:8px 0 0 8px; background:#DDE3E9; padding:0 10px; font-size:13px; color:#33414D; font-weight:600;">
+          <option>All categories</option>
+        </select>
+        <input type="text" placeholder="Search spare parts, machines..." style="flex:1; min-width:0; border:none; padding:0 14px; font-size:14.5px; outline:none;">
+        <button style="flex-shrink:0; background:#FF6A00; border:none; padding:0 18px; border-radius:0 8px 8px 0; cursor:pointer; display:flex; align-items:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F2A43" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:16px; flex-shrink:0; color:#fff;">
+        <div style="font-size:12.5px; line-height:1.3; white-space:nowrap;">
+          <div style="color:#93A7B8;">Hello, sign in</div>
+          <div style="font-weight:700;">Account &amp; Lists</div>
+        </div>
+        <div style="font-size:12.5px; line-height:1.3; white-space:nowrap;">
+          <div style="color:#93A7B8;">Orders</div>
+          <div style="font-weight:700;">&amp; Returns</div>
+        </div>
+        <a href="Storefront - Marketplace Pro - Cart.dc.html" style="position:relative; display:flex; align-items:center; gap:6px; color:#fff; text-decoration:none; white-space:nowrap; flex-shrink:0;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M2.25 3h1.386c.51 0 .955.343 1.087.836l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 1.874-4.708 2.25-7.183a1.125 1.125 0 0 0-1.11-1.317H5.25M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/></svg>
+          <span style="position:absolute; top:-8px; right:-10px; background:#FF6A00; color:#fff; font-size:10.5px; font-weight:800; border-radius:50%; width:18px; height:18px; display:grid; place-items:center;">3</span>
+          <span style="font-weight:700; font-size:14px;">Cart</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Category nav -->
+    <div style="max-width: 1360px; margin: 14px auto 0; padding: 10px 32px 0; border-top: 1px solid rgba(255,255,255,0.1); display:flex; gap:26px; font-size:13.5px; font-weight:600; color:#D6E0E9;">
+      <a href="Storefront - Marketplace Pro - Listing.dc.html" style="color:#fff; text-decoration:none; display:flex; gap:6px; align-items:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/></svg>
+        All categories
+      </a>
+      <a href="Storefront - Marketplace Pro - Listing.dc.html" style="color:#D6E0E9; text-decoration:none;">Circular Knitting Machines</a>
+      <a href="#" style="color:#D6E0E9; text-decoration:none;">Flat Knitting Machines</a>
+      <a href="#" style="color:#D6E0E9; text-decoration:none;">Spare Parts</a>
+      <a href="#" style="color:#D6E0E9; text-decoration:none;">Needles &amp; Sinkers</a>
+      <a href="#" style="color:#D6E0E9; text-decoration:none;">Motors &amp; Electronics</a>
+      <a href="#" style="color:#FF9A52; text-decoration:none;">Today's deals</a>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section style="max-width:1360px; margin:24px auto 0; padding:0 32px; display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
+    <div style="position:relative; border-radius:14px; overflow:hidden; background:#0F2A43; min-height:340px;">
+      <div style="position:absolute; inset:0; width:100%; height:100%; background:linear-gradient(135deg,#16385A,#0B2036);"></div>
+      <div style="position:absolute; inset:0; background:linear-gradient(90deg, rgba(7,20,33,0.88) 0%, rgba(7,20,33,0.45) 55%, rgba(7,20,33,0.05) 100%);"></div>
+      <div style="position:relative; padding:48px; max-width:480px;">
+        <div style="display:inline-block; background:#FF6A00; color:#fff; font-size:12px; font-weight:800; padding:5px 12px; border-radius:999px; letter-spacing:0.03em; white-space:nowrap;">SEASON CLEARANCE</div>
+        <h1 style="font-family:'Manrope',sans-serif; font-size:38px; font-weight:800; color:#fff; margin:18px 0 12px; line-height:1.15;">Up to 22% off circular knitting machines</h1>
+        <p style="color:#C7D3DE; font-size:15px; line-height:1.6; margin:0 0 24px;">Genuine parts, factory-direct pricing, and nationwide installation support.</p>
+        <button style="background:#FF6A00; color:#fff; border:none; padding:13px 26px; border-radius:8px; font-weight:700; font-size:14.5px; cursor:pointer;">Shop the sale</button>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:20px;">
+      <div style="background:#fff; border-radius:14px; padding:20px; flex:1; display:flex; flex-direction:column;">
+        <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:15px; margin-bottom:12px;">Spare parts, in stock</div>
+        <div style="width:100%; flex:1; border-radius:10px; min-height:80px; background:#EEF1F4;"></div>
+        <button style="margin-top:12px; background:none; border:1.5px solid #0F2A43; color:#0F2A43; padding:9px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">Browse parts</button>
+      </div>
+      <div style="background:#fff; border-radius:14px; padding:20px; flex:1; display:flex; flex-direction:column;">
+        <div style="font-family:'Manrope',sans-serif; font-weight:700; font-size:15px; margin-bottom:12px;">Book installation &amp; service</div>
+        <div style="width:100%; flex:1; border-radius:10px; min-height:80px; background:#EEF1F4;"></div>
+        <button style="margin-top:12px; background:none; border:1.5px solid #0F2A43; color:#0F2A43; padding:9px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">Request a visit</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust strip -->
+  <section style="max-width:1360px; margin:28px auto 0; padding:0 32px;">
+    <div style="background:#fff; border-radius:14px; padding:22px 30px; display:grid; grid-template-columns:repeat(4,1fr); gap:20px;">
+      <sc-for list="{{ trustItems }}" as="item" hint-placeholder-count="4">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:42px; height:42px; border-radius:10px; background:#FFF1E6; display:grid; place-items:center; flex-shrink:0;">{{ item.icon }}</div>
+          <div>
+            <div style="font-weight:700; font-size:14px;">{{ item.title }}</div>
+            <div style="font-size:12.5px; color:#6B7885;">{{ item.sub }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Flash deals -->
+  <section style="max-width:1360px; margin:36px auto 0; padding:0 32px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <h2 style="font-family:'Manrope',sans-serif; font-size:22px; font-weight:800; margin:0;">Today's deals</h2>
+        <div style="background:#0F2A43; color:#fff; font-size:12px; font-weight:700; padding:5px 10px; border-radius:6px;">Ends in 06:42:18</div>
+      </div>
+      <a href="Storefront - Marketplace Pro - Listing.dc.html" style="color:#0A6CFF; font-weight:700; font-size:13.5px; text-decoration:none;">See all deals &rarr;</a>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:16px;">
+      <sc-for list="{{ dealProducts }}" as="p" hint-placeholder-count="5">
+        <div style="background:#fff; border-radius:12px; padding:14px; position:relative;">
+          <div style="position:absolute; top:14px; left:14px; background:#C4001D; color:#fff; font-size:11.5px; font-weight:800; padding:4px 8px; border-radius:5px; z-index:1;">-{{ p.discount }}%</div>
+          <div style="width:100%; aspect-ratio:1; border-radius:8px; background:#EEF1F4;"></div>
+          <div style="font-size:13.5px; font-weight:600; margin-top:10px; line-height:1.4; min-height:38px;">{{ p.name }}</div>
+          <div style="display:flex; align-items:center; gap:3px; margin-top:6px;">
+            <sc-for list="{{ p.stars }}" as="s" hint-placeholder-count="5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#FF9A00"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+            </sc-for>
+            <span style="font-size:11.5px; color:#6B7885; margin-left:4px;">({{ p.reviews }})</span>
+          </div>
+          <div style="margin-top:8px; display:flex; align-items:baseline; gap:8px;">
+            <span style="font-family:'Manrope',sans-serif; font-weight:800; font-size:17px; color:#C4001D;">৳{{ p.price }}</span>
+            <span style="font-size:12.5px; color:#96A2AC; text-decoration:line-through;">৳{{ p.oldPrice }}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Shop by category -->
+  <section style="max-width:1360px; margin:44px auto 0; padding:0 32px;">
+    <h2 style="font-family:'Manrope',sans-serif; font-size:22px; font-weight:800; margin:0 0 16px;">Shop by category</h2>
+    <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:16px;">
+      <sc-for list="{{ categories }}" as="c" hint-placeholder-count="6">
+        <a href="#" style="text-decoration:none; color:#14181F; background:#fff; border-radius:12px; padding:18px; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center;">
+          <div style="width:64px; height:64px; border-radius:50%; background:#EEF1F4;"></div>
+          <span style="font-size:13px; font-weight:700;">{{ c.name }}</span>
+        </a>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Featured grid -->
+  <section style="max-width:1360px; margin:44px auto 0; padding:0 32px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+      <h2 style="font-family:'Manrope',sans-serif; font-size:22px; font-weight:800; margin:0;">Recommended for your business</h2>
+      <a href="Storefront - Marketplace Pro - Listing.dc.html" style="color:#0A6CFF; font-weight:700; font-size:13.5px; text-decoration:none;">View all products &rarr;</a>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:16px;">
+      <sc-for list="{{ featuredProducts }}" as="p" hint-placeholder-count="10">
+        <div style="background:#fff; border-radius:12px; padding:14px; display:flex; flex-direction:column;">
+          <div style="width:100%; aspect-ratio:1; border-radius:8px; background:#EEF1F4;"></div>
+          <div style="font-size:13.5px; font-weight:600; margin-top:10px; line-height:1.4; min-height:38px;">{{ p.name }}</div>
+          <div style="display:flex; align-items:center; gap:3px; margin-top:6px;">
+            <sc-for list="{{ p.stars }}" as="s" hint-placeholder-count="5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#FF9A00"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+            </sc-for>
+            <span style="font-size:11.5px; color:#6B7885; margin-left:4px;">({{ p.reviews }})</span>
+          </div>
+          <div style="margin-top:8px; font-family:'Manrope',sans-serif; font-weight:800; font-size:16px;">৳{{ p.price }}</div>
+          <div style="margin-top:2px; font-size:11.5px; color:#1A7F37; font-weight:700;">In stock &middot; Ships in 2 days</div>
+          <a href="Storefront - Marketplace Pro - Cart.dc.html" style="margin-top:10px; background:#0F2A43; color:#fff; border:none; padding:9px; border-radius:7px; font-weight:700; font-size:12.5px; cursor:pointer; text-align:center; text-decoration:none; display:block;">Add to cart</a>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- Brand strip -->
+  <section style="max-width:1360px; margin:48px auto 0; padding:0 32px;">
+    <div style="background:#0F2A43; border-radius:14px; padding:28px 34px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:20px;">
+      <div style="color:#fff;">
+        <div style="font-family:'Manrope',sans-serif; font-weight:800; font-size:18px;">Trusted by 1,200+ garment factories nationwide</div>
+        <div style="color:#93A7B8; font-size:13.5px; margin-top:4px;">Genuine parts &middot; Certified technicians &middot; 48-hour dispatch</div>
+      </div>
+      <button style="background:#FF6A00; color:#fff; border:none; padding:12px 24px; border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; white-space:nowrap;">Open a business account</button>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="margin-top:56px; background:#071A2C; color:#C7D3DE;">
+    <div style="max-width:1360px; margin:0 auto; padding:44px 32px; display:grid; grid-template-columns:repeat(4,1fr); gap:32px;">
+      <div>
+        <div style="color:#fff; font-weight:700; font-size:13.5px; margin-bottom:14px;">Get to know us</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <a href="#" style="color:#C7D3DE; text-decoration:none;">About the company</a>
+          <a href="#" style="color:#C7D3DE; text-decoration:none;">Careers</a>
+          <a href="#" style="color:#C7D3DE; text-decoration:none;">Press releases</a>
+        </div>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:700; font-size:13.5px; margin-bottom:14px;">Let us help you</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <a href="Storefront - Marketplace Pro - Track.dc.html" style="color:#C7D3DE; text-decoration:none;">Track your order</a>
+          <a href="#" style="color:#C7D3DE; text-decoration:none;">Returns &amp; replacements</a>
+          <a href="#" style="color:#C7D3DE; text-decoration:none;">Help center</a>
+        </div>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:700; font-size:13.5px; margin-bottom:14px;">Business accounts</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <a href="#" style="color:#C7D3DE; text-decoration:none;">Wholesale pricing</a>
+          <a href="#" style="color:#C7D3DE; text-decoration:none;">Become a reseller</a>
+          <a href="#" style="color:#C7D3DE; text-decoration:none;">Corporate procurement</a>
+        </div>
+      </div>
+      <div>
+        <div style="color:#fff; font-weight:700; font-size:13.5px; margin-bottom:14px;">Contact</div>
+        <div style="display:flex; flex-direction:column; gap:9px; font-size:13px;">
+          <span>+880 1XXX-XXXXXX</span>
+          <span>support@garmentsmachinery.com</span>
+        </div>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(255,255,255,0.08); padding:18px 32px; text-align:center; font-size:12px; color:#5A6E80;">
+      &copy; 2026 Garments Machinery Company. All rights reserved.
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const stars5 = [1,2,3,4,5];
+    const trustItems = [
+      { icon: '🚚', title: 'Nationwide delivery', sub: 'Dispatch in 24-48h' },
+      { icon: '🔒', title: 'Secure payment', sub: 'bKash, cards, COD' },
+      { icon: '🛠️', title: 'Installation support', sub: 'Certified technicians' },
+      { icon: '↩️', title: '7-day returns', sub: 'On eligible items' },
+    ];
+    const categories = [
+      { slotId: 'cat-1', name: 'Circular Knitting' },
+      { slotId: 'cat-2', name: 'Flat Knitting' },
+      { slotId: 'cat-3', name: 'Needles & Sinkers' },
+      { slotId: 'cat-4', name: 'Motors' },
+      { slotId: 'cat-5', name: 'Electronics' },
+      { slotId: 'cat-6', name: 'Accessories' },
+    ];
+    const dealNames = ['Cylinder Needle Set (100pc)', 'Sinker Ring - Standard', 'Feeder Motor 3HP', 'Yarn Tension Unit', 'Digital Speed Controller'];
+    const dealProducts = dealNames.map((name, i) => ({
+      slotId: 'deal-' + i, name, discount: [18,12,25,15,20][i], reviews: 120 + i*37,
+      price: (2400 + i*850).toLocaleString(), oldPrice: (3200 + i*1100).toLocaleString(), stars: stars5,
+    }));
+    const featNames = ['Single Jersey Circular Machine 30", 96F', 'Rib Knitting Machine 26"', 'Auto Stripper Circular Machine', 'Interlock Knitting Machine', 'Fleece Knitting Machine 34"', 'Terry Knitting Machine', 'High Pile Fleece Machine', 'Computerized Jacquard Machine', 'Mini Circular Sample Machine', 'Spare Cylinder Assembly'];
+    const featuredProducts = featNames.map((name, i) => ({
+      slotId: 'feat-' + i, name, reviews: 40 + i*11, price: (185000 + i*23000).toLocaleString(), stars: stars5,
+    }));
+    return { trustItems, dealProducts, categories, featuredProducts };
+  }
+}
+</script>
+</body>
+</html>

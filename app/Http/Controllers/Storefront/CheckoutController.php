@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -62,15 +63,16 @@ class CheckoutController extends Controller
         $advanceDue = self::advanceDue($this->cart->items($company));
         $this->assertPayableCheckout($setting, $advanceDue);
         $order = $this->createOrder($request, $company, $setting);
+        $successUrl = $this->signedSuccessUrl($order);
 
         if ($advanceDue > 0) {
             return $this->startAdvancePayment($company, $setting, $order, $advanceDue,
-                redirectUrl: route('storefront.checkout.success', $order),
-                cancelUrl: route('storefront.checkout.success', $order),
-            ) ?? redirect()->route('storefront.checkout.success', $order);
+                redirectUrl: $successUrl,
+                cancelUrl: $successUrl,
+            ) ?? redirect()->to($successUrl);
         }
 
-        return redirect()->route('storefront.checkout.success', $order);
+        return redirect()->to($successUrl);
     }
 
     public function storePreview(Request $request, Company $company): RedirectResponse
@@ -145,11 +147,27 @@ class CheckoutController extends Controller
 
         abort_unless($order->company_id === $company->getKey() && $order->source === Order::SOURCE_STOREFRONT, 404);
 
+        $customer = auth('customer')->user();
+        $customerOwnsOrder = $customer
+            && $customer->company_id === $company->getKey()
+            && $customer->getKey() === $order->customer_id;
+
+        abort_unless($request->hasValidSignature() || $customerOwnsOrder, 404);
+
         return view('storefront.checkout.success', [
             'company' => $company,
             'setting' => $setting,
             'order' => $order->load('items.product', 'customer'),
         ]);
+    }
+
+    protected function signedSuccessUrl(Order $order): string
+    {
+        return URL::temporarySignedRoute(
+            'storefront.checkout.success',
+            now()->addDay(),
+            ['order' => $order->getRouteKey()],
+        );
     }
 
     public function successPreview(Company $company, Order $order): View
@@ -189,32 +207,37 @@ class CheckoutController extends Controller
 
     protected function createOrder(Request $request, Company $company, StorefrontSetting $setting): Order
     {
+        $defaultPaymentMethod = $this->defaultPaymentMethod($setting);
+
+        if (! $request->filled('delivery_area')) {
+            $request->merge(['delivery_area' => 'inside']);
+        }
+
+        if (! $request->filled('payment_method') && $defaultPaymentMethod !== null) {
+            $request->merge(['payment_method' => $defaultPaymentMethod]);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['required', 'string', 'max:1000'],
             'note' => ['nullable', 'string', 'max:1000'],
-            'delivery_area' => ['nullable', 'in:inside,outside'],
-            'payment_method' => ['nullable', 'in:cod,manual_bkash,manual_nagad'],
+            'delivery_area' => ['required', 'in:inside,outside'],
+            'payment_method' => ['required', 'in:cod,manual_bkash,manual_nagad'],
             'sender_number' => ['required_if:payment_method,manual_bkash,manual_nagad', 'nullable', 'string', 'max:20'],
             'trx_id' => ['required_if:payment_method,manual_bkash,manual_nagad', 'nullable', 'string', 'max:40'],
         ]);
 
-        // Both default to the pre-Phase-3 behaviour (COD, no delivery charge)
-        // so existing integrations/tests posting the old field set keep working.
-        $data['delivery_area'] ??= 'inside';
-        $data['payment_method'] ??= 'cod';
-
-        if ($data['payment_method'] === 'cod' && ! $setting->cod_enabled) {
+        if ($data['payment_method'] === 'cod' && ! ($setting->cod_enabled ?? true)) {
             throw ValidationException::withMessages(['payment_method' => 'Cash on Delivery is not available right now. Please choose another payment method.']);
         }
 
-        if ($data['payment_method'] === 'manual_bkash' && ! $setting->manual_bkash_number) {
+        if ($data['payment_method'] === 'manual_bkash' && blank($setting->manual_bkash_number)) {
             throw ValidationException::withMessages(['payment_method' => 'bKash payment is not available right now.']);
         }
 
-        if ($data['payment_method'] === 'manual_nagad' && ! $setting->manual_nagad_number) {
+        if ($data['payment_method'] === 'manual_nagad' && blank($setting->manual_nagad_number)) {
             throw ValidationException::withMessages(['payment_method' => 'Nagad payment is not available right now.']);
         }
 
@@ -311,6 +334,23 @@ class CheckoutController extends Controller
 
             return $order;
         });
+    }
+
+    protected function defaultPaymentMethod(StorefrontSetting $setting): ?string
+    {
+        if ($setting->cod_enabled ?? true) {
+            return 'cod';
+        }
+
+        if (filled($setting->manual_bkash_number)) {
+            return 'manual_bkash';
+        }
+
+        if (filled($setting->manual_nagad_number)) {
+            return 'manual_nagad';
+        }
+
+        return null;
     }
 
     protected static function paymentMethodLabel(string $method): string

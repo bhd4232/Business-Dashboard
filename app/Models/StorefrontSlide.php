@@ -19,6 +19,7 @@ class StorefrontSlide extends Model
         'subheading',
         'cta_label',
         'cta_url',
+        'product_id',
         'sort_order',
         'is_active',
         'starts_at',
@@ -36,6 +37,11 @@ class StorefrontSlide extends Model
     {
         static::saved(fn (StorefrontSlide $slide) => Cache::forget("storefront-home:{$slide->company_id}"));
         static::deleted(fn (StorefrontSlide $slide) => Cache::forget("storefront-home:{$slide->company_id}"));
+    }
+
+    public function product(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Product::class)->withoutGlobalScopes();
     }
 
     public function scopeActiveNow(Builder $query): Builder

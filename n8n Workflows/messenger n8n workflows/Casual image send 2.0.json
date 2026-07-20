@@ -1,0 +1,285 @@
+{
+  "name": "Casual image send 2.0",
+  "nodes": [
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -480,
+        80
+      ],
+      "id": "0e8fad1d-8324-46bf-8c9a-8911fdb6a7ce",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        96
+      ],
+      "id": "d2d8f36c-18ce-4729-a601-e3ea0f0296b5",
+      "name": "Wait4"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5bb8e73a-461f-4c54-9574-30a8f5caf322",
+              "name": "Product Image Link (Public)",
+              "value": "={{ $json.Product_Image_Link }}",
+              "type": "string"
+            },
+            {
+              "id": "332bb395-5173-40a3-bdfa-5f2f837e421b",
+              "name": "Product Name (Bangla)",
+              "value": "={{ $json['Product Name (Bangla)'] }}",
+              "type": "string"
+            },
+            {
+              "id": "995376a3-9d70-4ef4-ac61-b8fa0fa88e04",
+              "name": "Price (৳)",
+              "value": "={{ $json['Price (৳)'] }}",
+              "type": "number"
+            },
+            {
+              "id": "887de899-e5a3-490d-b951-8283ade41266",
+              "name": "Product ID",
+              "value": "={{ $json['Product ID'] }}",
+              "type": "string"
+            },
+            {
+              "id": "07be0598-2b79-4206-b469-136d87d01e1c",
+              "name": "sender_id",
+              "value": "={{ $('When Executed by Another Workflow').item.json.sender_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -656,
+        80
+      ],
+      "id": "2dd765a5-fdeb-4684-a17b-ebadfea6b91d",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "19lsJXobDfz-yj7qCDsjwBIZrr2W275kNN7W_3aMMmfo",
+          "mode": "list",
+          "cachedResultName": "Get Product Detials Tools Home Food",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19lsJXobDfz-yj7qCDsjwBIZrr2W275kNN7W_3aMMmfo/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Product Details",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19lsJXobDfz-yj7qCDsjwBIZrr2W275kNN7W_3aMMmfo/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -832,
+        80
+      ],
+      "id": "4540e5cd-a3c5-4ea9-aee7-0ab420f6d5de",
+      "name": "Image Send Tools"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "quary"
+            },
+            {
+              "name": "sender_id"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1040,
+        80
+      ],
+      "id": "ada3ed40-e50e-4e6c-8b96-93b5894026fe",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d3a027a7-4683-450a-82fa-7a229cdcc62d",
+              "name": "status",
+              "value": "Success",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -304,
+        -80
+      ],
+      "id": "d8eb8952-bdf6-4563-beb7-1dbaf0cdc39f",
+      "name": "Edit Fields",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v19.0/922737424262274/messages",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "={{ $env.META_MESSENGER_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipient\": {\n    \"id\": \"{{ $json.recipient_id }}\"\n  },\n  \"message\": {\n    \"attachment\": {\n      \"type\": \"template\",\n      \"payload\": {\n        \"template_type\": \"generic\",\n        \"elements\": {{ JSON.stringify($json.elements) }}\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -16,
+        96
+      ],
+      "id": "ff1e8780-483e-419b-9f5b-919d4388059f",
+      "name": "Casual image"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst elements = [];\n\n// ১. বাম পাশের ইনপুট (Google Sheet/Webhook) থেকে sender_id নেয়া হচ্ছে\nlet senderId;\ntry {\n  // প্রুথব আইটেম থেকে sender_id কালেক্ট করা হচ্ছে\n  senderId = items[0].json[\"sender_id\"] || items[0].json[\"user_id\"];\n  \n  // যদি ইনপুটে না থাকে তবে Webhook নোড চেক করবে\n  if (!senderId) {\n    senderId = $(\"Webhook\").first().json.body.entry[0].messaging[0].sender.id;\n  }\n} catch (e) {\n  senderId = \"26120025164298627\"; // Fallback ID\n}\n\n// ২. ১০টি আইটেম নিয়ে ক্যারোসেল তৈরি\nitems.slice(0, 10).forEach(item => {\n  const productName = item.json[\"Product Name (Bangla)\"] || \"Unknown Product\";\n  const productId = item.json[\"Product ID\"] || \"NoID\"; \n  \n  elements.push({\n    \"title\": productName,\n    \"image_url\": item.json[\"Product Image Link (Public)\"],\n    \"subtitle\": (item.json[\"Price (৳)\"] || \"0\") + \" Tk\",\n    \"buttons\": [\n      {\n        \"type\": \"postback\",\n        \"title\": \" এটা আর্ডার করতে চাই\",\n        // নাম এবং আইডি পেলোডে একসাথে সেট করা হচ্ছে\n        \"payload\": \"ORDER_ITEM_\" + productName + \"_\" + productId\n      }\n    ]\n  });\n});\n\n// ৩. ফাইনাল আউটপুট যেখানে recipient_id হিসেবে sender_id পাস হচ্ছে\nreturn {\n  recipient_id: senderId,\n  elements: elements\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        96
+      ],
+      "id": "d1c92e35-ba60-40a2-bf27-b7c74e172676",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait4": {
+      "main": [
+        [
+          {
+            "node": "Casual image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Send Tools": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Image Send Tools",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Casual image": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Wait4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "tags": []
+}

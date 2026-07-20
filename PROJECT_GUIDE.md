@@ -203,6 +203,17 @@ docs/update-safety.md
 tests/Feature/ReleaseNotesTest.php
 ```
 
+### External n8n Workflow Exports
+
+The repository includes importable Meta Messenger and WhatsApp workflow exports under `n8n Workflows/`. Live tokens must never be embedded in these JSON files. The HTTP nodes resolve their authorization values from n8n host environment variables:
+
+- `META_MESSENGER_ACCESS_TOKEN`
+- `META_MESSENGER_COMMENT_ACCESS_TOKEN`
+- `META_MESSENGER_IMAGE_ACCESS_TOKEN`
+- `META_WHATSAPP_ACCESS_TOKEN`
+
+The committed JSON files are inactive public-safe templates: stored n8n credential references, instance/workflow IDs, generated webhook IDs, and pinned sample data are removed. After import, replace every `configure-*-webhook` path with a unique value, reconnect the destination instance's credentials, and verify its webhook URLs before activation. See `n8n Workflows/README.md` for the import checklist. Verify future export updates with a secret scan before committing.
+
 ### Storefront Foundation
 
 The project includes a native Laravel Blade storefront foundation. Do not install Lunar or create a duplicate ecommerce model layer. Storefront work must reuse the existing ERP `Company`, `Product`, `Category`, `Customer`, `Order`, stock, risk, and courier flows.
@@ -250,7 +261,7 @@ Current behavior:
 - Draft storefront orders do not increase `Today Sales`; the dashboard shows them separately as `Storefront Pending` with pending order count and amount.
 - The Orders table and Order detail page display the order `Source` badge, and the Orders table can be filtered by `Admin` or `Storefront` source.
 - Checkout validates current cart stock and clears the cart after successful order creation.
-- Checkout success pages show the generated ERP order number and order summary.
+- Checkout success pages show the generated ERP order number and order summary. Production success URLs are temporary-signed for 24 hours; an unsigned URL is accepted only for the authenticated customer who owns that order. ZiniPay redirect/cancel URLs use the same signed success URL. Local admin preview remains unsigned.
 - Production checkout routes on custom domains:
   - `GET /checkout`
   - `POST /checkout`
@@ -258,11 +269,11 @@ Current behavior:
 - Storefront order tracking lets customers search by ERP order number and view order status, the current delivery status only after an admin/courier update, latest courier/provider/tracking ID, totals, due amount, and ordered items. Default `Not Booked` delivery status stays hidden on the customer-facing page.
 - Admin/courier status changes appear as chronological `Tracking Updates` rather than a fixed list of possible statuses. Order status and delivery status updates come from order audit logs; courier updates come from courier status logs.
 - Tracking update markers and the `Latest` badge are styled in `resources/views/storefront/track/show.blade.php`; markers use 100px rounded corners and the latest badge uses compact 10px horizontal padding.
-- Tracking only exposes orders from the current storefront company and only when `source = storefront`; admin orders and other-company orders return 404.
-- Customer order history is available from the storefront header `Account` link and at `/account/orders`; customers search by checkout phone number and see only current-company storefront orders with links into live tracking. Admin-created orders and other-company orders are hidden.
-- B2B wholesale rules live on products: `products.moq` (nullable minimum order quantity) and `products.tier_prices` (nullable JSON list of `{min_qty, price}` rows), edited in the Product form's "Wholesale (B2B)" section. On the storefront, cart quantities are clamped up to the MOQ (quantity 0 still removes the line; if stock is below MOQ the stock cap wins), and non-variant cart lines use `Product::priceForQuantity()` — the deepest matching tier price, falling back to `selling_price`. Variant lines always keep their variant price. Product pages show a "Wholesale pricing" table and MOQ badge; quick-add uses the MOQ as its quantity. Tier price flows into checkout order items via the cart's `unit_price`. Covered by `tests/Feature/StorefrontB2bTest.php`.
-- The account orders page shows a "Current due" banner (customer `current_balance` when > 0) only after a phone search that actually matched storefront orders in the current company.
-- Each order card on the account orders page has a `Reorder` button (`POST /account/orders/{orderNo}/reorder`, preview: `POST /storefront/{company-slug}/account/orders/{orderNo}/reorder`). It requires the same phone used for the order lookup (mismatched or missing phone returns 404), re-adds still-available products/variants to the cart with stock capping, skips discontinued items, and redirects to the cart with a status message. Covered by `tests/Feature/StorefrontReorderTest.php`.
+- Tracking only exposes orders from the current storefront company and only when `source = storefront`; admin orders and other-company orders are never revealed. Public search requires both order number and checkout phone. A temporary-signed tracking link or an authenticated owning customer may open the same order without putting the phone number in the URL.
+- Production customer order history at `/account/orders` requires the company-scoped `customer` guard and shows only that customer's current-company storefront orders. Signed-out visitors are sent to account login; when customer accounts are disabled they are sent to manual order tracking. Phone-only history lookup is retained only on the local/authenticated admin preview route.
+- B2B wholesale rules live on products: `products.moq` (nullable minimum order quantity) and `products.tier_prices` (nullable JSON list of `{min_qty, price}` rows), edited in the Product form's "Wholesale (B2B)" section. On the storefront, cart quantities are clamped up to the MOQ; quantity 0 still removes a normal line. Non-preorder stock remains the upper cap, while non-variant preorders can reach `StorefrontCart::PREORDER_STOCK_CEILING` (100,000) even at zero current stock. Non-variant cart lines use `Product::priceForQuantity()` — the deepest matching tier price, falling back to `selling_price`; variant lines keep their variant price. Covered by `tests/Feature/StorefrontB2bTest.php` and `tests/Feature/StorefrontPreorderPaymentTest.php`.
+- Customer balances remain staff-only and are not rendered in storefront order history.
+- Each order card has a `Reorder` button (`POST /account/orders/{orderNo}/reorder`, preview: `POST /storefront/{company-slug}/account/orders/{orderNo}/reorder`). Production requires the authenticated customer who owns the order; local preview retains phone verification. Reorder adds still-available products/variants with the same stock/preorder caps, skips discontinued items, and redirects to the cart with a status message. Covered by `tests/Feature/StorefrontReorderTest.php`.
 - Published storefront pages are available from footer links and at `/pages/{slug}`. Unpublished pages and other-company pages return 404.
 - In local/testing, `/pages/{slug}` falls back to the first published storefront company so admins can preview content pages on `127.0.0.1`; local company-scoped preview still works at `/storefront/{company-slug}/pages/{slug}`.
 - Admin Order forms use two explicit labels: `Order Status` for invoice/stock/accounts/reporting workflow and `Delivery Status` for storefront tracking/courier progress; courier booking actions may update delivery status automatically.
@@ -271,6 +282,14 @@ Current behavior:
   - `GET /track/{orderNo}`
 - Production customer account routes on custom domains:
   - `GET /account/orders`
+  - `POST /account/orders/{orderNo}/reorder`
+  - `GET|POST /account/login`
+  - `GET|POST /account/register`
+  - `GET|POST /account/forgot-password`
+  - `GET|POST /account/reset-password`
+  - `GET|PATCH /account/profile`
+  - `PUT /account/password`
+  - `POST /account/logout`
 - Production storefront content routes on custom domains:
   - `GET /pages/{slug}`
 - Local preview checkout routes:
@@ -286,7 +305,7 @@ Current behavior:
   - `GET /storefront/{company-slug}/pages/{slug}`
 - Storefront UI should use Tailwind CSS 4 via Vite and should aim for a polished Shopify-style ecommerce look: image-first product cards, clean collection tiles, strong CTA buttons, responsive mobile layout, and dark/light compatibility.
 - Storefront layout includes SEO/Open Graph/Twitter metadata from storefront settings, compact mobile-safe header actions, footer WhatsApp contact, banner-image hero support, and explicit out-of-stock product states.
-- Dark mode is a real class-based toggle, not just `prefers-color-scheme`. `resources/css/app.css` declares `@custom-variant dark (&:where(.dark, .dark *));` (storefront only; Filament's own dark mode is unaffected). `resources/views/storefront/layout.blade.php` sets the `dark` class before paint from `localStorage.storefrontTheme`, falling back to the company's `storefront_settings.theme_mode` (`system`/`light`/`dark`) on first visit, and exposes a header sun/moon button (`[data-theme-toggle]`) that flips the class and persists the choice. No Alpine.js is loaded in the storefront bundle, so the toggle and the quantity stepper (`[data-qty-stepper]`/`[data-qty-input]`/`[data-qty-increment]`/`[data-qty-decrement]`) are plain vanilla JS in `layout.blade.php`, not Alpine directives.
+- Dark mode is a real class-based toggle, not just `prefers-color-scheme`. `resources/css/app.css` declares `@custom-variant dark (&:where(.dark, .dark *));` (storefront only; Filament's own dark mode is unaffected). `resources/views/storefront/layout.blade.php` sets the `dark` class before paint from `localStorage.storefrontTheme`, falling back to the company's `storefront_settings.theme_mode` (`system`/`light`/`dark`) on first visit. The toggle exposes its current action and pressed state; quantity steppers and shell controls use plain JavaScript, while page-level disclosure/checkout state may use Alpine from `resources/js/app.js`.
 - Product listing supports `?sort=price_asc|price_desc` (default newest) and category quick-filter chips, handled in `StorefrontProductIndexController` and `PreviewController::products`.
 - Product detail pages show a breadcrumb, a sticky buy box with a quantity stepper, and a "You may also like" related-products rail (same category, excludes current product, limit 4), sourced from `StorefrontProductShowController` and `PreviewController::product`.
 - Variable product detail pages show available variants/options, variant images, per-option stock/price, and quantity inputs so customers can add multiple variants in one submit.
@@ -299,6 +318,8 @@ Current behavior:
 - A fixed mobile bottom nav bar (Home/Category/Cart/Account, `sm:hidden`) is rendered in `layout.blade.php`; `<main>` gets `pb-16 sm:pb-0` and the footer gets `mb-16 sm:mb-0` so content does not sit under it on small screens.
 - Curated homepage product carousels are implemented through the `Product Carousels` Filament resource. Active carousels are company scoped, ordered by sort order, hidden when empty/inactive, and rendered on the storefront homepage.
 - Avoid broad inline CSS for storefront pages unless it is a small dynamic CSS variable such as company theme color.
+- The 2026-07-20 storefront hardening pass added: keyboard-visible focus styles, touch-safe targets, automatic readable foreground text on merchant brand backgrounds, an accessible mobile menu and theme state, `aria-current` navigation, FAQ and product-tab semantics, a two-column 390px catalog, intrinsic product/content image dimensions, mobile safe-area spacing, pending/double-submit states, and checkout error-summary focus. Key UI files are `resources/views/storefront/layout.blade.php`, `home.blade.php`, `products/index.blade.php`, `products/show.blade.php`, `partials/product-card.blade.php`, `cart/show.blade.php`, `checkout/show.blade.php`, and `resources/css/app.css`.
+- Variable-product cards never submit an incomplete quick-add request: they open the product option selector. On the detail page, desktop and mobile add buttons share the selected-variant quantity state. Checkout renders one shared manual-payment sender/transaction field pair, defaults to the first enabled payment method, and blocks submission only when no valid payment path exists or required preorder advance payment is unavailable.
 - Pre-order: products with `is_preorder = true` can be ordered beyond current stock ("Pre-order now" button/badge replaces "Out of stock"). The per-product `preorder_advance_percent` (default 100) of any pre-order quantity beyond stock is payable online at checkout via ZiniPay hosted checkout; COD is never offered for pre-order quantities, and pre-order checkout is blocked with a validation error when ZiniPay is not configured. Payments live in `storefront_payments` (`StorefrontPayment`), created pending before redirect and completed only after server-side `/v1/payment/verify` confirmation (webhook `POST /webhooks/zinipay/{payment}`, CSRF-exempt, amount-matched). ZiniPay credentials: storefront settings "Online Payments (ZiniPay)" section (`online_payment_enabled` + encrypted `payment_credentials`).
 - Reseller applications: public `/reseller` page (preview: `/storefront/{company-slug}/reseller`) creates/updates a company-scoped Customer with `reseller_status = pending`, `business_name`, `reseller_note`. Admin approves from the Customer form's Reseller section; the Customers table shows a reseller badge. Approved customers keep their status if they re-apply. Wholesale price gating per reseller is intentionally deferred until a customer login/OTP system exists — tier prices are currently public.
 - Abandoned cart reminders: every cart change also upserts `storefront_cart_records` (keyed by a stable `storefront_cart_token` session UUID, not the session id); checkout attempts store the phone/name on the record, successful checkout marks it converted, emptying the cart deletes it. The hourly scheduled `storefront:send-abandoned-cart-reminders` command (see `bootstrap/app.php`) sends one SMS (generic GET gateway URL template with `{api_key}/{sender_id}/{phone}/{message}` placeholders — BulkSMSBD-compatible) and one Meta Cloud WhatsApp template message per stale active cart with a phone, then marks it reminded. Settings: "Abandoned Cart Reminders" section (toggle, delay hours, encrypted `notification_credentials`).
@@ -311,6 +332,8 @@ Important files:
 app/Http/Middleware/ResolveCompanyFromDomain.php
 app/Http/Controllers/Storefront/
 app/Http/Controllers/Storefront/AccountOrdersController.php
+app/Http/Controllers/Storefront/CartController.php
+app/Http/Controllers/Storefront/CheckoutController.php
 app/Http/Controllers/Storefront/OrderTrackController.php
 app/Http/Controllers/Storefront/PageController.php
 app/Services/StorefrontCart.php
@@ -349,6 +372,10 @@ app/Http/Controllers/Storefront/ProductShowController.php
 app/Http/Controllers/Storefront/PreviewController.php
 resources/css/app.css
 tests/Feature/StorefrontFoundationTest.php
+tests/Feature/StorefrontManualPaymentTest.php
+tests/Feature/StorefrontMenuTest.php
+tests/Feature/StorefrontPreorderPaymentTest.php
+tests/Feature/StorefrontReorderTest.php
 ```
 
 Verification:
@@ -359,6 +386,11 @@ php artisan test --filter=StorefrontFoundationTest
 php artisan test --filter=PhaseFourAdminPagesTest
 php artisan test --filter=ProductCarouselTest
 php artisan test --filter=ProductVariantTest
+php artisan test --filter=StorefrontMenuTest
+php artisan test --filter=StorefrontManualPaymentTest
+php artisan test --filter=StorefrontPreorderPaymentTest
+php artisan test --filter=StorefrontReorderTest
+php artisan view:cache
 npm run build
 ```
 

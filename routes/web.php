@@ -11,8 +11,11 @@ use App\Http\Controllers\Admin\SupplierCsvController;
 use App\Http\Controllers\Admin\VoucherReceiptController;
 use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\Storefront\AccountAuthController as StorefrontAccountAuthController;
 use App\Http\Controllers\Storefront\AccountOrdersController as StorefrontAccountOrdersController;
+use App\Http\Controllers\Storefront\AccountProfileController as StorefrontAccountProfileController;
 use App\Http\Controllers\Storefront\CartController as StorefrontCartController;
+use App\Http\Controllers\Storefront\ContactController as StorefrontContactController;
 use App\Http\Controllers\Storefront\CheckoutController as StorefrontCheckoutController;
 use App\Http\Controllers\Storefront\HomeController as StorefrontHomeController;
 use App\Http\Controllers\Storefront\OrderTrackController as StorefrontOrderTrackController;
@@ -108,6 +111,9 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
 
     Route::get('/pages/{slug}', [StorefrontPageController::class, 'showPreview'])
         ->name('storefront.preview.pages.show');
+
+    Route::get('/contact', [StorefrontContactController::class, 'showPreview'])
+        ->name('storefront.preview.contact');
 });
 
 Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
@@ -153,11 +159,46 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorder'])
         ->name('storefront.account.reorder');
 
+    Route::middleware('throttle:10,1')->group(function (): void {
+        Route::get('/account/login', [StorefrontAccountAuthController::class, 'showLogin'])
+            ->name('storefront.account.login');
+        Route::post('/account/login', [StorefrontAccountAuthController::class, 'login'])
+            ->name('storefront.account.login.store');
+        Route::get('/account/register', [StorefrontAccountAuthController::class, 'showRegister'])
+            ->name('storefront.account.register');
+        Route::post('/account/register', [StorefrontAccountAuthController::class, 'register'])
+            ->name('storefront.account.register.store');
+        Route::get('/account/reset-password', [StorefrontAccountAuthController::class, 'showResetPassword'])
+            ->name('storefront.account.reset-password');
+        Route::post('/account/reset-password', [StorefrontAccountAuthController::class, 'resetPassword'])
+            ->name('storefront.account.reset-password.store');
+    });
+
+    Route::middleware('throttle:5,1')->group(function (): void {
+        Route::get('/account/forgot-password', [StorefrontAccountAuthController::class, 'showForgotPassword'])
+            ->name('storefront.account.forgot-password');
+        Route::post('/account/forgot-password', [StorefrontAccountAuthController::class, 'forgotPassword'])
+            ->name('storefront.account.forgot-password.store');
+    });
+
+    Route::post('/account/logout', [StorefrontAccountAuthController::class, 'logout'])
+        ->name('storefront.account.logout');
+
+    Route::get('/account/profile', [StorefrontAccountProfileController::class, 'show'])
+        ->name('storefront.account.profile');
+    Route::patch('/account/profile', [StorefrontAccountProfileController::class, 'update'])
+        ->name('storefront.account.profile.update');
+    Route::put('/account/password', [StorefrontAccountProfileController::class, 'updatePassword'])
+        ->name('storefront.account.password.update');
+
     Route::get('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'show'])
         ->name('storefront.reseller.show');
 
     Route::post('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'store'])
         ->name('storefront.reseller.store');
+
+    Route::get('/contact', [StorefrontContactController::class, 'show'])
+        ->name('storefront.contact');
 
 });
 
@@ -200,8 +241,9 @@ Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $o
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);
 
     return view('orders.print', [
-        'order' => $order->load(['company', 'customer', 'items.product']),
+        'order' => $order->load(['company', 'customer', 'items.product', 'latestCourierBooking.provider']),
         'company' => app(CompanySettingsService::class)->profile($order->company),
+        'invoice' => app(CompanySettingsService::class)->invoice($order->company),
     ]);
 })->name('orders.print');
 

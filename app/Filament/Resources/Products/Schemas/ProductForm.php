@@ -90,6 +90,14 @@ class ProductForm
                             ->required()
                             ->maxLength(50),
 
+                        TextInput::make('weight_kg')
+                            ->label('Weight (kg)')
+                            ->numeric()
+                            ->minValue(0)
+                            ->step('0.001')
+                            ->suffix('kg')
+                            ->helperText('Shown on the invoice weight column and used for courier weight.'),
+
                         Toggle::make('is_active')
                             ->label('Active')
                             ->default(true),
