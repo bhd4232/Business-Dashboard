@@ -45,6 +45,10 @@ Important behavior:
 - Dashboard summaries, reports, and widgets follow the active company context.
 - User create/edit screens support assigned companies and a default company.
 - Company-specific profile and branding are resolved through `CompanySettingsService`.
+- `/admin/company-settings` requires one specific selected company; it is intentionally unavailable in `All Companies` mode so profile and invoice changes can never fall through to an arbitrary default company.
+- The Company Settings Livewire page pins its mounted company ID and rejects a save if another browser tab changes the active company, preventing stale cross-company writes.
+- Invoice prefix, header/footer contact details, thank-you text, image/weight/barcode/cut-slip toggles, currency, date format, and branding are maintained per company from Company Settings. Prefixes are normalized and protected by a database unique index. Both printable and downloadable PDF invoices resolve settings from the order's own company.
+- Company creation must finish before its logo can be uploaded, because the immutable storage UUID does not exist until the company record is saved. Upload the logo from the edit screen after creation.
 - Cross-company courier selection and booking are rejected at the service layer.
 - While `All Companies` is selected, Super Admin can create a courier provider only by explicitly selecting its owner company; order booking actions still require a specific active company context.
 
@@ -71,6 +75,67 @@ Production migration note:
 - `docs/company-data-migration.example.json` documents the accepted aggregate mapping keys. Child purchase/order/stock/payment records move transactionally with their selected parent.
 - The isolation contract test covers every current company-owned model, including courier, shipment, and container records.
 - Current business decision: no bulk legacy reassignment is planned because almost all records will be entered fresh under the correct company. Any small number of historical exceptions should be reviewed and moved manually; do not run the bulk migration command without a new explicit decision.
+
+### Company Media and Cloudflare R2 Storage
+
+Cloud credentials are global infrastructure settings, while every stored business object is company-scoped. Do not create one R2 credential set per company and do not rebind Laravel's stable `public` or `local` disks at runtime.
+
+Storage contract:
+
+- Each company has a generated, immutable UUID `companies.storage_key`. Never derive object ownership from a mutable company name, slug, or database ID.
+- Public media keys use `companies/{storage_key}/public/{area}/{filename}`. Product/category images, company/storefront logos, hero slides, page covers, imported WooCommerce images, and demo images belong here.
+- Private object keys use `companies/{storage_key}/private/{area}/{filename}`. Conversation media and voucher attachments belong here and must never be exposed through `Storage::url()`.
+- `r2_public` and `r2_private` are stable named cloud disks and their bucket names must be different. The public bucket is served through its configured custom domain. Every r2.dev/custom-domain public-access option must be disabled on the private bucket; the Cloud Storage form records an explicit Super Admin confirmation because S3 credentials cannot inspect Cloudflare domain exposure.
+- Cloudflare R2 does not implement S3 object ACLs. Do not add Flysystem `visibility` options to an R2 write. Public/private access is enforced by separate bucket configuration and authenticated application routes.
+- R2 settings are managed globally at `/admin/cloud-storage-settings` and are restricted to Super Admin. The secret access key remains encrypted in `app_settings`; a blank secret field preserves the stored value.
+- Stage credentials and bucket names while R2 is disabled, successfully test the public bucket/custom domain and any configured private bucket, then enable uploads. Activation is rejected until those tests pass. Verified bucket/account topology is locked to prevent an in-place switch that would strand objects; any later account/bucket rotation requires a separately planned copy-and-verify operation.
+- When R2 is disabled, new writes return to the stable local `public`/`local` disks. Reads continue checking configured R2 disks, so disabling cloud writes does not hide previously uploaded cloud objects.
+- `CompanyStorageService` is the storage boundary for disk selection, safe path construction, ownership validation, dual-read lookup, writes, and legacy copy operations. `CompanyMedia`/`StorageUrl` are the public-media presentation helpers.
+- Private downloads use authenticated routes `conversation-messages.media` and `voucher-attachments.download`. Both resolve the selected company and return `404` for cross-company records; voucher downloads also enforce voucher permissions and own/all visibility.
+- `DownloadConversationMediaJob` must resolve the channel's company explicitly, write through `putPrivate()`, and clear `CompanyContext` in `finally`.
+- Long-lived queue workers refresh database-backed storage settings and disk instances before each loop. Deployment should still restart workers normally after application releases.
+
+Legacy rollout:
+
+- Existing unscoped public paths remain readable during rollout. An unscoped private path is readable only when `legacy_private_storage_paths` maps its exact case-sensitive SHA-256 identity to one company; paths referenced by multiple companies are marked conflicted and denied for every tenant until manually resolved.
+- Run `php artisan storage:migrate-company-files --company={slug} --scope=all` first. This is a dry-run and does not change files or database paths.
+- The command prints its public/private destination disks. Execution refuses an unintended local destination unless `--allow-local` is explicitly supplied. For an R2 rollout, configure, test, and enable both required R2 scopes before execution.
+- After reviewing the counts and taking a database backup, run `php artisan storage:migrate-company-files --company={slug} --scope=all --execute --force` in production.
+- The migration copies and SHA-256 verifies each destination before updating its database path. It never deletes source objects, refuses conflicting destinations, and is safe to resume.
+- Verified public R2 copies write a small local preference manifest so retained local source files no longer shadow the CDN URL after cutover; URL rendering does not perform one S3 HEAD request per storefront image.
+- Keep the legacy source objects until production validation and a separately approved cleanup plan are complete.
+
+Important files:
+
+```text
+app/Services/StorageSettingsService.php
+app/Services/CompanyStorageService.php
+app/Services/CompanyStorageMigrator.php
+app/Support/CompanyMedia.php
+app/Support/StorageUrl.php
+app/Console/Commands/MigrateCompanyStorage.php
+app/Http/Controllers/Admin/ConversationMediaController.php
+app/Http/Controllers/Admin/VoucherAttachmentDownloadController.php
+app/Models/LegacyPrivateStoragePath.php
+database/migrations/2026_07_21_000000_add_storage_key_to_companies_table.php
+database/migrations/2026_07_21_000100_create_legacy_private_storage_paths_table.php
+database/migrations/2026_07_21_000200_add_unique_invoice_prefix_to_companies_table.php
+tests/Feature/CompanyStorageServiceTest.php
+tests/Feature/CompanyStorageMigrationTest.php
+tests/Feature/CompanyStorageSchemaMigrationTest.php
+tests/Feature/CloudStorageSettingsTest.php
+tests/Feature/PrivateAttachmentStorageTest.php
+```
+
+Verification:
+
+```bash
+php artisan test --compact tests/Feature/CompanyStorageServiceTest.php tests/Feature/CompanyStorageMigrationTest.php
+php artisan test --compact tests/Feature/CloudStorageSettingsTest.php tests/Feature/PrivateAttachmentStorageTest.php
+php artisan test --compact tests/Feature/CompanySettingsTest.php tests/Feature/WooCommerceImportTest.php tests/Feature/InboxPageTest.php
+php artisan storage:migrate-company-files --company={company-slug} --scope=all
+php artisan storage:migrate-company-files --company={company-slug} --scope=all --execute --force
+```
 
 ### Courier and Delivery Integration
 
@@ -580,8 +645,11 @@ Sales behavior:
 - Draft/cancelled orders do not affect stock.
 - Customer current balance is opening balance plus confirmed/completed invoice due minus customer payments.
 - Printable invoice route: `/admin/orders/{order}/print`
+- Downloadable company-aware PDF route: `/admin/orders/{order}/pdf`
+- Company invoice settings and the normalized, database-unique invoice prefix are edited at `/admin/company-settings` after selecting that company from the top-bar switcher. The page uses Filament's default form sections, pins the mounted company against cross-tab context drift, and is unavailable in `All Companies` mode.
+- Print and PDF rendering use `$order->company`, not the currently selected company, so a permitted cross-company view cannot inherit the wrong branding or invoice contacts.
 - Printable invoices hide zero-value discount, VAT, paid, and advance-style paid rows; paid amounts display as a negative deduction when greater than zero.
-- Verify printable invoice behavior with `php artisan test --filter=CompanySettingsTest`.
+- Verify company invoice behavior with `php artisan test --compact tests/Feature/CompanySettingsTest.php tests/Feature/InvoiceDesignTest.php`.
 
 ### Accounts and Ledger
 
@@ -693,7 +761,7 @@ Admin resources live under the "CRM" navigation group: `app/Filament/Resources/L
 
 Conversation Inbox and chat-to-order:
 
-- `ConversationChannel` (per-company WhatsApp Cloud API / Messenger channel, encrypted `access_token`/`app_secret`, admin-configurable), `Conversation`, `ConversationMessage` (permanent local archive of every incoming/outgoing message; media copied off Meta CDN by `DownloadConversationMediaJob`).
+- `ConversationChannel` (per-company WhatsApp Cloud API / Messenger channel, encrypted `access_token`/`app_secret`, admin-configurable), `Conversation`, `ConversationMessage` (permanent database archive of every incoming/outgoing message; media copied off Meta CDN into company-private storage by `DownloadConversationMediaJob`).
 - Webhook endpoint `GET|POST /webhooks/meta` (`MetaWebhookController`) — hub.challenge handshake + `X-Hub-Signature-256` verification per channel, then `StoreIncomingMessageJob` (dedupe on wamid/mid, auto-link Customer/Lead by phone, auto-create Lead when enabled, `CompanyContext` set/clear).
 - Outgoing replies via `ConversationMessengerService` (WhatsApp Cloud + Messenger drivers, manual/phone conversations archive-only) with 24h reply-window indicator.
 - Filament "Inbox" page (`app/Filament/Pages/Inbox.php`, CRM group, 10s polling): conversation list with unread badges, chat thread, reply box, manual conversation logging, "Send order form" quick action.

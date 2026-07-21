@@ -36,8 +36,8 @@ class ImageOptimizerService
      * Resize (if needed), strip EXIF/metadata, and re-encode as WebP.
      *
      * @return string|null the disk-relative path to persist, or null if the
-     *                      temp file is already gone (matches Filament's own
-     *                      saveUploadedFile() null-on-missing-file contract)
+     *                     temp file is already gone (matches Filament's own
+     *                     saveUploadedFile() null-on-missing-file contract)
      */
     public function optimizeAndStore(
         TemporaryUploadedFile $file,
@@ -73,7 +73,13 @@ class ImageOptimizerService
         $path = trim($directory, '/').'/'.(string) Str::uuid().'.webp';
 
         Storage::disk($disk)->put($path, $encoded);
-        rescue(fn () => Storage::disk($disk)->setVisibility($path, 'public'), report: false);
+
+        // R2 does not support S3 object ACLs. Its public/private boundary is
+        // configured per bucket, while the local public disk still benefits
+        // from an explicit public file mode.
+        if (config("filesystems.disks.{$disk}.driver") === 'local') {
+            rescue(fn () => Storage::disk($disk)->setVisibility($path, 'public'), report: false);
+        }
 
         return $path;
     }

@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\Product;
 use App\Services\Crm\ConversationMessengerService;
+use App\Support\CompanyMedia;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -154,7 +155,7 @@ class Inbox extends Page
             return;
         }
 
-        $imageUrl = \App\Support\StorageUrl::for($product->image);
+        $imageUrl = CompanyMedia::publicUrl($product->image, $product);
 
         $link = ChatOrderLink::query()->create([
             'conversation_id' => $conversation->getKey(),

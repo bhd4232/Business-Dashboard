@@ -7,9 +7,11 @@ use App\Models\ChatOrderLink;
 use App\Models\Company;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
+use App\Models\LegacyPrivateStoragePath;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\CompanyContext;
+use App\Support\CompanyMedia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
@@ -109,7 +111,10 @@ class InboxPageTest extends TestCase
         $this->assertStringContainsString($link->publicUrl(), $message->body);
         $this->assertStringContainsString('Catalog Product', $message->body);
         $this->assertNotNull($message->mediaImageUrl());
-        $this->assertStringContainsString('products/catalog-product.jpg', (string) $message->mediaImageUrl());
+        $this->assertSame(
+            CompanyMedia::publicUrl($this->product->image, $this->product),
+            $message->mediaImageUrl(),
+        );
     }
 
     public function test_media_image_url_resolves_urls_and_storage_paths(): void
@@ -117,8 +122,25 @@ class InboxPageTest extends TestCase
         $fromUrl = new ConversationMessage(['media_path' => 'https://example.com/img/p.jpg', 'media_mime' => 'image/*']);
         $this->assertSame('https://example.com/img/p.jpg', $fromUrl->mediaImageUrl());
 
-        $fromStorage = new ConversationMessage(['media_path' => 'conversations/photo.png', 'media_mime' => 'image/png']);
-        $this->assertStringContainsString('storage/conversations/photo.png', (string) $fromStorage->mediaImageUrl());
+        $rootRelativeUrl = new ConversationMessage(['media_path' => '/storage/products/p.jpg', 'media_mime' => 'image/jpeg']);
+        $this->assertSame('/storage/products/p.jpg', $rootRelativeUrl->mediaImageUrl());
+
+        LegacyPrivateStoragePath::query()->create([
+            'path' => 'conversations/photo.png',
+            'company_id' => $this->company->getKey(),
+        ]);
+        $fromStorage = ConversationMessage::query()->create([
+            'conversation_id' => $this->conversation->getKey(),
+            'direction' => 'incoming',
+            'type' => 'image',
+            'media_path' => 'conversations/photo.png',
+            'media_mime' => 'image/png',
+            'sent_at' => now(),
+        ]);
+        $this->assertSame(
+            route('conversation-messages.media', ['message' => $fromStorage->getKey()]),
+            $fromStorage->mediaImageUrl(),
+        );
 
         $document = new ConversationMessage(['media_path' => 'conversations/invoice.pdf', 'media_mime' => 'application/pdf']);
         $this->assertNull($document->mediaImageUrl());

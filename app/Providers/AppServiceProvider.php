@@ -30,10 +30,11 @@ use App\Models\TransactionLedger;
 use App\Models\User;
 use App\Observers\AuditObserver;
 use App\Services\CompanyContext;
+use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
 use Filament\Notifications\Livewire\Notifications;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -45,6 +46,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(CompanyContext::class);
         $this->app->alias(CompanyContext::class, 'company.context');
+        $this->app->singleton(StorageSettingsService::class);
+        $this->app->singleton(CompanyStorageService::class);
     }
 
     public function boot(): void
@@ -54,6 +57,21 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->configureCloudStorage();
+
+        // Queue workers are long-lived. Refresh DB-backed storage settings
+        // before each worker loop so an admin disk switch does not leave chat
+        // media jobs writing with stale credentials until a process restart.
+        Queue::looping(function (): void {
+            try {
+                $settings = $this->app->make(StorageSettingsService::class);
+                $settings->forgetCachedSettings();
+                $settings->configureNamedDisks();
+                $this->app->make(CompanyStorageService::class)->forgetLocations();
+            } catch (Throwable) {
+                // The worker will surface the actual storage/database error on
+                // the job; a failed refresh must not terminate its loop.
+            }
+        });
 
         Gate::before(function (User $user, string $ability, array $arguments = []): ?bool {
             $subject = $arguments[0] ?? null;
@@ -101,24 +119,17 @@ class AppServiceProvider extends ServiceProvider
     }
 
     /**
-     * If an owner has saved Cloudflare R2 credentials on the Storage
-     * settings page and enabled it, point the "public" filesystem disk at
-     * R2 for the rest of this request. Every existing FileUpload field and
-     * `Storage::disk('public')`/`StorageUrl::for()` call then transparently
-     * targets R2 without any other code change.
+     * Hydrate the stable R2 disk names from encrypted database settings.
+     * The local "public" and "local" disks retain their configured meaning
+     * so legacy objects can still be located and migrated safely.
      *
-     * Wrapped defensively: this runs on every boot, including early
-     * artisan commands (key:generate, migrate on a fresh install) before
-     * the database or app_settings table necessarily exists.
+     * Wrapped defensively because this also runs before fresh installs have
+     * a database or app_settings table.
      */
     protected function configureCloudStorage(): void
     {
         try {
-            $settings = $this->app->make(StorageSettingsService::class);
-
-            if ($settings->enabled() && $settings->isConfigured()) {
-                Config::set('filesystems.disks.public', $settings->diskConfig());
-            }
+            $this->app->make(StorageSettingsService::class)->configureNamedDisks();
         } catch (Throwable) {
             // Database not reachable yet (fresh install, artisan key:generate,
             // etc.) — fall back to the default local "public" disk.

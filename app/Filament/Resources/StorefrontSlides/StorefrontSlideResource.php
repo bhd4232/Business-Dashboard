@@ -8,6 +8,7 @@ use App\Filament\Resources\StorefrontSlides\Pages\EditStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\ListStorefrontSlides;
 use App\Models\Product;
 use App\Models\StorefrontSlide;
+use App\Support\CompanyMedia;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -22,8 +23,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
@@ -50,7 +51,8 @@ class StorefrontSlideResource extends Resource
                 ->columnSpanFull()
                 ->schema([
                     Select::make('company_id')
-                        ->relationship('company', 'name')
+                        ->relationship('company', 'name', modifyQueryUsing: fn ($query) => CompanyMedia::constrainCompanyQuery($query))
+                        ->rule(CompanyMedia::companyAccessRule())
                         ->required()
                         ->searchable()
                         ->preload()
@@ -63,8 +65,11 @@ class StorefrontSlideResource extends Resource
                         ->helperText('Recommended: wide banner, at least 1600x600px. Automatically compressed to WebP on upload.')
                         ->image()
                         ->maxSize(2048)
-                        ->disk('public')
-                        ->directory('storefront/slides')
+                        ->disk(fn (): string => CompanyMedia::publicDiskName())
+                        ->directory(fn (Get $get, ?StorefrontSlide $record): string => CompanyMedia::publicDirectory('storefront/slides', $record, $get('company_id')))
+                        ->fetchFileInformation(false)
+                        ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                        ->disabled(fn (Get $get, ?StorefrontSlide $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
                         ->saveUploadedFileUsing(static::optimizeImageUpload())
                         ->required(),
@@ -73,8 +78,11 @@ class StorefrontSlideResource extends Resource
                         ->helperText('Optional. Vertical/square image shown on phones instead of the desktop image. Automatically compressed to WebP on upload.')
                         ->image()
                         ->maxSize(2048)
-                        ->disk('public')
-                        ->directory('storefront/slides')
+                        ->disk(fn (): string => CompanyMedia::publicDiskName())
+                        ->directory(fn (Get $get, ?StorefrontSlide $record): string => CompanyMedia::publicDirectory('storefront/slides', $record, $get('company_id')))
+                        ->fetchFileInformation(false)
+                        ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                        ->disabled(fn (Get $get, ?StorefrontSlide $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->saveUploadedFileUsing(static::optimizeImageUpload()),
                     TextInput::make('heading')
                         ->maxLength(120),
@@ -123,7 +131,8 @@ class StorefrontSlideResource extends Resource
         return $table
             ->columns([
                 ImageColumn::make('image')
-                    ->label('Image'),
+                    ->label('Image')
+                    ->state(fn (StorefrontSlide $record): ?string => CompanyMedia::publicUrl($record->image, $record)),
                 TextColumn::make('heading')
                     ->searchable(),
                 TextColumn::make('company.name')

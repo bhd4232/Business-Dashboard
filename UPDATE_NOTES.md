@@ -2,6 +2,39 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-21 - Company-isolated R2 storage and company-wise invoicing
+
+Reason:
+
+- Use one centrally managed Cloudflare R2 connection without mixing tenant objects, expose storefront media through a public CDN bucket, keep chat/voucher files private, migrate legacy objects without deletion, and make invoice identity/layout settings unambiguously company-specific.
+
+Important changed files:
+
+- `app/Services/StorageSettingsService.php`, `config/filesystems.php`, and `app/Filament/Pages/CloudStorageSettings.php` — distinct public/private R2 buckets, encrypted shared credentials, private-access attestation, connection-gated activation, custom-domain verification, and locked active topology.
+- `app/Models/Company.php`, `app/Services/CompanyStorageService.php`, `app/Support/CompanyMedia.php`, and `app/Support/StorageUrl.php` — immutable company storage UUIDs, safe public/private prefixes, tenant-authorized writes, outage-tolerant dual reads, verified CDN preference manifests, and no unsupported R2 object ACLs.
+- `app/Services/CompanyStorageMigrator.php`, `app/Console/Commands/MigrateCompanyStorage.php`, `database/migrations/2026_07_21_000000_add_storage_key_to_companies_table.php`, and `2026_07_21_000100_create_legacy_private_storage_paths_table.php` — dry-run/copy/checksum migration, destination preflight, resumable conflict handling, case-sensitive private legacy ownership registry, and source retention.
+- `app/Http/Controllers/Admin/ConversationMediaController.php`, `VoucherAttachmentDownloadController.php`, `app/Jobs/DownloadConversationMediaJob.php`, and voucher/inbox models/views — authenticated company-aware private downloads, inactive-session denial, and private company-prefix uploads.
+- Product/category/company/storefront Filament resources, storefront views, `CompanySettingsService`, `WooCommerceImportService`, and `DemoDataSeeder` — company-scoped public media writes and dual-read previews across local and R2 storage.
+- `app/Filament/Pages/CompanySettings.php`, `resources/views/filament/pages/company-settings.blade.php`, `app/Services/CompanySettingsService.php`, `OrderPdfController.php`, and invoice print/PDF views — default Filament company settings UI, locked mounted-company saves, order-company-specific print/PDF settings, and nested invoice controls.
+- `app/Filament/Resources/Companies/CompanyResource.php`, `app/Rules/AccessibleCompany.php`, and `database/migrations/2026_07_21_000200_add_unique_invoice_prefix_to_companies_table.php` — safe post-create company-logo uploads, Filament-compatible company authorization, normalized database-unique invoice prefixes, and inactive-company reactivation for Super Admin.
+- Storage, private attachment, public media, company settings, invoicing, and migration feature tests — regression coverage for tenant boundaries, topology/attestation, backfills, copy verification, inactive users, context drift, invoice isolation, and the real PDF controller path.
+- `PROJECT_GUIDE.md` — architecture, deployment sequence, important files, and verification commands.
+
+Verification:
+
+- Focused storage, storefront, settings, and invoicing suite — 71 passed, 482 assertions.
+- `php artisan test --compact` — 388 passed, 1,879 assertions.
+- `php artisan view:cache` — passed.
+- `npm run build` — passed.
+- `vendor/bin/pint --dirty` and `git diff --check` — passed.
+
+Deployment notes:
+
+- Run `php artisan migrate` first.
+- In Cloud Storage, save configuration while disabled, test the public custom domain and the attested private bucket, then enable R2.
+- Run `php artisan storage:migrate-company-files --company={slug} --scope=all` and review the dry-run before the production `--execute --force` run. Source objects are intentionally retained.
+- Select a specific company before opening Company Settings and verify its invoice prefix/contact/layout settings; `All Companies` cannot edit these settings.
+
 ## 2026-07-20 - Storefront release-blocker, privacy, and responsive UX hardening
 
 Reason:

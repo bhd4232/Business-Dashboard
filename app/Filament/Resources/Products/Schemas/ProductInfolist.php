@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use App\Models\Product;
+use App\Support\CompanyMedia;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -21,7 +22,7 @@ class ProductInfolist
                     ->schema([
                         ImageEntry::make('image')
                             ->label('Image')
-                            ->disk('public')
+                            ->state(fn (Product $record): ?string => CompanyMedia::publicUrl($record->image, $record))
                             ->height(120)
                             ->square(),
 

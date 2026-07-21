@@ -24,7 +24,7 @@
             'price' => $variant->effectiveSalePrice(),
             'stock' => (int) $variant->stock,
             'sku' => $variant->sku ?: $product->sku,
-            'images' => collect($variant->images ?? [])->map(fn ($img) => \App\Support\StorageUrl::for($img))->values()->all(),
+            'images' => collect($variant->images ?? [])->map(fn ($img) => \App\Support\CompanyMedia::publicUrl($img, $company))->values()->all(),
         ])->values();
 
         $inStock = $product->stock > 0;
@@ -53,11 +53,11 @@
     <section class="mx-auto grid w-full max-w-7xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8" data-product-page>
         <div class="lg:sticky lg:top-24 lg:self-start">
             @if ($galleryImages->isNotEmpty())
-                <img data-main-image class="aspect-square w-full rounded-2xl border border-gray-200 bg-white object-cover dark:border-white/10 dark:bg-white/5" src="{{ \App\Support\StorageUrl::for($galleryImages->first()) }}" alt="{{ $product->name }}" width="1200" height="1200" fetchpriority="high">
+                <img data-main-image class="aspect-square w-full rounded-2xl border border-gray-200 bg-white object-cover dark:border-white/10 dark:bg-white/5" src="{{ \App\Support\CompanyMedia::publicUrl($galleryImages->first(), $company) }}" alt="{{ $product->name }}" width="1200" height="1200" fetchpriority="high">
                 <div data-thumbnails class="mt-3 grid grid-cols-5 gap-2 {{ $galleryImages->count() < 2 && $variantData->pluck('images')->flatten()->isEmpty() ? 'hidden' : '' }}">
                     @foreach ($galleryImages as $galleryImage)
-                        <button type="button" data-thumb data-src="{{ \App\Support\StorageUrl::for($galleryImage) }}" class="overflow-hidden rounded-lg border border-gray-200 transition hover:border-[var(--storefront-brand)] dark:border-white/10">
-                            <img class="aspect-square w-full object-cover" src="{{ \App\Support\StorageUrl::for($galleryImage) }}" alt="{{ $product->name }} photo {{ $loop->iteration }}" width="240" height="240" loading="lazy" decoding="async">
+                        <button type="button" data-thumb data-src="{{ \App\Support\CompanyMedia::publicUrl($galleryImage, $company) }}" class="overflow-hidden rounded-lg border border-gray-200 transition hover:border-[var(--storefront-brand)] dark:border-white/10">
+                            <img class="aspect-square w-full object-cover" src="{{ \App\Support\CompanyMedia::publicUrl($galleryImage, $company) }}" alt="{{ $product->name }} photo {{ $loop->iteration }}" width="240" height="240" loading="lazy" decoding="async">
                         </button>
                     @endforeach
                 </div>

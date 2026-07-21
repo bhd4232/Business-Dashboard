@@ -8,6 +8,7 @@ use App\Filament\Resources\Companies\Pages\EditCompany;
 use App\Filament\Resources\Companies\Pages\ListCompanies;
 use App\Filament\Resources\Companies\Pages\ViewCompany;
 use App\Models\Company;
+use App\Support\CompanyMedia;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -32,8 +33,11 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 class CompanyResource extends Resource
@@ -75,7 +79,10 @@ class CompanyResource extends Resource
                         ->default(false),
                     TextInput::make('invoice_prefix')
                         ->required()
-                        ->maxLength(20),
+                        ->maxLength(20)
+                        ->rule('regex:/^[A-Za-z0-9-]+$/')
+                        ->unique(ignoreRecord: true)
+                        ->dehydrateStateUsing(fn (?string $state): string => Str::upper(trim((string) $state))),
                     Toggle::make('is_active')
                         ->label('Active')
                         ->default(true),
@@ -86,10 +93,23 @@ class CompanyResource extends Resource
                 ->columnSpanFull()
                 ->schema([
                     FileUpload::make('logo')
-                        ->helperText('Automatically compressed to WebP on upload.')
+                        ->helperText('Save the company first, then upload its logo. Images are automatically compressed to WebP.')
                         ->image()
-                        ->disk('public')
-                        ->directory('companies')
+                        ->disk(fn (): string => CompanyMedia::publicDiskName())
+                        ->directory(function (?Company $record): string {
+                            if (! $record?->exists) {
+                                throw ValidationException::withMessages([
+                                    'logo' => 'Save the company before uploading its logo.',
+                                ]);
+                            }
+
+                            return CompanyMedia::publicDirectory('company', $record);
+                        })
+                        ->fetchFileInformation(false)
+                        ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                        ->getOpenableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                        ->getDownloadableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                        ->disabled(fn (?Company $record): bool => ! $record?->exists || ! CompanyMedia::canResolve($record))
                         ->imageEditor()
                         ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
                         ->downloadable()
@@ -141,7 +161,7 @@ class CompanyResource extends Resource
         return $table
             ->columns([
                 ImageColumn::make('logo')
-                    ->disk('public')
+                    ->state(fn (Company $record): ?string => CompanyMedia::publicUrl($record->logo, $record))
                     ->height(40)
                     ->square()
                     ->toggleable(),
@@ -191,7 +211,7 @@ class CompanyResource extends Resource
     {
         return $schema->components([
             ImageEntry::make('logo')
-                ->disk('public'),
+                ->state(fn (Company $record): ?string => CompanyMedia::publicUrl($record->logo, $record)),
             TextEntry::make('name'),
             TextEntry::make('slug'),
             TextEntry::make('domain')
@@ -223,17 +243,43 @@ class CompanyResource extends Resource
 
     public static function canCreate(): bool
     {
-        return SchemaFacade::hasTable('companies') && (Auth::user()?->canManageSettings() ?? false);
+        return SchemaFacade::hasTable('companies') && (Auth::user()?->isSuperAdmin() ?? false);
+    }
+
+    public static function canView($record): bool
+    {
+        $user = Auth::user();
+
+        return SchemaFacade::hasTable('companies')
+            && $record instanceof Company
+            && (bool) ($user?->canManageSettings()
+                && ($user->isSuperAdmin() || $user->canAccessCompany((int) $record->getKey())));
     }
 
     public static function canEdit($record): bool
     {
-        return SchemaFacade::hasTable('companies') && (Auth::user()?->canManageSettings() ?? false);
+        return static::canView($record);
     }
 
     public static function canDelete($record): bool
     {
         return SchemaFacade::hasTable('companies') && (Auth::user()?->isSuperAdmin() ?? false);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = Auth::user();
+
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->whereIn('companies.id', $user->companies()->select('companies.id'));
     }
 
     public static function getPages(): array

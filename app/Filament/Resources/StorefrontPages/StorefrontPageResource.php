@@ -7,6 +7,7 @@ use App\Filament\Resources\StorefrontPages\Pages\CreateStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\EditStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\ListStorefrontPages;
 use App\Models\StorefrontPage;
+use App\Support\CompanyMedia;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -19,6 +20,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
@@ -50,10 +52,12 @@ class StorefrontPageResource extends Resource
                 ->description('Create public storefront pages such as About, Return Policy, Privacy Policy, and Terms.')
                 ->schema([
                     Select::make('company_id')
-                        ->relationship('company', 'name')
+                        ->relationship('company', 'name', modifyQueryUsing: fn ($query) => CompanyMedia::constrainCompanyQuery($query))
+                        ->rule(CompanyMedia::companyAccessRule())
                         ->required()
                         ->searchable()
-                        ->preload(),
+                        ->preload()
+                        ->live(),
                     Toggle::make('is_published')
                         ->label('Published')
                         ->default(false)
@@ -77,8 +81,11 @@ class StorefrontPageResource extends Resource
                         ->helperText('Wide banner shown at the top of the page. Automatically compressed to WebP on upload.')
                         ->image()
                         ->maxSize(2048)
-                        ->disk('public')
-                        ->directory('storefront/pages')
+                        ->disk(fn (): string => CompanyMedia::publicDiskName())
+                        ->directory(fn (Get $get, ?StorefrontPage $record): string => CompanyMedia::publicDirectory('storefront/pages', $record, $get('company_id')))
+                        ->fetchFileInformation(false)
+                        ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                        ->disabled(fn (Get $get, ?StorefrontPage $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
                         ->saveUploadedFileUsing(static::optimizeImageUpload())
                         ->columnSpanFull(),

@@ -30,7 +30,7 @@
                 <article class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-[96px_1fr] dark:border-white/10 dark:bg-white/5">
                     <a href="{{ $productUrl }}" class="overflow-hidden rounded-lg bg-gray-100 dark:bg-white/5">
                         @if ($lineImage)
-                            <img class="aspect-square h-full w-full object-cover" src="{{ \App\Support\StorageUrl::for($lineImage) }}" alt="{{ $product->name }}" width="192" height="192" loading="lazy" decoding="async">
+                            <img class="aspect-square h-full w-full object-cover" src="{{ \App\Support\CompanyMedia::publicUrl($lineImage, $company) }}" alt="{{ $product->name }}" width="192" height="192" loading="lazy" decoding="async">
                         @else
                             <div class="grid aspect-square h-full w-full place-items-center text-3xl font-semibold text-[var(--storefront-brand)]">{{ mb_substr($product->name, 0, 1) }}</div>
                         @endif

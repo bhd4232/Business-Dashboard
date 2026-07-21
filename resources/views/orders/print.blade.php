@@ -531,7 +531,7 @@
                         @if ($showImages)
                             <td class="item-image">
                                 @if ($item->product?->image)
-                                    <img src="{{ \App\Support\StorageUrl::for($item->product->image) }}" alt="{{ $item->product->name }}">
+                                    <img src="{{ \App\Support\CompanyMedia::publicUrl($item->product->image, $order->company) }}" alt="{{ $item->product->name }}">
                                 @endif
                             </td>
                         @endif

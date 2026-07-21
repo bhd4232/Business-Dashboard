@@ -10,6 +10,7 @@ use App\Models\StorefrontSetting;
 use App\Services\WooCommerceImportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -62,6 +63,37 @@ class WooCommerceImportTest extends TestCase
         $result = app(WooCommerceImportService::class)->importProducts($company, downloadImages: false);
         $this->assertSame(['created' => 0, 'updated' => 2, 'skipped' => 0], $result);
         $this->assertSame(2, Product::withoutGlobalScopes()->where('company_id', $company->getKey())->count());
+    }
+
+    public function test_downloaded_images_are_written_to_the_company_public_prefix(): void
+    {
+        Storage::fake('public');
+        $company = $this->createCompanyWithWooCredentials('woo-images');
+
+        Http::fake([
+            'old-shop.example.test/wp-json/wc/v3/products*' => Http::response([[
+                'name' => 'Imported Camera',
+                'sku' => 'WOO-CAMERA-01',
+                'slug' => 'imported-camera',
+                'regular_price' => '1500',
+                'categories' => [],
+                'images' => [
+                    ['src' => 'https://cdn.example.test/camera.jpg'],
+                    ['src' => 'https://cdn.example.test/camera-side.png'],
+                ],
+            ]]),
+            'cdn.example.test/*' => Http::response('image-bytes', 200, ['Content-Type' => 'image/jpeg']),
+        ]);
+
+        app(WooCommerceImportService::class)->importProducts($company, downloadImages: true);
+
+        $product = Product::withoutGlobalScopes()->where('sku', 'WOO-CAMERA-01')->firstOrFail();
+        $prefix = $company->storageRoot().'/public/products/';
+
+        $this->assertStringStartsWith($prefix, $product->image);
+        $this->assertStringStartsWith($company->storageRoot().'/public/products/gallery/', $product->gallery_images[0]);
+        Storage::disk('public')->assertExists($product->image);
+        Storage::disk('public')->assertExists($product->gallery_images[0]);
     }
 
     public function test_variable_product_imports_its_variations(): void

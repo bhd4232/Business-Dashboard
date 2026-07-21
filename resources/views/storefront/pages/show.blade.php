@@ -5,7 +5,7 @@
 
     $homeUrl = isset($previewSlug) ? route('storefront.preview.show', $previewSlug) : route('marketing.home');
     $contactUrl = isset($previewSlug) ? route('storefront.preview.contact', $previewSlug) : route('storefront.contact');
-    $coverImageUrl = \App\Support\StorageUrl::for($page->cover_image);
+    $coverImageUrl = \App\Support\CompanyMedia::publicUrl($page->cover_image, $company);
     $isHtmlContent = str_contains((string) $page->content, '<');
 @endphp
 

@@ -271,8 +271,10 @@
                                 @endif
                                 @if ($imageUrl = $message->mediaImageUrl())
                                     <img class="media" src="{{ $imageUrl }}" alt="Attached image" loading="lazy">
-                                @elseif ($message->media_path)
-                                    <p class="kind">📎 {{ basename($message->media_path) }}</p>
+                                @elseif ($mediaUrl = $message->mediaDownloadUrl())
+                                    <p class="kind">
+                                        <a href="{{ $mediaUrl }}" target="_blank" rel="noopener noreferrer">📎 {{ basename($message->media_path) }}</a>
+                                    </p>
                                 @endif
                                 <p class="body">{!! $message->bodyHtml() !!}</p>
                                 <p class="stamp">
@@ -319,7 +321,7 @@
                             @if ($selectedProduct)
                                 <div class="zz-catalog-preview">
                                     @if ($selectedProduct->image)
-                                        <img src="{{ \App\Support\StorageUrl::for($selectedProduct->image) }}" alt="{{ $selectedProduct->name }}">
+                                        <img src="{{ \App\Support\CompanyMedia::publicUrl($selectedProduct->image, $selectedProduct) }}" alt="{{ $selectedProduct->name }}">
                                     @endif
                                     <span>
                                         <strong>{{ $selectedProduct->name }}</strong><br>

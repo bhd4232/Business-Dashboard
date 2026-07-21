@@ -2,27 +2,34 @@
 
 use App\Http\Controllers\Admin\BackupDownloadController;
 use App\Http\Controllers\Admin\CompanySwitchController;
+use App\Http\Controllers\Admin\ConversationMediaController;
 use App\Http\Controllers\Admin\CustomerCsvController;
 use App\Http\Controllers\Admin\OrderPdfController;
 use App\Http\Controllers\Admin\ProductCsvController;
 use App\Http\Controllers\Admin\ReportExportController;
 use App\Http\Controllers\Admin\ReportPdfController;
 use App\Http\Controllers\Admin\SupplierCsvController;
+use App\Http\Controllers\Admin\VoucherAttachmentDownloadController;
 use App\Http\Controllers\Admin\VoucherReceiptController;
+use App\Http\Controllers\ChatOrderController;
 use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\MetaWebhookController;
+use App\Http\Controllers\QuotationPublicController;
 use App\Http\Controllers\Storefront\AccountAuthController as StorefrontAccountAuthController;
 use App\Http\Controllers\Storefront\AccountOrdersController as StorefrontAccountOrdersController;
 use App\Http\Controllers\Storefront\AccountProfileController as StorefrontAccountProfileController;
 use App\Http\Controllers\Storefront\CartController as StorefrontCartController;
-use App\Http\Controllers\Storefront\ContactController as StorefrontContactController;
 use App\Http\Controllers\Storefront\CheckoutController as StorefrontCheckoutController;
+use App\Http\Controllers\Storefront\ContactController as StorefrontContactController;
 use App\Http\Controllers\Storefront\HomeController as StorefrontHomeController;
 use App\Http\Controllers\Storefront\OrderTrackController as StorefrontOrderTrackController;
 use App\Http\Controllers\Storefront\PageController as StorefrontPageController;
 use App\Http\Controllers\Storefront\PreviewController as StorefrontPreviewController;
 use App\Http\Controllers\Storefront\ProductIndexController as StorefrontProductIndexController;
 use App\Http\Controllers\Storefront\ProductShowController as StorefrontProductShowController;
+use App\Http\Controllers\Storefront\ResellerController;
+use App\Http\Controllers\ZiniPayWebhookController;
 use App\Http\Middleware\ResolveCompanyFromDomain;
 use App\Models\Order;
 use App\Models\User;
@@ -35,18 +42,18 @@ Route::middleware(ResolveCompanyFromDomain::class.':optional')
     ->get('/', StorefrontHomeController::class)
     ->name('marketing.home');
 
-Route::get('/quotation/{quotationNumber}', [App\Http\Controllers\QuotationPublicController::class, 'show'])
+Route::get('/quotation/{quotationNumber}', [QuotationPublicController::class, 'show'])
     ->name('quotation.public');
 
-Route::get('/webhooks/meta', [App\Http\Controllers\MetaWebhookController::class, 'verify'])
+Route::get('/webhooks/meta', [MetaWebhookController::class, 'verify'])
     ->name('webhooks.meta.verify');
-Route::post('/webhooks/meta', [App\Http\Controllers\MetaWebhookController::class, 'handle'])
+Route::post('/webhooks/meta', [MetaWebhookController::class, 'handle'])
     ->name('webhooks.meta.handle');
 
 Route::middleware('throttle:30,1')->group(function (): void {
-    Route::get('/o/{token}', [App\Http\Controllers\ChatOrderController::class, 'show'])
+    Route::get('/o/{token}', [ChatOrderController::class, 'show'])
         ->name('chat-order.show');
-    Route::post('/o/{token}', [App\Http\Controllers\ChatOrderController::class, 'store'])
+    Route::post('/o/{token}', [ChatOrderController::class, 'store'])
         ->name('chat-order.store');
 });
 
@@ -103,10 +110,10 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
     Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorderPreview'])
         ->name('storefront.preview.account.reorder');
 
-    Route::get('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'showPreview'])
+    Route::get('/reseller', [ResellerController::class, 'showPreview'])
         ->name('storefront.preview.reseller.show');
 
-    Route::post('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'storePreview'])
+    Route::post('/reseller', [ResellerController::class, 'storePreview'])
         ->name('storefront.preview.reseller.store');
 
     Route::get('/pages/{slug}', [StorefrontPageController::class, 'showPreview'])
@@ -191,10 +198,10 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::put('/account/password', [StorefrontAccountProfileController::class, 'updatePassword'])
         ->name('storefront.account.password.update');
 
-    Route::get('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'show'])
+    Route::get('/reseller', [ResellerController::class, 'show'])
         ->name('storefront.reseller.show');
 
-    Route::post('/reseller', [\App\Http\Controllers\Storefront\ResellerController::class, 'store'])
+    Route::post('/reseller', [ResellerController::class, 'store'])
         ->name('storefront.reseller.store');
 
     Route::get('/contact', [StorefrontContactController::class, 'show'])
@@ -233,7 +240,7 @@ Route::post('/webhooks/couriers/{provider}', CourierWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('couriers.webhook');
 
-Route::post('/webhooks/zinipay/{payment}', \App\Http\Controllers\ZiniPayWebhookController::class)
+Route::post('/webhooks/zinipay/{payment}', ZiniPayWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('zinipay.webhook');
 
@@ -284,6 +291,14 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/admin/backups/download/{filename}', BackupDownloadController::class)
         ->where('filename', '[A-Za-z0-9._-]+')
         ->name('backups.download');
+
+    Route::get('/admin/conversation-messages/{message}/media', ConversationMediaController::class)
+        ->whereNumber('message')
+        ->name('conversation-messages.media');
+
+    Route::get('/admin/voucher-attachments/{attachment}/download', VoucherAttachmentDownloadController::class)
+        ->whereNumber('attachment')
+        ->name('voucher-attachments.download');
 });
 
 // Shareable Money Receipt: signed URL, no login required, signature can't be guessed.

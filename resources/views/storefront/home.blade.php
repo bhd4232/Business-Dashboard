@@ -68,11 +68,11 @@
                         <{{ $slideTag }} @if ($slideHref) href="{{ $slideHref }}" @endif class="absolute inset-0 block">
                             <picture>
                                 @if ($slide->image_mobile)
-                                    <source media="(max-width: 639px)" srcset="{{ \App\Support\StorageUrl::for($slide->image_mobile) }}">
+                                    <source media="(max-width: 639px)" srcset="{{ \App\Support\CompanyMedia::publicUrl($slide->image_mobile, $company) }}">
                                 @endif
                                 <img
                                     class="h-full w-full object-cover"
-                                    src="{{ \App\Support\StorageUrl::for($slide->image) }}"
+                                    src="{{ \App\Support\CompanyMedia::publicUrl($slide->image, $company) }}"
                                     alt="{{ $slide->heading ?: $company->name }}"
                                     width="1920"
                                     height="820"
@@ -151,7 +151,7 @@
 
                 <div class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5">
                     @if ($heroProduct?->image)
-                        <img class="aspect-[4/3] w-full object-cover" src="{{ \App\Support\StorageUrl::for($heroProduct->image) }}" alt="{{ $heroProduct->name }}" width="1200" height="900" fetchpriority="high">
+                        <img class="aspect-[4/3] w-full object-cover" src="{{ \App\Support\CompanyMedia::publicUrl($heroProduct->image, $company) }}" alt="{{ $heroProduct->name }}" width="1200" height="900" fetchpriority="high">
                     @else
                         <div class="grid aspect-[4/3] place-items-center text-7xl font-semibold text-[var(--storefront-brand)]">
                             {{ mb_substr($heroProduct?->name ?? $company->name, 0, 1) }}
@@ -174,7 +174,7 @@
                         <a class="group flex w-20 shrink-0 snap-start flex-col items-center gap-2 sm:w-24" href="{{ isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $category->slug]) : route('storefront.categories.show', $category->slug) }}">
                             <div class="h-16 w-16 overflow-hidden rounded-full border border-gray-200 bg-gray-100 ring-[var(--storefront-brand)] transition group-hover:ring-2 sm:h-20 sm:w-20 dark:border-white/10 dark:bg-white/10">
                                 @if ($category->image)
-                                    <img class="h-full w-full object-cover transition duration-300 group-hover:scale-105" src="{{ \App\Support\StorageUrl::for($category->image) }}" alt="{{ $category->name }}" width="160" height="160" loading="lazy" decoding="async">
+                                    <img class="h-full w-full object-cover transition duration-300 group-hover:scale-105" src="{{ \App\Support\CompanyMedia::publicUrl($category->image, $company) }}" alt="{{ $category->name }}" width="160" height="160" loading="lazy" decoding="async">
                                 @else
                                     <div class="grid h-full w-full place-items-center text-xl font-semibold text-gray-700 transition group-hover:text-[var(--storefront-brand)] dark:text-gray-200">
                                         {{ mb_substr($category->name, 0, 1) }}

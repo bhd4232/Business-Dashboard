@@ -12,7 +12,7 @@
     <div class="relative overflow-hidden bg-gray-100 dark:bg-white/5">
         <a href="{{ $productUrl }}" class="block">
             @if ($product->image)
-                <img class="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" src="{{ \App\Support\StorageUrl::for($product->image) }}" alt="{{ $product->name }}" width="800" height="800" loading="lazy" decoding="async">
+                <img class="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" src="{{ \App\Support\CompanyMedia::publicUrl($product->image, $company) }}" alt="{{ $product->name }}" width="800" height="800" loading="lazy" decoding="async">
             @else
                 <div class="grid aspect-square w-full place-items-center text-5xl font-semibold text-[var(--storefront-brand)]">
                     {{ mb_substr($product->name, 0, 1) }}

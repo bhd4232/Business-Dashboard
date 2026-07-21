@@ -7,6 +7,9 @@ use App\Filament\Resources\Vouchers\Pages\EditVoucher;
 use App\Filament\Resources\Vouchers\Pages\ListVouchers;
 use App\Filament\Resources\Vouchers\Pages\ViewVoucher;
 use App\Models\Voucher;
+use App\Models\VoucherAttachment;
+use App\Services\CompanyContext;
+use App\Services\CompanyStorageService;
 use App\Services\VoucherService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -26,7 +29,12 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Throwable;
 use UnitEnum;
 
 class VoucherResource extends Resource
@@ -86,7 +94,21 @@ class VoucherResource extends Resource
                 Repeater::make('attachments')
                     ->relationship()
                     ->schema([
-                        FileUpload::make('file_path')->label('File')->directory('voucher-attachments')->required(),
+                        FileUpload::make('file_path')
+                            ->label('File')
+                            ->disk(fn (): string => app(CompanyStorageService::class)->privateDiskName())
+                            ->directory(fn (): string => static::voucherAttachmentDirectory())
+                            ->visibility('private')
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+                            ->maxSize(10240)
+                            ->previewable(false)
+                            ->openable(false)
+                            ->downloadable()
+                            ->disabled(fn (): bool => ! app(CompanyContext::class)->hasCompany())
+                            ->saveUploadedFileUsing(fn (TemporaryUploadedFile $file): string => static::storeVoucherAttachment($file))
+                            ->getUploadedFileUsing(fn (string $file): ?array => static::voucherAttachmentMetadata($file))
+                            ->getDownloadableFileUrlUsing(fn (string $file): ?string => static::voucherAttachmentDownloadUrl($file))
+                            ->required(),
                         TextInput::make('label')->label('Label')->maxLength(120)->placeholder('Payment Screenshot'),
                     ])
                     ->columns(2)
@@ -142,7 +164,7 @@ class VoucherResource extends Resource
                         try {
                             app(VoucherService::class)->approve($record, Auth::user());
                             Notification::make()->title('Voucher approved.')->success()->send();
-                        } catch (\Illuminate\Validation\ValidationException $exception) {
+                        } catch (ValidationException $exception) {
                             Notification::make()->title('Could not approve voucher')->body(collect($exception->errors())->flatten()->implode(' '))->danger()->send();
                         }
                     }),
@@ -194,6 +216,106 @@ class VoucherResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->with(['submitter', 'fundSource']);
+    }
+
+    protected static function voucherAttachmentDirectory(): string
+    {
+        $company = app(CompanyContext::class)->company();
+
+        return $company
+            ? app(CompanyStorageService::class)->privateDirectory($company, 'voucher-attachments')
+            : 'unavailable/voucher-attachments';
+    }
+
+    protected static function storeVoucherAttachment(TemporaryUploadedFile $file): string
+    {
+        $company = app(CompanyContext::class)->company();
+
+        if (! $company) {
+            throw ValidationException::withMessages([
+                'attachments' => 'Select a company before uploading a voucher attachment.',
+            ]);
+        }
+
+        $extension = Str::of($file->guessExtension() ?: $file->getClientOriginalExtension())
+            ->lower()
+            ->replaceMatches('/[^a-z0-9]+/', '')
+            ->limit(12, '')
+            ->value();
+        $filename = (string) Str::ulid().($extension !== '' ? ".{$extension}" : '');
+        $stream = $file->readStream();
+
+        if (! is_resource($stream)) {
+            throw ValidationException::withMessages([
+                'attachments' => 'The voucher attachment could not be read. Please upload it again.',
+            ]);
+        }
+
+        try {
+            return app(CompanyStorageService::class)->putPrivate(
+                $company,
+                'voucher-attachments',
+                $filename,
+                $stream,
+            );
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    /**
+     * @return array{name: string, size: int, type: ?string, url: string}|null
+     */
+    protected static function voucherAttachmentMetadata(string $file): ?array
+    {
+        $company = app(CompanyContext::class)->company();
+
+        if (! $company) {
+            return null;
+        }
+
+        try {
+            $location = app(CompanyStorageService::class)->locatePrivate($file, $company);
+            $attachment = static::voucherAttachmentForFile($file);
+
+            if ($location === null || $attachment === null) {
+                return null;
+            }
+
+            $disk = Storage::disk($location['disk']);
+
+            return [
+                'name' => $attachment->label ?: basename($location['path']),
+                'size' => $disk->size($location['path']),
+                'type' => $disk->mimeType($location['path']),
+                'url' => route('voucher-attachments.download', ['attachment' => $attachment->getKey()]),
+            ];
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    protected static function voucherAttachmentDownloadUrl(string $file): ?string
+    {
+        $attachment = static::voucherAttachmentForFile($file);
+
+        return $attachment
+            ? route('voucher-attachments.download', ['attachment' => $attachment->getKey()])
+            : null;
+    }
+
+    protected static function voucherAttachmentForFile(string $file): ?VoucherAttachment
+    {
+        $company = app(CompanyContext::class)->company();
+
+        if (! $company) {
+            return null;
+        }
+
+        return VoucherAttachment::query()
+            ->where('company_id', $company->getKey())
+            ->where('file_path', $file)
+            ->first();
     }
 
     public static function getPages(): array

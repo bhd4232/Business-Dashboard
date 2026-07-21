@@ -299,7 +299,7 @@ class StorefrontCustomerAuthTest extends TestCase
             'slug' => str($name)->slug()->toString().'-'.str($domain)->slug()->toString(),
             'domain' => $domain,
             'domain_verified' => true,
-            'invoice_prefix' => str($name)->substr(0, 3)->upper()->toString(),
+            'invoice_prefix' => str($domain)->slug('')->substr(0, 12)->upper()->toString(),
             'currency' => 'BDT',
             'timezone' => 'Asia/Dhaka',
             'is_active' => true,

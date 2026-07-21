@@ -17,12 +17,12 @@
         + (0.0722 * $toLinearColor($themeChannels[2]));
     $themeForeground = $themeLuminance > 0.179 ? '#000000' : '#FFFFFF';
     $themeMode = $setting->theme_mode ?: 'system';
-    $logoUrl = \App\Support\StorageUrl::for($setting->logo);
-    $logoDarkUrl = \App\Support\StorageUrl::for($setting->logo_dark);
+    $logoUrl = \App\Support\CompanyMedia::publicUrl($setting->logo, $company);
+    $logoDarkUrl = \App\Support\CompanyMedia::publicUrl($setting->logo_dark, $company);
     $title = $setting->meta_title ?: $company->name;
     $description = $setting->meta_description ?: 'Shop products from '.$company->name;
     $bannerImage = \App\Models\StorefrontSlide::forCompany($company->getKey())->first()?->image;
-    $shareImageUrl = \App\Support\StorageUrl::for($bannerImage) ?: ($logoUrl ?: null);
+    $shareImageUrl = \App\Support\CompanyMedia::publicUrl($bannerImage, $company) ?: ($logoUrl ?: null);
     $homeUrl = isset($previewSlug) ? route('storefront.preview.show', $previewSlug) : route('marketing.home');
     $productsUrl = isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index');
     $cartUrl = isset($previewSlug) ? route('storefront.preview.cart.show', $previewSlug) : route('storefront.cart.show');
@@ -146,7 +146,8 @@
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#030712" media="(prefers-color-scheme: dark)">
     @php
-        $storageHost = parse_url(\Illuminate\Support\Facades\Storage::disk('public')->url(''), PHP_URL_HOST);
+        $publicDisk = app(\App\Services\CompanyStorageService::class)->publicDiskName();
+        $storageHost = parse_url(\Illuminate\Support\Facades\Storage::disk($publicDisk)->url(''), PHP_URL_HOST);
     @endphp
     @if ($storageHost && $storageHost !== request()->getHost())
         <link rel="preconnect" href="https://{{ $storageHost }}">

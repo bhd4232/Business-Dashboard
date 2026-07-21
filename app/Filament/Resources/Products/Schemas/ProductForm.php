@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Products\Schemas;
 use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Models\Category;
 use App\Models\Product;
+use App\Support\CompanyMedia;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
@@ -212,8 +213,13 @@ class ProductForm
                             ->helperText('Main image shown in product lists and as the default on the product page. Recommended: square, at least 800x800px. Automatically compressed to WebP on upload.')
                             ->image()
                             ->maxSize(2048)
-                            ->disk('public')
-                            ->directory('products')
+                            ->disk(fn (): string => CompanyMedia::publicDiskName())
+                            ->directory(fn ($record): string => CompanyMedia::publicDirectory('products', $record))
+                            ->fetchFileInformation(false)
+                            ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                            ->getOpenableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                            ->getDownloadableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                            ->disabled(fn ($record): bool => ! CompanyMedia::canResolve($record))
                             ->imageEditor()
                             ->saveUploadedFileUsing(static::optimizeImageUpload())
                             ->downloadable()
@@ -226,8 +232,13 @@ class ProductForm
                             ->reorderable()
                             ->maxSize(2048)
                             ->maxFiles(10)
-                            ->disk('public')
-                            ->directory('products/gallery')
+                            ->disk(fn (): string => CompanyMedia::publicDiskName())
+                            ->directory(fn ($record): string => CompanyMedia::publicDirectory('products/gallery', $record))
+                            ->fetchFileInformation(false)
+                            ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                            ->getOpenableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                            ->getDownloadableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                            ->disabled(fn ($record): bool => ! CompanyMedia::canResolve($record))
                             ->imageEditor()
                             ->saveUploadedFileUsing(static::optimizeImageUpload())
                             ->downloadable()
@@ -286,8 +297,11 @@ class ProductForm
                                     ->reorderable()
                                     ->maxSize(2048)
                                     ->maxFiles(6)
-                                    ->disk('public')
-                                    ->directory('products/variants')
+                                    ->disk(fn (): string => CompanyMedia::publicDiskName())
+                                    ->directory(fn ($record): string => CompanyMedia::publicDirectory('products/variants', $record))
+                                    ->fetchFileInformation(false)
+                                    ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                                    ->disabled(fn ($record): bool => ! CompanyMedia::canResolve($record))
                                     ->imageEditor()
                                     ->columnSpanFull(),
                             ])

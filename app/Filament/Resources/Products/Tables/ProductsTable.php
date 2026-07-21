@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\Tables;
 
 use App\Models\Product;
+use App\Support\CompanyMedia;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -25,7 +26,7 @@ class ProductsTable
             ->columns([
                 ImageColumn::make('image')
                     ->label('Image')
-                    ->disk('public')
+                    ->state(fn (Product $record): ?string => CompanyMedia::publicUrl($record->image, $record))
                     ->height(48)
                     ->square()
                     ->toggleable(),

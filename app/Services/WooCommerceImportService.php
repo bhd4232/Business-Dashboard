@@ -8,7 +8,6 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StorefrontSetting;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -160,7 +159,7 @@ class WooCommerceImportService
             $imageUrl = (string) (data_get($payload, 'images.0.src') ?? '');
 
             if ($imageUrl !== '') {
-                $product->image = $this->downloadImage($imageUrl) ?? $product->image;
+                $product->image = $this->downloadImage($imageUrl, $company, 'products') ?? $product->image;
             }
         }
 
@@ -169,7 +168,7 @@ class WooCommerceImportService
         if ($downloadImages && blank($product->gallery_images)) {
             $gallery = collect($payload['images'] ?? [])
                 ->skip(1)
-                ->map(fn ($image) => $this->downloadImage((string) (data_get($image, 'src') ?? '')))
+                ->map(fn ($image) => $this->downloadImage((string) (data_get($image, 'src') ?? ''), $company, 'products/gallery'))
                 ->filter()
                 ->values()
                 ->all();
@@ -295,7 +294,7 @@ class WooCommerceImportService
         if ($downloadImages && blank($variant->images)) {
             $imageUrl = (string) (data_get($variation, 'image.src') ?? '');
 
-            if ($imageUrl !== '' && ($path = $this->downloadImage($imageUrl))) {
+            if ($imageUrl !== '' && ($path = $this->downloadImage($imageUrl, $product->company, 'products/variants'))) {
                 $variant->images = [$path];
             }
         }
@@ -357,7 +356,7 @@ class WooCommerceImportService
         ]);
     }
 
-    protected function downloadImage(string $url): ?string
+    protected function downloadImage(string $url, Company $company, string $area): ?string
     {
         try {
             $response = Http::timeout(20)->get($url);
@@ -372,10 +371,12 @@ class WooCommerceImportService
                 $extension = 'jpg';
             }
 
-            $path = 'products/woo-'.Str::random(20).'.'.$extension;
-            Storage::disk('public')->put($path, $response->body());
-
-            return $path;
+            return app(CompanyStorageService::class)->putPublic(
+                $company,
+                $area,
+                'woo-'.Str::random(20).'.'.$extension,
+                $response->body(),
+            );
         } catch (\Throwable) {
             return null;
         }

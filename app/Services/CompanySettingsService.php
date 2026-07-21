@@ -6,9 +6,15 @@ use App\Models\AppSetting;
 use App\Models\Company;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use LogicException;
 
 class CompanySettingsService
 {
+    protected const MAX_EMBEDDED_PUBLIC_IMAGE_BYTES = 5 * 1024 * 1024;
+
     public const NAME = 'company.name';
 
     public const LOGO = 'company.logo';
@@ -49,6 +55,7 @@ class CompanySettingsService
             'currency' => $this->value(self::CURRENCY, 'BDT'),
             'timezone' => $this->value(self::TIMEZONE, config('app.timezone', 'UTC')),
             'date_format' => $this->value(self::DATE_FORMAT, 'd M Y'),
+            'invoice_prefix' => 'INV',
             'shipping_zones' => ['inside' => [], 'outside' => [], 'suburb' => []],
         ];
     }
@@ -81,16 +88,12 @@ class CompanySettingsService
         return $merged;
     }
 
-    public function saveInvoice(array $data): void
+    public function saveInvoice(array $data, ?Company $company = null): void
     {
-        $company = $this->currentCompany();
-
-        if (! $company && Schema::hasTable('companies')) {
-            $company = Company::defaultCompany();
-        }
+        $company ??= $this->currentCompany();
 
         if (! $company) {
-            return;
+            throw new LogicException('Select a company before saving invoice settings.');
         }
 
         $invoice = self::INVOICE_DEFAULTS;
@@ -109,15 +112,26 @@ class CompanySettingsService
         $company->forceFill(['settings' => $settings])->save();
     }
 
-    public function save(array $data): void
+    public function save(array $data, ?Company $company = null): void
     {
-        $company = $this->currentCompany();
-
-        if (! $company && Schema::hasTable('companies')) {
-            $company = Company::defaultCompany();
-        }
+        $company ??= $this->currentCompany();
 
         if ($company) {
+            $invoicePrefix = Str::upper(trim((string) ($data['invoice_prefix'] ?? $company->invoice_prefix)));
+
+            Validator::make(
+                ['invoice_prefix' => $invoicePrefix],
+                [
+                    'invoice_prefix' => [
+                        'required',
+                        'string',
+                        'max:20',
+                        'regex:/^[A-Z0-9-]+$/',
+                        Rule::unique('companies', 'invoice_prefix')->ignore($company->getKey()),
+                    ],
+                ],
+            )->validate();
+
             $settings = $company->settings ?? [];
             $settings['dark_logo'] = trim((string) ($data['dark_logo'] ?? ''));
             $settings['date_format'] = trim((string) ($data['date_format'] ?? 'd M Y'));
@@ -138,8 +152,11 @@ class CompanySettingsService
                 'email' => trim((string) ($data['email'] ?? '')),
                 'currency' => trim((string) ($data['currency'] ?? 'BDT')),
                 'timezone' => trim((string) ($data['timezone'] ?? config('app.timezone', 'UTC'))),
+                'invoice_prefix' => $invoicePrefix,
                 'settings' => $settings,
             ])->save();
+
+            return;
         }
 
         AppSetting::setValue(self::NAME, trim((string) ($data['name'] ?? '')));
@@ -158,7 +175,7 @@ class CompanySettingsService
         $company ??= $this->currentCompany();
 
         if ($company) {
-            return $this->publicUrl($company->logo);
+            return $this->publicUrl($company->logo, $company);
         }
 
         return $this->publicUrl($this->value(self::LOGO));
@@ -170,7 +187,7 @@ class CompanySettingsService
 
         if ($company) {
             $settings = (array) $company->settings;
-            $darkLogo = $this->publicUrl($settings['dark_logo'] ?? null);
+            $darkLogo = $this->publicUrl($settings['dark_logo'] ?? null, $company);
 
             return $darkLogo ?: ($fallbackToLight ? $this->logoUrl($company) : null);
         }
@@ -183,7 +200,7 @@ class CompanySettingsService
         $company ??= $this->currentCompany();
 
         if ($company) {
-            return $this->publicPath($company->logo);
+            return $this->publicPath($company->logo, $company);
         }
 
         return $this->publicPath($this->value(self::LOGO));
@@ -195,7 +212,7 @@ class CompanySettingsService
 
         if ($company) {
             $settings = (array) $company->settings;
-            $darkLogo = $this->publicPath($settings['dark_logo'] ?? null);
+            $darkLogo = $this->publicPath($settings['dark_logo'] ?? null, $company);
 
             return $darkLogo ?: ($fallbackToLight ? $this->logoPath($company) : null);
         }
@@ -203,22 +220,59 @@ class CompanySettingsService
         return $this->publicPath($this->value(self::DARK_LOGO)) ?: ($fallbackToLight ? $this->logoPath() : null);
     }
 
-    protected function publicUrl(?string $path): ?string
+    public function invoiceImagePath(?string $path, Company $company): ?string
     {
-        if (! $path || ! Storage::disk('public')->exists($path)) {
-            return null;
-        }
-
-        return Storage::disk('public')->url($path);
+        return $this->publicPath($path, $company);
     }
 
-    protected function publicPath(?string $path): ?string
+    protected function publicUrl(?string $path, ?Company $company = null): ?string
     {
-        if (! $path || ! Storage::disk('public')->exists($path)) {
+        return app(CompanyStorageService::class)->publicUrl($path, $company);
+    }
+
+    protected function publicPath(?string $path, ?Company $company = null): ?string
+    {
+        $location = app(CompanyStorageService::class)->locatePublic($path, $company);
+
+        if ($location === null) {
             return null;
         }
 
-        return Storage::disk('public')->path($path);
+        $disk = Storage::disk($location['disk']);
+
+        if (config("filesystems.disks.{$location['disk']}.driver") === 'local') {
+            return $disk->path($location['path']);
+        }
+
+        try {
+            if ($disk->size($location['path']) > self::MAX_EMBEDDED_PUBLIC_IMAGE_BYTES) {
+                return null;
+            }
+
+            $contents = $disk->get($location['path']);
+            $reportedMimeType = $disk->mimeType($location['path']);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (strlen($contents) > self::MAX_EMBEDDED_PUBLIC_IMAGE_BYTES) {
+            return null;
+        }
+
+        $mimeType = match (strtolower(pathinfo($location['path'], PATHINFO_EXTENSION))) {
+            'gif' => 'image/gif',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'svg' => 'image/svg+xml',
+            'webp' => 'image/webp',
+            default => is_string($reportedMimeType) && str_starts_with($reportedMimeType, 'image/')
+                ? $reportedMimeType
+                : null,
+        };
+
+        return $mimeType === null
+            ? null
+            : 'data:'.$mimeType.';base64,'.base64_encode($contents);
     }
 
     public function formatMoney(float|int|string|null $amount): string
@@ -271,6 +325,7 @@ class CompanySettingsService
             'currency' => $company->currency ?: 'BDT',
             'timezone' => $company->timezone ?: config('app.timezone', 'UTC'),
             'date_format' => $settings['date_format'] ?? 'd M Y',
+            'invoice_prefix' => $company->invoice_prefix ?: 'INV',
             'shipping_zones' => [
                 'inside' => $settings['shipping_zones']['inside'] ?? [],
                 'outside' => $settings['shipping_zones']['outside'] ?? [],

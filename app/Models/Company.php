@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use LogicException;
 
 class Company extends Model
 {
@@ -68,10 +69,22 @@ class Company extends Model
     protected static function booted(): void
     {
         static::saving(function (Company $company): void {
+            if (! $company->exists && blank($company->storage_key)) {
+                $company->storage_key = (string) Str::uuid();
+            }
+
+            if (! $company->exists && ! Str::isUuid((string) $company->storage_key)) {
+                throw new LogicException('A company storage key must be a UUID.');
+            }
+
+            if ($company->exists && $company->isDirty('storage_key')) {
+                throw new LogicException('A company storage key is immutable once assigned.');
+            }
+
             $company->slug = $company->slug ?: Str::slug($company->name);
             $company->currency = $company->currency ?: 'BDT';
             $company->timezone = $company->timezone ?: config('app.timezone', 'Asia/Dhaka');
-            $company->invoice_prefix = Str::upper($company->invoice_prefix ?: Str::substr(Str::slug($company->name, ''), 0, 3) ?: 'INV');
+            $company->invoice_prefix = static::normalizeInvoicePrefix($company->invoice_prefix, $company->name);
             $company->domain = static::normalizeDomain($company->domain);
         });
     }
@@ -88,6 +101,15 @@ class Company extends Model
         return $this->hasOne(StorefrontSetting::class);
     }
 
+    public function storageRoot(): string
+    {
+        if (blank($this->storage_key)) {
+            throw new LogicException('The company does not have a storage key.');
+        }
+
+        return 'companies/'.$this->storage_key;
+    }
+
     public static function normalizeDomain(?string $domain): ?string
     {
         $domain = strtolower(trim((string) $domain));
@@ -101,6 +123,21 @@ class Company extends Model
         $domain = preg_replace('/:\d+$/', '', $domain) ?: $domain;
 
         return str_starts_with($domain, 'www.') ? substr($domain, 4) : $domain;
+    }
+
+    public static function normalizeInvoicePrefix(?string $prefix, ?string $companyName = null): string
+    {
+        $prefix = Str::upper(trim((string) $prefix));
+
+        if ($prefix === '') {
+            $prefix = Str::upper(Str::substr(Str::slug((string) $companyName, ''), 0, 3)) ?: 'INV';
+        }
+
+        if (strlen($prefix) > 20 || ! preg_match('/^[A-Z0-9-]+$/', $prefix)) {
+            throw new LogicException('Invoice prefixes may contain only uppercase letters, numbers, and hyphens, up to 20 characters.');
+        }
+
+        return $prefix;
     }
 
     public static function defaultCompany(): ?self

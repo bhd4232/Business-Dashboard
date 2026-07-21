@@ -7,13 +7,17 @@ use App\Filament\Resources\StorefrontPages\StorefrontPageResource;
 use App\Filament\Resources\StorefrontSettings\Pages\CreateStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\ListStorefrontSettings;
+use App\Models\Category;
 use App\Models\Company;
 use App\Models\Product;
 use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
+use App\Models\StorefrontSlide;
 use App\Services\WooCommerceImportService;
-use Filament\Actions\Action;
+use App\Services\ZiniPayClient;
+use App\Support\CompanyMedia;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -28,6 +32,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -63,7 +68,8 @@ class StorefrontSettingResource extends Resource
                 ->description('Connect a company to its public storefront and control whether it is visible.')
                 ->schema([
                     Select::make('company_id')
-                        ->relationship('company', 'name')
+                        ->relationship('company', 'name', modifyQueryUsing: fn ($query) => CompanyMedia::constrainCompanyQuery($query))
+                        ->rule(CompanyMedia::companyAccessRule())
                         ->required()
                         ->searchable()
                         ->preload()
@@ -245,8 +251,13 @@ class StorefrontSettingResource extends Resource
                         ->helperText('Full horizontal logo, transparent PNG/SVG preferred. Recommended: 400x100px (4:1 ratio); shown at 40px height. When uploaded, it replaces the site name text in the storefront header. Raster images are automatically compressed to WebP; SVGs are kept as-is.')
                         ->image()
                         ->maxSize(1024)
-                        ->disk('public')
-                        ->directory('storefront/logos')
+                        ->disk(fn (): string => CompanyMedia::publicDiskName())
+                        ->directory(fn (Get $get, ?StorefrontSetting $record): string => CompanyMedia::publicDirectory('storefront/logos', $record, $get('company_id')))
+                        ->fetchFileInformation(false)
+                        ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                        ->getOpenableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                        ->getDownloadableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                        ->disabled(fn (Get $get, ?StorefrontSetting $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
                         ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
                         ->downloadable()
@@ -257,12 +268,17 @@ class StorefrontSettingResource extends Resource
                         ->image()
                         ->maxSize(1024)
                         ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
-                        ->disk('public')
-                        ->directory('storefront/logos')
+                        ->disk(fn (): string => CompanyMedia::publicDiskName())
+                        ->directory(fn (Get $get, ?StorefrontSetting $record): string => CompanyMedia::publicDirectory('storefront/logos', $record, $get('company_id')))
+                        ->fetchFileInformation(false)
+                        ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                        ->getOpenableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                        ->getDownloadableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                        ->disabled(fn (Get $get, ?StorefrontSetting $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
                         ->downloadable()
                         ->openable(),
-                    \Filament\Schemas\Components\Text::make('Homepage banners are managed in Storefront → Hero Slides (images, product links, scheduling, and mobile variants all live there).')
+                    Text::make('Homepage banners are managed in Storefront → Hero Slides (images, product links, scheduling, and mobile variants all live there).')
                         ->columnSpanFull(),
                 ])
                 ->columns(2)
@@ -325,7 +341,7 @@ class StorefrontSettingResource extends Resource
                         ->label('ZiniPay base URL')
                         ->url()
                         ->maxLength(255)
-                        ->placeholder(\App\Services\ZiniPayClient::DEFAULT_BASE_URL)
+                        ->placeholder(ZiniPayClient::DEFAULT_BASE_URL)
                         ->helperText('Leave empty for the default. Change only if ZiniPay gives you a different API host.'),
                 ])
                 ->columns(2)
@@ -464,7 +480,7 @@ class StorefrontSettingResource extends Resource
                     ->label('Category')
                     ->visible(fn (Get $get): bool => $get('type') === 'category')
                     ->required(fn (Get $get): bool => $get('type') === 'category')
-                    ->options(fn (Get $get, ?StorefrontSetting $record) => \App\Models\Category::withoutGlobalScopes()
+                    ->options(fn (Get $get, ?StorefrontSetting $record) => Category::withoutGlobalScopes()
                         ->where('company_id', $companyId($get, $record))
                         ->where('is_active', true)
                         ->orderBy('name')
@@ -497,7 +513,7 @@ class StorefrontSettingResource extends Resource
         return $table
             ->columns([
                 ImageColumn::make('logo')
-                    ->disk('public')
+                    ->state(fn (StorefrontSetting $record): ?string => CompanyMedia::publicUrl($record->logo, $record))
                     ->height(36)
                     ->square()
                     ->toggleable(),
@@ -581,7 +597,7 @@ class StorefrontSettingResource extends Resource
             'Domain added' => filled($record->company?->domain),
             'Domain verified' => (bool) $record->company?->domain_verified,
             'Logo uploaded' => filled($record->logo),
-            'Hero slide added' => \App\Models\StorefrontSlide::withoutGlobalScopes()
+            'Hero slide added' => StorefrontSlide::withoutGlobalScopes()
                 ->where('company_id', $record->company_id)
                 ->where('is_active', true)
                 ->exists(),

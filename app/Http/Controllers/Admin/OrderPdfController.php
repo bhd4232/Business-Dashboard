@@ -16,10 +16,18 @@ class OrderPdfController extends Controller
         abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);
 
         $order->load(['company', 'customer', 'items.product']);
+        $invoice = $settings->invoice($order->company);
+        $productImages = ! empty($invoice['show_images'])
+            ? $order->items->mapWithKeys(fn ($item): array => [
+                $item->getKey() => $settings->invoiceImagePath($item->product?->image, $order->company),
+            ])->all()
+            : [];
 
         return Pdf::loadView('orders.pdf', [
             'order' => $order,
             'company' => $settings->profile($order->company),
+            'invoice' => $invoice,
+            'productImages' => $productImages,
         ])->setPaper('a4')->download($order->order_number.'.pdf');
     }
 }

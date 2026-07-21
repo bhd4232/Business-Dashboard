@@ -24,8 +24,8 @@ use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\User;
 use App\Services\CompanyContext;
+use App\Services\CompanyStorageService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DemoDataSeeder extends Seeder
@@ -314,13 +314,14 @@ class DemoDataSeeder extends Seeder
             return; // GD not installed — skip images silently.
         }
 
+        $company = $product->company()->firstOrFail();
         $palette = ['#0F766E', '#B45309', '#1D4ED8', '#BE185D', '#4D7C0F', '#7C3AED', '#0E7490', '#B91C1C', '#A16207', '#334155'];
         $color = $palette[$index % count($palette)];
 
-        $featured = $this->demoImage('products', $product->slug.'-main', $product->name, $color);
+        $featured = $this->demoImage($company, 'products', $product->slug.'-main', $product->name, $color);
         $gallery = array_values(array_filter([
-            $this->demoImage('products/gallery', $product->slug.'-alt-1', $product->name.' - view 2', $color),
-            $this->demoImage('products/gallery', $product->slug.'-alt-2', $product->name.' - view 3', $this->shadeHex($color)),
+            $this->demoImage($company, 'products/gallery', $product->slug.'-alt-1', $product->name.' - view 2', $color),
+            $this->demoImage($company, 'products/gallery', $product->slug.'-alt-2', $product->name.' - view 3', $this->shadeHex($color)),
         ]));
 
         $product->newQueryWithoutScopes()->whereKey($product->getKey())->update([
@@ -329,12 +330,13 @@ class DemoDataSeeder extends Seeder
         ]);
     }
 
-    protected function demoImage(string $directory, string $name, string $label, string $hex): ?string
+    protected function demoImage(Company $company, string $directory, string $name, string $label, string $hex): ?string
     {
-        $path = $directory.'/'.$name.'.png';
-        $disk = Storage::disk('public');
+        $storage = app(CompanyStorageService::class);
+        $filename = $name.'.png';
+        $path = $storage->publicDirectory($company, $directory).'/'.$filename;
 
-        if ($disk->exists($path)) {
+        if ($storage->locatePublic($path, $company) !== null) {
             return $path;
         }
 
@@ -358,9 +360,7 @@ class DemoDataSeeder extends Seeder
         $contents = ob_get_clean();
         imagedestroy($image);
 
-        $disk->put($path, $contents);
-
-        return $path;
+        return $storage->putPublic($company, $directory, $filename, $contents);
     }
 
     protected function shadeHex(string $hex): string
@@ -450,7 +450,7 @@ class DemoDataSeeder extends Seeder
         ] as $index => $row) {
             $variantImages = function_exists('imagecreatetruecolor')
                 ? array_values(array_filter([
-                    $this->demoImage('products/variants', $speaker->slug.'-'.Str::slug($row['Color']), $speaker->name.' - '.$row['Color'], $row['hex']),
+                    $this->demoImage($speaker->company()->firstOrFail(), 'products/variants', $speaker->slug.'-'.Str::slug($row['Color']), $speaker->name.' - '.$row['Color'], $row['hex']),
                 ]))
                 : null;
 

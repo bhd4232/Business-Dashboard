@@ -10,9 +10,12 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
 use App\Support\Code128;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -74,7 +77,7 @@ class InvoiceDesignTest extends TestCase
             'whatsapp' => '01678413888',
             'website' => 'https://zamzamint.com',
             'thank_you' => 'Thank You For Purchasing From Us.',
-        ]);
+        ], Company::defaultCompany());
 
         $order = $this->makeOrder();
 
@@ -123,7 +126,7 @@ class InvoiceDesignTest extends TestCase
             'show_barcode' => false,
             'show_slip' => false,
             'thank_you' => '',
-        ]);
+        ], Company::defaultCompany());
 
         $order = $this->makeOrder();
 
@@ -155,7 +158,7 @@ class InvoiceDesignTest extends TestCase
         $service->saveInvoice([
             'hotline' => '01700000000',
             'show_weight' => false,
-        ]);
+        ], Company::defaultCompany());
 
         $stored = $service->invoice(Company::defaultCompany());
 
@@ -173,6 +176,76 @@ class InvoiceDesignTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->assertSame('', $service->invoice($other)['hotline']);
+        $service->saveInvoice([
+            'hotline' => '01800000000',
+            'thank_you' => 'Thank you from Other Co.',
+        ], $other);
+
+        $this->assertSame('01700000000', $service->invoice(Company::defaultCompany())['hotline']);
+        $this->assertSame('01800000000', $service->invoice($other)['hotline']);
+        $this->assertSame('Thank you from Other Co.', $service->invoice($other)['thank_you']);
+        $this->assertStringStartsWith('MAIN-', Order::nextOrderNumber(Company::defaultCompany()));
+        $this->assertStringStartsWith('OTH-', Order::nextOrderNumber($other));
+    }
+
+    public function test_print_and_pdf_controller_use_the_orders_own_company_invoice_settings(): void
+    {
+        $service = app(CompanySettingsService::class);
+        $default = Company::defaultCompany();
+        $service->saveInvoice([
+            'hotline' => 'DEFAULT-HOTLINE',
+            'thank_you' => 'Default company thanks',
+        ], $default);
+        $other = Company::query()->create([
+            'name' => 'Dedicated Invoice Company',
+            'slug' => 'dedicated-invoice-company',
+            'invoice_prefix' => 'DIC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $service->saveInvoice([
+            'hotline' => 'OTHER-HOTLINE',
+            'thank_you' => 'Other company thanks',
+            'show_images' => false,
+            'show_weight' => false,
+            'show_barcode' => false,
+            'show_slip' => false,
+        ], $other);
+        app(CompanyContext::class)->set($other);
+        $order = $this->makeOrder();
+
+        $this->actingAs($this->admin())
+            ->withSession(['current_company_id' => 'all'])
+            ->get(route('orders.print', $order))
+            ->assertOk()
+            ->assertSee('OTHER-HOTLINE')
+            ->assertSee('Other company thanks')
+            ->assertDontSee('DEFAULT-HOTLINE');
+
+        Pdf::shouldReceive('loadView')
+            ->once()
+            ->with('orders.pdf', Mockery::on(function (array $data) use ($order, $other): bool {
+                return $data['order']->is($order)
+                    && $data['company']['name'] === $other->name
+                    && $data['invoice']['hotline'] === 'OTHER-HOTLINE'
+                    && $data['invoice']['thank_you'] === 'Other company thanks'
+                    && $data['invoice']['show_slip'] === false
+                    && $data['productImages'] === [];
+            }))
+            ->andReturnSelf();
+        Pdf::shouldReceive('setPaper')->once()->with('a4')->andReturnSelf();
+        Pdf::shouldReceive('download')
+            ->once()
+            ->with($order->order_number.'.pdf')
+            ->andReturn(response('PDF-CONTENT'));
+
+        app(CompanyContext::class)->set($default);
+
+        $this->actingAs($this->admin())
+            ->withSession(['current_company_id' => 'all'])
+            ->get(route('orders.pdf', $order))
+            ->assertOk()
+            ->assertSee('PDF-CONTENT');
     }
 }

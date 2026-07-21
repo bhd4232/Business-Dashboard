@@ -60,23 +60,45 @@ return [
             'report' => false,
         ],
 
-        // Cloudflare R2 (S3-compatible). Not wired in as the active storage
-        // yet — needs a bucket + API token from the Cloudflare dashboard and
-        // the R2_* env vars below before anything is switched over to it.
-        // See STOREFRONT_REDESIGN_PLAN.md / storage-migration notes for the
-        // activation steps (public disk -> r2 cutover touches every place
-        // that builds a public URL from a stored path, not just this file).
+        // Legacy public R2 alias retained for backward compatibility.
         'r2' => [
             'driver' => 's3',
             'key' => env('R2_ACCESS_KEY_ID'),
             'secret' => env('R2_SECRET_ACCESS_KEY'),
             'region' => 'auto',
-            'bucket' => env('R2_BUCKET'),
-            'url' => env('R2_URL'), // public bucket URL or custom domain, used to build asset links
-            'endpoint' => env('R2_ENDPOINT'), // https://<account_id>.r2.cloudflarestorage.com
+            'bucket' => env('R2_PUBLIC_BUCKET', env('R2_BUCKET')),
+            'url' => env('R2_PUBLIC_URL', env('R2_URL')),
+            'endpoint' => env('R2_ENDPOINT'),
             'use_path_style_endpoint' => true,
-            'visibility' => 'public',
-            'throw' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
+        // Stable, explicit cloud disks. The StorageSettingsService may
+        // hydrate their credentials from encrypted database settings, but
+        // the local "public" and "local" disks never change meaning.
+        'r2_public' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_PUBLIC_BUCKET', env('R2_BUCKET')),
+            'url' => env('R2_PUBLIC_URL', env('R2_URL')),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'r2_private' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_PRIVATE_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'throw' => true,
             'report' => false,
         ],
 

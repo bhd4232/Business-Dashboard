@@ -5,10 +5,11 @@ namespace App\Jobs;
 use App\Models\ConversationChannel;
 use App\Models\ConversationMessage;
 use App\Services\CompanyContext;
+use App\Services\CompanyStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -30,13 +31,19 @@ class DownloadConversationMediaJob implements ShouldQueue
         public ?string $mediaUrl = null,
     ) {}
 
-    public function handle(CompanyContext $context): void
+    public function handle(CompanyContext $context, CompanyStorageService $storage): void
     {
         $channel = ConversationChannel::withoutGlobalScopes()->with('company')->findOrFail($this->channelId);
-        $message = ConversationMessage::query()->findOrFail($this->messageId);
         $context->set($channel->company);
 
         try {
+            $message = ConversationMessage::query()
+                ->whereHas('conversation', fn (Builder $query): Builder => $query
+                    ->withoutGlobalScopes()
+                    ->where('company_id', $channel->company_id)
+                    ->where('channel_id', $channel->getKey()))
+                ->findOrFail($this->messageId);
+
             $url = $this->mediaUrl;
             $mime = $message->media_mime;
 
@@ -58,15 +65,25 @@ class DownloadConversationMediaJob implements ShouldQueue
             $response = Http::withToken((string) $channel->access_token)->get($url)->throw();
             $mime = $mime ?: $response->header('Content-Type');
 
-            $extension = Str::of((string) $mime)->after('/')->before(';')->value() ?: 'bin';
-            $path = sprintf(
-                'conversations/%d/%s.%s',
-                $channel->company_id,
-                $message->external_message_id ?: Str::random(20),
-                $extension,
-            );
+            $extension = Str::of((string) $mime)
+                ->after('/')
+                ->before(';')
+                ->lower()
+                ->replaceMatches('/[^a-z0-9]+/', '')
+                ->limit(12, '')
+                ->value() ?: 'bin';
+            $messageName = Str::of($message->external_message_id ?: Str::random(20))
+                ->replaceMatches('/[^A-Za-z0-9._-]+/', '-')
+                ->trim('.-_')
+                ->limit(160, '')
+                ->value() ?: Str::random(20);
 
-            Storage::disk('local')->put($path, $response->body());
+            $path = $storage->putPrivate(
+                $channel->company,
+                'conversation-media',
+                "{$messageName}.{$extension}",
+                $response->body(),
+            );
 
             $message->forceFill([
                 'media_path' => $path,
