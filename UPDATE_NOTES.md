@@ -2,6 +2,53 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-22 - Cloudflare R2 credential guidance in Cloud Storage
+
+Reason:
+
+- Every R2 credential and topology field needed concise, field-level instructions showing exactly where to obtain or configure its value in Cloudflare.
+- Essential setup guidance must remain usable by keyboard and touch users without turning the settings form into a wall of helper text.
+
+Important changed files:
+
+- `app/Filament/Pages/CloudStorageSettings.php` - adds a native Filament R2 setup-guide action and accessible information actions beside all eight configuration fields, with current Cloudflare dashboard steps and official documentation links.
+- `tests/Feature/CloudStorageSettingsTest.php` - verifies the setup modal content, exact field-to-help-action placement, icon-button accessibility configuration, credential guidance, and private-bucket safety guidance.
+- `PROJECT_GUIDE.md` - documents the in-product R2 credential-help contract.
+
+Verification:
+
+- Focused R2 setup-guide and field-help test passed: 1 test, 41 assertions.
+- Full Cloud Storage settings suite passed: 5 tests, 71 assertions.
+- Full application suite passed: 446 tests, 2,330 assertions.
+- Targeted Pint formatting, PHP syntax checks, `php artisan view:cache`, and `git diff --check` passed.
+
+Commit status:
+
+- Not committed. Commit and push require explicit user approval.
+
+## 2026-07-22 - Keep Company Settings visible in All Companies mode
+
+Reason:
+
+- The Company Management selector hid Company Settings whenever Super Admin selected `All Companies`, leaving only the Companies item visible.
+
+Important changed files:
+
+- `app/Filament/Pages/CompanySettings.php` - separates page/navigation permission from the requirement for a specific active company while retaining the selected-company save guard.
+- `resources/views/filament/pages/company-settings.blade.php` - shows a native Filament select-company empty state in `All Companies` mode and renders the form only for one selected company.
+- `tests/Feature/CompanySettingsTest.php` - covers selector visibility, the safe empty state, normal selected-company rendering, and existing permission boundaries.
+- `PROJECT_GUIDE.md` - documents the visible-page/non-writable-form contract for `All Companies` mode.
+
+Verification:
+
+- Focused Company Settings and admin navigation suite passed: 29 tests, 207 assertions.
+- Full application suite passed: 445 tests, 2,288 assertions.
+- Targeted Pint formatting, `php artisan view:cache`, and `git diff --check` passed.
+
+Commit status:
+
+- Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-22 - Site labels and native Filament page UI
 
 Reason:

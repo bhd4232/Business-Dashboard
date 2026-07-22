@@ -48,6 +48,10 @@ class CompanySettings extends Page
 
     public function mount(CompanySettingsService $settings): void
     {
+        if (app(CompanyContext::class)->isAllCompanies()) {
+            return;
+        }
+
         $company = $this->selectedCompany();
         $this->companyId = (int) $company->getKey();
         $profile = $settings->profile($company);
@@ -76,11 +80,23 @@ class CompanySettings extends Page
     {
         $user = Auth::user();
         $context = app(CompanyContext::class);
+
+        if (! $user?->canManageSettings()) {
+            return false;
+        }
+
+        if ($context->isAllCompanies()) {
+            return $user->isSuperAdmin();
+        }
+
         $company = $context->company();
 
-        return (bool) ($user?->canManageSettings()
-            && $company
-            && $user->canAccessCompany((int) $company->getKey()));
+        return (bool) ($company && $user->canAccessCompany((int) $company->getKey()));
+    }
+
+    public function hasSelectedCompany(): bool
+    {
+        return $this->companyId !== null;
     }
 
     public function form(Schema $schema): Schema

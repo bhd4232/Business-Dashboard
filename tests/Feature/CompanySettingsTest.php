@@ -86,7 +86,11 @@ class CompanySettingsTest extends TestCase
         $this->actingAs($admin)
             ->withSession(['current_company_id' => 'all'])
             ->get('/admin/company-management/company-settings')
-            ->assertNotFound();
+            ->assertOk()
+            ->assertSee('Select a company to edit settings')
+            ->assertSee('top-bar company switcher')
+            ->assertSee('View companies')
+            ->assertDontSee('Save company settings');
     }
 
     public function test_company_management_cluster_routes_to_companies_and_shows_both_pages(): void
@@ -110,12 +114,40 @@ class CompanySettingsTest extends TestCase
             ->assertSee('Company Settings');
 
         $this->actingAs($admin)
+            ->withSession(['current_company_id' => 'all'])
+            ->get('/admin/company-management/companies')
+            ->assertOk()
+            ->assertSee('Companies')
+            ->assertSee('Company Settings');
+
+        $this->actingAs($admin)
             ->get('/admin/companies')
             ->assertRedirect('/admin/company-management/companies');
 
         $this->actingAs($admin)
             ->get('/admin/company-settings')
             ->assertRedirect('/admin/company-management/company-settings');
+    }
+
+    public function test_company_settings_all_companies_mode_cannot_save(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $company = $admin->defaultCompany();
+        $originalName = $company->name;
+
+        app(CompanyContext::class)->all();
+        $this->actingAs($admin);
+
+        Livewire::test(CompanySettings::class)
+            ->assertSet('companyId', null)
+            ->set('data.name', 'Must Not Be Saved')
+            ->call('save')
+            ->assertStatus(404);
+
+        $this->assertSame($originalName, $company->fresh()->name);
     }
 
     public function test_admin_panel_uses_company_name_as_brand(): void

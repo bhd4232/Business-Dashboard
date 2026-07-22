@@ -6,6 +6,9 @@ use App\Filament\Pages\CloudStorageSettings;
 use App\Models\AppSetting;
 use App\Models\User;
 use App\Services\StorageSettingsService;
+use Filament\Actions\Action;
+use Filament\Actions\Testing\TestAction;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -27,9 +30,74 @@ class CloudStorageSettingsTest extends TestCase
             ->get('/admin/settings/cloud-storage-settings')
             ->assertOk()
             ->assertSee('Global R2 connection')
+            ->assertSee('R2 setup guide')
             ->assertSee('Public storefront media')
             ->assertSee('Private business files')
             ->assertSee('companies/{immutable-storage-key}/public/...', escape: false);
+    }
+
+    public function test_r2_setup_guide_and_field_help_explain_where_every_value_comes_from(): void
+    {
+        $superAdmin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $this->actingAs($superAdmin);
+
+        $guide = TestAction::make('r2SetupGuide')->schemaComponent();
+        $component = Livewire::test(CloudStorageSettings::class)
+            ->assertActionExists($guide)
+            ->mountAction($guide)
+            ->assertActionMounted($guide)
+            ->assertMountedActionModalSee([
+                'Cloudflare R2 Setup Guide',
+                'Create 2 Buckets',
+                'Object Read & Write',
+                'Access Key ID, Secret Access Key, and the S3 endpoint',
+                'production custom domain',
+                'Public Development URL disabled',
+                'Save, Test, Then Enable',
+                'Open R2 Overview',
+                'Open R2 authentication guide',
+            ])
+            ->unmountAction();
+
+        foreach ([
+            'enabled' => 'enableR2Help',
+            'access_key_id' => 'accessKeyIdHelp',
+            'secret_access_key' => 'secretAccessKeyHelp',
+            'endpoint' => 'endpointHelp',
+            'public_bucket' => 'publicBucketHelp',
+            'public_url' => 'publicUrlHelp',
+            'private_bucket' => 'privateBucketHelp',
+            'private_access_confirmed' => 'privateAccessHelp',
+        ] as $field => $actionName) {
+            $component->assertActionExists(
+                TestAction::make($actionName)->schemaComponent($field, 'form'),
+                fn (Action $action): bool => $action->isIconButton()
+                    && $action->getIcon() === Heroicon::OutlinedInformationCircle
+                    && str_starts_with($action->getLabel(), 'Help for ')
+                    && filled($action->getTooltip()),
+            );
+        }
+
+        $accessKeyHelp = TestAction::make('accessKeyIdHelp')->schemaComponent('access_key_id', 'form');
+        $component
+            ->mountAction($accessKeyHelp)
+            ->assertActionMounted($accessKeyHelp)
+            ->assertMountedActionModalSee([
+                'Use the Access Key ID generated for an R2 S3 API token',
+                'Account Details',
+                'both the public and private bucket names',
+            ])
+            ->unmountAction();
+
+        $privateAccessHelp = TestAction::make('privateAccessHelp')->schemaComponent('private_access_confirmed', 'form');
+        $component
+            ->mountAction($privateAccessHelp)
+            ->assertActionMounted($privateAccessHelp)
+            ->assertMountedActionModalSee([
+                'Public Development URL is disabled',
+                'no enabled Custom Domains',
+                'authenticated company-authorized routes',
+            ]);
     }
 
     public function test_super_admin_can_stage_separate_public_and_private_buckets_without_reentering_secret(): void
