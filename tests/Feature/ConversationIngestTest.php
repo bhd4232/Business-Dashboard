@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\AiAutoReplyJob;
+use App\Jobs\DownloadConversationMediaJob;
 use App\Models\Company;
 use App\Models\Conversation;
 use App\Models\ConversationChannel;
@@ -11,6 +13,7 @@ use App\Models\Lead;
 use App\Services\CompanyContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class ConversationIngestTest extends TestCase
@@ -59,6 +62,7 @@ class ConversationIngestTest extends TestCase
             'entry' => [[
                 'id' => 'waba-1',
                 'changes' => [[
+                    'field' => 'messages',
                     'value' => [
                         'metadata' => ['phone_number_id' => '111222333'],
                         'contacts' => [['wa_id' => $from, 'profile' => ['name' => 'Chat Customer']]],
@@ -95,6 +99,15 @@ class ConversationIngestTest extends TestCase
 
         $this->get('/webhooks/meta?hub_mode=subscribe&hub_verify_token=wrong&hub_challenge=12345')
             ->assertForbidden();
+    }
+
+    public function test_webhook_verification_accepts_actual_dotted_meta_parameters_and_records_it(): void
+    {
+        $this->get('/webhooks/meta?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=dotted-123')
+            ->assertOk()
+            ->assertSee('dotted-123');
+
+        $this->assertNotNull($this->channel->fresh()->webhook_verified_at);
     }
 
     public function test_invalid_signature_is_rejected_and_nothing_is_saved(): void
@@ -134,6 +147,61 @@ class ConversationIngestTest extends TestCase
 
         $this->assertSame(1, ConversationMessage::query()->count());
         $this->assertSame(1, (int) Conversation::withoutGlobalScopes()->value('unread_count'));
+        $this->assertSame(1, Lead::withoutGlobalScopes()->count());
+    }
+
+    public function test_duplicate_webhook_recovers_an_unprocessed_ai_follow_up(): void
+    {
+        app(CompanyContext::class)->set($this->company);
+        $conversation = Conversation::query()->create([
+            'channel_id' => $this->channel->getKey(),
+            'provider' => 'whatsapp',
+            'external_contact_id' => '8801812345678',
+            'contact_phone' => '8801812345678',
+            'status' => 'open',
+            'unread_count' => 1,
+            'last_message_at' => now(),
+        ]);
+        $message = ConversationMessage::query()->create([
+            'conversation_id' => $conversation->getKey(),
+            'direction' => 'incoming',
+            'type' => 'text',
+            'body' => 'Please share the price.',
+            'external_message_id' => 'wamid.recover.follow-up',
+            'delivery_status' => 'received',
+            'raw_payload' => ['id' => 'wamid.recover.follow-up'],
+            'sent_at' => now(),
+        ]);
+        app(CompanyContext::class)->clear();
+        Queue::fake([AiAutoReplyJob::class]);
+
+        $this->postWebhook($this->whatsAppPayload('wamid.recover.follow-up'))->assertOk();
+
+        Queue::assertPushed(AiAutoReplyJob::class, fn (AiAutoReplyJob $job): bool => $job->conversationId === $conversation->getKey()
+            && $job->sourceMessageId === $message->getKey());
+        $this->assertSame(1, ConversationMessage::query()->count());
+        $this->assertSame(1, $conversation->fresh()->unread_count);
+    }
+
+    public function test_whatsapp_media_caption_is_preserved_in_the_inbox_message(): void
+    {
+        Queue::fake([DownloadConversationMediaJob::class]);
+        $payload = $this->whatsAppPayload('wamid.caption');
+        $payload['entry'][0]['changes'][0]['value']['messages'][0]['type'] = 'image';
+        unset($payload['entry'][0]['changes'][0]['value']['messages'][0]['text']);
+        $payload['entry'][0]['changes'][0]['value']['messages'][0]['image'] = [
+            'id' => 'meta-media-caption-1',
+            'caption' => 'Is this product available?',
+            'mime_type' => 'image/jpeg',
+        ];
+
+        $this->postWebhook($payload)->assertOk();
+
+        $message = ConversationMessage::query()->where('external_message_id', 'wamid.caption')->sole();
+        $this->assertSame('image', $message->type);
+        $this->assertSame('Is this product available?', $message->body);
+        Queue::assertPushed(DownloadConversationMediaJob::class, fn (DownloadConversationMediaJob $job): bool => $job->messageId === $message->getKey()
+            && $job->mediaId === 'meta-media-caption-1');
     }
 
     public function test_known_phone_links_conversation_to_existing_customer(): void

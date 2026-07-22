@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class ReleaseNotesTest extends TestCase
@@ -35,15 +36,23 @@ class ReleaseNotesTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/admin/release-notes')
+            ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
             ->assertSee('v1.20.0')
             ->assertSee('Minor Feature')
             ->assertSee('Released 2026-07-18')
-            ->assertSee('Super Admin Database & Deployment Notes', false)
+            ->assertSee('Super Admin Database & Deployment Notes')
             ->assertSee('Added disposable SQLite backup restore verification')
-            ->assertSee('Production Update Rules');
+            ->assertSee('Production Update Rules')
+            ->assertSee('class="fi-section', false)
+            ->assertSee('class="fi-btn', false)
+            ->assertSee('class="fi-badge', false);
+
+        $view = File::get(resource_path('views/filament/pages/release-notes.blade.php'));
+
+        $this->assertStringNotContainsString('<style', $view);
+        $this->assertStringNotContainsString('zz-', $view);
     }
 
     public function test_database_related_release_notes_are_hidden_from_non_super_admin_users(): void
@@ -54,7 +63,7 @@ class ReleaseNotesTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/admin/release-notes')
+            ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
             ->assertSee('v1.2.0')

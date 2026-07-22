@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders;
 
+use App\Filament\Clusters\Sales;
 use App\Filament\Resources\Orders\Pages\CreateOrder;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
@@ -17,7 +18,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class OrderResource extends Resource
 {
@@ -25,7 +25,7 @@ class OrderResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCurrencyBangladeshi;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Sales';
+    protected static ?string $cluster = Sales::class;
 
     protected static ?int $navigationSort = 2;
 

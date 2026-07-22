@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\AiAutoReplyJob;
 use App\Models\Company;
 use App\Models\CompanyFaq;
 use App\Models\Conversation;
@@ -205,7 +206,9 @@ class AiAutoReplyTest extends TestCase
 
     public function test_faq_keyword_match_replies_without_llm_call(): void
     {
-        Http::fake();
+        Http::fake([
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.faq']]]),
+        ]);
 
         CompanyFaq::query()->create([
             'question' => 'ডেলিভারি কত দিনে হয়?',
@@ -223,6 +226,31 @@ class AiAutoReplyTest extends TestCase
         $this->assertNotNull($reply);
         $this->assertSame('ai', $reply->generated_by);
         $this->assertStringContainsString('১-২ দিন', $reply->body);
+    }
+
+    public function test_auto_reply_job_processes_each_source_message_only_once(): void
+    {
+        Http::fake([
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.idempotent.reply']]]),
+        ]);
+        CompanyFaq::query()->create([
+            'question' => 'Delivery time',
+            'answer' => 'Delivery takes two to four days.',
+            'keywords' => 'delivery',
+            'is_active' => true,
+        ]);
+        $conversation = $this->conversation('How long does delivery take?');
+        $source = $conversation->messages()->where('direction', 'incoming')->sole();
+        $job = new AiAutoReplyJob($conversation->getKey(), $source->getKey());
+
+        $job->handle(app(CompanyContext::class), app(AiReplyService::class));
+        $job->handle(app(CompanyContext::class), app(AiReplyService::class));
+
+        $reply = $conversation->messages()->where('generated_by', 'ai')->sole();
+        $this->assertSame($source->getKey(), (int) data_get($reply->ai_meta, 'source_message_id'));
+        $this->assertNotNull(data_get($source->refresh()->raw_payload, '_local.ai_processed_at'));
+        $this->assertSame(1, $conversation->messages()->where('generated_by', 'ai')->count());
+        Http::assertSentCount(1);
     }
 
     public function test_human_handled_conversation_skips_ai(): void

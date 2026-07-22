@@ -16,6 +16,8 @@ use App\Models\Voucher;
 use App\Models\VoucherAttachment;
 use App\Services\CompanyContext;
 use App\Services\CompanyStorageService;
+use App\Services\Meta\MetaGraphException;
+use App\Services\Meta\MetaGraphService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -60,13 +62,13 @@ class PrivateAttachmentStorageTest extends TestCase
         ]);
 
         Http::fake([
-            'https://media.example.test/photo' => Http::response('private-image-bytes', 200, ['Content-Type' => 'image/png']),
+            'https://lookaside.facebook.com/photo' => Http::response('private-image-bytes', 200, ['Content-Type' => 'image/png']),
         ]);
 
         (new DownloadConversationMediaJob(
             messageId: $message->getKey(),
             channelId: $channel->getKey(),
-            mediaUrl: 'https://media.example.test/photo',
+            mediaUrl: 'https://lookaside.facebook.com/photo',
         ))->handle($context, app(CompanyStorageService::class));
 
         $message->refresh();
@@ -75,6 +77,55 @@ class PrivateAttachmentStorageTest extends TestCase
         Storage::disk('local')->assertExists($message->media_path);
         $this->assertSame('private-image-bytes', Storage::disk('local')->get($message->media_path));
         $this->assertFalse($context->hasCompany());
+    }
+
+    public function test_successful_media_retry_clears_only_its_recorded_channel_error(): void
+    {
+        $company = $this->createCompany('Media Retry Company', 'MRC');
+        $context = app(CompanyContext::class)->set($company);
+        $channel = ConversationChannel::query()->create([
+            'provider' => 'whatsapp',
+            'external_id' => 'media-retry-phone',
+            'display_name' => 'Media Retry WhatsApp',
+            'access_token' => 'media-retry-token',
+            'last_inbound_at' => now(),
+        ]);
+        $conversation = Conversation::query()->create([
+            'channel_id' => $channel->getKey(),
+            'provider' => 'whatsapp',
+            'external_contact_id' => '8801700000001',
+        ]);
+        $message = ConversationMessage::query()->create([
+            'conversation_id' => $conversation->getKey(),
+            'direction' => 'incoming',
+            'type' => 'image',
+            'external_message_id' => 'wamid-media-retry',
+            'sent_at' => now(),
+        ]);
+        Http::fake([
+            'https://lookaside.facebook.com/retry-photo' => Http::sequence()
+                ->push(['error' => ['message' => 'Temporary media error', 'code' => 100]], 400)
+                ->push('retried-private-image', 200, ['Content-Type' => 'image/png']),
+        ]);
+        $job = new DownloadConversationMediaJob(
+            messageId: $message->getKey(),
+            channelId: $channel->getKey(),
+            mediaUrl: 'https://lookaside.facebook.com/retry-photo',
+        );
+
+        try {
+            $job->handle($context, app(CompanyStorageService::class));
+            $this->fail('The first media attempt should fail.');
+        } catch (MetaGraphException) {
+            $this->assertSame('media', $channel->fresh()->last_error_source);
+            $this->assertSame('Needs attention', $channel->fresh()->diagnosticStatus());
+        }
+
+        $job->handle($context, app(CompanyStorageService::class));
+
+        $this->assertNotNull($message->fresh()->media_path);
+        $this->assertNull($channel->fresh()->last_error);
+        $this->assertSame('Inbound confirmed', $channel->fresh()->diagnosticStatus());
     }
 
     public function test_conversation_media_job_rejects_a_message_from_another_channel_and_company(): void
@@ -173,6 +224,14 @@ class PrivateAttachmentStorageTest extends TestCase
             ->assertOk()
             ->assertStreamedContent('legacy-company-a-media');
 
+        $inventoryUser = User::factory()->create(['role' => 'inventory_staff', 'is_active' => true]);
+        $inventoryUser->companies()->sync([$companyA->getKey() => ['role' => 'inventory_staff', 'is_default' => true]]);
+        $this->actingAs($inventoryUser)->withSession(['current_company_id' => $companyA->getKey()]);
+        $this->get(route('conversation-messages.media', ['message' => $messageA->getKey()]))
+            ->assertNotFound();
+
+        $this->actingAs($userA)->withSession(['current_company_id' => $companyA->getKey()]);
+
         $this->get(route('voucher-attachments.download', ['attachment' => $attachmentA->getKey()]))
             ->assertOk()
             ->assertHeader('Content-Disposition', 'attachment; filename=company-a.pdf')
@@ -230,6 +289,34 @@ class PrivateAttachmentStorageTest extends TestCase
         $this->assertSame($company->getKey(), $attachment->company_id);
         $this->assertStringStartsWith($company->storageRoot().'/private/voucher-attachments/', $attachment->file_path);
         Storage::disk('local')->assertExists($attachment->file_path);
+    }
+
+    public function test_declared_oversized_meta_media_is_rejected_before_downloading(): void
+    {
+        config(['services.meta.max_media_bytes' => 10]);
+        $company = $this->createCompany('Media Limit Company', 'MLC');
+        app(CompanyContext::class)->set($company);
+        $channel = ConversationChannel::query()->create([
+            'provider' => 'whatsapp',
+            'external_id' => 'media-limit-phone',
+            'display_name' => 'Media Limit WhatsApp',
+            'access_token' => 'media-limit-token',
+            'is_active' => true,
+        ]);
+        Http::preventStrayRequests();
+
+        try {
+            app(MetaGraphService::class)->downloadMedia(
+                $channel,
+                'https://lookaside.facebook.com/whatsapp_business/attachments/example',
+                11,
+            );
+            $this->fail('An oversized attachment should be rejected before the HTTP request.');
+        } catch (MetaGraphException $exception) {
+            $this->assertStringContainsString('larger than the configured media limit', $exception->getMessage());
+        }
+
+        Http::assertNothingSent();
     }
 
     /**

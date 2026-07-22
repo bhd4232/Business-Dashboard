@@ -2,20 +2,20 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Clusters\Settings;
 use App\Support\AppRelease;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class ReleaseNotes extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static ?string $cluster = Settings::class;
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 6;
 
     protected static ?string $title = 'Release Notes';
 

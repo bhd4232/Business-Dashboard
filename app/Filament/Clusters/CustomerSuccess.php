@@ -13,7 +13,12 @@ class CustomerSuccess extends Cluster
 
     protected static ?string $navigationLabel = 'Customer Success';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 8;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
+
+    public static function canAccess(): bool
+    {
+        return static::canAccessClusteredComponents();
+    }
 }

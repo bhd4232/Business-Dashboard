@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use Throwable;
 
 final class CompanyMedia
@@ -67,10 +68,14 @@ final class CompanyMedia
 
     public static function publicUrl(?string $path, mixed $record = null, mixed $companyId = null): ?string
     {
-        return app(CompanyStorageService::class)->publicUrl(
-            $path,
-            self::resolve($record, $companyId),
-        );
+        try {
+            return app(CompanyStorageService::class)->publicUrl(
+                $path,
+                self::resolve($record, $companyId),
+            );
+        } catch (InvalidArgumentException) {
+            return null;
+        }
     }
 
     /**

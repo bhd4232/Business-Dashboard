@@ -1,367 +1,1181 @@
+@php
+    $channels = $this->channels;
+    $conversations = $this->conversations;
+    $conversation = $this->selectedConversation;
+    $selectedChannel = $channelId ? $channels->firstWhere('id', $channelId) : null;
+    $providerIcons = [
+        'whatsapp' => 'heroicon-o-device-phone-mobile',
+        'messenger' => 'heroicon-o-chat-bubble-oval-left-ellipsis',
+        'manual' => 'heroicon-o-pencil-square',
+        'phone' => 'heroicon-o-phone',
+    ];
+    $statusColors = ['open' => 'success', 'pending' => 'warning', 'closed' => 'gray'];
+    $deliveryLabels = [
+        'pending' => 'Pending',
+        'sending' => 'Sending',
+        'sent' => 'Sent',
+        'delivered' => 'Delivered',
+        'read' => 'Read',
+        'played' => 'Played',
+        'failed' => 'Failed',
+        'internal' => 'Internal note',
+    ];
+    $deliveryColors = [
+        'pending' => 'warning',
+        'sending' => 'warning',
+        'sent' => 'info',
+        'delivered' => 'success',
+        'read' => 'success',
+        'played' => 'success',
+        'failed' => 'danger',
+        'internal' => 'gray',
+    ];
+    $displayName = $conversation
+        ? ($conversation->contact_name ?: $conversation->contact_phone ?: 'Contact '.$conversation->external_contact_id)
+        : null;
+    $canManage = $this->canManageConversations;
+    $isSuperAdmin = auth()->user()?->isSuperAdmin() ?? false;
+    $canCreateManualConversation = $canManage && app(\App\Services\CompanyContext::class)->company() !== null;
+    $conversationCompany = $conversation?->company ?? $conversation?->channel?->company;
+    $conversationTimezone = $conversationCompany?->timezone ?: config('app.timezone', 'UTC');
+    $conversationCurrency = $conversationCompany?->currency ?: 'BDT';
+    $isExternalConversation = $conversation && in_array($conversation->provider, ['whatsapp', 'messenger'], true);
+    $replyWindowOpen = ! $isExternalConversation || $conversation->withinReplyWindow();
+    $channelStatus = $conversation?->channel?->diagnosticStatus();
+    $healthColor = match ($channelStatus) {
+        'Inbound confirmed', 'Connected' => 'success',
+        'Needs attention' => 'danger',
+        'Configured', 'Verify callback', 'Subscribe app', 'Callback verified' => 'warning',
+        default => 'gray',
+    };
+@endphp
+
 <x-filament-panels::page>
-    <style>
-        .zz-inbox { display: grid; grid-template-columns: 1fr; gap: 0; border-radius: .9rem; overflow: hidden; border: 1px solid rgba(3,7,18,.08); box-shadow: 0 1px 2px rgba(0,0,0,.05); height: calc(100dvh - 11.5rem); min-height: 26rem; }
-        .dark .zz-inbox { border-color: rgba(255,255,255,.1); }
-        @media (min-width: 1024px) { .zz-inbox { grid-template-columns: 360px minmax(0, 1fr); } }
-
-        .zz-panel { background: #fff; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
-        .dark .zz-panel { background: rgb(24 24 27); }
-        .zz-list-panel { border-right: 1px solid rgba(3,7,18,.08); }
-        .dark .zz-list-panel { border-color: rgba(255,255,255,.1); }
-
-        /* WhatsApp-style mobile navigation: list OR thread, never both. */
-        @media (max-width: 1023px) {
-            .zz-inbox.has-sel .zz-list-panel { display: none; }
-            .zz-inbox:not(.has-sel) .zz-thread { display: none; }
-        }
-        .zz-back { display: none; }
-        @media (max-width: 1023px) { .zz-back { display: inline-flex; } }
-
-        .zz-panel-header { padding: .6rem .9rem; border-bottom: 1px solid rgba(3,7,18,.08); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; background: rgba(3,7,18,.02); }
-        .dark .zz-panel-header { border-color: rgba(255,255,255,.1); background: rgba(255,255,255,.03); }
-
-        .zz-filter { padding: .3rem .75rem; font-size: .75rem; font-weight: 600; border-radius: 9999px; cursor: pointer; background: rgba(3,7,18,.05); color: rgb(63 63 70); border: none; transition: background .15s; }
-        .dark .zz-filter { background: rgba(255,255,255,.08); color: rgb(212 212 216); }
-        .zz-filter:hover { background: rgba(3,7,18,.1); }
-        .dark .zz-filter:hover { background: rgba(255,255,255,.15); }
-        .zz-filter.active { background: rgb(217 119 6); color: #fff; }
-        .dark .zz-filter.active { background: rgb(245 158 11); color: rgb(24 24 27); }
-
-        .zz-conv-list { overflow-y: auto; flex: 1; min-height: 0; }
-        .zz-conv { width: 100%; text-align: left; padding: .65rem .9rem; cursor: pointer; border: none; background: transparent; display: flex; gap: .7rem; align-items: center; border-bottom: 1px solid rgba(3,7,18,.05); }
-        .dark .zz-conv { border-color: rgba(255,255,255,.06); }
-        .zz-conv:hover { background: rgba(3,7,18,.03); }
-        .dark .zz-conv:hover { background: rgba(255,255,255,.05); }
-        .zz-conv.selected { background: rgba(217,119,6,.08); box-shadow: inset 3px 0 0 rgb(217 119 6); }
-        .dark .zz-conv.selected { background: rgba(245,158,11,.1); box-shadow: inset 3px 0 0 rgb(245 158 11); }
-
-        .zz-avatar { flex: none; width: 2.6rem; height: 2.6rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; color: #fff; background: linear-gradient(135deg, rgb(217 119 6), rgb(245 158 11)); }
-        .zz-conv-main { min-width: 0; flex: 1; }
-        .zz-conv-top { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
-        .zz-conv-name { font-weight: 600; font-size: .875rem; color: rgb(24 24 27); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .dark .zz-conv-name { color: #fff; }
-        .zz-conv-time { flex: none; font-size: .68rem; color: rgb(113 113 122); }
-        .zz-conv-bottom { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: .15rem; }
-        .zz-conv-preview { font-size: .78rem; color: rgb(113 113 122); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-        .zz-unread { flex: none; min-width: 1.25rem; height: 1.25rem; padding: 0 .3rem; border-radius: 9999px; background: rgb(22 163 74); color: #fff; font-size: .68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-        .zz-conv-tags { display: flex; gap: .3rem; margin-top: .2rem; flex-wrap: wrap; }
-
-        .zz-thread { display: flex; flex-direction: column; min-height: 0; }
-        .zz-messages {
-            flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: .35rem; min-height: 0;
-            background-color: #efe7dd;
-            background-image: radial-gradient(rgba(3,7,18,.045) 1px, transparent 1.4px);
-            background-size: 22px 22px;
-        }
-        .dark .zz-messages { background-color: rgb(16 16 20); background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.4px); }
-
-        .zz-day { align-self: center; margin: .5rem 0 .3rem; font-size: .68rem; font-weight: 600; padding: .25rem .7rem; border-radius: .5rem; background: rgba(255,255,255,.85); color: rgb(82 82 91); box-shadow: 0 1px 1px rgba(0,0,0,.06); }
-        .dark .zz-day { background: rgba(255,255,255,.08); color: rgb(161 161 170); }
-
-        .zz-bubble-row { display: flex; }
-        .zz-bubble-row.out { justify-content: flex-end; }
-        .zz-bubble { max-width: 78%; padding: .45rem .7rem; border-radius: .75rem; font-size: .875rem; background: #fff; color: rgb(24 24 27); box-shadow: 0 1px 1px rgba(0,0,0,.08); border-top-left-radius: .2rem; }
-        .dark .zz-bubble { background: rgb(39 39 46); color: rgb(244 244 245); }
-        .zz-bubble-row.out .zz-bubble { background: #fff7e6; border-top-left-radius: .75rem; border-top-right-radius: .2rem; }
-        .dark .zz-bubble-row.out .zz-bubble { background: rgb(69 44 10); }
-        .zz-bubble p.body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
-        .zz-bubble p.body a { color: rgb(180 83 9); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
-        .dark .zz-bubble p.body a { color: rgb(252 211 77); }
-        .zz-bubble .stamp { font-size: .62rem; opacity: .6; margin-top: .2rem; text-align: right; display: flex; justify-content: flex-end; gap: .25rem; }
-        .zz-bubble .kind { font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; opacity: .65; margin-bottom: .1rem; }
-        .zz-bubble img.media { display: block; max-width: 100%; width: 16rem; border-radius: .55rem; margin-bottom: .35rem; }
-        .zz-tick { font-weight: 700; }
-        .zz-tick.failed { color: rgb(220 38 38); opacity: 1; }
-
-        .zz-composer { border-top: 1px solid rgba(3,7,18,.08); padding: .55rem .75rem; display: flex; flex-direction: column; gap: .55rem; background: rgba(3,7,18,.02); }
-        .dark .zz-composer { border-color: rgba(255,255,255,.1); background: rgba(255,255,255,.03); }
-        .zz-row { display: flex; gap: .5rem; align-items: flex-end; }
-        .zz-row .grow { flex: 1; min-width: 0; }
-        .zz-qty { width: 5.5rem; }
-
-        .zz-pill { flex: 1; min-width: 0; display: flex; align-items: center; background: #fff; border: 1px solid rgba(3,7,18,.1); border-radius: 1.4rem; padding: .15rem .35rem .15rem .9rem; }
-        .dark .zz-pill { background: rgb(39 39 46); border-color: rgba(255,255,255,.12); }
-        .zz-pill textarea { flex: 1; min-width: 0; border: none; background: transparent; outline: none; resize: none; padding: .5rem 0; font-size: .875rem; color: inherit; max-height: 7rem; box-shadow: none; }
-        .zz-pill textarea:focus { box-shadow: none; outline: none; }
-        .zz-round-btn { flex: none; width: 2.6rem; height: 2.6rem; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; background: rgb(217 119 6); color: #fff; transition: transform .1s, background .15s; }
-        .zz-round-btn:hover { background: rgb(180 83 9); }
-        .zz-round-btn:active { transform: scale(.93); }
-        .zz-round-btn svg { width: 1.25rem; height: 1.25rem; }
-        .zz-round-btn.ghost { background: rgba(3,7,18,.06); color: rgb(82 82 91); }
-        .dark .zz-round-btn.ghost { background: rgba(255,255,255,.1); color: rgb(212 212 216); }
-        .zz-round-btn.ghost.on { background: rgb(22 163 74); color: #fff; transform: rotate(45deg); }
-
-        .zz-catalog { border: 1px solid rgba(3,7,18,.08); border-radius: .75rem; background: #fff; padding: .6rem; display: flex; flex-direction: column; gap: .5rem; }
-        .dark .zz-catalog { background: rgb(39 39 46); border-color: rgba(255,255,255,.1); }
-        .zz-catalog-preview { display: flex; align-items: center; gap: .6rem; font-size: .8rem; color: rgb(82 82 91); }
-        .dark .zz-catalog-preview { color: rgb(212 212 216); }
-        .zz-catalog-preview img { width: 3rem; height: 3rem; object-fit: cover; border-radius: .5rem; }
-
-        .zz-empty { flex: 1; display: flex; align-items: center; justify-content: center; padding: 3rem 1rem; color: rgb(113 113 122); font-size: .875rem; text-align: center; }
-        .zz-manual-form { padding: .75rem 1rem; border-bottom: 1px solid rgba(3,7,18,.08); display: flex; flex-direction: column; gap: .5rem; }
-        .dark .zz-manual-form { border-color: rgba(255,255,255,.1); }
-    </style>
-
-    {{-- data-zz-no-reload: opt out of the global notificationsSent full-page
-         reload — it would close the open conversation after every send.
-         wire:poll .visible: near-realtime refresh without background polls
-         (background polls on flaky mobile connections trigger Filament's
-         "Error while loading page" toast). --}}
     <div
-        class="zz-inbox {{ $selectedConversationId ? 'has-sel' : '' }}"
         data-zz-no-reload
-        wire:poll.visible.5s
+        wire:poll.visible.8s="refreshInbox"
+        class="space-y-4"
         x-data="{
-            scrollBottom(smooth = false) {
-                const el = $refs.messages;
-                if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+            observer: null,
+            scrollAnchor: null,
+            stickToBottom: true,
+            bottomSyncTimers: [],
+            desktopMediaQuery: null,
+            desktopMediaHandler: null,
+            desktopLayout: window.matchMedia('(min-width: 1280px)').matches,
+            conversationRailCollapsed: (() => {
+                try {
+                    return window.localStorage.getItem('zz-inbox-conversations-collapsed') === 'true';
+                } catch (error) {
+                    return false;
+                }
+            })(),
+            reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+            railCollapsed() {
+                return this.desktopLayout && this.conversationRailCollapsed;
+            },
+            conversationGridStyle() {
+                if (! this.desktopLayout) return null;
+
+                return this.railCollapsed()
+                    ? 'grid-template-columns: 4.75rem minmax(0, 9fr) minmax(17rem, 3fr)'
+                    : 'grid-template-columns: minmax(18rem, 4fr) minmax(0, 5fr) minmax(17rem, 3fr)';
+            },
+            toggleConversationRail() {
+                this.conversationRailCollapsed = ! this.conversationRailCollapsed;
+
+                try {
+                    window.localStorage.setItem(
+                        'zz-inbox-conversations-collapsed',
+                        this.conversationRailCollapsed ? 'true' : 'false',
+                    );
+                } catch (error) {}
+
+                this.$nextTick(() => this.queueBottomSync());
             },
             nearBottom() {
-                const el = $refs.messages;
-                return el ? (el.scrollHeight - el.scrollTop - el.clientHeight) < 120 : false;
+                const element = this.$refs.messageLog;
+                return element ? element.scrollHeight - element.scrollTop - element.clientHeight < 160 : false;
+            },
+            scrollBottom(smooth = false) {
+                const element = this.$refs.messageLog;
+                if (! element) return;
+                this.stickToBottom = true;
+                element.scrollTo({
+                    top: element.scrollHeight,
+                    behavior: smooth && ! this.reducedMotion ? 'smooth' : 'auto',
+                });
+            },
+            queueBottomSync() {
+                this.bottomSyncTimers.forEach((timer) => window.clearTimeout(timer));
+                this.bottomSyncTimers = [0, 80, 240, 600].map((delay) => window.setTimeout(() => {
+                    if (this.stickToBottom) this.scrollBottom(false);
+                }, delay));
+            },
+            forceBottomSync() {
+                this.stickToBottom = true;
+                this.queueBottomSync();
+            },
+            observeMessages() {
+                this.observer?.disconnect();
+                const element = this.$refs.messageLog;
+                if (! element) return;
+                this.observer = new MutationObserver(() => {
+                    if (this.stickToBottom) this.scrollBottom(true);
+                });
+                this.observer.observe(element, { childList: true, subtree: true });
+            },
+            rememberScrollPosition() {
+                const element = this.$refs.messageLog;
+                this.scrollAnchor = element
+                    ? { height: element.scrollHeight, top: element.scrollTop }
+                    : null;
+            },
+            preserveScrollPosition() {
+                const element = this.$refs.messageLog;
+                if (! element || ! this.scrollAnchor) return;
+                element.scrollTop = this.scrollAnchor.top + (element.scrollHeight - this.scrollAnchor.height);
+                this.scrollAnchor = null;
             },
             init() {
-                this.$nextTick(() => this.scrollBottom());
-                // New messages arriving via poll: follow the thread like
-                // WhatsApp when the user is already reading the bottom.
-                new MutationObserver(() => { if (this.nearBottom()) this.scrollBottom(true); })
-                    .observe(this.$el, { childList: true, subtree: true });
+                this.desktopMediaQuery = window.matchMedia('(min-width: 1280px)');
+                this.desktopMediaHandler = (event) => {
+                    this.desktopLayout = event.matches;
+                    this.$nextTick(() => this.queueBottomSync());
+                };
+                this.desktopMediaQuery.addEventListener('change', this.desktopMediaHandler);
+
+                this.$nextTick(() => {
+                    this.observeMessages();
+                    this.queueBottomSync();
+                });
+            },
+            destroy() {
+                this.observer?.disconnect();
+                this.bottomSyncTimers.forEach((timer) => window.clearTimeout(timer));
+                this.desktopMediaQuery?.removeEventListener('change', this.desktopMediaHandler);
             },
         }"
-        x-on:zz-scroll-bottom.window="$nextTick(() => scrollBottom(true))"
+        x-on:load.window="forceBottomSync()"
+        x-on:pageshow.window="forceBottomSync()"
+        x-on:livewire:navigated.window="$nextTick(() => forceBottomSync())"
+        x-on:inbox-scroll-bottom.window="$nextTick(() => { observeMessages(); stickToBottom = true; queueBottomSync(); })"
+        x-on:inbox-conversation-selected.window="$nextTick(() => { observeMessages(); $refs.threadHeading?.focus(); stickToBottom = true; queueBottomSync(); })"
+        x-on:inbox-list-focused.window="$nextTick(() => $refs.conversationSearch?.focus())"
+        x-on:inbox-preserve-scroll.window="$nextTick(() => preserveScrollPosition())"
     >
-        {{-- Conversation list --}}
-        <div class="zz-panel zz-list-panel">
-            <div class="zz-panel-header">
-                @foreach (['open' => 'Open', 'pending' => 'Pending', 'closed' => 'Closed', 'all' => 'All'] as $key => $label)
-                    <button type="button" wire:click="setStatusFilter('{{ $key }}')" class="zz-filter {{ $statusFilter === $key ? 'active' : '' }}">
-                        {{ $label }}
-                    </button>
-                @endforeach
-                <div style="margin-left: auto;">
-                    <x-filament::icon-button
-                        icon="heroicon-o-plus"
-                        wire:click="$toggle('showManualForm')"
-                        label="Log a manual conversation"
-                        color="gray"
-                    />
-                </div>
-            </div>
-
-            @if ($showManualForm)
-                <div class="zz-manual-form">
-                    <x-filament::input.wrapper>
-                        <x-filament::input type="text" wire:model="manualName" placeholder="Contact name" />
-                    </x-filament::input.wrapper>
-                    <x-filament::input.wrapper>
-                        <x-filament::input type="text" wire:model="manualPhone" placeholder="Phone" />
-                    </x-filament::input.wrapper>
-                    <x-filament::button wire:click="createManualConversation" icon="heroicon-m-chat-bubble-left-ellipsis" size="sm">
-                        Create conversation
-                    </x-filament::button>
-                </div>
-            @endif
-
-            <div class="zz-conv-list">
-                @forelse ($this->conversations as $conversation)
-                    @php($displayName = $conversation->contact_name ?: $conversation->contact_phone ?: 'Contact '.$conversation->external_contact_id)
-                    <button
-                        type="button"
-                        wire:click="selectConversation({{ $conversation->getKey() }})"
-                        wire:key="conv-{{ $conversation->getKey() }}"
-                        class="zz-conv {{ $selectedConversationId === $conversation->getKey() ? 'selected' : '' }}"
+        <x-filament::section
+            compact
+            icon="heroicon-o-inbox-stack"
+            heading="Channels"
+            description="View every company conversation together or focus on one connected channel."
+        >
+            <div class="overflow-x-auto pb-1">
+                <x-filament::tabs contained label="Conversation channels" class="min-w-max">
+                    <x-filament::tabs.item
+                        :active="$channelId === null"
+                        :badge="$this->allUnreadCount ?: null"
+                        badge-color="danger"
+                        icon="heroicon-o-squares-2x2"
+                        wire:click="setChannelFilter(null)"
                     >
-                        <span class="zz-avatar">{{ mb_strtoupper(mb_substr(trim($displayName), 0, 1)) }}</span>
-                        <span class="zz-conv-main">
-                            <span class="zz-conv-top">
-                                <span class="zz-conv-name">{{ $displayName }}</span>
-                                <span class="zz-conv-time">{{ $conversation->last_message_at?->diffForHumans(short: true) }}</span>
-                            </span>
-                            <span class="zz-conv-bottom">
-                                <span class="zz-conv-preview">
-                                    @if ($conversation->latestMessage)
-                                        @if ($conversation->latestMessage->direction === 'outgoing')✓@endif
-                                        @if ($conversation->latestMessage->mediaImageUrl())📷 @endif
-                                        {{ \Illuminate\Support\Str::limit((string) $conversation->latestMessage->body, 60) }}
-                                    @else
-                                        —
-                                    @endif
-                                </span>
-                                @if ($conversation->unread_count > 0)
-                                    <span class="zz-unread">{{ $conversation->unread_count }}</span>
-                                @endif
-                            </span>
-                            <span class="zz-conv-tags">
-                                <x-filament::badge color="gray" size="sm">{{ \App\Models\Conversation::PROVIDERS[$conversation->provider] ?? $conversation->provider }}</x-filament::badge>
-                                @if ($conversation->customer)
-                                    <x-filament::badge color="success" size="sm">Customer</x-filament::badge>
-                                @elseif ($conversation->lead)
-                                    <x-filament::badge color="info" size="sm">Lead</x-filament::badge>
-                                @endif
-                            </span>
-                        </span>
-                    </button>
-                @empty
-                    <div class="zz-empty">No conversations yet.</div>
-                @endforelse
-            </div>
-        </div>
+                        All channels
+                    </x-filament::tabs.item>
 
-        {{-- Thread --}}
-        <div class="zz-panel zz-thread">
-            @if ($this->selectedConversation)
-                @php($conversation = $this->selectedConversation)
-                <div class="zz-panel-header">
-                    <x-filament::icon-button
-                        class="zz-back"
-                        icon="heroicon-o-arrow-left"
-                        wire:click="deselectConversation"
-                        label="Back to conversations"
-                        color="gray"
-                    />
-                    <span class="zz-avatar" style="width: 2.25rem; height: 2.25rem; font-size: .875rem;">
-                        {{ mb_strtoupper(mb_substr(trim($conversation->contact_name ?: $conversation->contact_phone ?: 'C'), 0, 1)) }}
-                    </span>
-                    <div style="min-width: 0;">
-                        <p style="font-weight: 600; font-size: .9rem; margin: 0;">
-                            {{ $conversation->contact_name ?: $conversation->contact_phone ?: 'Contact' }}
-                        </p>
-                        <p style="font-size: .72rem; margin: .15rem 0 0; color: rgb(113 113 122);">
-                            {{ \App\Models\Conversation::PROVIDERS[$conversation->provider] ?? $conversation->provider }}
-                            @if ($conversation->contact_phone) · {{ $conversation->contact_phone }} @endif
-                            @if ($conversation->lead) · Lead: {{ $conversation->lead->name }} @endif
-                            @if ($conversation->customer) · Customer: {{ $conversation->customer->name }} @endif
-                        </p>
-                    </div>
-                    <div style="margin-left: auto; display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;">
-                        @if (in_array($conversation->provider, ['whatsapp', 'messenger'], true))
-                            @php($hoursLeft = $conversation->replyWindowHoursLeft())
-                            <x-filament::badge :color="$hoursLeft !== null ? 'success' : 'danger'" size="sm">
-                                @if ($hoursLeft !== null)
-                                    {{ $conversation->replyWindowHours() }}h window · {{ $hoursLeft }}h left
-                                    @if ($conversation->entry_point === 'ctwa_ad') · Ad @endif
-                                @else
-                                    Window closed
-                                @endif
-                            </x-filament::badge>
-                        @endif
-                        @if ($conversation->status === 'pending')
-                            <x-filament::badge color="warning" size="sm">🤖→👤 needs review</x-filament::badge>
-                        @endif
-                        @foreach (['open' => 'Open', 'pending' => 'Pending', 'closed' => 'Close'] as $key => $label)
-                            @if ($conversation->status !== $key)
-                                <x-filament::button wire:click="setConversationStatus('{{ $key }}')" color="gray" size="xs" outlined>
-                                    {{ $label }}
-                                </x-filament::button>
+                    @foreach ($channels as $channel)
+                        <x-filament::tabs.item
+                            :active="$channelId === $channel->getKey()"
+                            :badge="$channel->unread_total ?: null"
+                            badge-color="danger"
+                            :icon="$providerIcons[$channel->provider] ?? 'heroicon-o-chat-bubble-left-right'"
+                            wire:click="setChannelFilter({{ $channel->getKey() }})"
+                            wire:key="channel-tab-{{ $channel->getKey() }}"
+                        >
+                            {{ $channel->display_name }}
+                            @if ($channels->where('display_name', $channel->display_name)->count() > 1)
+                                · {{ $channel->company?->name }}
                             @endif
-                        @endforeach
-                    </div>
-                </div>
+                        </x-filament::tabs.item>
+                    @endforeach
+                </x-filament::tabs>
+            </div>
 
-                <div class="zz-messages" x-ref="messages">
-                    @forelse ($conversation->messages as $message)
-                        @php($day = $message->sent_at->isToday() ? 'আজ' : ($message->sent_at->isYesterday() ? 'গতকাল' : $message->sent_at->format('d M Y')))
-                        @if ($loop->first || ! $message->sent_at->isSameDay($conversation->messages[$loop->index - 1]->sent_at))
-                            <div class="zz-day" wire:key="day-{{ $message->getKey() }}">{{ $day }}</div>
-                        @endif
-                        <div class="zz-bubble-row {{ $message->direction === 'outgoing' ? 'out' : '' }}" wire:key="msg-{{ $message->getKey() }}">
-                            <div class="zz-bubble">
-                                @if (! in_array($message->type, ['text', 'note'], true))
-                                    <p class="kind">{{ \App\Models\ConversationMessage::TYPES[$message->type] ?? $message->type }}</p>
-                                @endif
-                                @if ($imageUrl = $message->mediaImageUrl())
-                                    <img class="media" src="{{ $imageUrl }}" alt="Attached image" loading="lazy">
-                                @elseif ($mediaUrl = $message->mediaDownloadUrl())
-                                    <p class="kind">
-                                        <a href="{{ $mediaUrl }}" target="_blank" rel="noopener noreferrer">📎 {{ basename($message->media_path) }}</a>
-                                    </p>
-                                @endif
-                                <p class="body">{!! $message->bodyHtml() !!}</p>
-                                <p class="stamp">
-                                    @if ($message->generated_by === 'ai')<span>🤖 AI</span>
-                                    @elseif ($message->sender)<span>{{ $message->sender->name }}</span>@endif
-                                    <span>{{ $message->sent_at->format('H:i') }}</span>
-                                    @if ($message->direction === 'outgoing')
-                                        <span class="zz-tick {{ $message->delivery_status === 'failed' ? 'failed' : '' }}">
-                                            @if ($message->delivery_status === 'failed') ⚠
-                                            @elseif (in_array($message->delivery_status, ['delivered', 'read'], true)) ✓✓
-                                            @else ✓
-                                            @endif
-                                        </span>
-                                    @endif
-                                </p>
-                            </div>
+            @if ($selectedChannel?->last_error)
+                <x-filament::callout
+                    class="mt-4"
+                    color="danger"
+                    icon="heroicon-o-exclamation-triangle"
+                    heading="This channel needs attention"
+                    :description="$selectedChannel->last_error"
+                >
+                    @if ($isSuperAdmin)
+                        <x-slot:footer>
+                            <x-filament::link
+                                :href="\App\Filament\Resources\ConversationChannels\ConversationChannelResource::getUrl('edit', ['record' => $selectedChannel])"
+                                icon="heroicon-o-wrench-screwdriver"
+                            >
+                                Open channel setup
+                            </x-filament::link>
+                        </x-slot:footer>
+                    @endif
+                </x-filament::callout>
+            @elseif ($selectedChannel && $selectedChannel->provider === 'whatsapp' && $selectedChannel->diagnosticStatus() !== 'Inbound confirmed')
+                <x-filament::callout
+                    class="mt-4"
+                    color="warning"
+                    icon="heroicon-o-exclamation-circle"
+                    heading="Inbound setup is not complete"
+                    :description="$selectedChannel->diagnosticStatus().'. Verify the callback, enable the messages webhook field in Meta, and run Test & Subscribe.'"
+                />
+            @endif
+        </x-filament::section>
+
+        <div
+            class="grid min-h-[42rem] grid-cols-1 gap-4 transition-[grid-template-columns] duration-200 motion-reduce:transition-none xl:h-[calc(100dvh-17rem)]"
+            x-bind:style="conversationGridStyle()"
+        >
+            <div
+                @class([
+                    'min-h-0 min-w-0',
+                    'hidden xl:block' => $conversation,
+                    'block' => ! $conversation,
+                ])
+            >
+                <x-filament::section
+                    x-cloak
+                    x-bind:data-collapsed="railCollapsed().toString()"
+                    class="flex h-full min-h-0 flex-col [&>.fi-section-content-ctn]:flex [&>.fi-section-content-ctn]:min-h-0 [&>.fi-section-content-ctn]:flex-1 [&>.fi-section-content-ctn>.fi-section-content]:flex [&>.fi-section-content-ctn>.fi-section-content]:min-h-0 [&>.fi-section-content-ctn>.fi-section-content]:flex-1 [&>.fi-section-content-ctn>.fi-section-content]:flex-col [&[data-collapsed=true]>.fi-section-header]:justify-center [&[data-collapsed=true]>.fi-section-header]:px-2 [&[data-collapsed=true]>.fi-section-header>.fi-icon]:hidden [&[data-collapsed=true]_.fi-section-header-text-ctn]:hidden [&[data-collapsed=true]_.fi-section-header-after-ctn]:ms-0 [&[data-collapsed=true]_.fi-section-content]:p-2"
+                    icon="heroicon-o-chat-bubble-left-right"
+                    heading="Conversations"
+                    :description="number_format($conversations->total()).' matching conversations'"
+                >
+                    <x-slot:afterHeader>
+                        <div class="flex items-center gap-1">
+                            @if ($canCreateManualConversation)
+                                <span x-show="! railCollapsed()">
+                                    <x-filament::icon-button
+                                        icon="heroicon-o-plus"
+                                        wire:click="$toggle('showManualForm')"
+                                        label="Log a manual conversation"
+                                        color="gray"
+                                        :aria-expanded="$showManualForm ? 'true' : 'false'"
+                                        aria-controls="manual-conversation-form"
+                                    />
+                                </span>
+                            @endif
+
+                            <span class="hidden xl:inline-flex" x-show="! railCollapsed()">
+                                <x-filament::icon-button
+                                    icon="heroicon-o-chevron-left"
+                                    color="gray"
+                                    label="Collapse conversations"
+                                    aria-controls="inbox-conversations-content"
+                                    x-bind:aria-expanded="(! railCollapsed()).toString()"
+                                    x-on:click="toggleConversationRail()"
+                                />
+                            </span>
+                            <span class="hidden xl:inline-flex" x-show="railCollapsed()">
+                                <x-filament::icon-button
+                                    icon="heroicon-o-chevron-right"
+                                    color="gray"
+                                    label="Expand conversations"
+                                    aria-controls="inbox-conversations-content"
+                                    x-bind:aria-expanded="(! railCollapsed()).toString()"
+                                    x-on:click="toggleConversationRail()"
+                                />
+                            </span>
                         </div>
-                    @empty
-                        <div class="zz-empty">No messages in this conversation yet.</div>
-                    @endforelse
-                </div>
+                    </x-slot:afterHeader>
 
-                <div class="zz-composer">
-                    @if ($showCatalogPanel)
-                        <div class="zz-catalog">
-                            <div class="zz-row">
-                                <div class="grow">
+                    <div id="inbox-conversations-content" class="flex h-full min-h-0 flex-col gap-4">
+                        <div x-show="! railCollapsed()" class="space-y-4">
+                            <div>
+                                <label for="inbox-search" class="sr-only">Search conversations</label>
+                                <x-filament::input.wrapper prefix-icon="heroicon-o-magnifying-glass">
+                                    <x-filament::input
+                                        id="inbox-search"
+                                        x-ref="conversationSearch"
+                                        type="search"
+                                        name="conversation_search"
+                                        wire:model.live.debounce.350ms="search"
+                                        placeholder="Search name or phone…"
+                                        autocomplete="off"
+                                    />
+                                </x-filament::input.wrapper>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="inbox-status" class="mb-1 block text-sm font-medium">Status</label>
                                     <x-filament::input.wrapper>
-                                        <x-filament::input.select wire:model.live="orderFormProductId">
-                                            <option value="">ক্যাটালগ থেকে প্রোডাক্ট বেছে নিন…</option>
-                                            @foreach ($this->products as $product)
-                                                <option value="{{ $product->getKey() }}">{{ $product->name }} (৳{{ number_format((float) $product->sale_price, 2) }})</option>
-                                            @endforeach
+                                        <x-filament::input.select
+                                            id="inbox-status"
+                                            name="conversation_status"
+                                            wire:change="setStatusFilter($event.target.value)"
+                                        >
+                                            <option value="open" @selected($statusFilter === 'open')>Open</option>
+                                            <option value="pending" @selected($statusFilter === 'pending')>Pending</option>
+                                            <option value="closed" @selected($statusFilter === 'closed')>Closed</option>
+                                            <option value="all" @selected($statusFilter === 'all')>All statuses</option>
                                         </x-filament::input.select>
                                     </x-filament::input.wrapper>
                                 </div>
-                                <div class="zz-qty">
+
+                                <div>
+                                    <label for="inbox-assignment" class="mb-1 block text-sm font-medium">Assigned to</label>
                                     <x-filament::input.wrapper>
-                                        <x-filament::input type="number" min="1" wire:model="orderFormQuantity" />
+                                        <x-filament::input.select id="inbox-assignment" name="conversation_assignment" wire:model.live="assignedFilter">
+                                            <option value="all">Anyone</option>
+                                            <option value="mine">Me</option>
+                                            <option value="unassigned">Unassigned</option>
+                                        </x-filament::input.select>
                                     </x-filament::input.wrapper>
                                 </div>
                             </div>
-                            @php($selectedProduct = $orderFormProductId ? $this->products->firstWhere('id', (int) $orderFormProductId) : null)
-                            @if ($selectedProduct)
-                                <div class="zz-catalog-preview">
-                                    @if ($selectedProduct->image)
-                                        <img src="{{ \App\Support\CompanyMedia::publicUrl($selectedProduct->image, $selectedProduct) }}" alt="{{ $selectedProduct->name }}">
-                                    @endif
-                                    <span>
-                                        <strong>{{ $selectedProduct->name }}</strong><br>
-                                        ৳{{ number_format((float) $selectedProduct->sale_price, 2) }} — ছবিসহ প্রোডাক্ট কার্ড ও অর্ডার লিংক যাবে
-                                    </span>
-                                </div>
-                            @endif
-                            <x-filament::button wire:click="sendOrderForm" color="success" icon="heroicon-m-shopping-cart" size="sm">
-                                অর্ডার ফর্ম পাঠান
-                            </x-filament::button>
-                        </div>
-                    @endif
 
-                    <div class="zz-row" style="align-items: center;">
-                        <button
-                            type="button"
-                            class="zz-round-btn ghost {{ $showCatalogPanel ? 'on' : '' }}"
-                            wire:click="$toggle('showCatalogPanel')"
-                            title="ক্যাটালগ / অর্ডার ফর্ম পাঠান"
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                        </button>
-                        <div class="zz-pill">
-                            <textarea
-                                wire:model="replyBody"
-                                x-data
-                                x-on:keydown.enter="if (! $event.shiftKey) { $event.preventDefault(); $wire.sendReply(); }"
-                                rows="1"
-                                x-on:input="$el.style.height = 'auto'; $el.style.height = Math.min($el.scrollHeight, 112) + 'px'"
-                                placeholder="{{ in_array($conversation->provider, ['whatsapp', 'messenger'], true) ? 'মেসেজ লিখুন…' : 'ইন্টারনাল নোট লিখুন…' }}"
-                            ></textarea>
+                            <label class="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                                <x-filament::input.checkbox name="unread_only" wire:model.live="unreadOnly" />
+                                Unread only
+                            </label>
+
+                            @if ($showManualForm && $canCreateManualConversation)
+                                <form id="manual-conversation-form" wire:submit="createManualConversation">
+                                    <x-filament::fieldset label="Log an offline conversation" class="space-y-3">
+                                        <div>
+                                            <label for="manual-name" class="mb-1 block text-sm font-medium">Contact name</label>
+                                            <x-filament::input.wrapper :valid="! $errors->has('manualName')">
+                                                <x-filament::input
+                                                    id="manual-name"
+                                                    type="text"
+                                                    name="manual_name"
+                                                    wire:model="manualName"
+                                                    maxlength="120"
+                                                    autocomplete="name"
+                                                    :aria-describedby="$errors->has('manualName') ? 'manual-name-error' : null"
+                                                    :aria-invalid="$errors->has('manualName') ? 'true' : 'false'"
+                                                    required
+                                                />
+                                            </x-filament::input.wrapper>
+                                            @error('manualName')
+                                                <p id="manual-name-error" class="mt-1 text-sm text-danger-600" role="alert">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label for="manual-phone" class="mb-1 block text-sm font-medium">Phone number</label>
+                                            <x-filament::input.wrapper :valid="! $errors->has('manualPhone')">
+                                                <x-filament::input
+                                                    id="manual-phone"
+                                                    type="tel"
+                                                    name="manual_phone"
+                                                    wire:model="manualPhone"
+                                                    maxlength="40"
+                                                    autocomplete="tel"
+                                                    :aria-describedby="$errors->has('manualPhone') ? 'manual-phone-error' : null"
+                                                    :aria-invalid="$errors->has('manualPhone') ? 'true' : 'false'"
+                                                    required
+                                                />
+                                            </x-filament::input.wrapper>
+                                            @error('manualPhone')
+                                                <p id="manual-phone-error" class="mt-1 text-sm text-danger-600" role="alert">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div class="flex justify-end gap-2">
+                                            <x-filament::button
+                                                type="button"
+                                                color="gray"
+                                                wire:click="$set('showManualForm', false)"
+                                            >
+                                                Cancel
+                                            </x-filament::button>
+                                            <x-filament::button type="submit" icon="heroicon-o-pencil-square">
+                                                Create
+                                            </x-filament::button>
+                                        </div>
+                                    </x-filament::fieldset>
+                                </form>
+                            @endif
                         </div>
-                        <button type="button" class="zz-round-btn" wire:click="sendReply" title="Send" wire:loading.attr="disabled" wire:target="sendReply">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4l17.4-7.5c.8-.4.8-1.5 0-1.8L3.4 3.6c-.7-.3-1.4.3-1.4.9L2 9.1c0 .5.4.9.9 1l12.4 1.9L2.9 13.9c-.5.1-.9.5-.9 1l0 4.6c0 .7.7 1.2 1.4.9z"/></svg>
-                        </button>
+
+                        <div class="min-h-0 flex-1 overflow-y-auto pe-1" wire:loading.class="opacity-60" wire:target="search,setStatusFilter,assignedFilter,unreadOnly,setChannelFilter">
+                            <ul class="space-y-2" aria-label="Conversation list">
+                                @forelse ($conversations as $item)
+                                    @php
+                                        $itemName = $item->contact_name ?: $item->contact_phone ?: 'Contact '.$item->external_contact_id;
+                                        $preview = $item->latestMessage
+                                            ? \Illuminate\Support\Str::limit((string) ($item->latestMessage->body ?: ucfirst($item->latestMessage->type)), 72)
+                                            : 'No messages yet';
+                                        $isSelected = $selectedConversationId === $item->getKey();
+                                        $itemCompany = $item->company ?? $item->channel?->company;
+                                        $itemLastMessageAt = $item->last_message_at?->copy()->timezone($itemCompany?->timezone ?: config('app.timezone', 'UTC'));
+                                    @endphp
+                                    <li wire:key="conversation-{{ $item->getKey() }}">
+                                        <div x-show="! railCollapsed()">
+                                            <x-filament::button
+                                                class="w-full justify-start text-left"
+                                                :color="$isSelected ? 'primary' : 'gray'"
+                                                :outlined="! $isSelected"
+                                                wire:click="selectConversation({{ $item->getKey() }})"
+                                                :aria-current="$isSelected ? 'true' : 'false'"
+                                            >
+                                                <span class="flex w-full min-w-0 items-start gap-3 py-1">
+                                                    <x-filament::icon
+                                                        :icon="$providerIcons[$item->provider] ?? 'heroicon-o-user-circle'"
+                                                        class="h-9 w-9 shrink-0"
+                                                    />
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="flex items-start justify-between gap-2">
+                                                            <span class="truncate font-semibold">{{ $itemName }}</span>
+                                                            @if ($itemLastMessageAt)
+                                                                <time
+                                                                    class="shrink-0 text-xs opacity-70"
+                                                                    datetime="{{ $itemLastMessageAt->toIso8601String() }}"
+                                                                    title="{{ $itemLastMessageAt->format('d M Y, H:i T') }}"
+                                                                >
+                                                                    {{ $itemLastMessageAt->diffForHumans(short: true) }}
+                                                                </time>
+                                                            @endif
+                                                        </span>
+                                                        <span class="mt-1 flex items-center justify-between gap-2">
+                                                            <span class="truncate text-xs opacity-75">
+                                                                @if ($item->latestMessage?->direction === 'outgoing')You: @endif{{ $preview }}
+                                                            </span>
+                                                            @if ($item->unread_count > 0)
+                                                                <x-filament::badge color="danger" size="sm">
+                                                                    <span class="sr-only">Unread messages:</span>{{ $item->unread_count }}
+                                                                </x-filament::badge>
+                                                            @endif
+                                                        </span>
+                                                        <span class="mt-2 flex flex-wrap items-center gap-1">
+                                                            <x-filament::badge color="gray" size="sm">
+                                                                {{ $item->channel?->display_name ?: (\App\Models\Conversation::PROVIDERS[$item->provider] ?? ucfirst($item->provider)) }}
+                                                            </x-filament::badge>
+                                                            <x-filament::badge :color="$statusColors[$item->status] ?? 'gray'" size="sm">
+                                                                {{ \App\Models\Conversation::STATUSES[$item->status] ?? ucfirst($item->status) }}
+                                                            </x-filament::badge>
+                                                            @if ($channelId === null && $itemCompany)
+                                                                <x-filament::badge color="info" size="sm">
+                                                                    {{ $itemCompany->name }}
+                                                                </x-filament::badge>
+                                                            @endif
+                                                            @if ($item->assignedUser)
+                                                                <span class="truncate text-xs opacity-70">{{ $item->assignedUser->name }}</span>
+                                                            @endif
+                                                        </span>
+                                                    </span>
+                                                </span>
+                                            </x-filament::button>
+                                        </div>
+
+                                        <div x-cloak x-show="railCollapsed()" class="flex justify-center py-1">
+                                            <x-filament::icon-button
+                                                data-conversation-avatar
+                                                icon="heroicon-o-user-circle"
+                                                size="lg"
+                                                :color="$isSelected ? 'primary' : 'gray'"
+                                                :badge="$item->unread_count ?: null"
+                                                badge-color="danger"
+                                                :label="'Open conversation with '.$itemName"
+                                                :tooltip="$itemName"
+                                                wire:click="selectConversation({{ $item->getKey() }})"
+                                                :aria-current="$isSelected ? 'true' : 'false'"
+                                            />
+                                        </div>
+                                    </li>
+                                @empty
+                                    <li>
+                                        <div x-show="! railCollapsed()">
+                                            <x-filament::empty-state
+                                                compact
+                                                icon="heroicon-o-chat-bubble-left-ellipsis"
+                                                heading="No conversations found"
+                                                description="Try another channel, status, assignment, or search."
+                                            />
+                                        </div>
+                                        <div x-cloak x-show="railCollapsed()" class="flex justify-center py-2">
+                                            <x-filament::icon
+                                                icon="heroicon-o-user-circle"
+                                                class="h-7 w-7 text-gray-400 dark:text-gray-500"
+                                                aria-label="No conversations found"
+                                            />
+                                        </div>
+                                    </li>
+                                @endforelse
+                            </ul>
+                        </div>
+
+                        @if ($conversations->hasPages())
+                            <div x-show="! railCollapsed()">
+                                <x-filament::pagination :paginator="$conversations" />
+                            </div>
+                        @endif
                     </div>
-                </div>
-            @else
-                <div class="zz-empty">কথোপকথন দেখতে বাম পাশ থেকে একটি চ্যাট বেছে নিন।</div>
-            @endif
+                </x-filament::section>
+            </div>
+
+            <div
+                @class([
+                    'min-h-0 min-w-0',
+                    'block' => $conversation,
+                    'hidden xl:block' => ! $conversation,
+                ])
+            >
+                @if ($conversation)
+                    <x-filament::section
+                        class="flex h-full min-h-0 flex-col [&>.fi-section-content-ctn]:flex [&>.fi-section-content-ctn]:min-h-0 [&>.fi-section-content-ctn]:flex-1 [&>.fi-section-content-ctn>.fi-section-content]:flex [&>.fi-section-content-ctn>.fi-section-content]:min-h-0 [&>.fi-section-content-ctn>.fi-section-content]:flex-1 [&>.fi-section-content-ctn>.fi-section-content]:flex-col"
+                        :icon="$providerIcons[$conversation->provider] ?? 'heroicon-o-user-circle'"
+                        :heading="$displayName"
+                        :description="($conversation->channel?->display_name ?: (\App\Models\Conversation::PROVIDERS[$conversation->provider] ?? ucfirst($conversation->provider))).($conversation->contact_phone ? ' · '.$conversation->contact_phone : '')"
+                    >
+                        <x-slot:afterHeader>
+                            <div class="flex flex-wrap items-center justify-end gap-2">
+                                <x-filament::icon-button
+                                    class="xl:hidden"
+                                    icon="heroicon-o-arrow-left"
+                                    wire:click="deselectConversation"
+                                    label="Back to conversations"
+                                    color="gray"
+                                />
+                                <x-filament::badge :color="$statusColors[$conversation->status] ?? 'gray'">
+                                    {{ \App\Models\Conversation::STATUSES[$conversation->status] ?? ucfirst($conversation->status) }}
+                                </x-filament::badge>
+                                @if ($isExternalConversation)
+                                    <x-filament::badge :color="$replyWindowOpen ? 'success' : 'danger'">
+                                        {{ $replyWindowOpen ? $conversation->replyWindowHoursLeft().'h reply window' : 'Reply window closed' }}
+                                    </x-filament::badge>
+                                @endif
+                            </div>
+                        </x-slot:afterHeader>
+
+                        <h2 x-ref="threadHeading" tabindex="-1" class="sr-only">Conversation with {{ $displayName }}</h2>
+
+                        <x-filament::section
+                            class="mb-3 xl:hidden"
+                            compact
+                            collapsible
+                            collapsed
+                            :collapse-id="'mobile-conversation-tools-'.$conversation->getKey()"
+                            icon="heroicon-o-adjustments-horizontal"
+                            heading="Conversation Tools"
+                            :description="$conversation->assignedUser?->name ? 'Owned by '.$conversation->assignedUser->name : 'Unassigned'"
+                        >
+                            <div class="space-y-4">
+                                <dl class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                                    @if ($conversation->contact_phone)
+                                        <div class="min-w-0">
+                                            <dt class="text-gray-500 dark:text-gray-400">Phone</dt>
+                                            <dd class="truncate font-medium">{{ $conversation->contact_phone }}</dd>
+                                        </div>
+                                    @endif
+                                    <div class="min-w-0">
+                                        <dt class="text-gray-500 dark:text-gray-400">Channel</dt>
+                                        <dd class="truncate font-medium">
+                                            {{ $conversation->channel?->display_name ?: (\App\Models\Conversation::PROVIDERS[$conversation->provider] ?? ucfirst($conversation->provider)) }}
+                                        </dd>
+                                    </div>
+                                    @if ($conversationCompany)
+                                        <div class="min-w-0">
+                                            <dt class="text-gray-500 dark:text-gray-400">Company</dt>
+                                            <dd class="truncate font-medium">{{ $conversationCompany->name }}</dd>
+                                        </div>
+                                    @endif
+                                </dl>
+
+                                @if ($canManage)
+                                    <div class="space-y-2">
+                                        <h3 class="text-sm font-semibold">Assignment & Read State</h3>
+                                        <div class="flex flex-wrap gap-2">
+                                            @if ($conversation->assigned_to === auth()->id())
+                                                <x-filament::button size="sm" color="gray" outlined wire:click="unassignConversation">
+                                                    Unassign
+                                                </x-filament::button>
+                                            @else
+                                                <x-filament::button size="sm" icon="heroicon-o-user-plus" wire:click="assignToMe">
+                                                    Assign to Me
+                                                </x-filament::button>
+                                            @endif
+                                            <x-filament::button size="sm" color="gray" outlined wire:click="markConversationUnread">
+                                                Mark Unread
+                                            </x-filament::button>
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-2">
+                                        <h3 class="text-sm font-semibold">Conversation State</h3>
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach (\App\Models\Conversation::STATUSES as $key => $label)
+                                                <x-filament::button
+                                                    size="sm"
+                                                    :color="$conversation->status === $key ? ($statusColors[$key] ?? 'primary') : 'gray'"
+                                                    :outlined="$conversation->status !== $key"
+                                                    wire:click="setConversationStatus('{{ $key }}')"
+                                                >
+                                                    {{ $label }}
+                                                </x-filament::button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div>
+                                            <h3 class="text-sm font-semibold">AI Assistant</h3>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                {{ $conversation->ai_enabled ? 'Enabled' : 'Paused' }}
+                                            </p>
+                                        </div>
+                                        <x-filament::toggle
+                                            wire:key="mobile-ai-toggle-{{ $conversation->getKey() }}"
+                                            :state="$conversation->ai_enabled ? 'true' : 'false'"
+                                            wire:click="toggleAi"
+                                            aria-label="Toggle AI assistant"
+                                            on-icon="heroicon-m-check"
+                                        />
+                                    </div>
+                                @endif
+
+                                @if ($conversation->channel)
+                                    <div class="space-y-2 border-t border-gray-200 pt-3 dark:border-white/10">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <h3 class="text-sm font-semibold">Channel Health</h3>
+                                            <x-filament::badge :color="$healthColor">{{ $channelStatus }}</x-filament::badge>
+                                        </div>
+                                        @if ($conversation->channel->last_error)
+                                            <p class="break-words text-sm text-danger-600">{{ $conversation->channel->last_error }}</p>
+                                        @elseif ($conversation->channel->last_inbound_at)
+                                            @php
+                                                $mobileLastInboundAt = $conversation->channel->last_inbound_at->copy()->timezone($conversationTimezone);
+                                            @endphp
+                                            <p class="text-sm text-gray-600 dark:text-gray-300">
+                                                Last inbound
+                                                <time
+                                                    datetime="{{ $mobileLastInboundAt->toIso8601String() }}"
+                                                    aria-label="{{ $mobileLastInboundAt->format('d M Y, H:i:s T') }}"
+                                                    title="{{ $mobileLastInboundAt->format('d M Y, H:i:s T') }}"
+                                                >
+                                                    {{ $mobileLastInboundAt->diffForHumans() }}
+                                                </time>
+                                            </p>
+                                        @endif
+                                        @if ($isSuperAdmin)
+                                            <x-filament::link
+                                                :href="\App\Filament\Resources\ConversationChannels\ConversationChannelResource::getUrl('edit', ['record' => $conversation->channel])"
+                                                icon="heroicon-o-cog-6-tooth"
+                                            >
+                                                Channel Settings
+                                            </x-filament::link>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                        </x-filament::section>
+
+                        <div
+                            x-ref="messageLog"
+                            role="log"
+                            aria-live="polite"
+                            aria-relevant="additions text"
+                            aria-label="Messages with {{ $displayName }}"
+                            x-on:scroll.passive="stickToBottom = nearBottom()"
+                            class="max-h-[52vh] min-h-[26rem] min-w-0 overflow-x-hidden overflow-y-auto pe-1 xl:max-h-none xl:flex-1"
+                        >
+                            <div class="flex min-h-full min-w-0 flex-col justify-end gap-3">
+                            @if ($conversation->hasOlderMessages && $messageLimit < 500)
+                                <div class="flex justify-center">
+                                    <x-filament::button
+                                        color="gray"
+                                        outlined
+                                        size="sm"
+                                        icon="heroicon-o-arrow-up"
+                                        wire:click="loadOlderMessages"
+                                        x-on:click="rememberScrollPosition()"
+                                    >
+                                        Load older messages
+                                    </x-filament::button>
+                                </div>
+                            @elseif ($conversation->hasOlderMessages)
+                                <x-filament::callout
+                                    color="gray"
+                                    icon="heroicon-o-information-circle"
+                                    heading="Showing the latest 500 messages"
+                                    description="Use the permanent conversation archive for older history."
+                                />
+                            @endif
+
+                            @forelse ($conversation->messages as $message)
+                                @php
+                                    $previous = $loop->first ? null : $conversation->messages[$loop->index - 1];
+                                    $messageAt = $message->sent_at->copy()->timezone($conversationTimezone);
+                                    $previousAt = $previous?->sent_at?->copy()->timezone($conversationTimezone);
+                                    $showDay = ! $previousAt || ! $messageAt->isSameDay($previousAt);
+                                    $messageDayLabel = $messageAt->isToday() ? 'Today' : ($messageAt->isYesterday() ? 'Yesterday' : $messageAt->format('d M Y'));
+                                    $messageColor = $message->type === 'note'
+                                        ? 'warning'
+                                        : ($message->direction === 'outgoing' ? 'primary' : 'gray');
+                                @endphp
+
+                                @if ($showDay)
+                                    <div
+                                        class="flex items-center justify-center"
+                                        role="separator"
+                                        aria-label="Messages from {{ $messageAt->format('d F Y') }}"
+                                    >
+                                        <x-filament::badge color="gray">
+                                            {{ $messageDayLabel }}
+                                        </x-filament::badge>
+                                    </div>
+                                @endif
+
+                                <article
+                                    wire:key="message-{{ $message->getKey() }}"
+                                    class="flex w-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_8rem] {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}"
+                                    aria-label="{{ $message->direction === 'outgoing' ? 'Outgoing' : 'Incoming' }} {{ \App\Models\ConversationMessage::TYPES[$message->type] ?? $message->type }} message"
+                                >
+                                    <x-filament::callout
+                                        class="w-fit min-w-0 max-w-[88%] overflow-hidden sm:max-w-[82%]"
+                                        :color="$messageColor"
+                                        :icon="$message->type === 'note' ? 'heroicon-o-document-text' : null"
+                                        :heading="$message->type === 'note' ? 'Internal note' : null"
+                                    >
+                                        <x-slot:footer>
+                                            <div class="min-w-0 space-y-2 overflow-hidden">
+                                                @if ($imageUrl = $message->mediaImageUrl())
+                                                    <a
+                                                        href="{{ $imageUrl }}"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        @class([
+                                                            'block max-w-full overflow-hidden rounded-lg',
+                                                            'w-48' => $message->type === 'order_form',
+                                                            'w-fit' => $message->type !== 'order_form',
+                                                        ])
+                                                    >
+                                                        <img
+                                                            src="{{ $imageUrl }}"
+                                                            alt="{{ $message->type === 'order_form' ? 'Product image' : 'Image attached to this message' }}"
+                                                            width="{{ $message->type === 'order_form' ? 192 : 480 }}"
+                                                            height="{{ $message->type === 'order_form' ? 128 : 320 }}"
+                                                            loading="lazy"
+                                                            x-on:load="if (stickToBottom) $nextTick(() => scrollBottom())"
+                                                            @if ($message->type === 'order_form') data-product-thumbnail @endif
+                                                            @class([
+                                                                'max-w-full rounded-lg',
+                                                                'h-32 w-48 object-cover' => $message->type === 'order_form',
+                                                                'h-auto max-h-72 w-auto object-contain' => $message->type !== 'order_form',
+                                                            ])
+                                                        >
+                                                    </a>
+                                                @elseif ($mediaUrl = $message->mediaDownloadUrl())
+                                                    <x-filament::link
+                                                        :href="$mediaUrl"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        icon="heroicon-o-paper-clip"
+                                                    >
+                                                        Open attachment
+                                                    </x-filament::link>
+                                                @endif
+
+                                                @if (filled($message->body))
+                                                    <p data-message-body data-message-wrap="anywhere" class="min-w-0 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere] [&_a]:break-all">{!! $message->bodyHtml() !!}</p>
+                                                @endif
+
+                                                <div class="flex flex-wrap items-center justify-end gap-2 text-xs opacity-80">
+                                                    @if ($message->generated_by === 'ai')
+                                                        <span>AI assistant</span>
+                                                    @elseif ($message->sender)
+                                                        <span>{{ $message->sender->name }}</span>
+                                                    @endif
+                                                    <time
+                                                        datetime="{{ $messageAt->toIso8601String() }}"
+                                                        aria-label="{{ $messageAt->format('d M Y, H:i:s T') }}"
+                                                        title="{{ $messageAt->format('d M Y, H:i:s T') }}"
+                                                    >
+                                                        {{ $messageAt->format('H:i') }}
+                                                    </time>
+                                                    @if ($message->direction === 'outgoing')
+                                                        <x-filament::badge
+                                                            :color="$deliveryColors[$message->delivery_status] ?? 'gray'"
+                                                            size="sm"
+                                                        >
+                                                            {{ $deliveryLabels[$message->delivery_status] ?? ucfirst($message->delivery_status ?: 'pending') }}
+                                                        </x-filament::badge>
+                                                    @endif
+                                                </div>
+
+                                                @if ($message->delivery_status === 'failed')
+                                                    <div class="flex flex-wrap items-center justify-end gap-2">
+                                                        @if ($errorMessage = data_get($message->raw_payload, 'error.message'))
+                                                            <span class="text-xs" role="alert">{{ $errorMessage }}</span>
+                                                        @endif
+                                                        @if ($canManage)
+                                                            <x-filament::button
+                                                                color="danger"
+                                                                outlined
+                                                                size="sm"
+                                                                icon="heroicon-o-arrow-path"
+                                                                wire:click="retryMessage({{ $message->getKey() }})"
+                                                            >
+                                                                Retry
+                                                            </x-filament::button>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </x-slot:footer>
+                                    </x-filament::callout>
+                                </article>
+                            @empty
+                                <x-filament::empty-state
+                                    icon="heroicon-o-chat-bubble-left-ellipsis"
+                                    heading="No messages yet"
+                                    description="Incoming messages and replies will appear here."
+                                />
+                            @endforelse
+                            </div>
+                        </div>
+
+                        @if ($canManage)
+                            <div class="mt-4 space-y-3 border-t border-gray-200 pt-4 dark:border-white/10">
+                            @if ($isExternalConversation && ! $replyWindowOpen)
+                                <x-filament::callout
+                                    color="warning"
+                                    icon="heroicon-o-clock"
+                                    heading="The free-form reply window is closed"
+                                    description="WhatsApp only accepts an approved template now. You can still add an internal note to this conversation."
+                                />
+                            @endif
+
+                            @if ($isExternalConversation)
+                                <x-filament::tabs contained label="Composer mode">
+                                    <x-filament::tabs.item
+                                        :active="$composerMode === 'reply'"
+                                        icon="heroicon-o-paper-airplane"
+                                        wire:click="$set('composerMode', 'reply')"
+                                    >
+                                        Reply
+                                    </x-filament::tabs.item>
+                                    <x-filament::tabs.item
+                                        :active="$composerMode === 'note'"
+                                        icon="heroicon-o-document-text"
+                                        wire:click="$set('composerMode', 'note')"
+                                    >
+                                        Internal note
+                                    </x-filament::tabs.item>
+                                </x-filament::tabs>
+                            @else
+                                <x-filament::badge color="gray" icon="heroicon-o-document-text">Internal activity</x-filament::badge>
+                            @endif
+
+                            @if ($showCatalogPanel && $composerMode === 'reply')
+                                <x-filament::fieldset id="inbox-catalog-panel" label="Send a catalog order link" class="space-y-3">
+                                    <div>
+                                        <label for="product-search" class="mb-1 block text-sm font-medium">Find a product</label>
+                                        <x-filament::input.wrapper prefix-icon="heroicon-o-magnifying-glass">
+                                            <x-filament::input
+                                                id="product-search"
+                                                type="search"
+                                                name="product_search"
+                                                wire:model.live.debounce.300ms="productSearch"
+                                                placeholder="Product name or SKU…"
+                                                autocomplete="off"
+                                            />
+                                        </x-filament::input.wrapper>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                                        <div class="sm:col-span-3">
+                                            <label for="order-product" class="mb-1 block text-sm font-medium">Product</label>
+                                            <x-filament::input.wrapper :valid="! $errors->has('orderFormProductId')">
+                                                <x-filament::input.select
+                                                    id="order-product"
+                                                    name="order_product"
+                                                    wire:model.live="orderFormProductId"
+                                                    :aria-describedby="$errors->has('orderFormProductId') ? 'order-product-error' : null"
+                                                    :aria-invalid="$errors->has('orderFormProductId') ? 'true' : 'false'"
+                                                >
+                                                    <option value="">Select a product…</option>
+                                                    @foreach ($this->products as $product)
+                                                        <option value="{{ $product->getKey() }}">
+                                                            {{ $product->name }} — {{ $conversationCurrency }} {{ number_format((float) $product->sale_price, 2) }}
+                                                        </option>
+                                                    @endforeach
+                                                </x-filament::input.select>
+                                            </x-filament::input.wrapper>
+                                            @error('orderFormProductId')
+                                                <p id="order-product-error" class="mt-1 text-sm text-danger-600" role="alert">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div>
+                                            <label for="order-quantity" class="mb-1 block text-sm font-medium">Quantity</label>
+                                            <x-filament::input.wrapper :valid="! $errors->has('orderFormQuantity')">
+                                                <x-filament::input
+                                                    id="order-quantity"
+                                                    type="number"
+                                                    name="order_quantity"
+                                                    min="1"
+                                                    max="999"
+                                                    inputmode="numeric"
+                                                    wire:model="orderFormQuantity"
+                                                    :aria-describedby="$errors->has('orderFormQuantity') ? 'order-quantity-error' : null"
+                                                    :aria-invalid="$errors->has('orderFormQuantity') ? 'true' : 'false'"
+                                                />
+                                            </x-filament::input.wrapper>
+                                            @error('orderFormQuantity')
+                                                <p id="order-quantity-error" class="mt-1 text-sm text-danger-600" role="alert">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    @if ($selectedProduct = $this->selectedProduct)
+                                        <x-filament::callout
+                                            color="info"
+                                            icon="heroicon-o-shopping-bag"
+                                            :heading="$selectedProduct->name"
+                                            :description="$conversationCurrency.' '.number_format((float) $selectedProduct->sale_price, 2).' · A secure order link will be added to the thread.'"
+                                        />
+                                    @endif
+
+                                    <div class="flex justify-end gap-2">
+                                        <x-filament::button
+                                            type="button"
+                                            color="gray"
+                                            wire:click="$set('showCatalogPanel', false)"
+                                        >
+                                            Cancel
+                                        </x-filament::button>
+                                        <x-filament::button
+                                            type="button"
+                                            color="success"
+                                            icon="heroicon-o-link"
+                                            wire:click="sendOrderForm"
+                                            :disabled="! $replyWindowOpen"
+                                        >
+                                            {{ $isExternalConversation ? 'Send Order Link' : 'Add Order Link' }}
+                                        </x-filament::button>
+                                    </div>
+                                </x-filament::fieldset>
+                            @endif
+
+                            <form wire:submit="sendReply" class="space-y-2">
+                                <label for="reply-body" class="sr-only">
+                                    {{ $composerMode === 'note' || ! $isExternalConversation ? 'Internal note' : 'Message reply' }}
+                                </label>
+                                <x-filament::input.wrapper
+                                    :valid="! $errors->has('replyBody')"
+                                    :prefix-icon="$composerMode === 'note' || ! $isExternalConversation ? 'heroicon-o-document-text' : 'heroicon-o-chat-bubble-left-ellipsis'"
+                                >
+                                    <textarea
+                                        id="reply-body"
+                                        name="message"
+                                        wire:model="replyBody"
+                                        rows="3"
+                                        maxlength="4096"
+                                        autocomplete="off"
+                                        aria-describedby="reply-help @error('replyBody') reply-error @enderror"
+                                        aria-invalid="{{ $errors->has('replyBody') ? 'true' : 'false' }}"
+                                        placeholder="{{ $composerMode === 'note' || ! $isExternalConversation ? 'Add a private note for your team…' : 'Write a reply…' }}"
+                                        @disabled($composerMode === 'reply' && ! $replyWindowOpen)
+                                        x-on:keydown.enter="if (! $event.shiftKey && ! $event.isComposing) { $event.preventDefault(); $el.form.requestSubmit(); }"
+                                        class="block w-full resize-y border-0 bg-transparent px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                    ></textarea>
+                                </x-filament::input.wrapper>
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <p id="reply-help" class="text-xs text-gray-500 dark:text-gray-400">
+                                        Enter to send · Shift+Enter for a new line
+                                    </p>
+                                    <div class="flex items-center gap-2">
+                                        @if ($composerMode === 'reply' && $replyWindowOpen)
+                                            <x-filament::icon-button
+                                                icon="heroicon-o-shopping-bag"
+                                                wire:click="$toggle('showCatalogPanel')"
+                                                :label="$isExternalConversation ? 'Open product catalog' : 'Add an internal order link'"
+                                                color="gray"
+                                                :aria-expanded="$showCatalogPanel ? 'true' : 'false'"
+                                                aria-controls="inbox-catalog-panel"
+                                            />
+                                        @endif
+                                        <x-filament::button
+                                            type="submit"
+                                            icon="heroicon-o-paper-airplane"
+                                            :color="$composerMode === 'note' || ! $isExternalConversation ? 'warning' : 'primary'"
+                                            :disabled="$composerMode === 'reply' && ! $replyWindowOpen"
+                                            wire:target="sendReply"
+                                        >
+                                            {{ $composerMode === 'note' || ! $isExternalConversation ? 'Add note' : 'Send' }}
+                                        </x-filament::button>
+                                    </div>
+                                </div>
+                                @error('replyBody')
+                                    <p id="reply-error" class="text-sm text-danger-600" role="alert">{{ $message }}</p>
+                                @enderror
+                            </form>
+                            </div>
+                        @else
+                            <x-filament::callout
+                                class="mt-4"
+                                color="gray"
+                                icon="heroicon-o-eye"
+                                heading="Read-only inbox access"
+                                description="You can review this conversation, but your role cannot reply or change its workflow state."
+                            />
+                        @endif
+                    </x-filament::section>
+                @else
+                    <x-filament::section class="h-full">
+                        <x-filament::empty-state
+                            icon="heroicon-o-cursor-arrow-rays"
+                            heading="Select a conversation"
+                            description="Choose a chat from the list to read messages, reply, assign an owner, or add a note."
+                        />
+                    </x-filament::section>
+                @endif
+            </div>
+
+            <aside class="hidden min-h-0 min-w-0 xl:block" aria-label="Conversation details">
+                @if ($conversation)
+                    <div class="h-full space-y-4 overflow-y-auto pe-1">
+                        <x-filament::section
+                            compact
+                            icon="heroicon-o-user-circle"
+                            heading="Contact"
+                            :description="$displayName"
+                        >
+                            <dl class="space-y-3 text-sm">
+                                @if ($conversation->contact_phone)
+                                    <div>
+                                        <dt class="text-gray-500 dark:text-gray-400">Phone</dt>
+                                        <dd class="font-medium">{{ $conversation->contact_phone }}</dd>
+                                    </div>
+                                @endif
+                                <div>
+                                    <dt class="text-gray-500 dark:text-gray-400">Channel</dt>
+                                    <dd class="font-medium">
+                                        {{ $conversation->channel?->display_name ?: (\App\Models\Conversation::PROVIDERS[$conversation->provider] ?? ucfirst($conversation->provider)) }}
+                                    </dd>
+                                </div>
+                                @if ($conversationCompany)
+                                    <div>
+                                        <dt class="text-gray-500 dark:text-gray-400">Company</dt>
+                                        <dd class="font-medium">{{ $conversationCompany->name }}</dd>
+                                    </div>
+                                @endif
+                                @if ($conversation->customer)
+                                    <div>
+                                        <dt class="text-gray-500 dark:text-gray-400">Customer</dt>
+                                        <dd class="font-medium">{{ $conversation->customer->name }}</dd>
+                                    </div>
+                                @elseif ($conversation->lead)
+                                    <div>
+                                        <dt class="text-gray-500 dark:text-gray-400">Lead</dt>
+                                        <dd class="font-medium">{{ $conversation->lead->name }}</dd>
+                                    </div>
+                                @endif
+                                <div>
+                                    <dt class="text-gray-500 dark:text-gray-400">Owner</dt>
+                                    <dd class="font-medium">{{ $conversation->assignedUser?->name ?: 'Unassigned' }}</dd>
+                                </div>
+                            </dl>
+                        </x-filament::section>
+
+                        @if ($canManage)
+                            <x-filament::section compact icon="heroicon-o-user-plus" heading="Assignment">
+                                <div class="flex flex-wrap gap-2">
+                                    @if ($conversation->assigned_to === auth()->id())
+                                        <x-filament::button color="gray" outlined wire:click="unassignConversation">
+                                            Unassign
+                                        </x-filament::button>
+                                    @else
+                                        <x-filament::button icon="heroicon-o-user-plus" wire:click="assignToMe">
+                                            Assign to me
+                                        </x-filament::button>
+                                    @endif
+                                    <x-filament::button color="gray" outlined wire:click="markConversationUnread">
+                                        Mark unread
+                                    </x-filament::button>
+                                </div>
+                            </x-filament::section>
+
+                            <x-filament::section compact icon="heroicon-o-adjustments-horizontal" heading="Conversation state">
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach (\App\Models\Conversation::STATUSES as $key => $label)
+                                        <x-filament::button
+                                            size="sm"
+                                            :color="$conversation->status === $key ? ($statusColors[$key] ?? 'primary') : 'gray'"
+                                            :outlined="$conversation->status !== $key"
+                                            wire:click="setConversationStatus('{{ $key }}')"
+                                        >
+                                            {{ $label }}
+                                        </x-filament::button>
+                                    @endforeach
+                                </div>
+                            </x-filament::section>
+
+                            <x-filament::section
+                                compact
+                                icon="heroicon-o-sparkles"
+                                heading="AI assistant"
+                                description="Pause automation whenever a human takes over."
+                            >
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-sm font-medium">{{ $conversation->ai_enabled ? 'Enabled' : 'Paused' }}</span>
+                                    <x-filament::toggle
+                                        wire:key="desktop-ai-toggle-{{ $conversation->getKey() }}"
+                                        :state="$conversation->ai_enabled ? 'true' : 'false'"
+                                        wire:click="toggleAi"
+                                        aria-label="Toggle AI assistant"
+                                        on-icon="heroicon-m-check"
+                                    />
+                                </div>
+                            </x-filament::section>
+                        @endif
+
+                        @if ($conversation->channel)
+                            <x-filament::section
+                                compact
+                                icon="heroicon-o-signal"
+                                heading="Channel health"
+                                :description="$channelStatus"
+                            >
+                                <div class="space-y-3">
+                                    <x-filament::badge :color="$healthColor">
+                                        {{ $channelStatus }}
+                                    </x-filament::badge>
+                                    @if ($conversation->channel->last_error)
+                                        <p class="text-sm text-danger-600" role="alert">{{ $conversation->channel->last_error }}</p>
+                                    @elseif ($conversation->channel->last_inbound_at)
+                                        @php
+                                            $lastInboundAt = $conversation->channel->last_inbound_at->copy()->timezone($conversationTimezone);
+                                        @endphp
+                                        <p class="text-sm text-gray-600 dark:text-gray-300">
+                                            Last inbound
+                                            <time
+                                                datetime="{{ $lastInboundAt->toIso8601String() }}"
+                                                aria-label="{{ $lastInboundAt->format('d M Y, H:i:s T') }}"
+                                                title="{{ $lastInboundAt->format('d M Y, H:i:s T') }}"
+                                            >
+                                                {{ $lastInboundAt->diffForHumans() }}
+                                            </time>
+                                        </p>
+                                    @endif
+                                    @if ($isSuperAdmin)
+                                        <x-filament::link
+                                            :href="\App\Filament\Resources\ConversationChannels\ConversationChannelResource::getUrl('edit', ['record' => $conversation->channel])"
+                                            icon="heroicon-o-cog-6-tooth"
+                                        >
+                                            Channel settings
+                                        </x-filament::link>
+                                    @endif
+                                </div>
+                            </x-filament::section>
+                        @endif
+                    </div>
+                @else
+                    <x-filament::section compact icon="heroicon-o-information-circle" heading="Conversation details">
+                        <p class="text-sm text-gray-600 dark:text-gray-300">Contact, assignment, AI, and channel health appear here.</p>
+                    </x-filament::section>
+                @endif
+            </aside>
         </div>
     </div>
 </x-filament-panels::page>

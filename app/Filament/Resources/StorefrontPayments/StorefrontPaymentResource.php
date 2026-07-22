@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StorefrontPayments;
 
+use App\Filament\Clusters\Storefront;
 use App\Filament\Resources\StorefrontPayments\Pages\ListStorefrontPayments;
 use App\Models\StorefrontPayment;
 use BackedEnum;
@@ -13,7 +14,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class StorefrontPaymentResource extends Resource
 {
@@ -21,9 +21,11 @@ class StorefrontPaymentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Storefront';
+    protected static ?string $cluster = Storefront::class;
 
-    protected static ?string $navigationLabel = 'Storefront Payments';
+    protected static ?string $navigationLabel = 'Payments';
+
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $recordTitleAttribute = 'invoice_id';
 

@@ -46,15 +46,15 @@ class PhaseThreeAdminPagesTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/admin/customers')
+            ->get('/admin/sales/customers')
             ->assertOk();
 
         $this->actingAs($user)
-            ->get('/admin/orders/create')
+            ->get('/admin/sales/orders/create')
             ->assertOk();
 
         $this->actingAs($user)
-            ->get("/admin/orders/{$order->id}")
+            ->get("/admin/sales/orders/{$order->id}")
             ->assertOk()
             ->assertSee('Admin Sale Product');
 

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 use LogicException;
 
 class CompanySettingsService
@@ -33,6 +34,17 @@ class CompanySettingsService
 
     public const DATE_FORMAT = 'company.date_format';
 
+    public function name(?Company $company = null): string
+    {
+        $company ??= $this->currentCompany();
+
+        if ($company) {
+            return (string) ($company->name ?: config('app.name', 'Business Dashboard'));
+        }
+
+        return (string) $this->value(self::NAME, config('app.name', 'Business Dashboard'));
+    }
+
     public function profile(?Company $company = null): array
     {
         $company ??= $this->currentCompany();
@@ -42,7 +54,7 @@ class CompanySettingsService
         }
 
         return [
-            'name' => $this->value(self::NAME, config('app.name', 'Business Dashboard')),
+            'name' => $this->name(),
             'logo' => $this->value(self::LOGO),
             'dark_logo' => $this->value(self::DARK_LOGO),
             'logo_url' => $this->logoUrl(),
@@ -227,12 +239,20 @@ class CompanySettingsService
 
     protected function publicUrl(?string $path, ?Company $company = null): ?string
     {
-        return app(CompanyStorageService::class)->publicUrl($path, $company);
+        try {
+            return app(CompanyStorageService::class)->publicUrl($path, $company);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
     }
 
     protected function publicPath(?string $path, ?Company $company = null): ?string
     {
-        $location = app(CompanyStorageService::class)->locatePublic($path, $company);
+        try {
+            $location = app(CompanyStorageService::class)->locatePublic($path, $company);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
 
         if ($location === null) {
             return null;
@@ -312,7 +332,7 @@ class CompanySettingsService
         $settings = (array) $company->settings;
 
         return [
-            'name' => $company->name ?: config('app.name', 'Business Dashboard'),
+            'name' => $this->name($company),
             'logo' => $company->logo,
             'dark_logo' => $settings['dark_logo'] ?? null,
             'logo_url' => $this->logoUrl($company),

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\UserRoles;
 
+use App\Filament\Clusters\Settings;
 use App\Filament\Resources\UserRoles\Pages\CreateUserRole;
 use App\Filament\Resources\UserRoles\Pages\EditUserRole;
 use App\Filament\Resources\UserRoles\Pages\ListUserRoles;
@@ -15,7 +16,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class UserRoleResource extends Resource
 {
@@ -23,7 +23,7 @@ class UserRoleResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static ?string $cluster = Settings::class;
 
     protected static ?int $navigationSort = 2;
 

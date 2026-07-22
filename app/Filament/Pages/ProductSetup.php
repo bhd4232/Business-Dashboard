@@ -2,21 +2,31 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Clusters\Settings;
 use App\Services\CompanySettingsService;
 use App\Services\LicenseActivationService;
 use App\Services\ProductSetupService;
 use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\RepeatableEntry\TableColumn;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class ProductSetup extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRocketLaunch;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static ?string $cluster = Settings::class;
 
     protected static ?int $navigationSort = 2;
 
@@ -62,6 +72,130 @@ class ProductSetup extends Page
         $this->licenseKey = null;
         $this->licensedTo = (string) $license['licensed_to'];
         $this->supportEmail = (string) $license['support_email'];
+    }
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Grid::make([
+                    'default' => 1,
+                    'lg' => 3,
+                ])
+                    ->schema([
+                        Section::make('Onboarding Wizard')
+                            ->description('Finish the client-ready setup after installation.')
+                            ->icon(Heroicon::OutlinedRocketLaunch)
+                            ->columnSpan([
+                                'default' => 1,
+                                'lg' => 2,
+                            ])
+                            ->schema([
+                                TextInput::make('companyName')
+                                    ->label('Company Name')
+                                    ->required()
+                                    ->maxLength(120)
+                                    ->autocomplete('organization'),
+                                TextInput::make('companyEmail')
+                                    ->label('Company Email')
+                                    ->email()
+                                    ->maxLength(120)
+                                    ->autocomplete('email'),
+                                TextInput::make('currency')
+                                    ->label('Currency')
+                                    ->required()
+                                    ->maxLength(12)
+                                    ->autocomplete(false),
+                                Select::make('timezone')
+                                    ->label('Timezone')
+                                    ->options($this->timezoneOptions())
+                                    ->required()
+                                    ->searchable(),
+                                Select::make('dateFormat')
+                                    ->label('Date Format')
+                                    ->options($this->dateFormatOptions())
+                                    ->required(),
+                                Toggle::make('onboardingCompleted')
+                                    ->label('Mark onboarding complete'),
+                                Toggle::make('demoMode')
+                                    ->label('Enable demo mode'),
+                                TextInput::make('demoNotice')
+                                    ->label('Demo Notice')
+                                    ->maxLength(180)
+                                    ->autocomplete(false)
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->footerActions([
+                                Action::make('saveProductSetup')
+                                    ->label('Save Setup')
+                                    ->icon(Heroicon::OutlinedCheckCircle)
+                                    ->action(fn () => $this->saveSetup()),
+                            ]),
+
+                        Section::make('Setup Checklist')
+                            ->description('A quick product-readiness snapshot.')
+                            ->icon(Heroicon::OutlinedClipboardDocumentCheck)
+                            ->columnSpan([
+                                'default' => 1,
+                                'lg' => 1,
+                            ])
+                            ->schema([
+                                RepeatableEntry::make('setupChecklist')
+                                    ->hiddenLabel()
+                                    ->state(fn (): array => $this->setupChecklist())
+                                    ->table([
+                                        TableColumn::make('Item'),
+                                        TableColumn::make('Status'),
+                                    ])
+                                    ->schema([
+                                        TextEntry::make('label'),
+                                        TextEntry::make('done')
+                                            ->formatStateUsing(fn (bool $state): string => $state ? 'Done' : 'Open')
+                                            ->badge()
+                                            ->color(fn (bool $state): string => $state ? 'success' : 'warning'),
+                                    ]),
+                            ]),
+
+                        Section::make('License Activation')
+                            ->description('Activate this installation and keep support contact details up to date.')
+                            ->icon(Heroicon::OutlinedKey)
+                            ->columnSpanFull()
+                            ->schema([
+                                TextEntry::make('licenseStatus')
+                                    ->label('Current Status')
+                                    ->state(fn (): string => $this->licenseDetails()['is_active'] ? 'Active' : 'Not activated')
+                                    ->badge()
+                                    ->color(fn (): string => $this->licenseDetails()['is_active'] ? 'success' : 'warning'),
+                                TextEntry::make('maskedLicenseKey')
+                                    ->label('License Key')
+                                    ->state(fn (): string => (string) $this->licenseDetails()['masked_key']),
+                                TextInput::make('licenseKey')
+                                    ->label('New License Key')
+                                    ->required()
+                                    ->maxLength(32)
+                                    ->placeholder('ZZERP-XXXX-XXXX-XXXX')
+                                    ->autocomplete(false),
+                                TextInput::make('licensedTo')
+                                    ->label('Licensed To')
+                                    ->required()
+                                    ->maxLength(120)
+                                    ->autocomplete('organization'),
+                                TextInput::make('supportEmail')
+                                    ->label('Support Email')
+                                    ->email()
+                                    ->maxLength(120)
+                                    ->autocomplete('email'),
+                            ])
+                            ->columns(3)
+                            ->footerActions([
+                                Action::make('activateProductLicense')
+                                    ->label('Activate License')
+                                    ->icon(Heroicon::OutlinedKey)
+                                    ->action(fn () => $this->activateLicense()),
+                            ]),
+                    ]),
+            ]);
     }
 
     public static function canAccess(): bool

@@ -18,6 +18,6 @@
     @endif
 
     @auth
-        <a href="{{ url('/admin/inbox') }}" class="btn secondary" style="margin-top: 1.5rem;">↩ ইনবক্সে ফিরে যান</a>
+        <a href="{{ url('/admin/crm/inbox') }}" class="btn secondary" style="margin-top: 1.5rem;">↩ ইনবক্সে ফিরে যান</a>
     @endauth
 @endsection

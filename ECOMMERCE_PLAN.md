@@ -399,7 +399,8 @@ The product order page should show a clear cost breakdown when the product is im
 - [ ] Wishlist
 - [ ] Related products
 - [ ] Promotional campaigns
-- [ ] Abandoned cart recovery
+- [x] Abandoned cart recovery (company storefront settings; WhatsApp templates can reuse the selected CRM Chat Channel)
+- [x] Channel-based CRM Inbox for WhatsApp/Messenger customer conversations and chat order links
 - [ ] Analytics integration
 - [ ] Support ticket system
 - [ ] Return and refund workflow

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\TransactionLedgers;
 
+use App\Filament\Clusters\Accounts;
 use App\Filament\Resources\TransactionLedgers\Pages\ListTransactionLedgers;
 use App\Filament\Resources\TransactionLedgers\Pages\ViewTransactionLedger;
 use App\Filament\Resources\TransactionLedgers\Schemas\TransactionLedgerInfolist;
@@ -12,7 +13,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use UnitEnum;
 
 class TransactionLedgerResource extends Resource
 {
@@ -20,7 +20,7 @@ class TransactionLedgerResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Accounts';
+    protected static ?string $cluster = Accounts::class;
 
     protected static ?string $recordTitleAttribute = 'type';
 

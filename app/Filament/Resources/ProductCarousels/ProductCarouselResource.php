@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProductCarousels;
 
+use App\Filament\Clusters\Storefront;
 use App\Filament\Resources\ProductCarousels\Pages\CreateProductCarousel;
 use App\Filament\Resources\ProductCarousels\Pages\EditProductCarousel;
 use App\Filament\Resources\ProductCarousels\Pages\ListProductCarousels;
@@ -23,7 +24,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
-use UnitEnum;
 
 class ProductCarouselResource extends Resource
 {
@@ -31,7 +31,7 @@ class ProductCarouselResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleGroup;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Storefront';
+    protected static ?string $cluster = Storefront::class;
 
     protected static ?int $navigationSort = 3;
 

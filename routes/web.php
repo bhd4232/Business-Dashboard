@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\BackupDownloadController;
 use App\Http\Controllers\Admin\CompanySwitchController;
 use App\Http\Controllers\Admin\ConversationMediaController;
 use App\Http\Controllers\Admin\CustomerCsvController;
+use App\Http\Controllers\Admin\LegacyAdminClusterRedirectController;
 use App\Http\Controllers\Admin\OrderPdfController;
 use App\Http\Controllers\Admin\ProductCsvController;
 use App\Http\Controllers\Admin\ReportExportController;
@@ -267,6 +268,12 @@ Route::middleware('auth')
     ->name('reports.export.pdf');
 
 Route::middleware('auth')->group(function (): void {
+    Route::redirect('/admin/companies', '/admin/company-management/companies')
+        ->name('admin.companies.legacy');
+
+    Route::redirect('/admin/company-settings', '/admin/company-management/company-settings')
+        ->name('admin.company-settings.legacy');
+
     Route::post('/admin/company/switch', CompanySwitchController::class)
         ->name('admin.company.switch');
 
@@ -299,6 +306,11 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/admin/voucher-attachments/{attachment}/download', VoucherAttachmentDownloadController::class)
         ->whereNumber('attachment')
         ->name('voucher-attachments.download');
+
+    Route::get('/admin/{legacy}/{path?}', LegacyAdminClusterRedirectController::class)
+        ->whereIn('legacy', LegacyAdminClusterRedirectController::legacySegments())
+        ->where('path', '.*')
+        ->name('admin.clusters.legacy');
 });
 
 // Shareable Money Receipt: signed URL, no login required, signature can't be guessed.

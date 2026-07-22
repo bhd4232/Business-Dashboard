@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Clusters\CompanyManagement;
 use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Models\Company;
 use App\Services\CompanyContext;
@@ -22,7 +23,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
-use UnitEnum;
 
 class CompanySettings extends Page
 {
@@ -30,9 +30,9 @@ class CompanySettings extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static ?string $cluster = CompanyManagement::class;
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $title = 'Company Settings';
 

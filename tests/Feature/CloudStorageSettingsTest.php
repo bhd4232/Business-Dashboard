@@ -20,11 +20,11 @@ class CloudStorageSettingsTest extends TestCase
         $superAdmin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
         $this->actingAs($manager)
-            ->get('/admin/cloud-storage-settings')
+            ->get('/admin/settings/cloud-storage-settings')
             ->assertForbidden();
 
         $this->actingAs($superAdmin)
-            ->get('/admin/cloud-storage-settings')
+            ->get('/admin/settings/cloud-storage-settings')
             ->assertOk()
             ->assertSee('Global R2 connection')
             ->assertSee('Public storefront media')

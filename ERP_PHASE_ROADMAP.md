@@ -520,7 +520,13 @@ Related planning documents:
 
 **Goal:** Add stronger customer engagement, marketing, and support workflows.
 
-**Status:** Planned.
+**Status:** In progress.
+
+**Completed Foundations:**
+
+- Company-scoped abandoned-cart recovery can send WhatsApp templates through the same centrally tested Chat Channel used by CRM, while retaining legacy credentials only for migration fallback.
+- Responsive channel-based CRM Inbox for WhatsApp and Messenger with unread/search/assignment/status workflows, internal notes, order links, delivery states, and retryable failures.
+- Reliable WhatsApp webhook foundation: callback/signature verification, WABA subscription diagnostics, synchronous core ingest, company isolation, durable outbound attempts, and Meta v25 configuration.
 
 **Tasks:**
 
