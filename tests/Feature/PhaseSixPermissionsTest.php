@@ -35,7 +35,7 @@ class PhaseSixPermissionsTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get('/admin/users')
+            ->get('/admin/settings/users')
             ->assertOk()
             ->assertSee('Users');
     }
@@ -48,7 +48,7 @@ class PhaseSixPermissionsTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get('/admin/users/create')
+            ->get('/admin/settings/users/create')
             ->assertOk()
             ->assertSee('selectFormComponent')
             ->assertSee('createOption')
@@ -88,7 +88,7 @@ class PhaseSixPermissionsTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->actingAs($user)->get('/admin/users')->assertForbidden();
+        $this->actingAs($user)->get('/admin/settings/users')->assertForbidden();
         $this->actingAs($user)->get('/admin/accounts')->assertForbidden();
     }
 
@@ -99,7 +99,7 @@ class PhaseSixPermissionsTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->actingAs($user)->get('/admin/reports')->assertOk();
+        $this->actingAs($user)->get('/admin/reports/reports')->assertOk();
         $this->actingAs($user)->get('/admin/reports/export/sales')->assertForbidden();
     }
 
@@ -136,7 +136,7 @@ class PhaseSixPermissionsTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get('/admin/user-roles')
+            ->get('/admin/settings/user-roles')
             ->assertOk()
             ->assertSee('User Roles')
             ->assertSee('Dashboard: View')
@@ -145,7 +145,7 @@ class PhaseSixPermissionsTest extends TestCase
             ->assertSee('Reports: Export');
 
         $this->actingAs($admin)
-            ->get('/admin/user-roles/create')
+            ->get('/admin/settings/user-roles/create')
             ->assertOk()
             ->assertSee('Role Details')
             ->assertSee('Permissions');
@@ -418,8 +418,8 @@ class PhaseSixPermissionsTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->actingAs($salesStaff)->get("/admin/customer-payments/{$payment->id}/edit")->assertForbidden();
-        $this->actingAs($accountant)->get("/admin/customer-payments/{$payment->id}/edit")->assertOk();
+        $this->actingAs($salesStaff)->get("/admin/sales/customer-payments/{$payment->id}/edit")->assertForbidden();
+        $this->actingAs($accountant)->get("/admin/sales/customer-payments/{$payment->id}/edit")->assertOk();
     }
 
     public function test_audit_log_detail_page_renders(): void
@@ -438,7 +438,7 @@ class PhaseSixPermissionsTest extends TestCase
 
         $auditLog = AuditLog::query()->latest('id')->firstOrFail();
 
-        $this->get("/admin/audit-logs/{$auditLog->id}")
+        $this->get("/admin/settings/audit-logs/{$auditLog->id}")
             ->assertOk()
             ->assertSee('Audit Information')
             ->assertSee('Audit Detail Category');

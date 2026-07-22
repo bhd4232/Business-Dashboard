@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Quotations;
 
+use App\Filament\Clusters\Crm;
 use App\Filament\Resources\Quotations\Pages\CreateQuotation;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
@@ -14,7 +15,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use UnitEnum;
 
 class QuotationResource extends Resource
 {
@@ -22,7 +22,7 @@ class QuotationResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCurrencyDollar;
 
-    protected static string|UnitEnum|null $navigationGroup = 'CRM';
+    protected static ?string $cluster = Crm::class;
 
     protected static ?int $navigationSort = 1;
 

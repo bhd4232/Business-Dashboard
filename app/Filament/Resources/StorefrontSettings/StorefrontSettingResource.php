@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StorefrontSettings;
 
+use App\Filament\Clusters\Storefront;
 use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\StorefrontPages\StorefrontPageResource;
 use App\Filament\Resources\StorefrontSettings\Pages\CreateStorefrontSetting;
@@ -9,10 +10,12 @@ use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\ListStorefrontSettings;
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\ConversationChannel;
 use App\Models\Product;
 use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
+use App\Services\CompanyContext;
 use App\Services\WooCommerceImportService;
 use App\Services\ZiniPayClient;
 use App\Support\CompanyMedia;
@@ -44,7 +47,6 @@ use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
 use Illuminate\Validation\Rule;
-use UnitEnum;
 
 class StorefrontSettingResource extends Resource
 {
@@ -54,9 +56,11 @@ class StorefrontSettingResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Storefront';
+    protected static ?string $cluster = Storefront::class;
 
     protected static ?int $navigationSort = 1;
+
+    protected static ?string $navigationLabel = 'Settings';
 
     protected static ?string $recordTitleAttribute = 'company.name';
 
@@ -375,14 +379,35 @@ class StorefrontSettingResource extends Resource
                     TextInput::make('notification_credentials.sms_sender_id')
                         ->label('SMS sender ID')
                         ->maxLength(100),
+                    Select::make('notification_credentials.whatsapp_channel_id')
+                        ->label('WhatsApp Chat Channel')
+                        ->options(function (Get $get, ?StorefrontSetting $record): array {
+                            $companyId = $get('company_id') ?: $record?->company_id ?: app(CompanyContext::class)->company()?->getKey();
+
+                            return $companyId ? ConversationChannel::withoutGlobalScopes()
+                                ->where('company_id', $companyId)
+                                ->where('provider', 'whatsapp')
+                                ->where('is_active', true)
+                                ->orderBy('display_name')
+                                ->get()
+                                ->mapWithKeys(fn (ConversationChannel $channel): array => [
+                                    $channel->getKey() => "{$channel->display_name} ({$channel->external_id})",
+                                ])
+                                ->all() : [];
+                        })
+                        ->searchable()
+                        ->preload()
+                        ->helperText('Recommended: use the company’s tested Chat Channel so the Inbox and reminders share one encrypted token and Phone Number ID.'),
                     TextInput::make('notification_credentials.whatsapp_token')
-                        ->label('WhatsApp Cloud API token')
+                        ->label('Legacy WhatsApp token')
                         ->password()
                         ->revealable()
-                        ->maxLength(500),
+                        ->maxLength(500)
+                        ->helperText('Backward-compatible fallback only. Clear after selecting and verifying a Chat Channel.'),
                     TextInput::make('notification_credentials.whatsapp_phone_number_id')
-                        ->label('WhatsApp phone number ID')
-                        ->maxLength(100),
+                        ->label('Legacy WhatsApp Phone Number ID')
+                        ->maxLength(100)
+                        ->helperText('Backward-compatible fallback only when no active Chat Channel is available.'),
                     TextInput::make('notification_credentials.whatsapp_template_name')
                         ->label('WhatsApp template name')
                         ->maxLength(100)

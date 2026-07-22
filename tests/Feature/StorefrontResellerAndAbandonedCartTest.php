@@ -3,14 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\ConversationChannel;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\StorefrontCartRecord;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
-use App\Services\StorefrontCart;
+use App\Services\StorefrontNotificationService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -145,6 +147,68 @@ class StorefrontResellerAndAbandonedCartTest extends TestCase
 
         $this->assertSame(StorefrontCartRecord::STATUS_REMINDED, $stale->fresh()->status);
         $this->assertNotNull($stale->fresh()->reminded_at);
+    }
+
+    public function test_whatsapp_reminder_prefers_the_selected_company_chat_channel_over_legacy_credentials(): void
+    {
+        $company = $this->createStore('central-channel.example.test', reminders: true);
+        app(CompanyContext::class)->set($company);
+        $channel = ConversationChannel::query()->create([
+            'provider' => 'whatsapp',
+            'external_id' => 'central-phone-id',
+            'waba_id' => 'central-waba-id',
+            'display_name' => 'Central WhatsApp',
+            'access_token' => 'central-channel-token',
+            'app_secret' => 'central-app-secret',
+            'verify_token' => 'central-verify-token',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->clear();
+
+        $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->firstOrFail();
+        $credentials = $setting->notification_credentials;
+        $credentials['whatsapp_channel_id'] = $channel->getKey();
+        $setting->forceFill(['notification_credentials' => $credentials])->save();
+
+        Http::fake([
+            'graph.facebook.com/*' => Http::sequence()
+                ->push(['messages' => [['id' => 'wamid.central']]])
+                ->push(['messages' => []]),
+        ]);
+
+        $sent = app(StorefrontNotificationService::class)->sendWhatsAppTemplate(
+            $setting->fresh(),
+            '01844444444',
+            ['Customer', $company->name],
+        );
+
+        $this->assertTrue($sent);
+        $this->assertNotNull($channel->fresh()->last_outbound_at);
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://graph.facebook.com/v25.0/central-phone-id/messages'
+            && $request->hasHeader('Authorization', 'Bearer central-channel-token')
+            && ! str_contains($request->url(), 'wa_token'));
+
+        $this->assertFalse(app(StorefrontNotificationService::class)->sendWhatsAppTemplate(
+            $setting->fresh(),
+            '01844444444',
+            ['Customer', $company->name],
+        ));
+        $this->assertStringContainsString(
+            'returned no message ID',
+            (string) $channel->fresh()->last_error,
+        );
+
+        $channel->forceFill(['access_token' => null])->save();
+        $this->assertFalse(app(StorefrontNotificationService::class)->sendWhatsAppTemplate(
+            $setting->fresh(),
+            '01844444444',
+            ['Customer', $company->name],
+        ));
+        Http::assertSentCount(2);
+        $this->assertStringContainsString(
+            'missing its access token',
+            (string) $channel->fresh()->last_error,
+        );
     }
 
     private function createStore(string $domain, bool $reminders = false): Company

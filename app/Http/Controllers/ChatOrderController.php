@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\ChatOrderLink;
-use App\Models\ConversationMessage;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -157,27 +156,25 @@ class ChatOrderController extends Controller
         }
 
         try {
-            app(ConversationMessengerService::class)->send(
+            $message = app(ConversationMessengerService::class)->send(
                 $conversation,
                 "আপনার অর্ডার কনফার্ম হয়েছে। অর্ডার নম্বর: {$order->order_number}। ধন্যবাদ!",
                 null,
                 'order_form',
             );
+
+            if ($message->delivery_status === 'failed') {
+                Log::warning('Chat order confirmation message failed.', [
+                    'order_id' => $order->getKey(),
+                    'error' => data_get($message->raw_payload, 'error.message'),
+                ]);
+            }
         } catch (\Throwable $exception) {
-            // Never fail the customer's order because the chat confirmation
-            // could not be delivered — archive it locally instead.
+            // Never fail the customer's completed order because an unexpected
+            // local archiving error occurred while preparing its confirmation.
             Log::warning('Chat order confirmation message failed.', [
                 'order_id' => $order->getKey(),
                 'error' => $exception->getMessage(),
-            ]);
-
-            ConversationMessage::query()->create([
-                'conversation_id' => $conversation->getKey(),
-                'direction' => 'outgoing',
-                'type' => 'order_form',
-                'body' => "Order {$order->order_number} placed via chat order link (confirmation message failed to send).",
-                'delivery_status' => 'failed',
-                'sent_at' => now(),
             ]);
         }
     }

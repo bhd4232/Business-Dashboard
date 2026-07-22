@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Companies;
 
+use App\Filament\Clusters\CompanyManagement;
 use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
 use App\Filament\Resources\Companies\Pages\EditCompany;
@@ -38,7 +39,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use UnitEnum;
 
 class CompanyResource extends Resource
 {
@@ -48,7 +48,7 @@ class CompanyResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingStorefront;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Company Management';
+    protected static ?string $cluster = CompanyManagement::class;
 
     protected static ?int $navigationSort = 1;
 

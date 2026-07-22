@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Clusters\Crm;
 use App\Models\Company;
 use App\Services\CompanyContext;
 use App\Services\Crm\AiSettingsService;
@@ -10,13 +11,12 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class AiAssistantSettings extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSparkles;
 
-    protected static string|UnitEnum|null $navigationGroup = 'CRM';
+    protected static ?string $cluster = Crm::class;
 
     protected static ?int $navigationSort = 4;
 

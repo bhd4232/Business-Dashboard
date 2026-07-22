@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ExpenseCategories;
 
+use App\Filament\Clusters\Accounts;
 use App\Filament\Resources\ExpenseCategories\Pages\CreateExpenseCategory;
 use App\Filament\Resources\ExpenseCategories\Pages\EditExpenseCategory;
 use App\Filament\Resources\ExpenseCategories\Pages\ListExpenseCategories;
@@ -15,7 +16,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use UnitEnum;
 
 class ExpenseCategoryResource extends Resource
 {
@@ -23,7 +23,7 @@ class ExpenseCategoryResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Accounts';
+    protected static ?string $cluster = Accounts::class;
 
     protected static ?string $recordTitleAttribute = 'name';
 

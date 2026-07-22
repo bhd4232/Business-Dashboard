@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\FundSources;
 
+use App\Filament\Clusters\Finance;
 use App\Filament\Resources\FundSources\Pages\CreateFundSource;
 use App\Filament\Resources\FundSources\Pages\EditFundSource;
 use App\Filament\Resources\FundSources\Pages\ListFundSources;
@@ -22,7 +23,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class FundSourceResource extends Resource
 {
@@ -30,7 +30,7 @@ class FundSourceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Finance';
+    protected static ?string $cluster = Finance::class;
 
     protected static ?string $navigationLabel = 'Fund Sources';
 

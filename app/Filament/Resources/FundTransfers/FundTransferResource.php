@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\FundTransfers;
 
+use App\Filament\Clusters\Finance;
 use App\Filament\Resources\FundTransfers\Pages\CreateFundTransfer;
 use App\Filament\Resources\FundTransfers\Pages\ListFundTransfers;
 use App\Models\FundTransfer;
@@ -20,7 +21,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class FundTransferResource extends Resource
 {
@@ -28,7 +28,7 @@ class FundTransferResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowsRightLeft;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Finance';
+    protected static ?string $cluster = Finance::class;
 
     protected static ?string $navigationLabel = 'Fund Transfers';
 

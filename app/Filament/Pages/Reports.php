@@ -2,16 +2,23 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Clusters\Reports as ReportsCluster;
 use App\Services\ReportService;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
-class Reports extends Page
+class Reports extends Page implements HasTable
 {
+    use InteractsWithTable;
+
     public const REPORTS = [
         'sales' => [
             'title' => 'Sales Report',
@@ -71,7 +78,7 @@ class Reports extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Reports';
+    protected static ?string $cluster = ReportsCluster::class;
 
     protected static ?int $navigationSort = 1;
 
@@ -228,6 +235,240 @@ class Reports extends Page
 
     public function money(float|int|string|null $amount): string
     {
-        return 'BDT ' . number_format((float) $amount, 2);
+        return 'BDT '.number_format((float) $amount, 2);
+    }
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->heading($this->activeReportTitle())
+            ->description($this->activeReportDescription())
+            ->records(fn (): array => $this->reportTableRecords())
+            ->columns($this->reportTableColumns())
+            ->headerActions([
+                Action::make('exportCsv')
+                    ->label('CSV')
+                    ->icon(Heroicon::ArrowDownTray)
+                    ->color('gray')
+                    ->url($this->exportUrl($this->reportType)),
+                Action::make('exportPdf')
+                    ->label('PDF')
+                    ->icon(Heroicon::DocumentArrowDown)
+                    ->url($this->exportPdfUrl($this->reportType)),
+            ])
+            ->emptyStateHeading($this->activeReportEmptyStateHeading())
+            ->emptyStateDescription('Try a different report type or date range.')
+            ->emptyStateIcon($this->reportIcon($this->reportType))
+            ->paginated(false)
+            ->striped();
+    }
+
+    /**
+     * @return array<TextColumn>
+     */
+    private function reportTableColumns(): array
+    {
+        return match ($this->reportType) {
+            'sales' => [
+                TextColumn::make('date')->label('Date'),
+                TextColumn::make('invoice')->label('Invoice')->weight('medium')->copyable(),
+                TextColumn::make('customer')->label('Customer')->placeholder('Not set'),
+                $this->moneyColumn('total', 'Total'),
+                $this->moneyColumn('paid', 'Paid'),
+                $this->moneyColumn('due', 'Due'),
+                $this->statusColumn('status'),
+            ],
+            'purchases' => [
+                TextColumn::make('date')->label('Date'),
+                TextColumn::make('purchase')->label('Purchase')->weight('medium')->copyable(),
+                TextColumn::make('supplier')->label('Supplier')->placeholder('Not set'),
+                $this->moneyColumn('china_to_bd_costs', 'China to BD Costs'),
+                ...collect($this->purchaseCustomCostLabels())
+                    ->values()
+                    ->map(fn (string $label, int $index): TextColumn => $this->moneyColumn("custom_cost_{$index}", $label))
+                    ->all(),
+                $this->moneyColumn('total', 'Total'),
+                $this->moneyColumn('paid', 'Paid'),
+                $this->moneyColumn('due', 'Due'),
+                $this->statusColumn('status', 'info'),
+            ],
+            'profit' => [
+                TextColumn::make('date')->label('Date'),
+                TextColumn::make('invoice')->label('Invoice')->weight('medium')->copyable(),
+                TextColumn::make('product')->label('Product')->wrap(),
+                TextColumn::make('quantity')->label('Qty')->numeric()->alignEnd(),
+                $this->moneyColumn('revenue', 'Revenue'),
+                $this->moneyColumn('cost', 'Cost'),
+                $this->moneyColumn('profit', 'Profit'),
+            ],
+            'stock', 'low-stock' => [
+                TextColumn::make('sku')->label('SKU')->weight('medium')->copyable(),
+                TextColumn::make('product')->label('Product')->wrap(),
+                TextColumn::make('category')->label('Category')->placeholder('Not set'),
+                TextColumn::make('stock')
+                    ->label('Stock')
+                    ->numeric()
+                    ->alignEnd()
+                    ->badge($this->reportType === 'low-stock')
+                    ->color('warning'),
+                TextColumn::make('reorder')->label('Reorder')->numeric()->alignEnd(),
+                $this->moneyColumn('cost', 'Cost'),
+                $this->moneyColumn('sale_price', 'Sale Price'),
+            ],
+            'customer-dues' => [
+                TextColumn::make('customer')->label('Customer')->weight('medium'),
+                TextColumn::make('phone')->label('Phone')->placeholder('Not set')->copyable(),
+                TextColumn::make('email')->label('Email')->placeholder('Not set')->copyable(),
+                $this->moneyColumn('due', 'Due'),
+            ],
+            'supplier-dues' => [
+                TextColumn::make('supplier')->label('Supplier')->weight('medium'),
+                TextColumn::make('phone')->label('Phone')->placeholder('Not set')->copyable(),
+                TextColumn::make('company')->label('Company')->placeholder('Not set'),
+                $this->moneyColumn('payable', 'Payable'),
+            ],
+            'expenses' => [
+                TextColumn::make('date')->label('Date'),
+                TextColumn::make('expense')->label('Expense')->weight('medium')->copyable(),
+                TextColumn::make('category')->label('Category')->placeholder('Not set'),
+                TextColumn::make('account')->label('Account')->placeholder('Not set'),
+                $this->moneyColumn('amount', 'Amount'),
+            ],
+            'ledger' => [
+                TextColumn::make('date')->label('Date'),
+                TextColumn::make('account')->label('Account')->placeholder('Not set'),
+                TextColumn::make('type')->label('Type'),
+                TextColumn::make('direction')
+                    ->label('Direction')
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'out' ? 'danger' : 'success')
+                    ->formatStateUsing(fn (string $state): string => str($state)->headline()),
+                $this->moneyColumn('amount', 'Amount'),
+                TextColumn::make('note')->label('Note')->placeholder('Not set')->wrap(),
+            ],
+        };
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function reportTableRecords(): array
+    {
+        return match ($this->reportType) {
+            'sales' => $this->sales
+                ->mapWithKeys(fn ($order): array => ["order-{$order->id}" => [
+                    'date' => optional($order->order_date)->format('d M Y'),
+                    'invoice' => $order->order_number,
+                    'customer' => $order->customer?->name,
+                    'total' => $order->total_amount,
+                    'paid' => $order->paid_amount,
+                    'due' => $order->due_amount,
+                    'status' => $order->status,
+                ]])
+                ->all(),
+            'purchases' => $this->purchases
+                ->mapWithKeys(function ($purchase): array {
+                    $customCosts = collect($this->purchaseCustomCostLabels())
+                        ->values()
+                        ->mapWithKeys(fn (string $label, int $index): array => [
+                            "custom_cost_{$index}" => $purchase->customCostAmountFor($label),
+                        ])
+                        ->all();
+
+                    return ["purchase-{$purchase->id}" => [
+                        'date' => optional($purchase->purchase_date)->format('d M Y'),
+                        'purchase' => $purchase->purchase_number,
+                        'supplier' => $purchase->supplier?->name,
+                        'china_to_bd_costs' => $purchase->chinaToBdCostTotal(),
+                        ...$customCosts,
+                        'total' => $purchase->total_amount,
+                        'paid' => $purchase->paid_amount,
+                        'due' => $purchase->due_amount,
+                        'status' => $purchase->status,
+                    ]];
+                })
+                ->all(),
+            'profit' => $this->profit
+                ->values()
+                ->mapWithKeys(fn (array $row, int $index): array => ["profit-{$index}" => $row])
+                ->all(),
+            'stock', 'low-stock' => ($this->reportType === 'stock' ? $this->stock : $this->lowStock)
+                ->mapWithKeys(fn ($product): array => ["product-{$product->id}" => [
+                    'sku' => $product->sku,
+                    'product' => $product->name,
+                    'category' => $product->category?->name,
+                    'stock' => $product->stock,
+                    'reorder' => $product->reorder_level,
+                    'cost' => $product->cost_price,
+                    'sale_price' => $product->sale_price ?? $product->price,
+                ]])
+                ->all(),
+            'customer-dues' => $this->customerDues
+                ->mapWithKeys(fn ($customer): array => ["customer-{$customer->id}" => [
+                    'customer' => $customer->name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                    'due' => $customer->current_balance,
+                ]])
+                ->all(),
+            'supplier-dues' => $this->supplierDues
+                ->mapWithKeys(fn ($supplier): array => ["supplier-{$supplier->id}" => [
+                    'supplier' => $supplier->name,
+                    'phone' => $supplier->phone,
+                    'company' => $supplier->company_name,
+                    'payable' => $supplier->current_balance,
+                ]])
+                ->all(),
+            'expenses' => $this->expenses
+                ->mapWithKeys(fn ($expense): array => ["expense-{$expense->id}" => [
+                    'date' => optional($expense->expense_date)->format('d M Y'),
+                    'expense' => $expense->expense_number,
+                    'category' => $expense->category?->name,
+                    'account' => $expense->account?->name,
+                    'amount' => $expense->amount,
+                ]])
+                ->all(),
+            'ledger' => $this->ledger
+                ->mapWithKeys(fn ($entry): array => ["ledger-{$entry->id}" => [
+                    'date' => optional($entry->transaction_date)->format('d M Y'),
+                    'account' => $entry->account?->name,
+                    'type' => str($entry->type)->headline()->toString(),
+                    'direction' => $entry->direction,
+                    'amount' => $entry->amount,
+                    'note' => $entry->note,
+                ]])
+                ->all(),
+        };
+    }
+
+    private function moneyColumn(string $name, string $label): TextColumn
+    {
+        return TextColumn::make($name)
+            ->label($label)
+            ->formatStateUsing(fn (float|int|string|null $state): string => $this->money($state))
+            ->alignEnd();
+    }
+
+    private function statusColumn(string $name, string $color = 'success'): TextColumn
+    {
+        return TextColumn::make($name)
+            ->label('Status')
+            ->badge()
+            ->color($color)
+            ->formatStateUsing(fn (string $state): string => str($state)->headline());
+    }
+
+    private function activeReportEmptyStateHeading(): string
+    {
+        return match ($this->reportType) {
+            'sales' => 'No sales found',
+            'purchases' => 'No purchases found',
+            'profit' => 'No profit data found',
+            'stock', 'low-stock' => 'No products found',
+            'customer-dues' => 'No customer dues found',
+            'supplier-dues' => 'No supplier payables found',
+            'expenses' => 'No expenses found',
+            'ledger' => 'No transactions found',
+        };
     }
 }

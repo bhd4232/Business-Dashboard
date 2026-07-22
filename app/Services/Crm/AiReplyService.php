@@ -40,7 +40,7 @@ class AiReplyService
         protected ConversationMessengerService $messenger,
     ) {}
 
-    public function maybeReply(Conversation $conversation): void
+    public function maybeReply(Conversation $conversation, ?ConversationMessage $sourceMessage = null): void
     {
         $company = $conversation->company;
         $settings = $this->settings->all($company);
@@ -55,12 +55,17 @@ class AiReplyService
             return;
         }
 
-        $incoming = $conversation->messages()
+        $incoming = $sourceMessage ?? $conversation->messages()
             ->where('direction', 'incoming')
             ->latest('sent_at')
+            ->latest('id')
             ->first();
 
-        if (! $incoming || blank($incoming->body)) {
+        if (! $incoming
+            || (int) $incoming->conversation_id !== (int) $conversation->getKey()
+            || $incoming->direction !== 'incoming'
+            || blank($incoming->body)
+            || $this->hasReplyForSource($conversation, $incoming)) {
             return;
         }
 
@@ -87,13 +92,19 @@ class AiReplyService
             ->first(fn (CompanyFaq $faq): bool => $faq->matches($incoming->body));
 
         if ($faq) {
-            $this->sendAiReply($conversation, $faq->answer, 1.0, ['source' => 'faq', 'faq_id' => $faq->getKey()]);
+            $this->sendAiReply(
+                $conversation,
+                $incoming,
+                $faq->answer,
+                1.0,
+                ['source' => 'faq', 'faq_id' => $faq->getKey()],
+            );
 
             return;
         }
 
         try {
-            $this->runAgentLoop($conversation, $settings);
+            $this->runAgentLoop($conversation, $incoming, $settings);
         } catch (\Throwable $exception) {
             Log::warning('AI auto-reply failed; escalating to human.', [
                 'conversation_id' => $conversation->getKey(),
@@ -103,8 +114,11 @@ class AiReplyService
         }
     }
 
-    protected function runAgentLoop(Conversation $conversation, array $settings): void
-    {
+    protected function runAgentLoop(
+        Conversation $conversation,
+        ConversationMessage $sourceMessage,
+        array $settings,
+    ): void {
         $this->groundedAmounts = [];
         $this->toolTrace = [];
 
@@ -134,7 +148,7 @@ class AiReplyService
                 }
 
                 if ($call['name'] === 'submit_reply') {
-                    $this->handleSubmitReply($conversation, $settings, $call['input'], $usage);
+                    $this->handleSubmitReply($conversation, $sourceMessage, $settings, $call['input'], $usage);
 
                     return;
                 }
@@ -150,8 +164,13 @@ class AiReplyService
         $this->escalate($conversation, 'AI could not reach an answer within the tool budget.');
     }
 
-    protected function handleSubmitReply(Conversation $conversation, array $settings, array $input, array $usage): void
-    {
+    protected function handleSubmitReply(
+        Conversation $conversation,
+        ConversationMessage $sourceMessage,
+        array $settings,
+        array $input,
+        array $usage,
+    ): void {
         $answer = trim((string) ($input['answer'] ?? ''));
         $confidence = (float) ($input['confidence'] ?? 0);
         $needsHuman = (bool) ($input['needs_human'] ?? false);
@@ -177,15 +196,30 @@ class AiReplyService
             return;
         }
 
-        $this->sendAiReply($conversation, $answer, $confidence, [
-            'source' => 'agent',
-            'tool_trace' => $this->toolTrace,
-            'usage' => $usage,
-        ]);
+        $this->sendAiReply(
+            $conversation,
+            $sourceMessage,
+            $answer,
+            $confidence,
+            [
+                'source' => 'agent',
+                'tool_trace' => $this->toolTrace,
+                'usage' => $usage,
+            ],
+        );
     }
 
-    protected function sendAiReply(Conversation $conversation, string $answer, float $confidence, array $meta): void
-    {
+    protected function sendAiReply(
+        Conversation $conversation,
+        ConversationMessage $sourceMessage,
+        string $answer,
+        float $confidence,
+        array $meta,
+    ): void {
+        if ($this->hasReplyForSource($conversation, $sourceMessage)) {
+            return;
+        }
+
         // Transparency: the very first AI message identifies itself (plan 13.5).
         $isFirstAiReply = ! $conversation->messages()->where('generated_by', 'ai')->exists();
 
@@ -199,8 +233,23 @@ class AiReplyService
         $message->forceFill([
             'generated_by' => 'ai',
             'ai_confidence' => round($confidence, 3),
-            'ai_meta' => $meta,
+            'ai_meta' => [
+                ...$meta,
+                'source_message_id' => $sourceMessage->getKey(),
+            ],
         ])->save();
+
+        if ($message->delivery_status === 'failed') {
+            $this->escalate($conversation, 'AI reply could not be delivered through Meta.');
+        }
+    }
+
+    protected function hasReplyForSource(Conversation $conversation, ConversationMessage $sourceMessage): bool
+    {
+        return $conversation->messages()
+            ->where('generated_by', 'ai')
+            ->where('ai_meta->source_message_id', $sourceMessage->getKey())
+            ->exists();
     }
 
     public function escalate(Conversation $conversation, string $reason): void

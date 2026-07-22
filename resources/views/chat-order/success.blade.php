@@ -16,7 +16,7 @@
     </div>
 
     @auth
-        <a href="{{ url('/admin/inbox') }}" class="btn" style="margin-top: 1.5rem;">↩ ইনবক্সে ফিরে যান</a>
+        <a href="{{ url('/admin/crm/inbox') }}" class="btn" style="margin-top: 1.5rem;">↩ ইনবক্সে ফিরে যান</a>
     @else
         <button type="button" class="btn secondary" style="margin-top: 1.5rem;" onclick="history.length > 1 ? history.back() : window.close();">↩ ফিরে যান</button>
     @endauth

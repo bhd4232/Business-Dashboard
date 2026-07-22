@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\Backups;
 use App\Http\Controllers\Admin\BackupDownloadController;
 use App\Models\AuditLog;
 use App\Models\User;
@@ -10,11 +11,13 @@ use App\Services\AppBackupService;
 use App\Services\BackupSettingsService;
 use App\Services\DatabaseBackupService;
 use App\Services\GoogleDriveBackupService;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -88,16 +91,24 @@ class BackupSystemTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->actingAs($accountant)->get('/admin/backups')->assertForbidden();
+        $this->actingAs($accountant)->get('/admin/settings/backups')->assertForbidden();
 
         $this->actingAs($admin)
-            ->get('/admin/backups')
+            ->get('/admin/settings/backups')
             ->assertOk()
             ->assertSee('Configure')
-            ->assertSee('Google Drive Backup Settings')
-            ->assertSee('Where to get Service Account JSON and Folder ID')
             ->assertSee('Full App Backups')
-            ->assertSee('Database Backups');
+            ->assertSee('Database Backups')
+            ->assertSee('fi-section', false)
+            ->assertSee('fi-btn', false)
+            ->assertSee('fi-in-table-repeatable', false)
+            ->assertDontSee('zz-backups', false)
+            ->assertDontSee('zz-backup-card', false);
+
+        $view = File::get(resource_path('views/filament/pages/backups.blade.php'));
+
+        $this->assertStringNotContainsString('<style', $view);
+        $this->assertStringNotContainsString('zz-', $view);
     }
 
     public function test_custom_backup_permission_can_access_backup_page(): void
@@ -114,10 +125,58 @@ class BackupSystemTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/admin/backups')
+            ->get('/admin/settings/backups')
             ->assertOk()
             ->assertSee('Full App Backups')
             ->assertSee('Database Backups');
+    }
+
+    public function test_native_google_drive_action_validates_json_and_preserves_the_stored_secret_when_left_blank(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        app(BackupSettingsService::class)->saveGoogleDrive([
+            'enabled' => true,
+            'auto_upload' => false,
+            'folder_id' => 'original-folder',
+            'service_account_path' => '',
+            'service_account_json' => '{"client_email":"backup@example.com","private_key":"secret"}',
+        ]);
+        $action = TestAction::make('configureGoogleDrive')->schemaComponent();
+
+        $this->actingAs($admin);
+
+        $component = Livewire::test(Backups::class)
+            ->mountAction($action)
+            ->assertActionMounted($action);
+
+        $modalHtml = $component->getMountedActionModalHtml();
+
+        $this->assertStringContainsString('Google Drive Backup Settings', $modalHtml);
+        $this->assertStringContainsString('Where to get Service Account JSON and Folder ID', $modalHtml);
+
+        $component
+            ->setActionData(['googleDriveServiceAccountJson' => 'not-json'])
+            ->callMountedAction()
+            ->assertHasActionErrors(['googleDriveServiceAccountJson' => 'json']);
+
+        Livewire::test(Backups::class)
+            ->callAction($action, [
+                'googleDriveEnabled' => true,
+                'googleDriveAutoUpload' => true,
+                'googleDriveFolderId' => 'updated-folder',
+                'googleDriveServiceAccountPath' => '',
+                'googleDriveServiceAccountJson' => null,
+            ])
+            ->assertHasNoActionErrors();
+
+        $settings = app(BackupSettingsService::class);
+
+        $this->assertTrue($settings->googleDriveAutoUpload());
+        $this->assertSame('updated-folder', $settings->googleDriveFolderId());
+        $this->assertSame('{"client_email":"backup@example.com","private_key":"secret"}', $settings->serviceAccountJson());
     }
 
     public function test_backup_download_requires_backup_permission(): void

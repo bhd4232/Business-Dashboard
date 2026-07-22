@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Clusters\CompanyManagement;
 use App\Filament\Pages\CompanySettings;
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
@@ -17,6 +18,7 @@ use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
 use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
+use Filament\Pages\Enums\SubNavigationPosition;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +29,13 @@ use Tests\TestCase;
 class CompanySettingsTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_company_management_uses_a_top_cluster_page_selector(): void
+    {
+        $this->assertSame(CompanyManagement::class, CompanyResource::getCluster());
+        $this->assertSame(CompanyManagement::class, CompanySettings::getCluster());
+        $this->assertSame(SubNavigationPosition::Top, CompanyManagement::getSubNavigationPosition());
+    }
 
     public function test_company_settings_service_saves_profile(): void
     {
@@ -63,12 +72,12 @@ class CompanySettingsTest extends TestCase
         ]);
 
         $this->actingAs($salesStaff)
-            ->get('/admin/company-settings')
+            ->get('/admin/company-management/company-settings')
             ->assertForbidden();
 
         $this->actingAs($admin)
             ->withSession(['current_company_id' => $admin->defaultCompany()->getKey()])
-            ->get('/admin/company-settings')
+            ->get('/admin/company-management/company-settings')
             ->assertOk()
             ->assertSee('Business Profile')
             ->assertSee('Branding')
@@ -76,8 +85,37 @@ class CompanySettingsTest extends TestCase
 
         $this->actingAs($admin)
             ->withSession(['current_company_id' => 'all'])
-            ->get('/admin/company-settings')
+            ->get('/admin/company-management/company-settings')
             ->assertNotFound();
+    }
+
+    public function test_company_management_cluster_routes_to_companies_and_shows_both_pages(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $company = $admin->defaultCompany();
+
+        $this->actingAs($admin)
+            ->withSession(['current_company_id' => $company->getKey()])
+            ->get('/admin/company-management')
+            ->assertRedirect(route('filament.admin.company-management.resources.companies.index'));
+
+        $this->actingAs($admin)
+            ->withSession(['current_company_id' => $company->getKey()])
+            ->get('/admin/company-management/companies')
+            ->assertOk()
+            ->assertSee('Companies')
+            ->assertSee('Company Settings');
+
+        $this->actingAs($admin)
+            ->get('/admin/companies')
+            ->assertRedirect('/admin/company-management/companies');
+
+        $this->actingAs($admin)
+            ->get('/admin/company-settings')
+            ->assertRedirect('/admin/company-management/company-settings');
     }
 
     public function test_admin_panel_uses_company_name_as_brand(): void
@@ -511,6 +549,46 @@ class CompanySettingsTest extends TestCase
         $this->assertSame(
             'data:image/png;base64,'.base64_encode('remote-logo-bytes'),
             app(CompanySettingsService::class)->logoPath($company),
+        );
+    }
+
+    public function test_admin_login_ignores_an_invalid_global_logo_path(): void
+    {
+        AppSetting::setValue(CompanySettingsService::LOGO, 'companies/not-a-storage-key/public/company/logo.png');
+        AppSetting::setValue(CompanySettingsService::DARK_LOGO, 'companies/not-a-storage-key/public/company/dark-logo.png');
+
+        $this->get('/admin/login')->assertOk();
+    }
+
+    public function test_companies_page_ignores_invalid_company_logo_paths(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $company = $admin->defaultCompany();
+        $settings = (array) $company->settings;
+        $settings['dark_logo'] = 'companies/not-a-storage-key/public/company/dark-logo.png';
+        $company->forceFill([
+            'logo' => 'companies/not-a-storage-key/public/company/logo.png',
+            'settings' => $settings,
+        ])->save();
+
+        $this->actingAs($admin)
+            ->withSession(['current_company_id' => $company->getKey()])
+            ->get('/admin/company-management/companies')
+            ->assertOk()
+            ->assertSee($company->name);
+
+        $profile = app(CompanySettingsService::class)->profile($company->fresh());
+
+        $this->assertNull($profile['logo_url']);
+        $this->assertNull($profile['dark_logo_url']);
+        $this->assertNull($profile['logo_path']);
+        $this->assertNull($profile['dark_logo_path']);
+        $this->assertSame(
+            'companies/not-a-storage-key/public/company/logo.png',
+            $company->fresh()->logo,
         );
     }
 }

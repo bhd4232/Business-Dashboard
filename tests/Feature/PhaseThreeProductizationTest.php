@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\LicenseActivationService;
 use App\Services\ProductSetupService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -94,6 +95,31 @@ class PhaseThreeProductizationTest extends TestCase
         $this->assertTrue(app(ProductSetupService::class)->onboardingCompleted());
         $this->assertTrue(app(ProductSetupService::class)->demoMode());
         $this->assertTrue(app(LicenseActivationService::class)->isActive());
+    }
+
+    public function test_product_setup_page_uses_native_filament_ui(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/settings/product-setup')
+            ->assertOk()
+            ->assertSee('Onboarding Wizard')
+            ->assertSee('Setup Checklist')
+            ->assertSee('License Activation')
+            ->assertSee('fi-section', false)
+            ->assertSee('fi-input-wrp', false)
+            ->assertSee('fi-btn', false)
+            ->assertDontSee('zz-setup', false)
+            ->assertDontSee('zz-card', false);
+
+        $view = File::get(resource_path('views/filament/pages/product-setup.blade.php'));
+
+        $this->assertStringNotContainsString('<style', $view);
+        $this->assertStringNotContainsString('zz-', $view);
     }
 
     public function test_demo_mode_blocks_write_actions_for_non_super_admins(): void

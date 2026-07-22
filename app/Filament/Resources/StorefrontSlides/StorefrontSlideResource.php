@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StorefrontSlides;
 
+use App\Filament\Clusters\Storefront;
 use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\StorefrontSlides\Pages\CreateStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\EditStorefrontSlide;
@@ -28,7 +29,6 @@ use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class StorefrontSlideResource extends Resource
 {
@@ -38,7 +38,7 @@ class StorefrontSlideResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPhoto;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Storefront';
+    protected static ?string $cluster = Storefront::class;
 
     protected static ?int $navigationSort = 0;
 

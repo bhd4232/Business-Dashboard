@@ -21,7 +21,7 @@ php artisan backup:database
 From the admin panel:
 
 ```txt
-/admin/backups
+/admin/settings/backups
 ```
 
 Database backup supports SQLite and MySQL/MariaDB.
@@ -47,7 +47,7 @@ This command never overwrites the configured database. MySQL/MariaDB restore dri
 Use the Backups page in the admin panel:
 
 ```txt
-/admin/backups
+/admin/settings/backups
 ```
 
 Full app backups require PHP Zip extension.

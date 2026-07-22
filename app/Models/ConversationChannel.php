@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class ConversationChannel extends Model
 {
@@ -16,9 +17,18 @@ class ConversationChannel extends Model
     ];
 
     protected $fillable = [
-        'company_id', 'provider', 'external_id', 'display_name',
+        'company_id', 'provider', 'external_id', 'waba_id', 'display_name',
         'access_token', 'app_secret', 'verify_token',
         'auto_create_leads', 'is_active',
+        'webhook_verified_at', 'webhook_subscribed_at', 'last_webhook_at',
+        'last_inbound_at', 'last_outbound_at', 'last_health_at',
+        'last_error_source', 'last_error_at', 'last_error',
+    ];
+
+    protected $hidden = [
+        'access_token',
+        'app_secret',
+        'verify_token',
     ];
 
     protected $casts = [
@@ -26,7 +36,37 @@ class ConversationChannel extends Model
         'app_secret' => 'encrypted',
         'auto_create_leads' => 'boolean',
         'is_active' => 'boolean',
+        'webhook_verified_at' => 'datetime',
+        'webhook_subscribed_at' => 'datetime',
+        'last_webhook_at' => 'datetime',
+        'last_inbound_at' => 'datetime',
+        'last_outbound_at' => 'datetime',
+        'last_health_at' => 'datetime',
+        'last_error_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (ConversationChannel $channel): void {
+            if ($channel->isDirty(['provider', 'external_id', 'waba_id', 'access_token'])) {
+                $channel->webhook_subscribed_at = null;
+            }
+
+            if ($channel->isDirty(['provider', 'app_secret', 'verify_token'])) {
+                $channel->webhook_verified_at = null;
+            }
+
+            if ($channel->isDirty(['provider', 'external_id', 'waba_id'])) {
+                $channel->last_webhook_at = null;
+                $channel->last_inbound_at = null;
+                $channel->last_outbound_at = null;
+                $channel->last_health_at = null;
+                $channel->last_error_source = null;
+                $channel->last_error_at = null;
+                $channel->last_error = null;
+            }
+        });
+    }
 
     public function conversations(): HasMany
     {
@@ -39,8 +79,116 @@ class ConversationChannel extends Model
             return false;
         }
 
-        $expected = 'sha256='.hash_hmac('sha256', $payload, $this->app_secret);
+        if (preg_match('/\Asha256=([a-f0-9]{64})\z/D', (string) $signatureHeader, $matches) !== 1) {
+            return false;
+        }
 
-        return hash_equals($expected, $signatureHeader);
+        return hash_equals(hash_hmac('sha256', $payload, (string) $this->app_secret), $matches[1]);
+    }
+
+    public function markWebhookVerified(): void
+    {
+        $this->forceFill(['webhook_verified_at' => now()])->saveQuietly();
+    }
+
+    public function markWebhookSubscribed(): void
+    {
+        $this->forceFill(['webhook_subscribed_at' => now()])->saveQuietly();
+    }
+
+    public function markWebhookReceived(): void
+    {
+        $this->forceFill(['last_webhook_at' => now()])->saveQuietly();
+    }
+
+    public function markInboundReceived(): void
+    {
+        $this->forceFill(['last_inbound_at' => now()])->saveQuietly();
+        $this->clearDiagnosticError('webhook');
+    }
+
+    public function markOutboundSent(): void
+    {
+        $this->forceFill(['last_outbound_at' => now()])->saveQuietly();
+        $this->clearDiagnosticError('outbound');
+    }
+
+    public function markHealthChecked(): void
+    {
+        $this->forceFill(['last_health_at' => now()])->saveQuietly();
+        $this->clearDiagnosticError('connection');
+    }
+
+    public function recordDiagnosticError(string $message, string $source = 'general'): void
+    {
+        $safe = trim(Str::limit(preg_replace([
+            '/access[_ -]?token\s*[:=]\s*[^\s,;]+/iu',
+            '/bearer\s+[a-z0-9._-]+/iu',
+            '/EAA[A-Za-z0-9_-]{20,}/',
+        ], ['access token [redacted]', 'Bearer [redacted]', '[redacted token]'], $message) ?? 'Meta request failed.', 2000, ''));
+
+        $this->forceFill([
+            'last_error_source' => Str::limit($source, 50, ''),
+            'last_error_at' => now(),
+            'last_error' => $safe !== '' ? $safe : 'Meta request failed. Check the channel setup.',
+        ])->saveQuietly();
+    }
+
+    public function clearDiagnosticError(?string $source = null): void
+    {
+        $this->refresh();
+
+        if ($source !== null && $this->last_error_source !== $source) {
+            return;
+        }
+
+        $this->forceFill([
+            'last_error_source' => null,
+            'last_error_at' => null,
+            'last_error' => null,
+        ])->saveQuietly();
+    }
+
+    public function diagnosticStatus(): string
+    {
+        if (! $this->is_active) {
+            return 'Inactive';
+        }
+
+        if (filled($this->last_error)) {
+            return 'Needs attention';
+        }
+
+        if ($this->provider === 'whatsapp') {
+            if ($this->last_inbound_at) {
+                return 'Inbound confirmed';
+            }
+
+            if ($this->webhook_verified_at && $this->webhook_subscribed_at) {
+                return 'Configured';
+            }
+
+            if ($this->webhook_subscribed_at) {
+                return 'Verify callback';
+            }
+
+            if ($this->webhook_verified_at) {
+                return 'Subscribe app';
+            }
+        }
+
+        if ($this->last_inbound_at) {
+            return 'Inbound confirmed';
+        }
+
+        if ($this->last_health_at || $this->last_webhook_at || $this->last_outbound_at) {
+            return 'Connected';
+        }
+
+        if ($this->webhook_verified_at) {
+            return 'Callback verified';
+        }
+
+        return 'Not tested';
     }
 }

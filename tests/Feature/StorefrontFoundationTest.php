@@ -191,7 +191,7 @@ class StorefrontFoundationTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/admin/storefront-settings')
+            ->get('/admin/storefront/storefront-settings')
             ->assertOk();
     }
 

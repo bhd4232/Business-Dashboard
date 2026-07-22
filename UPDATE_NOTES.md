@@ -2,6 +2,187 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-22 - Site labels and native Filament page UI
+
+Reason:
+
+- The storefront cluster repeated `Storefront` across its sidebar and child selector labels; the admin-facing module should read as `Site` with concise child names.
+- Reports, Release Notes, Backups, and Product Setup used page-specific markup and styling instead of the project's required Filament-default admin patterns.
+
+Important changed files:
+
+- `app/Filament/Clusters/Storefront.php` - changed the admin navigation label and cluster breadcrumb to `Site` while retaining the `storefront` slug.
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`, `StorefrontPages/StorefrontPageResource.php`, and `StorefrontPayments/StorefrontPaymentResource.php` - shortened selector labels to `Settings`, `Pages`, and `Payments`; `Hero Slides` and `Homepage Carousels` remain unchanged.
+- `app/Filament/Pages/Reports.php` and `resources/views/filament/pages/reports.blade.php` - moved report results to a dynamic Filament table with native filters, tabs, metric sections, empty states, and CSV/PDF header actions.
+- `app/Filament/Pages/ReleaseNotes.php` and `resources/views/filament/pages/release-notes.blade.php` - render release metadata and changelog content with Filament sections, badges, buttons, and empty states.
+- `app/Filament/Pages/Backups.php` and `resources/views/filament/pages/backups.blade.php` - replaced custom cards/forms/tables/modal styling with schema sections, native header actions, a Filament modal form, and infolist backup tables.
+- `app/Filament/Pages/ProductSetup.php` and `resources/views/filament/pages/product-setup.blade.php` - replaced custom onboarding/license/checklist UI with schema sections, Filament form controls/actions, and an infolist checklist.
+- Relevant navigation and page feature tests cover the display labels, native components, existing actions, and the removal of page-local CSS.
+- `PROJECT_GUIDE.md` - documents the display-only Site name, unchanged storefront route/domain vocabulary, and the native Filament page contracts.
+
+Route and compatibility notes:
+
+- Canonical admin URLs remain `/admin/storefront/...`; no route, resource class, model, database table, or public storefront-domain name was renamed.
+- Existing report exports, backup downloads, setup saves/license activation, and release-document links retain their current actions and authorization behavior.
+
+Verification:
+
+- Focused Site navigation-label test passed: 1 test, 7 assertions.
+- Combined Site navigation, Reports, Release Notes, Backups, and Product Setup regression suite passed: 38 tests, 277 assertions.
+- Full application suite passed: 444 tests, 2,278 assertions.
+- Targeted Pint formatting, `php artisan view:cache`, and `git diff --check` passed.
+- Browser-control visual QA could not start because the installed runtime rejected its environment metadata (`sandboxPolicy` missing); rendered Filament feature assertions cover the native component contract.
+
+Commit status:
+
+- Not committed. Commit and push require explicit user approval.
+
+## 2026-07-22 - Unified Filament navigation clusters for business modules
+
+Reason:
+
+- Storefront, CRM, Finance, Sales, Purchasing, Inventory, Accounts, Reports, and Settings needed the same one-sidebar-item/page-selector behavior already used by Courier, Customer Success, and Company Management.
+- The implementation must stay inside Filament's native navigation patterns, remain responsive, preserve permissions, and avoid breaking existing bookmarks or operational download/export URLs.
+
+Important changed files:
+
+- `app/Filament/Clusters/Storefront.php`, `Crm.php`, `Finance.php`, `Sales.php`, `Purchasing.php`, `Inventory.php`, `Accounts.php`, `Reports.php`, and `Settings.php` - added ordered native Filament clusters with top sub-navigation, responsive mobile selectors, icons, exact CRM breadcrumb text, and direct-root access guards.
+- `app/Filament/Clusters/CompanyManagement.php`, `Courier.php`, and `CustomerSuccess.php` - aligned sidebar ordering and added the same direct-root authorization guard.
+- The corresponding Filament resources/pages - replaced legacy navigation groups with ordered cluster membership. Storefront Payments now follows Homepage Carousels; Audit Logs and Release Notes have unique Settings order values.
+- Hidden Shipment and Container resources remain outside Purchasing so they cannot accidentally expose its sidebar item to unauthorized roles. Expense Categories, Transaction Ledgers, and User Roles remain hidden selector support pages while their generated internal links use the relevant cluster route.
+- `app/Providers/Filament/AdminPanelProvider.php` - removed the obsolete explicit navigation-group registry; Filament discovers and renders the cluster items directly.
+- `app/Http/Controllers/Admin/LegacyAdminClusterRedirectController.php` and `routes/web.php` - authenticated legacy child URLs preserve deep record paths and query strings while redirecting to canonical cluster routes. Existing order print/PDF, report export, CSV sample/export, backup download, and attachment routes remain unchanged.
+- `resources/views/chat-order/success.blade.php` and `closed.blade.php` - staff return links now target the canonical CRM Inbox URL.
+- Existing feature tests now exercise canonical nested routes; `tests/Feature/AdminNavigationClustersTest.php` covers all class mappings, top selectors, root destinations, rendered selector labels, permission filtering, legacy query/deep-link compatibility, and custom-route precedence.
+- `PROJECT_GUIDE.md`, `docs/backup-restore.md`, and `CHANGELOG.md` - documented the navigation contract and canonical admin paths.
+
+Verification:
+
+- `AdminNavigationClustersTest` passed: 8 tests, 79 assertions.
+- Full application suite passed: 440 tests, 2,199 assertions.
+- Targeted Pint validation passed for the cluster implementation and affected tests.
+- `php artisan view:cache` and `git diff --check` passed.
+- Route discovery confirms canonical nested routes for all nine modules plus the authenticated compatibility route.
+- Browser-control visual QA could not start because the installed runtime rejects its environment metadata (`sandboxPolicy` missing); native Filament component rendering and feature assertions verify the desktop/mobile selector contract.
+
+Commit status:
+
+- Not committed. Commit and push require explicit user approval.
+
+## 2026-07-22 - Company Management Filament cluster
+
+Reason:
+
+- Company Management should behave like the existing Courier and Customer Success pages: one sidebar destination with Filament-native page selection instead of separate menu entries.
+
+Important changed files:
+
+- `app/Filament/Clusters/CompanyManagement.php` - added the native cluster with top sub-navigation, matching Courier and Customer Success.
+- `app/Filament/Resources/Companies/CompanyResource.php` and `app/Filament/Pages/CompanySettings.php` - registered Companies and Company Settings as ordered cluster children.
+- `app/Providers/Filament/AdminPanelProvider.php` - removed the obsolete standalone Company Management navigation group.
+- `routes/web.php` - preserved the former Companies and Company Settings entry URLs as authenticated redirects.
+- `tests/Feature/CompanySettingsTest.php` - verifies cluster membership, top page selector, root redirect, child rendering, legacy redirects, and existing permission/company-context behavior.
+- `PROJECT_GUIDE.md` - documents the cluster and canonical child routes.
+
+Verification:
+
+- `CompanySettingsTest` passed: 19 tests, 111 assertions.
+- Route discovery exposes the cluster root plus Companies and Company Settings child routes under `/admin/company-management`.
+- Full application suite passed: 432 tests, 2,120 assertions.
+- Pint passed for every changed PHP file.
+
+Commit status:
+
+- Not committed. Commit and push require explicit user approval.
+
+## 2026-07-22 - Invalid legacy company logos no longer crash Filament
+
+Reason:
+
+- A legacy global logo path had been copied into `companies.logo` before company-scoped storage validation was introduced. Clearing the global AppSetting restored `/admin/login`, but `/admin/companies` still threw a 500 while resolving the copied malformed company logo.
+
+Important changed files:
+
+- `app/Services/CompanySettingsService.php` - added a lightweight company-name resolver and made optional logo URL/PDF-path presentation fail closed when a stored path violates the company storage contract.
+- `app/Support/CompanyMedia.php` - invalid or cross-company public media values now render as no image instead of crashing Filament tables and infolists.
+- `app/Providers/Filament/AdminPanelProvider.php` - brand text no longer eagerly builds the full media-backed company profile.
+- `tests/Feature/CompanySettingsTest.php` - covers malformed global branding, selected-company branding, and the Companies table while preserving the bad value for deliberate recovery.
+- `PROJECT_GUIDE.md` - documents strict storage enforcement and fail-closed optional media rendering.
+
+Verification:
+
+- Reproduction tests failed with the production exception before the fix and passed afterward.
+- `CompanySettingsTest` passed: 17 tests, 99 assertions.
+- `CompanyStorageServiceTest` passed: 13 tests, 91 assertions, including strict traversal and cross-company rejection.
+- Full application suite passed: 430 tests, 2,108 assertions.
+- Pint passed for all changed PHP files.
+
+Commit status:
+
+- Not committed. Commit and push require explicit user approval.
+
+## 2026-07-22 - Inbox thread containment, latest-message scroll, collapsible conversations, and compact product cards
+
+Reason:
+
+- Real desktop Inbox screenshots showed a long order URL forcing the outgoing bubble beyond the thread column, the initial thread position becoming unreliable after a large lazy-loaded image, the catalog image overwhelming the product message, and the fixed Conversations pane consuming thread width when the operator wanted to focus on chat.
+
+Important changed files:
+
+- `resources/views/filament/pages/inbox.blade.php` — every grid pane and message bubble now has explicit minimum-width/overflow containment; long text and links wrap anywhere; short threads anchor to the bottom; multi-phase synchronization after open/reload/navigation/layout changes keeps the newest message visible; lazy image loads preserve bottom stickiness; older messages remain above and independently scrollable; order-form images render as clickable 192×128 thumbnails while normal chat images retain a sensible larger cap. The desktop Conversations pane now uses Filament icon buttons to collapse into a persistent customer-profile rail with unread badges, while the thread automatically expands into the released width; mobile remains fully expanded.
+- `app/Services/Meta/MetaGraphService.php` — root-relative local public-disk media is expanded with a public `APP_URL` before Meta delivery. Loopback/private-IP URLs are omitted so WhatsApp/Messenger still receive the order text instead of rejecting the entire message or receiving an unusable local URL.
+- `tests/Feature/InboxPageTest.php` and `tests/Feature/MetaMessagingReliabilityTest.php` — rendered thumbnail/wrapping contracts, chronological newest-last history, latest-message resync hooks, collapsible profile-rail controls, absolute outbound media, and localhost text-only fallback are covered.
+- `PROJECT_GUIDE.md` — the current thread behavior, collapsible desktop rail, and outbound media requirement are documented.
+
+Verification:
+
+- Full application suite — 428 passed, 2,100 assertions.
+- Inbox suite — 15 passed, 86 assertions.
+- `php artisan view:cache` and a static parse of the Inbox Alpine component — passed.
+- `npm run build` — passed; compiled theme includes `overflow-wrap:anywhere`, `break-all`, `min-width:0`, the compact thumbnail utilities, and the responsive collapsed-rail layout classes.
+- Browser-control visual QA could not start because the installed runtime still rejects its environment metadata (`sandboxPolicy` missing); the user-provided screenshot guided the fix and rendered-component/CSS assertions cover the affected contracts.
+
+Commit status:
+
+- Not committed. Commit and push require explicit user approval.
+
+## 2026-07-21 - WhatsApp Cloud reliability and channel-based modern Inbox
+
+Reason:
+
+- WhatsApp callback verification had been configured, but incoming messages never appeared and outgoing attempts had no durable failure state. The Inbox also needed a channel-first, responsive workflow comparable to Meta Business Suite while remaining entirely within Filament's default component system.
+- Live read-only diagnostics confirmed the public callback, verify token, and Phone Number ID mapping work. The saved Meta access token is expired (`OAuthException` code `190`, subcode `463`), which definitively blocks live outgoing messages and media until the owner replaces it. Callback verification alone also does not subscribe the app to the WABA or enable the `messages` field.
+
+Important changed files:
+
+- `app/Services/Meta/MetaGraphService.php`, `MetaGraphException.php`, `config/services.php`, `.env.example`, and `.env.production.example` — centralized configurable Graph `v25.0`, bearer-token requests, health/WABA subscription helpers, safe errors, no automatic retry for non-idempotent sends, and Meta-only size-limited media downloads.
+- `database/migrations/2026_07_21_000300_add_meta_diagnostics_to_conversation_channels_table.php`, `app/Models/ConversationChannel.php`, and the Conversation Channel Filament resource/pages — WABA ID, connection-test/callback/subscription/webhook/inbound/outbound/error diagnostics, tenant-locked ownership, truthful `Configured` versus `Inbound confirmed` states, copyable callback, encrypted-secret preservation, and **Test & Subscribe**.
+- `app/Http/Controllers/MetaWebhookController.php` and `app/Jobs/StoreIncomingMessageJob.php` — dotted handshake parameters, exact raw HMAC, all-entry/all-change company routing, Phone Number ID/WABA pairing, synchronous transactional core persistence before `200`, atomic dedupe/unread updates, monotonic message times/statuses, and durable queued media/AI work.
+- `app/Services/Crm/ConversationMessengerService.php`, `app/Jobs/MarkConversationReadJob.php`, `DownloadConversationMediaJob.php`, `AiReplyService.php`, and `ChatOrderController.php` — durable `sending → sent/failed` archive for Meta delivery, truthful `internal` state for local/manual activity, sanitized retryable failure bubbles, atomic retry claim, reply-window enforcement, nonblocking durable read-receipt jobs, capped secure media handling, and AI handoff on delivery failure.
+- `app/Filament/Pages/Inbox.php`, `resources/views/filament/pages/inbox.blade.php`, `resources/css/filament/admin/theme.css`, `AdminPanelProvider.php`, and `vite.config.js` — Filament-default channel tabs; URL-backed filters; paginated/list-thread-details desktop layout; mobile list/thread navigation; newest-50 history loading; accessible message log, forms, times, focus and reduced-motion behavior; reply/internal-note composer; retry, assignment, unread, status, AI and channel-health controls; company currency/timezone; and independent scrolling.
+- `app/Models/User.php` — explicit `crm.view`/`crm.manage`; built-in access is limited to Super Admin, Manager, and Sales Staff.
+- `StorefrontSettingResource.php` and `StorefrontNotificationService.php` — abandoned-cart templates may select the company's active WhatsApp Chat Channel so Inbox and storefront automation share one token/Phone Number ID; legacy encrypted values remain fallback-only until selected.
+- Meta, ingest, channel resource, Inbox, AI, private-media, storefront-reminder, and permission feature tests — regression coverage for the repaired integration, tenant boundaries, failure archive/retry, nonblocking read, secure media, role privacy, and modern Inbox behavior.
+- `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, and `ECOMMERCE_PLAN.md` — current architecture, setup/recovery steps, permissions, deployment behavior, and verification documented.
+
+Verification:
+
+- Full application suite — 427 passed, 2,089 assertions.
+- Latest Inbox + Meta reliability suites — 30 passed, 149 assertions.
+- `php artisan view:cache` — passed.
+- `npm run build` — passed; custom Filament theme contains the responsive utilities used by the Inbox.
+- Browser-plugin visual QA could not start because the installed runtime rejected its environment metadata (`sandboxPolicy` missing); responsive/accessibility contracts were covered by Blade compilation, guideline review, rendered-component assertions, and the production CSS build.
+
+Deployment and owner action:
+
+- Run `php artisan migrate --force`, rebuild frontend assets, and clear/cache configuration/views.
+- Replace the expired token with a permanent Meta System User token having `whatsapp_business_messaging` and `whatsapp_business_management`; confirm Phone Number ID and WABA ID; keep the Meta app Live; **Verify and Save** the callback; enable the WhatsApp `messages` field; then save and run **Test & Subscribe** in CRM → Chat Channels.
+- Send a real customer WhatsApp message and confirm **Last Webhook** and **Last Inbound** update. The application cannot generate or renew the owner's Meta token and Meta offers no API proof for the dashboard's `messages` checkbox.
+
+Commit status:
+
+- Not committed. Commit and push require explicit user approval.
+
 ## 2026-07-21 - Company-isolated R2 storage and company-wise invoicing
 
 Reason:

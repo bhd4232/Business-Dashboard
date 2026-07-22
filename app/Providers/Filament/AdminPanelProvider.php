@@ -18,7 +18,6 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -42,8 +41,9 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->spa()
+            ->viteTheme('resources/css/filament/admin/theme.css')
             ->databaseNotifications()
-            ->brandName(fn (): string => (string) app(CompanySettingsService::class)->profile()['name'])
+            ->brandName(fn (): string => app(CompanySettingsService::class)->name())
             ->brandLogo(fn (): ?string => app(CompanySettingsService::class)->logoUrl())
             ->darkModeBrandLogo(fn (): ?string => app(CompanySettingsService::class)->darkLogoUrl())
             ->brandLogoHeight('2.25rem')
@@ -54,18 +54,6 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->sidebarCollapsibleOnDesktop()
-            ->navigationGroups([
-                NavigationGroup::make('Company Management'),
-                NavigationGroup::make('Storefront'),
-                NavigationGroup::make('Sales'),
-                NavigationGroup::make('Purchasing'),
-                NavigationGroup::make('Inventory'),
-                NavigationGroup::make('Courier'),
-                NavigationGroup::make('Customer Success'),
-                NavigationGroup::make('Accounts'),
-                NavigationGroup::make('Reports'),
-                NavigationGroup::make('Settings'),
-            ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 function (): HtmlString {

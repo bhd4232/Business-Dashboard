@@ -33,6 +33,7 @@ class ConversationMediaController extends Controller
 
         abort_unless(
             $user?->is_active
+                && $user->hasPermission('crm.view')
                 && $company
                 && (int) $conversation->company_id === (int) $company->getKey()
                 && $user?->canAccessCompany($company->getKey()),

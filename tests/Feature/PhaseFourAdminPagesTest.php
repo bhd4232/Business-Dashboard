@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
-use App\Models\Company;
 use App\Models\Account;
+use App\Models\Company;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
@@ -90,25 +90,25 @@ class PhaseFourAdminPagesTest extends TestCase
         ]);
 
         foreach ([
-            '/admin/accounts',
-            '/admin/customer-payments',
-            '/admin/supplier-payments',
-            '/admin/expense-categories',
-            '/admin/expenses',
-            '/admin/transaction-ledgers',
-            '/admin/storefront-settings',
-            '/admin/storefront-pages',
-            "/admin/customer-payments/{$customerPayment->id}",
-            "/admin/supplier-payments/{$supplierPayment->id}",
-            "/admin/expenses/{$expense->id}",
-            "/admin/storefront-settings/{$storefrontSetting->id}/edit",
-            "/admin/storefront-pages/{$storefrontPage->id}/edit",
+            '/admin/accounts/accounts',
+            '/admin/sales/customer-payments',
+            '/admin/purchasing/supplier-payments',
+            '/admin/accounts/expense-categories',
+            '/admin/accounts/expenses',
+            '/admin/accounts/transaction-ledgers',
+            '/admin/storefront/storefront-settings',
+            '/admin/storefront/storefront-pages',
+            "/admin/sales/customer-payments/{$customerPayment->id}",
+            "/admin/purchasing/supplier-payments/{$supplierPayment->id}",
+            "/admin/accounts/expenses/{$expense->id}",
+            "/admin/storefront/storefront-settings/{$storefrontSetting->id}/edit",
+            "/admin/storefront/storefront-pages/{$storefrontPage->id}/edit",
         ] as $url) {
             $this->actingAs($user)->get($url)->assertOk();
         }
 
         $this->actingAs($user)
-            ->get('/admin/storefront-settings')
+            ->get('/admin/storefront/storefront-settings')
             ->assertOk()
             ->assertSee('Launch Readiness')
             ->assertSee('Missing Setup')
@@ -118,7 +118,7 @@ class PhaseFourAdminPagesTest extends TestCase
             ->assertSee('Open Site');
 
         $this->actingAs($user)
-            ->get("/admin/storefront-settings/{$storefrontSetting->id}/edit")
+            ->get("/admin/storefront/storefront-settings/{$storefrontSetting->id}/edit")
             ->assertOk()
             ->assertSee('Domain and Launch Readiness')
             ->assertSee('Storefront Domain')

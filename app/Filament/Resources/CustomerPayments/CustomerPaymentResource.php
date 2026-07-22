@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CustomerPayments;
 
+use App\Filament\Clusters\Sales;
 use App\Filament\Resources\CustomerPayments\Pages\CreateCustomerPayment;
 use App\Filament\Resources\CustomerPayments\Pages\EditCustomerPayment;
 use App\Filament\Resources\CustomerPayments\Pages\ListCustomerPayments;
@@ -17,7 +18,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class CustomerPaymentResource extends Resource
 {
@@ -25,7 +25,7 @@ class CustomerPaymentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowDownTray;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Sales';
+    protected static ?string $cluster = Sales::class;
 
     protected static ?int $navigationSort = 3;
 

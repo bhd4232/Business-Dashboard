@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StorefrontPages;
 
+use App\Filament\Clusters\Storefront;
 use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Filament\Resources\StorefrontPages\Pages\CreateStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\EditStorefrontPage;
@@ -28,7 +29,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
-use UnitEnum;
 
 class StorefrontPageResource extends Resource
 {
@@ -38,9 +38,11 @@ class StorefrontPageResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Storefront';
+    protected static ?string $cluster = Storefront::class;
 
     protected static ?int $navigationSort = 2;
+
+    protected static ?string $navigationLabel = 'Pages';
 
     protected static ?string $recordTitleAttribute = 'title';
 

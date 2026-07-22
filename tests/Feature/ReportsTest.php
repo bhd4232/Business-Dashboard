@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\Reports as ReportsPage;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\Category;
@@ -19,6 +20,7 @@ use App\Models\User;
 use App\Services\ReportExportService;
 use App\Services\ReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class ReportsTest extends TestCase
@@ -32,12 +34,21 @@ class ReportsTest extends TestCase
         $this->seedReportData();
 
         $this->actingAs($user)
-            ->get('/admin/reports?date_from=2026-06-03&date_to=2026-06-03')
+            ->get('/admin/reports/reports?date_from=2026-06-03&date_to=2026-06-03')
             ->assertOk()
             ->assertSee('Sales Report')
             ->assertSee('INV-REPORT-1')
             ->assertSee('CSV')
-            ->assertSee('PDF');
+            ->assertSee('PDF')
+            ->assertSee('class="fi-section', false)
+            ->assertSee('class="fi-ta', false)
+            ->assertSee('class="fi-btn', false)
+            ->assertSee('class="fi-badge', false);
+
+        $view = File::get(resource_path('views/filament/pages/reports.blade.php'));
+
+        $this->assertStringNotContainsString('<style', $view);
+        $this->assertStringNotContainsString('zz-', $view);
     }
 
     public function test_reports_page_switches_active_report_from_query_string(): void
@@ -47,11 +58,26 @@ class ReportsTest extends TestCase
         $this->seedReportData();
 
         $this->actingAs($user)
-            ->get('/admin/reports?report_type=profit&date_from=2026-06-03&date_to=2026-06-03')
+            ->get('/admin/reports/reports?report_type=profit&date_from=2026-06-03&date_to=2026-06-03')
             ->assertOk()
             ->assertSee('Product Profit Report')
             ->assertSee('Report Product')
             ->assertSee('BDT 100.00');
+    }
+
+    public function test_every_report_type_renders_through_the_native_filament_table(): void
+    {
+        $user = User::factory()->create();
+
+        $this->seedReportData();
+
+        foreach (ReportsPage::REPORTS as $type => $report) {
+            $this->actingAs($user)
+                ->get("/admin/reports/reports?report_type={$type}&date_from=2026-06-03&date_to=2026-06-03")
+                ->assertOk()
+                ->assertSee($report['title'])
+                ->assertSee('class="fi-ta', false);
+        }
     }
 
     public function test_profit_report_uses_order_item_cost_snapshot(): void
@@ -183,7 +209,7 @@ class ReportsTest extends TestCase
         $this->seedReportData($reportDate);
 
         $this->actingAs($user)
-            ->get("/admin/reports?report_type=purchases&date_from={$reportDate}&date_to={$reportDate}")
+            ->get("/admin/reports/reports?report_type=purchases&date_from={$reportDate}&date_to={$reportDate}")
             ->assertOk()
             ->assertSee('Warehouse Charge')
             ->assertSee('China to BD Costs')
@@ -210,7 +236,7 @@ class ReportsTest extends TestCase
         $this->seedReportData();
 
         $this->actingAs($user)
-            ->get('/admin/purchases')
+            ->get('/admin/purchasing/purchases')
             ->assertOk()
             ->assertSee('China to BD Costs');
     }

@@ -171,7 +171,7 @@ class SalesOrderTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get("/admin/orders/{$order->getKey()}/edit")
+            ->get("/admin/sales/orders/{$order->getKey()}/edit")
             ->assertOk()
             ->assertSee('Order Status')
             ->assertSee('Delivery Status')

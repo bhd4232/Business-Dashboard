@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CompanyFaqs;
 
+use App\Filament\Clusters\Crm;
 use App\Filament\Resources\CompanyFaqs\Pages\CreateCompanyFaq;
 use App\Filament\Resources\CompanyFaqs\Pages\EditCompanyFaq;
 use App\Filament\Resources\CompanyFaqs\Pages\ListCompanyFaqs;
@@ -17,7 +18,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use UnitEnum;
 
 class CompanyFaqResource extends Resource
 {
@@ -25,7 +25,7 @@ class CompanyFaqResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedQuestionMarkCircle;
 
-    protected static string|UnitEnum|null $navigationGroup = 'CRM';
+    protected static ?string $cluster = Crm::class;
 
     protected static ?int $navigationSort = 5;
 

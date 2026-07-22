@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SupplierPayments;
 
+use App\Filament\Clusters\Purchasing;
 use App\Filament\Resources\SupplierPayments\Pages\CreateSupplierPayment;
 use App\Filament\Resources\SupplierPayments\Pages\EditSupplierPayment;
 use App\Filament\Resources\SupplierPayments\Pages\ListSupplierPayments;
@@ -17,7 +18,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
-use UnitEnum;
 
 class SupplierPaymentResource extends Resource
 {
@@ -25,7 +25,7 @@ class SupplierPaymentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowUpTray;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Purchasing';
+    protected static ?string $cluster = Purchasing::class;
 
     protected static ?int $navigationSort = 3;
 

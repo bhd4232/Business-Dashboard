@@ -39,11 +39,11 @@ class PhaseTwoAdminPagesTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/admin/suppliers')
+            ->get('/admin/purchasing/suppliers')
             ->assertOk();
 
         $this->actingAs($user)
-            ->get('/admin/purchases/create')
+            ->get('/admin/purchasing/purchases/create')
             ->assertOk()
             ->assertSee('Machine Purchase')
             ->assertSee('Inspection')
@@ -53,7 +53,7 @@ class PhaseTwoAdminPagesTest extends TestCase
             ->assertDontSee('Custom Fields');
 
         $this->actingAs($user)
-            ->get("/admin/purchases/{$purchase->id}")
+            ->get("/admin/purchasing/purchases/{$purchase->id}")
             ->assertOk()
             ->assertSee('Admin Product');
     }

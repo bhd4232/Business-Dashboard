@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Vouchers;
 
+use App\Filament\Clusters\Finance;
 use App\Filament\Resources\Vouchers\Pages\CreateVoucher;
 use App\Filament\Resources\Vouchers\Pages\EditVoucher;
 use App\Filament\Resources\Vouchers\Pages\ListVouchers;
@@ -35,7 +36,6 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Throwable;
-use UnitEnum;
 
 class VoucherResource extends Resource
 {
@@ -43,7 +43,7 @@ class VoucherResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Finance';
+    protected static ?string $cluster = Finance::class;
 
     protected static ?int $navigationSort = 0;
 

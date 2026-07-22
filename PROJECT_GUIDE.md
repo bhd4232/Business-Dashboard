@@ -45,7 +45,7 @@ Important behavior:
 - Dashboard summaries, reports, and widgets follow the active company context.
 - User create/edit screens support assigned companies and a default company.
 - Company-specific profile and branding are resolved through `CompanySettingsService`.
-- `/admin/company-settings` requires one specific selected company; it is intentionally unavailable in `All Companies` mode so profile and invoice changes can never fall through to an arbitrary default company.
+- **Company Management** is a native Filament cluster at `/admin/company-management`. It exposes **Companies** and **Company Settings** through Filament's top sub-navigation (desktop tabs and mobile selector) while keeping one sidebar entry. Company Settings requires one specific selected company and is intentionally unavailable in `All Companies` mode so profile and invoice changes can never fall through to an arbitrary default company.
 - The Company Settings Livewire page pins its mounted company ID and rejects a save if another browser tab changes the active company, preventing stale cross-company writes.
 - Invoice prefix, header/footer contact details, thank-you text, image/weight/barcode/cut-slip toggles, currency, date format, and branding are maintained per company from Company Settings. Prefixes are normalized and protected by a database unique index. Both printable and downloadable PDF invoices resolve settings from the order's own company.
 - Company creation must finish before its logo can be uploaded, because the immutable storage UUID does not exist until the company record is saved. Upload the logo from the edit screen after creation.
@@ -61,9 +61,60 @@ app/Scopes/CompanyScope.php
 app/Services/CompanyContext.php
 app/Http/Middleware/SetCurrentCompany.php
 app/Http/Controllers/Admin/CompanySwitchController.php
+app/Filament/Clusters/CompanyManagement.php
 app/Filament/Resources/Companies/
+app/Filament/Pages/CompanySettings.php
 resources/views/filament/partials/company-switcher.blade.php
 tests/Feature/MultiCompanyIsolationTest.php
+```
+
+### Filament Admin Navigation Clusters
+
+Business modules use Filament's native `Cluster` pattern instead of separate sidebar groups. Each module has one sidebar destination, desktop top sub-navigation, and Filament's responsive mobile page selector. Child pages keep their own authorization rules, and every cluster root checks whether the user can access at least one child before redirecting.
+
+Canonical module routes and selectors:
+
+| Module | Canonical root | Selector pages |
+| --- | --- | --- |
+| Site | `/admin/storefront` | Hero Slides, Settings, Pages, Homepage Carousels, Payments |
+| CRM | `/admin/crm` | Leads, Quotations, Inbox, Chat Channels, AI Assistant, FAQs |
+| Finance | `/admin/finance` | Vouchers, Fund Sources, Fund Transfers |
+| Sales | `/admin/sales` | Customers, Orders, Customer Payments |
+| Purchasing | `/admin/purchasing` | Suppliers, Purchases, Supplier Payments |
+| Inventory | `/admin/inventory` | Products, Stock Movements, Categories |
+| Accounts | `/admin/accounts` | Accounts, Expenses |
+| Reports | `/admin/reports` | Reports |
+| Settings | `/admin/settings` | Users, Product Setup, Audit Logs, Backups, Cloud Storage Settings, Release Notes |
+
+`Site` is the admin-facing display name for the storefront module. This is a presentation-only change: the canonical `/admin/storefront` route and existing `Storefront*` PHP classes, resources, models, tables, and public-domain terminology remain unchanged.
+
+Courier, Customer Success, and Company Management follow the same cluster pattern. Hidden support resources remain hidden: Shipment and Container stay embedded in Purchases; Expense Categories and Transaction Ledgers remain routable support pages; User Roles remains reachable from Users. Hidden pages must not create extra sidebar or selector entries.
+
+Former top-level Filament child URLs are handled by `LegacyAdminClusterRedirectController`, which preserves nested record paths and query strings. Existing custom operational URLs such as order print/PDF, report exports, CSV import/export samples, backup downloads, and private attachment downloads remain unchanged.
+
+Important files:
+
+```text
+app/Filament/Clusters/
+app/Http/Controllers/Admin/LegacyAdminClusterRedirectController.php
+app/Providers/Filament/AdminPanelProvider.php
+routes/web.php
+tests/Feature/AdminNavigationClustersTest.php
+```
+
+Reports, Release Notes, Backups, and Product Setup follow Filament's native page UI patterns:
+
+- Reports uses Filament field wrappers and inputs for filters, native tabs and metric sections, a Filament table for every report result, and table header actions for CSV/PDF exports.
+- Release Notes uses Filament sections, badges, buttons, and empty states for current-release and changelog content.
+- Backups uses schema sections, header actions, a native modal form for Google Drive settings, and infolist repeatable tables for backup files.
+- Product Setup uses schema sections, native form controls and actions for onboarding/license changes, and an infolist checklist.
+- These four pages have no page-local CSS or custom component styling. Backups and Product Setup keep only the standard Filament page wrapper in their Blade view; their content is declared in the page schema.
+
+Verification:
+
+```bash
+php artisan test --compact tests/Feature/AdminNavigationClustersTest.php
+php artisan route:list --path=admin --except-vendor
 ```
 
 Production migration note:
@@ -87,10 +138,11 @@ Storage contract:
 - Private object keys use `companies/{storage_key}/private/{area}/{filename}`. Conversation media and voucher attachments belong here and must never be exposed through `Storage::url()`.
 - `r2_public` and `r2_private` are stable named cloud disks and their bucket names must be different. The public bucket is served through its configured custom domain. Every r2.dev/custom-domain public-access option must be disabled on the private bucket; the Cloud Storage form records an explicit Super Admin confirmation because S3 credentials cannot inspect Cloudflare domain exposure.
 - Cloudflare R2 does not implement S3 object ACLs. Do not add Flysystem `visibility` options to an R2 write. Public/private access is enforced by separate bucket configuration and authenticated application routes.
-- R2 settings are managed globally at `/admin/cloud-storage-settings` and are restricted to Super Admin. The secret access key remains encrypted in `app_settings`; a blank secret field preserves the stored value.
+- R2 settings are managed globally at `/admin/settings/cloud-storage-settings` and are restricted to Super Admin. The secret access key remains encrypted in `app_settings`; a blank secret field preserves the stored value.
 - Stage credentials and bucket names while R2 is disabled, successfully test the public bucket/custom domain and any configured private bucket, then enable uploads. Activation is rejected until those tests pass. Verified bucket/account topology is locked to prevent an in-place switch that would strand objects; any later account/bucket rotation requires a separately planned copy-and-verify operation.
 - When R2 is disabled, new writes return to the stable local `public`/`local` disks. Reads continue checking configured R2 disks, so disabling cloud writes does not hide previously uploaded cloud objects.
 - `CompanyStorageService` is the storage boundary for disk selection, safe path construction, ownership validation, dual-read lookup, writes, and legacy copy operations. `CompanyMedia`/`StorageUrl` are the public-media presentation helpers.
+- `CompanyStorageService` deliberately rejects malformed, wrong-scope, and cross-company paths. Optional UI branding/media resolvers fail closed to `null` when a stale database value violates that contract, so login and `/admin/company-management/companies` remain usable without exposing another company's object. The stored value is not rewritten automatically; audit it, keep a recovery copy, and re-upload the affected logo under the owning company's generated storage UUID.
 - Private downloads use authenticated routes `conversation-messages.media` and `voucher-attachments.download`. Both resolve the selected company and return `404` for cross-company records; voucher downloads also enforce voucher permissions and own/all visibility.
 - `DownloadConversationMediaJob` must resolve the channel's company explicitly, write through `putPrivate()`, and clear `CompanyContext` in `finally`.
 - Long-lived queue workers refresh database-backed storage settings and disk instances before each loop. Deployment should still restart workers normally after application releases.
@@ -160,7 +212,7 @@ Implemented behavior:
 - Steadfast API key and secret key are stored in the encrypted `credentials` model cast.
 - Provider settings support contact person, phone, warehouse, delivery fees, courier costs, return costs, COD percentage, and base URL.
 - The Courier Provider form's `Delivery Partner` section is collapsible and remains expanded by default.
-- The `Courier` sidebar group uses concise page-only menu labels: `Providers`, `Bookings`, `Status Logs`, and `Webhook Logs`; full resource titles remain on their pages.
+- The `Courier` cluster uses concise page-only selector labels: `Providers`, `Bookings`, `Status Logs`, and `Webhook Logs`; full resource titles remain on their pages.
 - Delivery status is independent from the sales Order status.
 - Normalized delivery statuses are `not_booked`, `booking_pending`, `booked`, `picked_up`, `in_transit`, `delivered`, `partial_delivered`, `returned`, `cancelled`, and `failed`.
 - Every manual or synchronized status change creates a courier status log.
@@ -213,10 +265,10 @@ tests/Feature/CourierIntegrationTest.php
 - Global or company blacklist matches block courier booking pending owner review.
 - Terminal courier status changes create idempotent customer risk events and refresh the profile.
 - Risk badges appear in Customer and Order lists/details; booking forms show the current score before submission.
-- Super Admin manages global/company blacklist entries under the `Customer Success` navigation group.
+- Super Admin manages global/company blacklist entries under the `Customer Success` cluster.
 - High-risk orders create manager approval requests before courier booking can continue.
 - Blacklisted matches create owner approval requests before courier booking can continue.
-- Risk review, risk event, and rule settings screens live under the `Customer Success` navigation group.
+- Risk review, risk event, and rule settings screens live under the `Customer Success` cluster.
 - The dashboard shows Customer Success & Risk stats plus an alert table for high-risk and blacklisted profiles.
 - Super Admin can tune risk thresholds and deduction weights without changing code.
 
@@ -249,7 +301,7 @@ tests/Feature/CustomerRiskTest.php
 ### Release and Update Safety
 
 - Application release metadata is centralized in `AppRelease` and `config/release.php`.
-- The admin panel includes a Release Notes page.
+- The admin panel includes a Release Notes page rendered with native Filament sections, badges, buttons, and empty states without page-local CSS.
 - `CHANGELOG.md` records notable production changes.
 - Production deployment documentation requires a database backup before migrations.
 - Routine production updates must not run broad seeders, `migrate:fresh`, or other destructive commands.
@@ -288,12 +340,12 @@ Current behavior:
 - Public storefront routing is custom-domain aware through `ResolveCompanyFromDomain`.
 - Company domains live on `companies.domain`; verification state lives on `companies.domain_verified`.
 - Storefront publishing and brand settings live in `storefront_settings`.
-- The Filament admin resource is `Storefront Settings` under the `Storefront` navigation group.
-- `Storefront Settings` also acts as the admin launch-readiness dashboard using Filament default table columns/actions: readiness score, missing setup checklist, domain verification, visible product count, published page count, Preview, Open Site, and Pages shortcuts.
+- The Filament admin resource is shown as `Settings` in the `Site` cluster; its internal resource and model names remain `StorefrontSettingResource` and `StorefrontSetting`.
+- Site `Settings` also acts as the admin launch-readiness dashboard using Filament default table columns/actions: readiness score, missing setup checklist, domain verification, visible product count, published page count, Preview, Open Site, and Pages shortcuts.
 - Storefront domain and domain verification are edited from the Storefront Settings form even though the canonical fields live on `companies.domain` and `companies.domain_verified`; create/edit pages synchronize those company fields on save so the list dashboard and edit form do not drift. Duplicate domains assigned to another company are rejected with a form validation error before the database unique constraint can throw a 500.
 - Storefront content pages live in `storefront_pages`.
-- The Filament admin resource is `Storefront Pages` under the `Storefront` navigation group for About, Return Policy, Privacy Policy, Terms, and similar public pages.
-- Storefront Settings list/edit pages include `Manage Pages` shortcuts so policy/content pages can be opened directly from settings.
+- The Filament admin resource is shown as `Pages` in the `Site` cluster for About, Return Policy, Privacy Policy, Terms, and similar public pages; the underlying `StorefrontPageResource` name and routes remain unchanged.
+- Site Settings list/edit pages include `Manage Pages` shortcuts so policy/content pages can be opened directly from settings.
 - Product storefront URLs use company-scoped product slugs.
 - Orders have a `source` value so future checkout orders can be identified as `storefront`.
 - Production storefront URLs are domain based, for example `/products`, `/category/{slug}`, and `/product/{slug}` on the mapped company domain.
@@ -646,7 +698,7 @@ Sales behavior:
 - Customer current balance is opening balance plus confirmed/completed invoice due minus customer payments.
 - Printable invoice route: `/admin/orders/{order}/print`
 - Downloadable company-aware PDF route: `/admin/orders/{order}/pdf`
-- Company invoice settings and the normalized, database-unique invoice prefix are edited at `/admin/company-settings` after selecting that company from the top-bar switcher. The page uses Filament's default form sections, pins the mounted company against cross-tab context drift, and is unavailable in `All Companies` mode.
+- Company invoice settings and the normalized, database-unique invoice prefix are edited at `/admin/company-management/company-settings` after selecting that company from the top-bar switcher. The page is selected from the Company Management cluster's native Filament sub-navigation, uses default form sections, pins the mounted company against cross-tab context drift, and is unavailable in `All Companies` mode. Legacy `/admin/company-settings` and `/admin/companies` entry URLs redirect to their cluster destinations.
 - Print and PDF rendering use `$order->company`, not the currently selected company, so a permitted cross-company view cannot inherit the wrong branding or invoice contacts.
 - Printable invoices hide zero-value discount, VAT, paid, and advance-style paid rows; paid amounts display as a negative deduction when greater than zero.
 - Verify company invoice behavior with `php artisan test --compact tests/Feature/CompanySettingsTest.php tests/Feature/InvoiceDesignTest.php`.
@@ -692,6 +744,8 @@ app/Filament/Pages/Reports.php
 resources/views/filament/pages/reports.blade.php
 app/Services/ReportService.php
 ```
+
+The Reports page uses native Filament filter inputs, tabs, metric sections, and a dynamic Filament table. CSV and PDF exports are table header actions, empty results use the table empty state, and the Blade view contains no page-local CSS.
 
 Available report/export types:
 
@@ -761,11 +815,27 @@ Admin resources live under the "CRM" navigation group: `app/Filament/Resources/L
 
 Conversation Inbox and chat-to-order:
 
-- `ConversationChannel` (per-company WhatsApp Cloud API / Messenger channel, encrypted `access_token`/`app_secret`, admin-configurable), `Conversation`, `ConversationMessage` (permanent database archive of every incoming/outgoing message; media copied off Meta CDN into company-private storage by `DownloadConversationMediaJob`).
-- Webhook endpoint `GET|POST /webhooks/meta` (`MetaWebhookController`) — hub.challenge handshake + `X-Hub-Signature-256` verification per channel, then `StoreIncomingMessageJob` (dedupe on wamid/mid, auto-link Customer/Lead by phone, auto-create Lead when enabled, `CompanyContext` set/clear).
-- Outgoing replies via `ConversationMessengerService` (WhatsApp Cloud + Messenger drivers, manual/phone conversations archive-only) with 24h reply-window indicator.
-- Filament "Inbox" page (`app/Filament/Pages/Inbox.php`, CRM group, 10s polling): conversation list with unread badges, chat thread, reply box, manual conversation logging, "Send order form" quick action.
+- `ConversationChannel` is the company-owned source of truth for WhatsApp Cloud API / Messenger credentials. Its encrypted `access_token`/`app_secret`, Phone Number ID or Page ID, separate WABA ID, callback verification, WABA subscription, last connection test/webhook/inbound/outbound times, and sanitized latest error are managed from **CRM → Chat Channels**. An existing channel cannot be reassigned to another company because its conversations and credentials are tenant-bound. Storefront WhatsApp reminders should select the same active company channel; the older storefront token/Phone Number ID fields remain only as a migration-safe fallback.
+- Meta Graph calls use `MetaGraphService` (`app/Services/Meta/`) and `META_GRAPH_API_VERSION` (currently `v25.0`). Access tokens are bearer headers, never query parameters or diagnostic payloads. Non-idempotent message sends are not automatically retried; media downloads accept HTTPS Meta CDN hosts only and enforce `META_MAX_MEDIA_BYTES`. Outbound root-relative catalog images are expanded with the public `APP_URL`; loopback/private-IP media is omitted with a text-only fallback so Meta never receives an unusable local URL.
+- Webhook endpoint `GET|POST /webhooks/meta` (`MetaWebhookController`) accepts Meta's dotted handshake parameters and verifies `X-Hub-Signature-256` against the exact raw bytes. Every WhatsApp entry/change is routed by Phone Number ID plus WABA ID (Messenger by Page ID) to its own company. The core incoming message/status, dedupe, unread count, and channel timestamps are persisted synchronously before returning `200`; media copying, AI follow-ups, and read receipts are placed on the durable queue after core persistence and run with their own company context.
+- Outgoing replies via `ConversationMessengerService` are archived as `sending` before Meta is called, then become `sent` or a persistent, sanitized `failed` bubble that staff can retry atomically. `sent → delivered → read/played` updates do not regress. WhatsApp free-form messages are blocked outside the 24-hour customer-service window (72 hours for CTWA); manual/phone activity remains internal-only.
+- `MarkConversationReadJob` queues WhatsApp read receipts so opening a chat never waits on Meta. Incoming media is copied from Meta's expiring CDN into company-private storage by `DownloadConversationMediaJob`; declared and transferred sizes are capped before a large response can exhaust the worker.
+- Filament **Inbox** (`app/Filament/Pages/Inbox.php` and `resources/views/filament/pages/inbox.blade.php`) uses actual channel tabs, URL-backed search/status/unread/assignment filters, paginated conversations, newest-50 chronological message loading, and repeated bottom synchronization after chat open, reload/navigation, layout changes, and lazy media so the latest bubble stays visible. The desktop Conversations pane persists its expanded/collapsed preference; collapsed mode follows Filament's sidebar pattern with customer profile icon buttons and unread badges while the thread flexibly fills the released width. It also provides preserved scroll when loading history, contained anywhere-wrapping bubbles, compact clickable product thumbnails, reply/internal-note modes, failed-message retry, product order links, assignment/status/AI controls, company-aware currency/timezone, channel health, and a responsive list/thread/details layout. It polls only while visible. Super Admin, Manager, and Sales Staff can use it; Inventory Staff and Accountant cannot read private CRM conversations. Custom roles use `crm.view` and `crm.manage`.
 - Chat order links: `ChatOrderLink` token links (`GET|POST /o/{token}`, throttled + honeypot, 7-day default expiry). Submission creates a draft Order (`source = chat`) through the existing lifecycle, converts Lead → Customer, locks the link, and archives a confirmation message to the thread.
+
+WhatsApp Cloud setup and recovery checklist:
+
+1. In **CRM → Chat Channels**, enter the correct company, Phone Number ID, WABA ID, Meta App Secret, shared webhook verify token, and a permanent System User access token with `whatsapp_business_messaging` and `whatsapp_business_management`.
+2. In Meta, set the displayed HTTPS callback URL, complete **Verify and Save**, enable the WhatsApp `messages` webhook field, and keep the app in Live mode. Callback verification and WABA app subscription are separate requirements.
+3. Save the ERP channel, then run **Test & Subscribe**. Callback verification plus a successful `/{WABA-ID}/subscribed_apps` POST shows `Configured`; only a real received customer message shows `Inbound confirmed`. Meta does not expose an API that proves the dashboard's `messages` checkbox, so that item still needs manual confirmation.
+4. Send a real customer message and confirm **Last Webhook** and **Last Inbound** update before troubleshooting the Inbox. A valid callback with neither timestamp usually means the WABA/app or `messages` field is not subscribed; a webhook timestamp without an inbound timestamp points to payload/signature/processing diagnostics.
+5. Core ingest is synchronous, but production should keep `QUEUE_CONNECTION=database` or `redis` and a supervised queue worker running for media, AI, and read-receipt follow-ups. A stopped worker no longer hides the core text message, but those follow-up tasks will remain pending.
+
+Focused verification:
+
+```bash
+php artisan test --compact tests/Feature/MetaMessagingReliabilityTest.php tests/Feature/ConversationIngestTest.php tests/Feature/ConversationChannelResourceTest.php tests/Feature/InboxPageTest.php
+```
 
 AI auto-reply (grounded-only assistant):
 

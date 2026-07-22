@@ -28,6 +28,11 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    'meta' => [
+        'graph_api_version' => env('META_GRAPH_API_VERSION', 'v25.0'),
+        'max_media_bytes' => (int) env('META_MAX_MEDIA_BYTES', 26214400),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

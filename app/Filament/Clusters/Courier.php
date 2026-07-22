@@ -13,7 +13,12 @@ class Courier extends Cluster
 
     protected static ?string $navigationLabel = 'Courier';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 7;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
+
+    public static function canAccess(): bool
+    {
+        return static::canAccessClusteredComponents();
+    }
 }
