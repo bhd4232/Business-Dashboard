@@ -57,14 +57,17 @@ Artisan::command('backup:database {--connection=}', function (DatabaseBackupServ
 })->purpose('Create a private database backup');
 
 Artisan::command('demo:refresh {--database=}', function () {
-    $database = $this->option('database') ?: database_path('demo.sqlite');
+    $database = $this->option('database')
+        ?: config('database.connections.demo.database', database_path('demo.sqlite'));
     $originalDefault = config('database.default');
     $originalDemoPath = config('database.connections.demo.database');
 
-    File::ensureDirectoryExists(dirname($database));
+    if ($database !== ':memory:') {
+        File::ensureDirectoryExists(dirname($database));
 
-    if (! File::exists($database)) {
-        File::put($database, '');
+        if (! File::exists($database)) {
+            File::put($database, '');
+        }
     }
 
     Config::set('database.connections.demo.database', $database);

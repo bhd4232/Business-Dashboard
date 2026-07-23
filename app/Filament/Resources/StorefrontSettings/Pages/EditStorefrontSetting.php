@@ -2,16 +2,22 @@
 
 namespace App\Filament\Resources\StorefrontSettings\Pages;
 
+use App\Filament\Concerns\HasStickyHeaderFormActions;
 use App\Filament\Resources\StorefrontPages\StorefrontPageResource;
 use App\Filament\Resources\StorefrontSettings\StorefrontSettingResource;
 use App\Models\Company;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
 
 class EditStorefrontSetting extends EditRecord
 {
+    use HasStickyHeaderFormActions;
+
     protected static string $resource = StorefrontSettingResource::class;
+
+    protected ?bool $hasDatabaseTransactions = true;
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -26,7 +32,7 @@ class EditStorefrontSetting extends EditRecord
     {
         $rawState = $this->form->getRawState();
 
-        if ($rawState instanceof \Illuminate\Contracts\Support\Arrayable) {
+        if ($rawState instanceof Arrayable) {
             $rawState = $rawState->toArray();
         }
 
@@ -49,10 +55,13 @@ class EditStorefrontSetting extends EditRecord
 
         $domain = Company::normalizeDomain($data['company_domain'] ?? null);
         $this->assertDomainIsAvailable($domain, (int) $company->getKey());
+        $domainChanged = $domain !== Company::normalizeDomain($company->domain);
 
         $company->forceFill([
             'domain' => $domain,
-            'domain_verified' => (bool) ($data['company_domain_verified'] ?? false),
+            'domain_verified' => filled($domain)
+                && ! $domainChanged
+                && (bool) ($data['company_domain_verified'] ?? false),
         ])->save();
     }
 
@@ -86,6 +95,7 @@ class EditStorefrontSetting extends EditRecord
                 ->label('New Page')
                 ->icon('heroicon-o-plus')
                 ->url(StorefrontPageResource::getUrl('create')),
+            $this->getStickySaveFormAction(),
         ];
     }
 }

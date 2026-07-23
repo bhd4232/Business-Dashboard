@@ -9,6 +9,7 @@ use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
 use App\Support\CompanyMedia;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -97,6 +98,24 @@ class CompanySettings extends Page
     public function hasSelectedCompany(): bool
     {
         return $this->companyId !== null;
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('viewCompanies')
+                ->label('View companies')
+                ->icon(Heroicon::OutlinedBuildingStorefront)
+                ->color('gray')
+                ->url(route('filament.admin.company-management.resources.companies.index')),
+            Action::make('saveChanges')
+                ->label('Save changes')
+                ->icon(Heroicon::OutlinedCheck)
+                ->submit('save')
+                ->formId('company-settings-form')
+                ->keyBindings(['mod+s'])
+                ->visible(fn (): bool => $this->hasSelectedCompany()),
+        ];
     }
 
     public function form(Schema $schema): Schema

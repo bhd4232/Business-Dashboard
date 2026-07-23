@@ -396,7 +396,14 @@ Related planning documents:
 
 **Goal:** Stabilize production hosting, backups, deployment, and maintenance process.
 
-**Status:** Planned.
+**Status:** Planned, with admin update-delivery foundations complete.
+
+**Completed Foundations:**
+
+- Deterministic deployment identity for commit, backend-only, frontend, view, migration, and changelog changes.
+- User-controlled Upgrade App flow that does not silently reload an open admin session.
+- Idempotent per-user Filament update notifications with live desktop/mobile unread counts.
+- Native signed-in user Profile Settings from the avatar menu.
 
 **Recommended Deployment Stack:**
 

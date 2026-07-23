@@ -44,9 +44,9 @@ APP_DEBUG=false
 APP_URL=https://your-domain.com
 ASSET_URL=https://your-domain.com
 TRUSTED_PROXIES=*
-APP_VERSION=1.0.0
-APP_RELEASE_TYPE=major
-APP_RELEASE_DATE=2026-06-21
+APP_VERSION=1.21.0
+APP_RELEASE_TYPE=minor
+APP_RELEASE_DATE=2026-07-23
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -139,6 +139,38 @@ php artisan up
 ```
 
 Do not run `php artisan db:seed --force` during routine updates after real customers, purchases, products, or users exist.
+
+## User-Controlled Admin App Upgrade
+
+`npm run build` now writes `public/build/deployment.json` after Vite finishes. Do not skip or reorder that step: the file gives every release a deterministic identity from the source tree, built assets, and Git/platform commit when available.
+
+After `php artisan migrate --force`, existing users retain their last acknowledged deployment. When the new build is stable:
+
+- the open admin app continues without an automatic full reload;
+- **Upgrade App** appears above **Sign out** in the avatar menu;
+- the Filament bell receives one persistent app-update notification per user/build;
+- the user can review Release Notes, save unfinished work, and choose when to reload.
+
+The alert is inserted synchronously and therefore does not depend on the queue worker. The scheduler remains a recovery path, and this command can be run immediately after deployment:
+
+```bash
+php artisan release:notify-deploy
+```
+
+Verify the identity and cache policy:
+
+```bash
+curl -i https://your-domain.com/health/version
+```
+
+Expect a non-empty `deployment_id`, `built_at`, `"ready": true`, and `Cache-Control: no-store`. A `ready: false` response prevents upgrade prompts and normally means deployment metadata is missing, the actual Vite manifest hash differs, or runtime commit metadata and built files do not belong to the same release; rebuild before exposing that instance.
+
+During a rolling replacement, keep build clocks synchronized. Server and browser
+use `built_at` to reject responses from older nodes, and the upgrade POST must
+match the exact deployment ID the user confirmed before it can acknowledge or
+clear cached files.
+
+This feature holds the already-loaded frontend shell until consent. The deployed PHP backend is still the active backend. Whole-stack old/new coexistence requires sticky blue/green routing and backward-compatible database changes.
 
 If a deploy fails while maintenance mode is enabled:
 

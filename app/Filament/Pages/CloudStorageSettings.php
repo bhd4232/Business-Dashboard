@@ -17,8 +17,10 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\Rule;
 
 class CloudStorageSettings extends Page
 {
@@ -76,7 +78,7 @@ class CloudStorageSettings extends Page
                                 description: 'Enable the switch only after the saved configuration passes the required connection tests.',
                                 steps: [
                                     'Keep this switch off while entering or changing credentials, bucket names, and the public URL.',
-                                    'Save the form, then run Test public bucket. If a private bucket is configured, run Test private bucket too.',
+                                    'Run Test public bucket. The test safely stages the current draft without enabling R2. If a private bucket is configured, test it too.',
                                     'Turn this switch on only after every configured test succeeds. Existing local files are not moved or deleted.',
                                 ],
                                 docsUrl: self::R2_AUTH_DOCS_URL,
@@ -164,7 +166,7 @@ class CloudStorageSettings extends Page
                             ->disabled(fn (): bool => $this->isPublicTopologyLocked())
                             ->required(fn (Get $get): bool => (bool) $get('enabled'))
                             ->different('private_bucket')
-                            ->placeholder('zamzam-public-media')
+                            ->placeholder('e.g. zamzam-public-media')
                             ->autocomplete(false),
                         TextInput::make('public_url')
                             ->label('Public custom-domain URL')
@@ -182,7 +184,7 @@ class CloudStorageSettings extends Page
                             ))
                             ->url()
                             ->required(fn (Get $get): bool => (bool) $get('enabled'))
-                            ->placeholder('https://media.example.com')
+                            ->placeholder('e.g. https://media.example.com')
                             ->autocomplete(false),
                         Placeholder::make('public_status')
                             ->label('Status')
@@ -210,7 +212,7 @@ class CloudStorageSettings extends Page
                             ))
                             ->disabled(fn (): bool => $this->isPrivateTopologyLocked())
                             ->different('public_bucket')
-                            ->placeholder('zamzam-private-files')
+                            ->placeholder('e.g. zamzam-private-files')
                             ->autocomplete(false)
                             ->helperText('Optional during rollout. It must be a dedicated bucket with every public-access option disabled. When blank, private files stay local.'),
                         Toggle::make('private_access_confirmed')
@@ -265,11 +267,13 @@ class CloudStorageSettings extends Page
 
     public function testPublicConnection(StorageSettingsService $settings): void
     {
+        $this->stageConnectionDraft($settings, 'public');
         $this->sendConnectionNotification($settings->testPublicConnection(), 'Public bucket');
     }
 
     public function testPrivateConnection(StorageSettingsService $settings): void
     {
+        $this->stageConnectionDraft($settings, 'private');
         $this->sendConnectionNotification($settings->testPrivateConnection(), 'Private bucket');
     }
 
@@ -323,6 +327,54 @@ class CloudStorageSettings extends Page
         $result['ok'] ? $notification->success()->send() : $notification->danger()->send();
     }
 
+    protected function stageConnectionDraft(StorageSettingsService $settings, string $scope): void
+    {
+        $commonRules = [
+            'data.access_key_id' => ['required', 'string', 'max:255'],
+            'data.secret_access_key' => [
+                Rule::requiredIf(! $settings->hasSecretAccessKey()),
+                'nullable',
+                'string',
+            ],
+            'data.endpoint' => ['required', 'url:http,https'],
+        ];
+
+        $scopeRules = $scope === 'private'
+            ? [
+                'data.private_bucket' => ['required', 'string', 'max:255', 'different:data.public_bucket'],
+                'data.private_access_confirmed' => ['accepted'],
+            ]
+            : [
+                'data.public_bucket' => ['required', 'string', 'max:255', 'different:data.private_bucket'],
+                'data.public_url' => ['required', 'url:http,https'],
+            ];
+
+        $this->validate(
+            [...$commonRules, ...$scopeRules],
+            attributes: [
+                'data.access_key_id' => 'Access Key ID',
+                'data.secret_access_key' => 'Secret Access Key',
+                'data.endpoint' => 'S3 endpoint',
+                'data.public_bucket' => 'Public bucket name',
+                'data.public_url' => 'Public custom-domain URL',
+                'data.private_bucket' => 'Private bucket name',
+                'data.private_access_confirmed' => 'Private bucket public-access confirmation',
+            ],
+        );
+
+        $draft = $this->form->getRawState();
+        $draft = $draft instanceof Arrayable ? $draft->toArray() : $draft;
+
+        // Testing may stage edited credentials, but it must never activate or
+        // deactivate R2 as a side effect of clicking a connection-test button.
+        $settings->save([
+            ...$draft,
+            'enabled' => $settings->enabled(),
+        ]);
+
+        $this->form->fill($this->settingsState($settings));
+    }
+
     protected function r2SetupGuideAction(): Action
     {
         return Action::make('r2SetupGuide')
@@ -366,7 +418,7 @@ class CloudStorageSettings extends Page
                 TextEntry::make('r2_setup_activate')
                     ->label('5. Save, Test, Then Enable')
                     ->state([
-                        'Keep Enable R2 for new uploads off, save the fields, and test the public bucket plus the private bucket when configured.',
+                        'Keep Enable R2 for new uploads off and test the public bucket plus the private bucket when configured. Each Test button safely stages the current draft first.',
                         'Enable R2 only after the configured tests pass. Existing local files remain available and are not moved automatically.',
                     ])
                     ->bulleted(),

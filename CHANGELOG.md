@@ -2,6 +2,33 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.21.0] - 2026-07-23
+
+**Release type:** Minor Feature Update
+
+Adds a user-controlled application upgrade flow, reliable in-app update notifications, and personal profile management from the header avatar menu.
+
+### Added
+
+- **Upgrade App in the profile menu:** a highlighted action appears immediately above Sign out only when a newer application build is available. The currently open app does not reload automatically; the user chooses when to upgrade and receives an explicit warning to save unfinished work first.
+- **App-update notifications:** the existing Filament notification bell now receives persistent update alerts with a direct Release Notes action. Desktop and mobile unread counts refresh every 15 seconds, and each user gets at most one alert per application build.
+- **Profile Settings:** the avatar menu now links to Filament's native profile page, where the signed-in user can safely update their own name, email, and password.
+
+### Changed
+
+- Storefront domain ownership is now unambiguous: Company create/edit no longer exposes writable domain or verification controls, while Site → Settings remains the sole editor. Changing a hostname resets its old verification status, related writes are transactional, and Company/Site Settings save actions now remain in the sticky Filament page header.
+- Cloudflare R2 connection tests now validate and stage the values currently entered in the Cloud Storage form instead of silently testing only an older saved copy. Blank encrypted-secret fields retain the stored key, test clicks cannot enable R2, and missing bucket/domain values are identified on their exact fields.
+- Application updates are detected from a build identity instead of only the top `CHANGELOG` version, so backend-only changes and multiple builds under the same human-readable version are no longer missed.
+- Save-result refresh and Android pull-to-refresh check the loaded build first. If a newer build exists, they reveal the Upgrade App action instead of silently replacing the open app.
+
+### Technical Notes
+
+- Migration `2026_07_23_000000_create_app_update_tracking` adds each user's acknowledged deployment ID and the unique `app_update_deliveries` ledger. Deploy with `php artisan migrate --force`.
+- `npm run build` now creates `public/build/deployment.json` from the source-tree hash, Vite manifest hash, build time, and Git/platform commit when available. The combined artifact identity changes for same-commit source/asset changes, and runtime readiness fails closed when the built manifest is missing or mismatched. `/health/version` exposes the no-cache identity for the admin poller.
+- Rolling old/new containers are ordered by build time on both server and client. Older nodes cannot replace the newest notification baseline, trigger a downgrade prompt, or acknowledge a different deployment than the one the user confirmed.
+- `AppUpdateService` writes Filament-format database notifications synchronously, so app-update delivery does not depend on a queue worker. Request-time discovery delivers only to the current user, while the scheduled `release:notify-deploy` command fills any missing users without duplicating existing deliveries.
+- The deferred-upgrade contract retains the currently loaded browser/Capacitor frontend until consent. The PHP backend changes at server deployment time; retaining an entire old backend would require separate blue/green infrastructure and backward-compatible migrations.
+
 ## [1.20.0] - 2026-07-18
 
 **Release type:** Minor Feature Update

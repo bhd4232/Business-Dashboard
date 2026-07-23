@@ -41,6 +41,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Test deployment metadata
+        run: npm run test:deployment-metadata
+
+      - name: Test app updater
+        run: npm run test:app-updater
+
       - name: Build frontend assets
         run: npm run build
 

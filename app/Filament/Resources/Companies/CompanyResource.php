@@ -69,14 +69,6 @@ class CompanyResource extends Resource
                         ->maxLength(255),
                     TextInput::make('business_type')
                         ->maxLength(255),
-                    TextInput::make('domain')
-                        ->label('Storefront Domain')
-                        ->unique(ignoreRecord: true)
-                        ->maxLength(255)
-                        ->helperText('Example: zamzamgadgetbd.com. Do not include https:// or paths.'),
-                    Toggle::make('domain_verified')
-                        ->label('Domain verified')
-                        ->default(false),
                     TextInput::make('invoice_prefix')
                         ->required()
                         ->maxLength(20)

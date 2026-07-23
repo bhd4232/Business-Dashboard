@@ -2,14 +2,27 @@
 
 namespace App\Filament\Resources\StorefrontSettings\Pages;
 
+use App\Filament\Concerns\HasStickyHeaderFormActions;
 use App\Filament\Resources\StorefrontSettings\StorefrontSettingResource;
 use App\Models\Company;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
 
 class CreateStorefrontSetting extends CreateRecord
 {
+    use HasStickyHeaderFormActions;
+
     protected static string $resource = StorefrontSettingResource::class;
+
+    protected ?bool $hasDatabaseTransactions = true;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            $this->getStickySaveFormAction(),
+        ];
+    }
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
@@ -24,7 +37,7 @@ class CreateStorefrontSetting extends CreateRecord
     {
         $rawState = $this->form->getRawState();
 
-        if ($rawState instanceof \Illuminate\Contracts\Support\Arrayable) {
+        if ($rawState instanceof Arrayable) {
             $rawState = $rawState->toArray();
         }
 
@@ -49,10 +62,13 @@ class CreateStorefrontSetting extends CreateRecord
 
         $domain = Company::normalizeDomain($data['company_domain'] ?? null);
         $this->assertDomainIsAvailable($domain, (int) $company->getKey());
+        $domainChanged = $domain !== Company::normalizeDomain($company->domain);
 
         $company->forceFill([
             'domain' => $domain,
-            'domain_verified' => (bool) ($data['company_domain_verified'] ?? false),
+            'domain_verified' => filled($domain)
+                && ! $domainChanged
+                && (bool) ($data['company_domain_verified'] ?? false),
         ])->save();
     }
 

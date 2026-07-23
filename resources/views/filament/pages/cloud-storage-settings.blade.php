@@ -7,11 +7,25 @@
                 Save settings
             </x-filament::button>
 
-            <x-filament::button type="button" color="gray" icon="heroicon-m-signal" wire:click="testPublicConnection" wire:loading.attr="disabled">
+            <x-filament::button
+                type="button"
+                color="gray"
+                icon="heroicon-m-signal"
+                wire:click="testPublicConnection"
+                wire:loading.attr="disabled"
+                tooltip="Saves the current draft, then tests it without enabling R2."
+            >
                 Test public bucket
             </x-filament::button>
 
-            <x-filament::button type="button" color="gray" icon="heroicon-m-lock-closed" wire:click="testPrivateConnection" wire:loading.attr="disabled">
+            <x-filament::button
+                type="button"
+                color="gray"
+                icon="heroicon-m-lock-closed"
+                wire:click="testPrivateConnection"
+                wire:loading.attr="disabled"
+                tooltip="Saves the current draft, then tests it without changing the R2 enable switch."
+            >
                 Test private bucket
             </x-filament::button>
         </div>

@@ -196,6 +196,7 @@ class StorefrontSettingResource extends Resource
                     TextInput::make('company_domain')
                         ->label('Storefront Domain')
                         ->maxLength(255)
+                        ->live(onBlur: true)
                         ->dehydrateStateUsing(fn (?string $state): ?string => Company::normalizeDomain($state))
                         ->rule(function (Get $get, ?StorefrontSetting $record) {
                             $companyId = $get('company_id') ?: $record?->company_id;
@@ -205,12 +206,13 @@ class StorefrontSettingResource extends Resource
                                 ->whereNotNull('domain');
                         })
                         ->helperText('Example: zamzamgadgetbd.com. Do not include https:// or paths.')
+                        ->afterStateUpdated(fn (Set $set): mixed => $set('company_domain_verified', false))
                         ->afterStateHydrated(function (TextInput $component, ?StorefrontSetting $record): void {
                             $component->state($record?->company?->domain);
                         }),
                     Toggle::make('company_domain_verified')
                         ->label('Domain verified')
-                        ->helperText('Turn on only after DNS/server routing is verified.')
+                        ->helperText('Changing the domain resets this status. Save the new domain, verify DNS/server routing, then turn this on in a second save.')
                         ->afterStateHydrated(function (Toggle $component, ?StorefrontSetting $record): void {
                             $component->state((bool) $record?->company?->domain_verified);
                         }),

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AppUpgradeController;
 use App\Http\Controllers\Admin\BackupDownloadController;
 use App\Http\Controllers\Admin\CompanySwitchController;
 use App\Http\Controllers\Admin\ConversationMediaController;
@@ -34,7 +35,9 @@ use App\Http\Controllers\ZiniPayWebhookController;
 use App\Http\Middleware\ResolveCompanyFromDomain;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\AppUpdateService;
 use App\Services\CompanySettingsService;
+use App\Support\AppDeployment;
 use App\Support\AppRelease;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -217,21 +220,35 @@ Route::view('/docs', 'marketing.docs')->name('marketing.docs');
 Route::get('/health/version', function () {
     $roleOptions = User::roleOptions();
     $release = AppRelease::current();
+    $publishedRelease = AppRelease::latestPublished();
+    $deployment = AppDeployment::current();
+    $ready = app(AppUpdateService::class)->isDeploymentEligible($deployment);
 
     return response()
         ->json([
             'app' => 'zamzam-erp',
             'app_name' => config('app.name'),
             'version' => $release['version'],
+            'published_version' => $publishedRelease['version'],
             'release_type' => $release['type'],
             'release_label' => $release['type_label'],
             'release_date' => $release['date'],
             'marker' => 'roles-built-in-v2',
-            'commit' => $release['commit'],
+            'commit' => $deployment['commit'],
+            'deployment_id' => $deployment['deployment_id'],
+            'deployment_ready' => $deployment['ready'],
+            'ready' => $ready,
+            'built_at' => $deployment['built_at'],
+            'source_id' => $deployment['source_id'],
+            'assets_id' => $deployment['assets_id'],
             'role_option_keys' => array_keys($roleOptions),
             'has_sales_staff_role' => array_key_exists('sales_staff', $roleOptions),
         ])
-        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        ->withHeaders([
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Expires' => '0',
+            'Pragma' => 'no-cache',
+        ]);
 })->name('health.version');
 
 Route::get('/install', [InstallController::class, 'create'])->name('install.create');
@@ -268,6 +285,14 @@ Route::middleware('auth')
     ->name('reports.export.pdf');
 
 Route::middleware('auth')->group(function (): void {
+    Route::post('/admin/app-updates/sync', [AppUpgradeController::class, 'synchronize'])
+        ->middleware('throttle:12,1')
+        ->name('admin.app-updates.sync');
+
+    Route::post('/admin/app-upgrade', [AppUpgradeController::class, 'upgrade'])
+        ->middleware('throttle:6,1')
+        ->name('admin.app-upgrade');
+
     Route::redirect('/admin/companies', '/admin/company-management/companies')
         ->name('admin.companies.legacy');
 

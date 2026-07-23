@@ -21,11 +21,21 @@ class ReleaseNotesTest extends TestCase
 
         $this->get('/health/version')
             ->assertOk()
+            ->assertHeader('Cache-Control')
             ->assertJsonPath('version', '9.8.7')
+            ->assertJsonPath('published_version', '1.21.0')
             ->assertJsonPath('release_type', 'critical_fix')
             ->assertJsonPath('release_label', 'Critical Fix Update')
             ->assertJsonPath('release_date', '2026-06-21')
-            ->assertJsonPath('commit', '1234567890abcdef');
+            ->assertJsonPath('commit', '1234567890abcdef')
+            ->assertJsonStructure([
+                'deployment_id',
+                'deployment_ready',
+                'ready',
+                'built_at',
+                'source_id',
+                'assets_id',
+            ]);
     }
 
     public function test_release_notes_page_renders_for_authenticated_admin_user(): void
@@ -39,9 +49,9 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.20.0')
+            ->assertSee('v1.21.0')
             ->assertSee('Minor Feature')
-            ->assertSee('Released 2026-07-18')
+            ->assertSee('Released 2026-07-23')
             ->assertSee('Super Admin Database & Deployment Notes')
             ->assertSee('Added disposable SQLite backup restore verification')
             ->assertSee('Production Update Rules')
@@ -66,7 +76,8 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.2.0')
+            ->assertSee('v1.21.0')
+            ->assertSee('Upgrade App in the profile menu')
             ->assertSee('Added Customer and Order risk badges')
             ->assertDontSee('Added disposable SQLite backup restore verification')
             ->assertDontSee('Technical Notes')

@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Concerns\ValidatesEmailAddress;
+use App\Support\AppDeployment;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -23,6 +24,16 @@ class User extends Authenticatable implements FilamentUser
 
     protected static function booted(): void
     {
+        static::creating(function (User $user): void {
+            if (
+                Schema::hasColumn('users', 'acknowledged_app_deployment_id')
+                && blank($user->acknowledged_app_deployment_id)
+            ) {
+                $user->acknowledged_app_deployment_id = AppDeployment::current()['deployment_id'] ?? null;
+                $user->app_upgrade_acknowledged_at = now();
+            }
+        });
+
         static::saving(function (User $user): void {
             static::validateEmailAttribute($user, required: true);
 
@@ -95,6 +106,7 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'app_upgrade_acknowledged_at' => 'datetime',
         ];
     }
 

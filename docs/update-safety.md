@@ -22,6 +22,8 @@ Live data should remain safe during app updates when deployments use backups and
 7. Restart queues if queue workers are used.
 8. Bring the app back online.
 9. Verify login, dashboard totals, recent orders, purchases, payments, and stock.
+10. Verify `/health/version` returns the new stable `deployment_id` with `ready: true`.
+11. Confirm an existing signed-in session shows Upgrade App and one bell notification without silently reloading.
 
 ## Safe Manual Update Commands
 
@@ -40,6 +42,13 @@ php artisan view:cache
 php artisan queue:restart
 php artisan up
 ```
+
+`npm run build` also creates the deployment identity file used by the user-controlled Upgrade App flow. A normal release must keep old Vite files available long enough for already-open pages to finish their current work, and migrations must remain forward-compatible with those open pages. The upgrade control delays the browser-shell reload; it is not a backend rollback or blue/green substitute.
+
+The repository includes a committed `.env.testing` with both
+`DB_DATABASE=:memory:` and `DEMO_DB_DATABASE=:memory:`. Standalone migration
+checks that use `--env=testing` must keep this guard in place so neither the
+default nor an explicit demo connection can fall back to a persisted database.
 
 ## Commands Never To Run On Live Data
 

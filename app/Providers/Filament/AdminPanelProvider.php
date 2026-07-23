@@ -10,10 +10,13 @@ use App\Filament\Widgets\LowStockProducts;
 use App\Filament\Widgets\SalesPurchaseTrend;
 use App\Filament\Widgets\TopBusinessPerformers;
 use App\Http\Middleware\SetCurrentCompany;
+use App\Http\Middleware\SyncAppUpdates;
+use App\Services\AppUpdateService;
 use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
 use App\Services\DynamicColorService;
 use App\Services\ProductSetupService;
+use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -22,6 +25,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -40,9 +44,38 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->profile(isSimple: false)
             ->spa()
             ->viteTheme('resources/css/filament/admin/theme.css')
-            ->databaseNotifications()
+            ->databaseNotifications(isLazy: false)
+            ->databaseNotificationsPolling('15s')
+            ->userMenuItems([
+                'profile' => fn (Action $action): Action => $action
+                    ->label('Profile Settings')
+                    ->icon(Heroicon::OutlinedUserCircle),
+                Action::make('upgradeApp')
+                    ->label('Upgrade App')
+                    ->icon(Heroicon::OutlinedArrowUpCircle)
+                    ->color('warning')
+                    ->badge('New')
+                    ->badgeColor('warning')
+                    ->sort(PHP_INT_MAX - 1)
+                    ->actionJs(<<<'JS'
+                        window.ZamZamAppUpdater
+                            ? window.ZamZamAppUpdater.openUpgradeDialog()
+                            : window.dispatchEvent(new CustomEvent('open-modal', { detail: { id: 'app-upgrade-confirmation' } }))
+                        JS)
+                    ->extraAttributes(fn (): array => [
+                        'data-zz-app-upgrade-action' => '',
+                        'aria-label' => 'Upgrade App to the latest deployed version',
+                        ...(app(AppUpdateService::class)->isAvailable(auth()->user())
+                            ? []
+                            : [
+                                'hidden' => 'hidden',
+                                'aria-hidden' => 'true',
+                            ]),
+                    ]),
+            ])
             ->brandName(fn (): string => app(CompanySettingsService::class)->name())
             ->brandLogo(fn (): ?string => app(CompanySettingsService::class)->logoUrl())
             ->darkModeBrandLogo(fn (): ?string => app(CompanySettingsService::class)->darkLogoUrl())
@@ -161,6 +194,10 @@ class AdminPanelProvider extends PanelProvider
                             display: none;
                         }
 
+                        [data-zz-app-upgrade-action][hidden] {
+                            display: none !important;
+                        }
+
                         @media (max-width: 640px) {
                             .zz-company-switcher {
                                 width: min(12rem, 46vw);
@@ -208,11 +245,21 @@ class AdminPanelProvider extends PanelProvider
                         // table row delete, a Settings page save), Filament flashes a
                         // notification and dispatches this browser event. Reload so the
                         // page always reflects the freshly persisted state.
-                        window.addEventListener('notificationsSent', () => {
+                        window.addEventListener('notificationsSent', async () => {
                             // Pages that manage their own live state (e.g. the
                             // Inbox chat) opt out — a full reload would wipe the
                             // open conversation mid-chat.
                             if (document.querySelector('[data-zz-no-reload]')) {
+                                return;
+                            }
+
+                            if (window.ZamZamAppUpdater) {
+                                await window.ZamZamAppUpdater.reloadIfCurrent();
+
+                                return;
+                            }
+
+                            if (window.__zzAppUpgradePending) {
                                 return;
                             }
 
@@ -274,7 +321,21 @@ class AdminPanelProvider extends PanelProvider
                                     indicator.style.transition = 'top .15s';
                                     indicator.style.top = '14px';
                                     indicator.firstElementChild.style.animation = 'zz-ptr-spin .7s linear infinite';
-                                    window.location.reload();
+
+                                    if (window.ZamZamAppUpdater) {
+                                        void window.ZamZamAppUpdater.reloadIfCurrent().then((didReload) => {
+                                            if (didReload) return;
+
+                                            indicator.style.transition = 'top .2s';
+                                            indicator.style.top = '-3.5rem';
+                                            indicator.firstElementChild.style.animation = '';
+                                        });
+                                    } else if (window.__zzAppUpgradePending) {
+                                        indicator.style.transition = 'top .2s';
+                                        indicator.style.top = '-3.5rem';
+                                    } else {
+                                        window.location.reload();
+                                    }
                                 } else {
                                     indicator.style.transition = 'top .2s';
                                     indicator.style.top = '-3.5rem';
@@ -289,6 +350,10 @@ class AdminPanelProvider extends PanelProvider
                         })();
                     </script>
                 HTML),
+            )
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): HtmlString => new HtmlString(view('filament.partials.app-updater')->render()),
             )
             ->renderHook(
                 PanelsRenderHook::GLOBAL_SEARCH_BEFORE,
@@ -346,6 +411,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                SyncAppUpdates::class,
             ]);
     }
 }

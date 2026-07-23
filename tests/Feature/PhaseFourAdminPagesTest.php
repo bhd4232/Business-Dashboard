@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\StorefrontSettings\Pages\CreateStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
 use App\Models\Account;
 use App\Models\Company;
@@ -133,6 +134,10 @@ class PhaseFourAdminPagesTest extends TestCase
     {
         $user = User::factory()->create();
         $company = $user->defaultCompany();
+        $company->forceFill([
+            'domain' => 'old-store.example.test',
+            'domain_verified' => true,
+        ])->save();
         app(CompanyContext::class)->set($company);
 
         $setting = StorefrontSetting::query()->create([
@@ -143,9 +148,25 @@ class PhaseFourAdminPagesTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
+        $component = Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
+            ->assertFormFieldExists('company_domain')
+            ->assertFormFieldExists('company_domain_verified')
+            ->assertSet('data.company_domain', 'old-store.example.test')
+            ->assertSet('data.company_domain_verified', true);
+
+        $headerActions = collect($component->instance()->getCachedHeaderActions());
+
+        $this->assertSame(
+            ['syncWooCommerce', 'managePages', 'createPage', 'saveChanges'],
+            $headerActions->map->getName()->all(),
+        );
+        $this->assertSame('Save changes', $headerActions->last()->getLabel());
+        $this->assertSame(['mod+s'], $headerActions->last()->getKeyBindings());
+        $this->assertSame('save', $headerActions->last()->getLivewireClickHandler());
+
+        $component
             ->set('data.company_id', $company->getKey())
-            ->set('data.company_domain', 'synced-store.example.test')
+            ->set('data.company_domain', 'https://www.synced-store.example.test/catalog')
             ->set('data.company_domain_verified', true)
             ->set('data.is_published', true)
             ->set('data.theme_color', '#0F766E')
@@ -158,6 +179,59 @@ class PhaseFourAdminPagesTest extends TestCase
         $company->refresh();
 
         $this->assertSame('synced-store.example.test', $company->domain);
+        $this->assertFalse($company->domain_verified);
+
+        Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
+            ->assertSet('data.company_domain', 'synced-store.example.test')
+            ->assertSet('data.company_domain_verified', false)
+            ->set('data.company_domain', 'https://www.synced-store.example.test')
+            ->set('data.company_domain_verified', true)
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertTrue($company->refresh()->domain_verified);
+    }
+
+    public function test_storefront_settings_create_keeps_domain_controls_and_saves_from_the_header(): void
+    {
+        $user = User::factory()->create();
+        $company = $user->defaultCompany();
+        $company->forceFill([
+            'domain' => 'create-store.example.test',
+            'domain_verified' => false,
+        ])->save();
+        app(CompanyContext::class)->set($company);
+        $this->actingAs($user);
+
+        $component = Livewire::test(CreateStorefrontSetting::class)
+            ->assertFormFieldExists('company_domain')
+            ->assertFormFieldExists('company_domain_verified');
+
+        $headerActions = collect($component->instance()->getCachedHeaderActions());
+
+        $this->assertSame(['saveChanges'], $headerActions->map->getName()->all());
+        $this->assertSame('Save changes', $headerActions->first()->getLabel());
+        $this->assertSame(['mod+s'], $headerActions->first()->getKeyBindings());
+        $this->assertSame('create', $headerActions->first()->getLivewireClickHandler());
+
+        $component
+            ->fillForm([
+                'company_id' => $company->getKey(),
+                'company_domain' => 'https://www.create-store.example.test',
+                'company_domain_verified' => true,
+                'is_published' => false,
+                'customer_accounts_enabled' => true,
+                'theme_color' => '#0F766E',
+                'theme_mode' => 'system',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('storefront_settings', [
+            'company_id' => $company->getKey(),
+            'is_published' => false,
+        ]);
+        $this->assertSame('create-store.example.test', $company->refresh()->domain);
         $this->assertTrue($company->domain_verified);
     }
 

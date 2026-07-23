@@ -2,18 +2,22 @@
 
 namespace App\Filament\Resources\Companies\Pages;
 
+use App\Filament\Concerns\HasStickyHeaderFormActions;
 use App\Filament\Resources\Companies\CompanyResource;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditCompany extends EditRecord
 {
+    use HasStickyHeaderFormActions;
+
     protected static string $resource = CompanyResource::class;
 
     protected function getHeaderActions(): array
     {
         return [
             ViewAction::make(),
+            $this->getStickySaveFormAction(),
         ];
     }
 }

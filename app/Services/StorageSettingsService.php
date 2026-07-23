@@ -266,7 +266,10 @@ class StorageSettingsService
         $this->forgetCachedSettings();
 
         if (! $this->isPublicConfigured()) {
-            return ['ok' => false, 'message' => 'Fill in access key, secret key, public bucket, endpoint, and public URL first.'];
+            return [
+                'ok' => false,
+                'message' => $this->configurationIssueMessage('public'),
+            ];
         }
 
         return $this->roundTrip($this->buildPublicDisk(), 'public', verifyPublicUrl: true);
@@ -278,7 +281,10 @@ class StorageSettingsService
         $this->forgetCachedSettings();
 
         if (! $this->isPrivateConfigured()) {
-            return ['ok' => false, 'message' => 'Fill in access key, secret key, private bucket, and endpoint first.'];
+            return [
+                'ok' => false,
+                'message' => $this->configurationIssueMessage('private'),
+            ];
         }
 
         return $this->roundTrip($this->buildPrivateDisk(), 'private');
@@ -364,7 +370,7 @@ class StorageSettingsService
                 ? self::PUBLIC_TOPOLOGY_LOCKED
                 : self::PRIVATE_TOPOLOGY_LOCKED);
 
-            return ['ok' => true, 'message' => 'Connected — a test object was written, read, and deleted successfully.'];
+            return ['ok' => true, 'message' => 'Connected. A test object was written and read successfully; cleanup was attempted.'];
         } catch (Throwable $exception) {
             return ['ok' => false, 'message' => 'Connection failed: '.$exception->getMessage()];
         } finally {
@@ -384,6 +390,39 @@ class StorageSettingsService
         $segments = array_map('rawurlencode', explode('/', $path));
 
         return rtrim((string) $this->publicUrl(), '/').'/'.implode('/', $segments);
+    }
+
+    protected function configurationIssueMessage(string $scope): string
+    {
+        $required = [
+            'Access Key ID' => $this->accessKeyId(),
+            'Secret Access Key' => $this->secretAccessKey(),
+            'S3 endpoint' => $this->endpoint(),
+        ];
+
+        if ($scope === 'private') {
+            $required['Private bucket name'] = $this->privateBucket();
+
+            if (! $this->privateAccessConfirmed()) {
+                $required['Private bucket public-access confirmation'] = null;
+            }
+        } else {
+            $required['Public bucket name'] = $this->publicBucket();
+            $required['Public custom-domain URL'] = $this->publicUrl();
+        }
+
+        $missing = array_keys(array_filter(
+            $required,
+            static fn (mixed $value): bool => blank($value),
+        ));
+
+        if ($scope === 'private' && ! $this->bucketsAreIsolated()) {
+            $missing[] = 'a private bucket name different from the public bucket';
+        }
+
+        return $missing === []
+            ? 'The saved R2 configuration is incomplete or inconsistent.'
+            : 'Complete these R2 fields first: '.implode(', ', $missing).'.';
     }
 
     protected function value(string $key, mixed $default = null): mixed

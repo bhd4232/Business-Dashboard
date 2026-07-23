@@ -140,7 +140,7 @@ Storage contract:
 - Cloudflare R2 does not implement S3 object ACLs. Do not add Flysystem `visibility` options to an R2 write. Public/private access is enforced by separate bucket configuration and authenticated application routes.
 - R2 settings are managed globally at `/admin/settings/cloud-storage-settings` and are restricted to Super Admin. The secret access key remains encrypted in `app_settings`; a blank secret field preserves the stored value.
 - The Cloud Storage page has a native Filament **R2 setup guide** plus a keyboard-accessible information action beside every R2 field. These explain the exact Cloudflare dashboard path, token permission/scope, one-time secret handling, S3 endpoint format, public custom-domain setup, private-bucket exposure checks, and the save/test/enable order. Each help modal links to the relevant official Cloudflare documentation; essential instructions are inside the modal rather than relying on hover-only tooltips.
-- Stage credentials and bucket names while R2 is disabled, successfully test the public bucket/custom domain and any configured private bucket, then enable uploads. Activation is rejected until those tests pass. Verified bucket/account topology is locked to prevent an in-place switch that would strand objects; any later account/bucket rotation requires a separately planned copy-and-verify operation.
+- Stage credentials and bucket names while R2 is disabled, successfully test the public bucket/custom domain and any configured private bucket, then enable uploads. A **Test** action validates and persists the current Filament form draft before probing R2, preserves an existing encrypted secret when its password field is blank, and never changes the saved enable switch. Missing test requirements are attached to the exact form fields; the example bucket/domain text is prefixed with `e.g.` so it cannot be mistaken for a saved value. Activation is rejected until the required tests pass. Verified bucket/account topology is locked to prevent an in-place switch that would strand objects; any later account/bucket rotation requires a separately planned copy-and-verify operation.
 - When R2 is disabled, new writes return to the stable local `public`/`local` disks. Reads continue checking configured R2 disks, so disabling cloud writes does not hide previously uploaded cloud objects.
 - `CompanyStorageService` is the storage boundary for disk selection, safe path construction, ownership validation, dual-read lookup, writes, and legacy copy operations. `CompanyMedia`/`StorageUrl` are the public-media presentation helpers.
 - `CompanyStorageService` deliberately rejects malformed, wrong-scope, and cross-company paths. Optional UI branding/media resolvers fail closed to `null` when a stale database value violates that contract, so login and `/admin/company-management/companies` remain usable without exposing another company's object. The stored value is not rewritten automatically; audit it, keep a recovery copy, and re-upload the affected logo under the owning company's generated storage UUID.
@@ -301,7 +301,17 @@ tests/Feature/CustomerRiskTest.php
 
 ### Release and Update Safety
 
-- Application release metadata is centralized in `AppRelease` and `config/release.php`.
+- Human-readable release metadata is centralized in `AppRelease`, `CHANGELOG.md`, and `config/release.php`; machine deployment identity is resolved separately by `AppDeployment`.
+- `npm run build` writes `public/build/deployment.json` atomically. Its artifact identity combines Git/platform commit (when available), a deterministic whole-source hash (including PHP, routes, migrations, views, frontend source, public static files, locks, and changelog), and the built Vite manifest hash. Same-commit source/asset changes therefore still produce a new identity.
+- Runtime readiness compares the metadata asset hash with the actual Vite manifest and fails closed when build metadata is missing, mixed, or belongs to another runtime commit.
+- The no-cache `/health/version` response exposes `deployment_id`, readiness, source/assets hashes, build time, configured version, and latest published version. The admin updater requires two matching observations before treating a different deployment as ready, reducing false prompts during rolling replacement.
+- Both browser and server compare deployment build times. A confirmed update remains sticky, older rolling nodes cannot overwrite the latest database baseline or masquerade as an upgrade, and the POST must carry the exact deployment ID the user confirmed before acknowledgement/cache clearing is allowed.
+- An open admin/browser/Capacitor session never auto-reloads across a detected deployment. Save-result refresh, mobile pull-to-refresh, focus/online checks, and the 15-second poll reveal a warning-colored **Upgrade App** action immediately above **Sign out** instead. The native confirmation modal warns the user to save unfinished work, then performs a deliberate full reload with cache clearing.
+- Per-user acknowledgement lives on `users.acknowledged_app_deployment_id`. `app_update_deliveries` has a unique user/deployment pair, so retries and concurrent scheduler/request discovery cannot duplicate an update alert.
+- `AppUpdateService` writes Filament-format database notifications synchronously; update alerts do not depend on a queue worker. Request-time sync is non-blocking and delivers only to the current user; `release:notify-deploy` fills missing active users. Existing delivery rows provide a fast path for users who intentionally leave an update pending.
+- Filament database notifications are eagerly mounted and poll every 15 seconds. The mobile avatar-menu notification badge is a matching Livewire poller and counts only unread Filament-format rows.
+- The avatar menu exposes native **Profile Settings** at `/admin/profile`. It edits only the signed-in user's name, email, and password; role/company access remains outside that form.
+- Deferred upgrade retains the currently loaded frontend shell only. The server-side PHP/backend changes when the release is deployed; preserving an entire old backend requires separate sticky blue/green infrastructure and forward-compatible migrations.
 - The admin panel includes a Release Notes page rendered with native Filament sections, badges, buttons, and empty states without page-local CSS.
 - `CHANGELOG.md` records notable production changes.
 - Production deployment documentation requires a database backup before migrations.
@@ -312,14 +322,47 @@ Important files:
 
 ```text
 app/Support/AppRelease.php
+app/Support/AppDeployment.php
+app/Services/AppUpdateService.php
+app/Notifications/AppUpdateAvailable.php
+app/Http/Controllers/Admin/AppUpgradeController.php
+app/Http/Middleware/SyncAppUpdates.php
+app/Models/AppUpdateDelivery.php
 app/Filament/Pages/ReleaseNotes.php
+app/Providers/Filament/AdminPanelProvider.php
 resources/views/filament/pages/release-notes.blade.php
+resources/views/filament/partials/app-updater.blade.php
+resources/js/app-updater.js
+scripts/write-deployment-metadata.mjs
+database/migrations/2026_07_23_000000_create_app_update_tracking.php
 config/release.php
 CHANGELOG.md
 docs/release-policy.md
 docs/update-safety.md
+tests/Feature/AppUpgradeTest.php
+tests/Feature/ReleaseNotificationTest.php
+tests/Feature/MobileDatabaseNotificationsMenuItemTest.php
+tests/Unit/Support/AppDeploymentTest.php
 tests/Feature/ReleaseNotesTest.php
 ```
+
+Verification:
+
+```bash
+npm run test:deployment-metadata
+npm run test:app-updater
+npm run build
+php artisan migrate --force
+php artisan release:notify-deploy
+php artisan test tests/Feature/AppUpgradeTest.php tests/Feature/ReleaseNotificationTest.php
+```
+
+The committed `.env.testing` forces both the default SQLite and explicit
+`demo` connections used by standalone Artisan `--env=testing` commands onto
+in-memory SQLite. `demo:refresh` also respects its configured demo path and
+skips filesystem setup for `:memory:`. This prevents CLI migration checks from
+falling back to a persisted local/demo database; `TestingEnvironmentSafetyTest`
+locks that contract.
 
 ### External n8n Workflow Exports
 
@@ -343,10 +386,10 @@ Current behavior:
 - Storefront publishing and brand settings live in `storefront_settings`.
 - The Filament admin resource is shown as `Settings` in the `Site` cluster; its internal resource and model names remain `StorefrontSettingResource` and `StorefrontSetting`.
 - Site `Settings` also acts as the admin launch-readiness dashboard using Filament default table columns/actions: readiness score, missing setup checklist, domain verification, visible product count, published page count, Preview, Open Site, and Pages shortcuts.
-- Storefront domain and domain verification are edited from the Storefront Settings form even though the canonical fields live on `companies.domain` and `companies.domain_verified`; create/edit pages synchronize those company fields on save so the list dashboard and edit form do not drift. Duplicate domains assigned to another company are rejected with a form validation error before the database unique constraint can throw a 500.
+- Site → Settings is the only admin editor for storefront domain and domain verification even though the canonical fields remain on `companies.domain` and `companies.domain_verified`. Company create/edit forms do not expose either writable control; Company list/view may show their values as read-only status. Storefront Settings create/edit synchronizes the company fields inside a database transaction, rejects duplicate domains before the unique constraint can throw a 500, and automatically clears verification whenever the normalized hostname changes. Save the new hostname first, verify DNS/server routing, then enable **Domain verified** in a second save.
 - Storefront content pages live in `storefront_pages`.
 - The Filament admin resource is shown as `Pages` in the `Site` cluster for About, Return Policy, Privacy Policy, Terms, and similar public pages; the underlying `StorefrontPageResource` name and routes remain unchanged.
-- Site Settings list/edit pages include `Manage Pages` shortcuts so policy/content pages can be opened directly from settings.
+- Site Settings list/edit pages include `Manage Pages` shortcuts so policy/content pages can be opened directly from settings. Company and Site Settings create/edit submit actions live in the default Filament page header with their related actions; the existing panel header is sticky, so **Save changes** remains available while scrolling without duplicating a footer save button. Company Settings uses the same header pattern and hides its save action in All Companies mode.
 - Product storefront URLs use company-scoped product slugs.
 - Orders have a `source` value so future checkout orders can be identified as `storefront`.
 - Production storefront URLs are domain based, for example `/products`, `/category/{slug}`, and `/product/{slug}` on the mapped company domain.
@@ -1100,6 +1143,8 @@ php artisan test --filter=PhaseSixPermissionsTest
 php artisan test --filter=MultiCompanyIsolationTest
 php artisan test --filter=CourierIntegrationTest
 php artisan test --filter=ReleaseNotesTest
+php artisan test --filter=AppUpgradeTest
+php artisan test --filter=ReleaseNotificationTest
 ```
 
 Manual admin smoke checks:
@@ -1125,6 +1170,9 @@ Manual admin smoke checks:
 19. Configure a Steadfast test provider and verify booking/status sync with safe non-production credentials.
 20. Select `All Companies` and confirm courier provider creation and booking actions are unavailable.
 21. Create Pathao, RedX, and E-Courier providers and confirm live booking fails with the explicit official-API setup message until credentials and field mappings are supplied.
+22. Open the avatar menu and confirm Profile Settings edits only the current user.
+23. Simulate a new deployment ID and confirm Upgrade App appears directly above Sign out without reloading the open page.
+24. Confirm the bell receives one app-update notification, its Release Notes action works, and Upgrade App clears the matching unread state.
 
 ## 11. Known Notes and Cleanup
 
@@ -1168,6 +1216,9 @@ Company switcher          resources/views/filament/partials/company-switcher.bla
 Courier providers         app/Filament/Resources/CourierProviders/
 Courier bookings          app/Filament/Resources/CourierBookings/
 Release notes             app/Filament/Pages/ReleaseNotes.php
+App deployment identity   app/Support/AppDeployment.php
+App update orchestration  app/Services/AppUpdateService.php
+App updater browser code  resources/js/app-updater.js
 Seeder                    database/seeders/DatabaseSeeder.php
 ```
 

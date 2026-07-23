@@ -2,6 +2,117 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-23 - Single storefront-domain editor and sticky settings actions
+
+Reason:
+
+- Storefront Domain and Domain verified were writable from both Company Management and Site Settings, creating two competing admin save paths for the same company columns.
+- Saving a different hostname could accidentally carry the previous hostname's verified status.
+- Company and Site Settings submit buttons needed to remain available while long forms are scrolled.
+
+Important changed files:
+
+- `app/Filament/Resources/Companies/CompanyResource.php` - removes the writable domain and verification controls from Company create/edit while retaining read-only table/view status.
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` - keeps Site Settings as the sole domain editor, resets the visible verification toggle when the hostname changes, and explains the two-step verification flow.
+- `app/Filament/Resources/StorefrontSettings/Pages/CreateStorefrontSetting.php` and `EditStorefrontSetting.php` - make company/settings writes transactional, reset verification for a changed normalized hostname, and expose Save changes in the sticky native Filament page header beside related actions.
+- `app/Filament/Resources/Companies/Pages/CreateCompany.php` and `EditCompany.php` - move the submit action into the existing sticky Filament page header without duplicating a footer save.
+- `app/Filament/Pages/CompanySettings.php` and its Blade view - move View companies and the selected-company Save changes action into the sticky header; All Companies mode keeps save hidden.
+- `tests/Feature/CompanySettingsTest.php` and `tests/Feature/PhaseFourAdminPagesTest.php` - cover the single-editor boundary, preservation of read-only domain state, hostname-change verification reset, second-save verification, Storefront create/edit persistence, and header action placement.
+- `PROJECT_GUIDE.md` and `CHANGELOG.md` - document the ownership and sticky-action contract.
+
+Behavior notes:
+
+- Canonical values remain in `companies.domain` and `companies.domain_verified`; no migration or public routing behavior changed.
+- Company list/view can still display domain readiness, but only Site → Settings can edit it.
+- A different hostname is always saved as unverified. After DNS and server routing are confirmed, turn on Domain verified and save again.
+
+Verification:
+
+- Focused Company Settings and Storefront admin suite passed: 27 tests, 228 assertions.
+- Full application suite passed: 479 tests, 2,574 assertions.
+
+Commit status:
+
+- Included in the 2026-07-23 all-changes release commit approved by the user.
+
+## 2026-07-23 - R2 draft connection testing and local demo login diagnosis
+
+Reason:
+
+- The Cloud Storage **Test** buttons ignored values typed into the current Filament form and tested only previously persisted settings, which produced a misleading generic “fill in” error.
+- Example public bucket/domain placeholders could be mistaken for saved values.
+- The local demo login was unavailable because the active `database/demo.sqlite` contained no users after the previously reported accidental test migration reset.
+
+Important changed files:
+
+- `app/Filament/Pages/CloudStorageSettings.php` - validates the exact public/private test requirements, stages the current draft without changing R2's enable state, preserves a blank stored-secret field, and makes example placeholders explicit.
+- `app/Services/StorageSettingsService.php` - reports the specific missing or inconsistent R2 settings and uses accurate connection-test cleanup wording.
+- `resources/views/filament/pages/cloud-storage-settings.blade.php` - explains through native Filament button tooltips that a test stages the draft but does not enable R2.
+- `tests/Feature/CloudStorageSettingsTest.php` - covers unsaved public/private drafts, exact disk configuration, encrypted-secret preservation, missing-field failures, public-domain probing, and the no-activation guarantee.
+- `PROJECT_GUIDE.md` and `CHANGELOG.md` - document the corrected R2 test contract.
+
+Local-only recovery:
+
+- The active local demo database had zero users; its schema and SQLite integrity were healthy.
+- The idempotent `DemoDataSeeder` was used against the configured `demo` connection to recreate `demo@example.com`, its active Super Admin access, company membership, and deterministic demo records without replacing the SQLite file.
+- Existing recovery candidates and forensic copies remain untouched and untracked.
+
+Verification:
+
+- Focused Cloud Storage and company-storage suites passed: 22 tests, 204 assertions.
+- Full application suite passed: 475 tests, 2,505 assertions.
+- Targeted Pint, Blade cache compilation, cache cleanup, and `git diff --check` passed.
+- Local demo authentication was verified with the seeded password hash and Laravel's configured authentication guard.
+
+Commit status:
+
+- Included in the 2026-07-23 all-changes release commit approved by the user.
+
+## 2026-07-23 - User-controlled app upgrade, update alerts, and profile settings
+
+Reason:
+
+- A deployed build should not silently hard-reload an already-open admin app; users need a clear, deliberate upgrade control after saving unfinished work.
+- The existing Filament notification bell had no reliable deployment-alert delivery, and its mobile unread badge was stale.
+- The avatar menu did not expose the signed-in user's native Filament profile page.
+- Standalone Artisan commands using `--env=testing` needed a persistent-database safety guard.
+
+Important changed files:
+
+- `app/Support/AppDeployment.php` and `scripts/write-deployment-metadata.mjs` - create and validate a combined commit/source/assets artifact identity, build time, actual Vite manifest hash, and fail-closed readiness.
+- `resources/js/app-updater.js` and `resources/views/filament/partials/app-updater.blade.php` - poll the no-cache deployment endpoint, require two matching newer-build observations, keep confirmed state sticky, reject older rolling nodes, warn about unfinished work, and reload only after explicit consent.
+- `app/Http/Controllers/Admin/AppUpgradeController.php` and `routes/web.php` - expose authenticated sync/upgrade actions, exact confirmed-deployment validation, safe admin return URLs, no-store responses, cache clearing, and enriched `/health/version` metadata.
+- `app/Services/AppUpdateService.php`, `app/Notifications/AppUpdateAvailable.php`, `app/Models/AppUpdateDelivery.php`, and the new migration - add monotonic rolling-deploy ordering, synchronous Filament-format notifications, per-user acknowledgement, strict delivery deduplication, obsolete-update cleanup, and notification/acknowledgement race protection.
+- `app/Http/Middleware/SyncAppUpdates.php` and `app/Console/Commands/NotifyLatestRelease.php` - provide non-blocking request-time delivery for the current user plus scheduled/manual catch-up delivery for missing active users.
+- `app/Providers/Filament/AdminPanelProvider.php` - enables native Profile Settings, the highlighted conditional Upgrade App action immediately above Sign out, eager/polling database notifications, and reload guards.
+- `app/Livewire/MobileDatabaseNotificationsMenuItem.php` and its view - add a native Filament dropdown item with live unread polling and accessible labels without nested dropdown markup.
+- `.env.testing`, `routes/console.php`, and `TestingEnvironmentSafetyTest` - force default and demo testing connections to in-memory SQLite and make `demo:refresh` respect its configured safe path.
+- `.github/workflows/deploy.yml`, `package.json`, and `vite.config.js` - run deployment/updater Node tests in CI and generate deployment metadata after every production asset build.
+- `CHANGELOG.md`, `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, `docs/deployment.md`, and `docs/update-safety.md` - document the feature, deployment contract, rolling-node safeguards, and the frontend-shell-only limitation.
+
+Behavior and deployment notes:
+
+- Existing users see one update notification and Upgrade App for the first ready deployment after the migration; users created on the current build start acknowledged.
+- The POST carries the exact deployment ID shown to the user. A request routed to an older/mismatched/unready node cannot acknowledge or clear caches.
+- The open browser/Capacitor frontend shell is not automatically hard-reloaded. The deployed PHP backend still changes immediately; whole-stack old-version pinning requires sticky blue/green infrastructure and forward-compatible migrations.
+- Production must run `npm run build`, `php artisan migrate --force`, and preferably `php artisan release:notify-deploy` after the new build is healthy.
+
+Verification:
+
+- Deployment metadata Node suite passed: 5 tests.
+- Browser updater Node suite passed: 6 tests.
+- Focused deployment, upgrade, notification, mobile badge, profile, release-note, and testing-safety suites passed.
+- Production Vite build passed; generated deployment metadata matched the actual Vite manifest and resolved `ready=true`.
+- Route, Blade, and configuration cache builds passed, followed by `php artisan optimize:clear`.
+- Targeted Pint and `git diff --check` passed.
+- Full application suite passed: 470 tests, 2,456 assertions.
+- Final focused deployment, rolling-node, upgrade, notification, mobile, profile, release-note, and testing-safety suite passed: 32 tests, 174 assertions.
+- Browser-control visual QA could not start because the installed runtime rejected its environment metadata (`sandboxPolicy` missing); native Filament rendered assertions and feature tests cover the interaction contract.
+
+Commit status:
+
+- Included in the 2026-07-23 all-changes release commit approved by the user.
+
 ## 2026-07-22 - Cloudflare R2 credential guidance in Cloud Storage
 
 Reason:

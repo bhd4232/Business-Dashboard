@@ -37,6 +37,89 @@ class CompanySettingsTest extends TestCase
         $this->assertSame(SubNavigationPosition::Top, CompanyManagement::getSubNavigationPosition());
     }
 
+    public function test_company_create_form_excludes_storefront_domain_controls_and_saves_from_the_header(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($admin->defaultCompany());
+        $this->actingAs($admin);
+
+        $component = Livewire::test(CreateCompany::class)
+            ->assertFormFieldDoesNotExist('domain')
+            ->assertFormFieldDoesNotExist('domain_verified');
+
+        $headerActions = collect($component->instance()->getCachedHeaderActions());
+
+        $this->assertSame(['saveChanges'], $headerActions->map->getName()->all());
+        $this->assertSame('Save changes', $headerActions->first()->getLabel());
+        $this->assertSame(['mod+s'], $headerActions->first()->getKeyBindings());
+        $this->assertSame('create', $headerActions->first()->getLivewireClickHandler());
+
+        $component
+            ->fillForm([
+                'name' => 'Header Action Company',
+                'slug' => 'header-action-company',
+                'business_type' => 'Retail',
+                'invoice_prefix' => 'HAC',
+                'dashboard_color' => '#F59E0B',
+                'currency' => 'BDT',
+                'timezone' => 'Asia/Dhaka',
+                'is_active' => true,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $company = Company::query()->where('slug', 'header-action-company')->firstOrFail();
+
+        $this->assertNull($company->domain);
+        $this->assertFalse($company->domain_verified);
+    }
+
+    public function test_company_edit_form_excludes_storefront_domain_controls_and_preserves_domain_state(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $company = Company::query()->create([
+            'name' => 'Verified Domain Company',
+            'slug' => 'verified-domain-company',
+            'business_type' => 'Retail',
+            'domain' => 'verified.example.test',
+            'domain_verified' => true,
+            'invoice_prefix' => 'VDC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($admin->defaultCompany());
+        $this->actingAs($admin);
+
+        $component = Livewire::test(EditCompany::class, ['record' => $company->getKey()])
+            ->assertFormFieldDoesNotExist('domain')
+            ->assertFormFieldDoesNotExist('domain_verified');
+
+        $headerActions = collect($component->instance()->getCachedHeaderActions());
+
+        $this->assertSame(['view', 'saveChanges'], $headerActions->map->getName()->all());
+        $this->assertSame('Save changes', $headerActions->last()->getLabel());
+        $this->assertSame(['mod+s'], $headerActions->last()->getKeyBindings());
+        $this->assertSame('save', $headerActions->last()->getLivewireClickHandler());
+
+        $component
+            ->set('data.business_type', 'Updated Retail')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $company->refresh();
+
+        $this->assertSame('Updated Retail', $company->business_type);
+        $this->assertSame('verified.example.test', $company->domain);
+        $this->assertTrue($company->domain_verified);
+    }
+
     public function test_company_settings_service_saves_profile(): void
     {
         $settings = app(CompanySettingsService::class);
@@ -81,7 +164,11 @@ class CompanySettingsTest extends TestCase
             ->assertOk()
             ->assertSee('Business Profile')
             ->assertSee('Branding')
-            ->assertSee('Invoice Settings');
+            ->assertSee('Invoice Settings')
+            ->assertSee('View companies')
+            ->assertSee('Save changes')
+            ->assertSee('.fi-page-header-main-ctn > .fi-header', escape: false)
+            ->assertSee('position: sticky;', escape: false);
 
         $this->actingAs($admin)
             ->withSession(['current_company_id' => 'all'])
@@ -90,7 +177,40 @@ class CompanySettingsTest extends TestCase
             ->assertSee('Select a company to edit settings')
             ->assertSee('top-bar company switcher')
             ->assertSee('View companies')
-            ->assertDontSee('Save company settings');
+            ->assertDontSee('Save changes');
+    }
+
+    public function test_company_settings_uses_the_sticky_page_header_for_its_actions(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $company = $admin->defaultCompany();
+        app(CompanyContext::class)->set($company);
+        $this->actingAs($admin);
+
+        $component = Livewire::test(CompanySettings::class);
+        $headerActions = collect($component->instance()->getCachedHeaderActions());
+        $saveAction = $headerActions->firstWhere(fn ($action): bool => $action->getName() === 'saveChanges');
+
+        $this->assertSame(['viewCompanies', 'saveChanges'], $headerActions->map->getName()->all());
+        $this->assertNotNull($saveAction);
+        $this->assertSame('Save changes', $saveAction->getLabel());
+        $this->assertSame(['mod+s'], $saveAction->getKeyBindings());
+        $this->assertTrue($saveAction->canSubmitForm());
+        $this->assertSame('save', $saveAction->getFormToSubmit());
+        $this->assertSame('company-settings-form', $saveAction->getFormId());
+        $this->assertTrue($saveAction->isVisible());
+
+        app(CompanyContext::class)->all();
+
+        $allCompaniesComponent = Livewire::test(CompanySettings::class);
+        $allCompaniesSaveAction = collect($allCompaniesComponent->instance()->getCachedHeaderActions())
+            ->firstWhere(fn ($action): bool => $action->getName() === 'saveChanges');
+
+        $this->assertNotNull($allCompaniesSaveAction);
+        $this->assertFalse($allCompaniesSaveAction->isVisible());
     }
 
     public function test_company_management_cluster_routes_to_companies_and_shows_both_pages(): void

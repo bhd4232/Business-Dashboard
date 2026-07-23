@@ -5,8 +5,10 @@
         "node": ">=20.19.0"
     },
     "scripts": {
-        "build": "vite build",
+        "build": "vite build && node scripts/write-deployment-metadata.mjs",
         "dev": "vite",
+        "test:app-updater": "node --test tests/Node/app-updater.test.mjs",
+        "test:deployment-metadata": "node --test tests/Node/deployment-metadata.test.mjs",
         "mobile:sync": "cap sync android",
         "mobile:open": "cap open android",
         "mobile:build": "cap sync android && cd android && gradlew.bat assembleDebug"
