@@ -132,12 +132,13 @@ class AppUpdateService
 
         $deployment = AppDeployment::current();
         $deploymentId = (string) ($deployment['deployment_id'] ?? '');
+        $release = AppRelease::latestPublished();
 
         if ($deploymentId === '') {
             return;
         }
 
-        DB::transaction(function () use ($user, $deploymentId): void {
+        DB::transaction(function () use ($deployment, $deploymentId, $release, $user): void {
             $lockedUser = User::query()
                 ->lockForUpdate()
                 ->findOrFail($user->getKey());
@@ -145,6 +146,9 @@ class AppUpdateService
             $lockedUser->forceFill([
                 'acknowledged_app_deployment_id' => $deploymentId,
                 'app_upgrade_acknowledged_at' => now(),
+                'acknowledged_app_version' => $release['version'] ?? null,
+                'acknowledged_app_commit' => $deployment['commit'] ?? null,
+                'acknowledged_app_built_at' => $deployment['built_at'] ?? null,
             ])->saveQuietly();
 
             $lockedUser->unreadNotifications()
@@ -281,7 +285,10 @@ class AppUpdateService
         return $this->isSchemaReady ??= Schema::hasTable('app_update_deliveries')
             && Schema::hasTable('notifications')
             && Schema::hasTable('app_settings')
-            && Schema::hasColumn('users', 'acknowledged_app_deployment_id');
+            && Schema::hasColumn('users', 'acknowledged_app_deployment_id')
+            && Schema::hasColumn('users', 'acknowledged_app_version')
+            && Schema::hasColumn('users', 'acknowledged_app_commit')
+            && Schema::hasColumn('users', 'acknowledged_app_built_at');
     }
 
     /**

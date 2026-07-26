@@ -9,6 +9,7 @@
         "dev": "vite",
         "test:app-updater": "node --test tests/Node/app-updater.test.mjs",
         "test:deployment-metadata": "node --test tests/Node/deployment-metadata.test.mjs",
+        "test:push-notifications": "node --test tests/Node/push-notifications.test.mjs",
         "mobile:sync": "cap sync android",
         "mobile:open": "cap open android",
         "mobile:build": "cap sync android && cd android && gradlew.bat assembleDebug"
@@ -30,6 +31,7 @@
         "@capacitor/android": "^7.6.7",
         "@capacitor/app": "^7.1.2",
         "@capacitor/core": "^7.6.7",
+        "@capacitor/push-notifications": "^7.0.7",
         "@capacitor/splash-screen": "^7.0.5",
         "@capacitor/status-bar": "^7.0.6",
         "alpinejs": "^3.15.12"

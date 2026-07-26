@@ -87,6 +87,7 @@ class CompanyResource extends Resource
                     FileUpload::make('logo')
                         ->helperText('Save the company first, then upload its logo. Images are automatically compressed to WebP.')
                         ->image()
+                        ->tap(static::browserCompactImagePrecompression())
                         ->disk(fn (): string => CompanyMedia::publicDiskName())
                         ->directory(function (?Company $record): string {
                             if (! $record?->exists) {

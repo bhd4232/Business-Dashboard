@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
+        "ext-gd": "*",
         "filament/filament": "^4.11.4",
         "intervention/image": "^3.9",
         "laravel/framework": "^12.0",

@@ -15,6 +15,7 @@
     data-initial-upgrade-available="{{ $upgradeAvailable ? 'true' : 'false' }}"
     data-version-url="{{ route('health.version') }}"
     data-sync-url="{{ route('admin.app-updates.sync') }}"
+    data-push-register-url="{{ route('admin.push-devices.store') }}"
     data-poll-interval="15000"
     hidden
     aria-hidden="true"
@@ -96,4 +97,4 @@
     </div>
 </x-filament::modal>
 
-@vite('resources/js/app-updater.js')
+@vite(['resources/js/app-updater.js', 'resources/js/push-notifications.js'])

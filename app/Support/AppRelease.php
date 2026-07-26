@@ -63,6 +63,39 @@ class AppRelease
         ];
     }
 
+    public static function published(?string $version): ?array
+    {
+        if (blank($version)) {
+            return null;
+        }
+
+        $entry = collect(self::changelogEntries())
+            ->first(fn (array $entry): bool => hash_equals(
+                (string) $entry['version'],
+                (string) $version,
+            ));
+
+        if (! $entry) {
+            return null;
+        }
+
+        return [
+            'version' => $entry['version'],
+            'type' => strtolower(str_replace([' ', '-'], '_', $entry['release_type'])),
+            'type_label' => $entry['release_type'],
+            'date' => $entry['date'],
+            'commit' => null,
+            'short_commit' => null,
+        ];
+    }
+
+    public static function previousPublishedVersion(): ?string
+    {
+        $version = self::changelogEntries()[1]['version'] ?? null;
+
+        return filled($version) ? (string) $version : null;
+    }
+
     public static function version(): string
     {
         $version = trim((string) config('release.version', '1.0.0'));

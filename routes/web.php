@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CustomerCsvController;
 use App\Http\Controllers\Admin\LegacyAdminClusterRedirectController;
 use App\Http\Controllers\Admin\OrderPdfController;
 use App\Http\Controllers\Admin\ProductCsvController;
+use App\Http\Controllers\Admin\PushDeviceController;
 use App\Http\Controllers\Admin\ReportExportController;
 use App\Http\Controllers\Admin\ReportPdfController;
 use App\Http\Controllers\Admin\SupplierCsvController;
@@ -285,6 +286,14 @@ Route::middleware('auth')
     ->name('reports.export.pdf');
 
 Route::middleware('auth')->group(function (): void {
+    Route::post('/admin/push-devices', [PushDeviceController::class, 'store'])
+        ->middleware('throttle:12,1')
+        ->name('admin.push-devices.store');
+
+    Route::delete('/admin/push-devices', [PushDeviceController::class, 'destroy'])
+        ->middleware('throttle:12,1')
+        ->name('admin.push-devices.destroy');
+
     Route::post('/admin/app-updates/sync', [AppUpgradeController::class, 'synchronize'])
         ->middleware('throttle:12,1')
         ->name('admin.app-updates.sync');

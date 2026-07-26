@@ -2,6 +2,29 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.22.0] - 2026-07-23
+
+**Release type:** Minor Feature Update
+
+Adds native Android update notifications and makes the user-controlled client upgrade boundary explicit.
+
+### Added
+
+- **Android update push notifications:** registered Capacitor devices can receive one Firebase Cloud Messaging notification per deployment, including while the app is in the background. Opening the notification only reveals the pending update; it never acknowledges or activates it.
+- **Installed versus available release state:** Release Notes now identifies the user's acknowledged version separately from the newly deployed version, so an available release is not presented as already installed before Upgrade App is confirmed.
+
+### Changed
+
+- When an update is pending, same-origin Filament SPA navigation is held on the already-loaded screen and opens the Upgrade App prompt instead of fetching a newer page. The authenticated Upgrade App POST remains the only path that acknowledges the deployment and performs a cache-cleared reload.
+- Database notification delivery and native push delivery are tracked independently, with per-device/per-deployment deduplication and invalid-token retirement.
+- Admin image uploads now resize eligible JPEG/PNG files in the browser before the Livewire transfer (1600px for standard media, 800px for compact media), then receive the existing final server-side WebP optimization. SVG, GIF, and WebP uploads stay on the compatibility-safe server path.
+
+### Technical Notes
+
+- Native Android push requires the Capacitor Push Notifications plugin, a Firebase Android app registered as `com.zamzamint.erp`, `android/app/google-services.json` injected at build time, and server-side Firebase HTTP v1 service-account credentials. Secrets are never committed.
+- Deployments must run `php artisan migrate --force` and `php artisan release:notify-deploy` after the new container is healthy; the five-minute scheduler remains a recovery path.
+- A single replaced Coolify container cannot retain an executable old PHP/Blade backend per user. This release preserves the loaded client screen and prevents SPA navigation across the detected boundary; strict continued use of the complete old backend requires immutable blue/green releases with sticky per-installation routing and backward-compatible shared storage/database migrations.
+
 ## [1.21.0] - 2026-07-23
 
 **Release type:** Minor Feature Update

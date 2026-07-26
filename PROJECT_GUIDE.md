@@ -141,6 +141,10 @@ Storage contract:
 - R2 settings are managed globally at `/admin/settings/cloud-storage-settings` and are restricted to Super Admin. The secret access key remains encrypted in `app_settings`; a blank secret field preserves the stored value.
 - The Cloud Storage page has a native Filament **R2 setup guide** plus a keyboard-accessible information action beside every R2 field. These explain the exact Cloudflare dashboard path, token permission/scope, one-time secret handling, S3 endpoint format, public custom-domain setup, private-bucket exposure checks, and the save/test/enable order. Each help modal links to the relevant official Cloudflare documentation; essential instructions are inside the modal rather than relying on hover-only tooltips.
 - Stage credentials and bucket names while R2 is disabled, successfully test the public bucket/custom domain and any configured private bucket, then enable uploads. A **Test** action validates and persists the current Filament form draft before probing R2, preserves an existing encrypted secret when its password field is blank, and never changes the saved enable switch. Missing test requirements are attached to the exact form fields; the example bucket/domain text is prefixed with `e.g.` so it cannot be mistaken for a saved value. Activation is rejected until the required tests pass. Verified bucket/account topology is locked to prevent an in-place switch that would strand objects; any later account/bucket rotation requires a separately planned copy-and-verify operation.
+- A green public-bucket test alone does **not** switch R2 on. The Cloud Storage status explicitly distinguishes a verified-but-disabled connection from **R2 uploads active**; turn on **Enable R2 for new uploads** and save after the test passes. When it is off, new public media continues to use the stable local `public` disk.
+- A Filament image selection has three stages: native FilePond pre-resizes eligible JPEG/PNG files in the browser (1600px standard media / 800px compact media, `contain`, never upscale), Livewire posts that result to local `livewire-tmp`, then the final form save performs the authoritative server-side WebP/metadata optimization and writes public media to `r2_public` when enabled. SVG, GIF, and WebP bypass browser transformation to preserve vector/animated formats. A red `data.image.… failed to upload` message therefore happens before an R2 write and should be investigated as an HTTP upload limit, signed URL/proxy, or temporary-storage permission issue.
+- `config/livewire.php` pins temporary uploads to the dedicated local `livewire-tmp` disk. Keep `FILESYSTEM_DISK=local` and `LIVEWIRE_TEMPORARY_UPLOAD_DISK=livewire-tmp` in production; do not point either setting at `r2_public`, which would require a separate browser-to-R2 CORS/presigned-upload design.
+- Nixpacks deployments use the repository `nginx.template.conf`, which raises Nginx to a 16 MB request body and PHP-FPM to a 12 MB file / 16 MB POST limit. Image fields intentionally accept 12 MB sources so browser pre-compression can reduce camera photos before transfer; voucher attachments retain their 10 MB limit. The `ext-gd` Composer platform dependency ensures Nixpacks installs GD for the final WebP optimization step.
 - When R2 is disabled, new writes return to the stable local `public`/`local` disks. Reads continue checking configured R2 disks, so disabling cloud writes does not hide previously uploaded cloud objects.
 - `CompanyStorageService` is the storage boundary for disk selection, safe path construction, ownership validation, dual-read lookup, writes, and legacy copy operations. `CompanyMedia`/`StorageUrl` are the public-media presentation helpers.
 - `CompanyStorageService` deliberately rejects malformed, wrong-scope, and cross-company paths. Optional UI branding/media resolvers fail closed to `null` when a stale database value violates that contract, so login and `/admin/company-management/companies` remain usable without exposing another company's object. The stored value is not rewritten automatically; audit it, keep a recovery copy, and re-upload the affected logo under the owning company's generated storage UUID.
@@ -306,12 +310,19 @@ tests/Feature/CustomerRiskTest.php
 - Runtime readiness compares the metadata asset hash with the actual Vite manifest and fails closed when build metadata is missing, mixed, or belongs to another runtime commit.
 - The no-cache `/health/version` response exposes `deployment_id`, readiness, source/assets hashes, build time, configured version, and latest published version. The admin updater requires two matching observations before treating a different deployment as ready, reducing false prompts during rolling replacement.
 - Both browser and server compare deployment build times. A confirmed update remains sticky, older rolling nodes cannot overwrite the latest database baseline or masquerade as an upgrade, and the POST must carry the exact deployment ID the user confirmed before acknowledgement/cache clearing is allowed.
-- An open admin/browser/Capacitor session never auto-reloads across a detected deployment. Save-result refresh, mobile pull-to-refresh, focus/online checks, and the 15-second poll reveal a warning-colored **Upgrade App** action immediately above **Sign out** instead. The native confirmation modal warns the user to save unfinished work, then performs a deliberate full reload with cache clearing.
+- An open admin/browser/Capacitor session never auto-reloads across a detected deployment. Save-result refresh, mobile pull-to-refresh, focus/online checks, and the 15-second poll reveal a warning-colored **Upgrade App** action immediately above **Sign out** instead. While that update remains pending, same-origin `/admin` anchor and cancellable Livewire SPA navigation are held on the loaded screen and open the upgrade prompt; hash-only navigation and normal save/Livewire actions remain available.
+- The native confirmation modal warns the user to save unfinished work. Only its authenticated `POST /admin/app-upgrade` request can acknowledge the exact confirmed deployment and perform the deliberate cache-cleared full reload; notification delivery, viewing Release Notes, dismissing the modal, receiving a push, or tapping a push must never acknowledge it.
 - Per-user acknowledgement lives on `users.acknowledged_app_deployment_id`. `app_update_deliveries` has a unique user/deployment pair, so retries and concurrent scheduler/request discovery cannot duplicate an update alert.
+- The acknowledged deployment also records `acknowledged_app_version`, `acknowledged_app_commit`, and `acknowledged_app_built_at`. A newly created user is initialized to the then-current ready deployment; after that baseline, these values change only when Upgrade App is explicitly confirmed, allowing Release Notes to distinguish installed from available release state honestly.
+- Release Notes resolves state through `AppReleaseStateService`: the acknowledged version is labelled **Installed version**, a newer unacknowledged release is labelled **Update available**, and release history is capped at the installed version so a deployment is never presented as installed merely because its code is now on the server.
 - `AppUpdateService` writes Filament-format database notifications synchronously; update alerts do not depend on a queue worker. Request-time sync is non-blocking and delivers only to the current user; `release:notify-deploy` fills missing active users. Existing delivery rows provide a fast path for users who intentionally leave an update pending.
+- Native Android push registration uses authenticated, throttled `POST /admin/push-devices` (`admin.push-devices.store`) and `DELETE /admin/push-devices` (`admin.push-devices.destroy`) endpoints. FCM tokens are encrypted at rest and indexed only by a SHA-256 lookup hash; token rotation and user changes update ownership idempotently.
+- `resources/js/push-notifications.js` runs only in native Android, requests notification permission, registers the Capacitor/FCM token after an authenticated admin screen loads, and forwards foreground receipt or notification taps to `window.ZamZamAppUpdater.receiveUpdateNotification()`. That bridge verifies the server deployment before showing the prompt and never reloads or acknowledges on its own.
+- `release:notify-deploy` also sends high-priority FCM HTTP v1 alerts when Firebase is enabled. `app_update_push_deliveries` uniquely identifies each device/deployment, transient failures are retried, and only provider-confirmed unregistered/mismatched tokens are disabled.
+- The Firebase service-account JSON is a server secret. Prefer a read-only mounted file through `FIREBASE_CREDENTIALS`; the base64 environment alternative is supported when secret files are unavailable. Never put either credential in a `VITE_*` variable or commit it.
 - Filament database notifications are eagerly mounted and poll every 15 seconds. The mobile avatar-menu notification badge is a matching Livewire poller and counts only unread Filament-format rows.
 - The avatar menu exposes native **Profile Settings** at `/admin/profile`. It edits only the signed-in user's name, email, and password; role/company access remains outside that form.
-- Deferred upgrade retains the currently loaded frontend shell only. The server-side PHP/backend changes when the release is deployed; preserving an entire old backend requires separate sticky blue/green infrastructure and forward-compatible migrations.
+- Deferred upgrade retains the currently loaded frontend shell only. The server-side PHP/backend changes when the release is deployed, and a refresh, sign-in, Android process restart/WebView eviction, deep link, or app reopen can load that current backend before acknowledgement. Preserving the old full application until a device approves requires immutable old/new blue/green releases, restart-safe per-device or per-user sticky routing, shared sessions/database/object storage, backward-compatible migrations, and explicit promotion/retirement; a single replaced Coolify container cannot guarantee that behavior.
 - The admin panel includes a Release Notes page rendered with native Filament sections, badges, buttons, and empty states without page-local CSS.
 - `CHANGELOG.md` records notable production changes.
 - Production deployment documentation requires a database backup before migrations.
@@ -323,19 +334,30 @@ Important files:
 ```text
 app/Support/AppRelease.php
 app/Support/AppDeployment.php
+app/Services/AppReleaseStateService.php
 app/Services/AppUpdateService.php
+app/Services/AppUpdatePushService.php
+app/Services/FirebaseHttpV1Sender.php
 app/Notifications/AppUpdateAvailable.php
 app/Http/Controllers/Admin/AppUpgradeController.php
+app/Http/Controllers/Admin/PushDeviceController.php
 app/Http/Middleware/SyncAppUpdates.php
 app/Models/AppUpdateDelivery.php
+app/Models/AppUpdatePushDelivery.php
+app/Models/PushDevice.php
 app/Filament/Pages/ReleaseNotes.php
 app/Providers/Filament/AdminPanelProvider.php
 resources/views/filament/pages/release-notes.blade.php
 resources/views/filament/partials/app-updater.blade.php
 resources/js/app-updater.js
+resources/js/push-notifications.js
 scripts/write-deployment-metadata.mjs
 database/migrations/2026_07_23_000000_create_app_update_tracking.php
+database/migrations/2026_07_23_120000_create_native_push_tracking_tables.php
 config/release.php
+config/native_push.php
+capacitor.config.json
+android/app/src/main/AndroidManifest.xml
 CHANGELOG.md
 docs/release-policy.md
 docs/update-safety.md
@@ -344,6 +366,11 @@ tests/Feature/ReleaseNotificationTest.php
 tests/Feature/MobileDatabaseNotificationsMenuItemTest.php
 tests/Unit/Support/AppDeploymentTest.php
 tests/Feature/ReleaseNotesTest.php
+tests/Feature/AppUpdatePushTest.php
+tests/Feature/PushDeviceRegistrationTest.php
+tests/Node/app-updater.test.mjs
+tests/Node/push-notifications.test.mjs
+tests/Unit/Services/FirebaseHttpV1SenderTest.php
 ```
 
 Verification:
@@ -351,10 +378,13 @@ Verification:
 ```bash
 npm run test:deployment-metadata
 npm run test:app-updater
+npm run test:push-notifications
 npm run build
+npx cap sync android
 php artisan migrate --force
+php artisan config:cache
 php artisan release:notify-deploy
-php artisan test tests/Feature/AppUpgradeTest.php tests/Feature/ReleaseNotificationTest.php
+php artisan test tests/Feature/AppUpgradeTest.php tests/Feature/ReleaseNotificationTest.php tests/Feature/AppUpdatePushTest.php tests/Feature/PushDeviceRegistrationTest.php tests/Unit/Services/FirebaseHttpV1SenderTest.php
 ```
 
 The committed `.env.testing` forces both the default SQLite and explicit
@@ -1056,7 +1086,8 @@ DB_PASSWORD=your-db-password
 SESSION_DRIVER=file
 CACHE_STORE=file
 QUEUE_CONNECTION=sync
-FILESYSTEM_DISK=public
+FILESYSTEM_DISK=local
+LIVEWIRE_TEMPORARY_UPLOAD_DISK=livewire-tmp
 LOG_CHANNEL=stack
 MAIL_MAILER=log
 MAIL_FROM_ADDRESS=admin@example.com
@@ -1085,7 +1116,7 @@ Persistent storage recommendation:
 At minimum, persist:
 
 ```text
-/app/storage/app/public
+/app/storage
 ```
 
 ## 9. Development Workflow

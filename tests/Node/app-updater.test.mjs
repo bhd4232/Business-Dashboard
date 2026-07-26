@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
     classifyReloadObservations,
     observeDeployment,
+    shouldBlockAdminNavigation,
+    updateSignalDeploymentId,
 } from '../../resources/js/app-updater.js';
 
 test('requires two matching observations before an update is available', () => {
@@ -71,12 +73,12 @@ test('a confirmed update remains available when an old node is observed later', 
     assert.equal(result.isAvailable, true);
 });
 
-test('reload checks only reload the already loaded deployment', () => {
+test('refresh checks recognize the loaded deployment without crossing builds', () => {
     assert.equal(classifyReloadObservations('deploy-old', '2026-07-23T01:00:00.000Z', {
         ready: true,
         deployment_id: 'deploy-old',
         built_at: '2026-07-23T01:00:00.000Z',
-    }), 'reload');
+    }), 'current');
 
     assert.equal(classifyReloadObservations('deploy-old', '2026-07-23T01:00:00.000Z', {
         ready: false,
@@ -131,4 +133,68 @@ test('an older rolling node is never treated as an update', () => {
             built_at: '2026-07-23T01:00:00.000Z',
         },
     ), 'wait');
+});
+
+test('pending updates block same-origin admin navigation only', () => {
+    const current = 'https://app.example.com/admin/orders?status=open';
+
+    assert.equal(shouldBlockAdminNavigation(
+        true,
+        current,
+        'https://app.example.com/admin/settings/release-notes',
+    ), true);
+    assert.equal(shouldBlockAdminNavigation(
+        true,
+        current,
+        '/admin',
+    ), true);
+    assert.equal(shouldBlockAdminNavigation(
+        false,
+        current,
+        '/admin/products',
+    ), false);
+    assert.equal(shouldBlockAdminNavigation(
+        true,
+        current,
+        'https://docs.example.com/admin/help',
+    ), false);
+    assert.equal(shouldBlockAdminNavigation(
+        true,
+        current,
+        '/contact',
+    ), false);
+});
+
+test('pending updates allow in-page fragment navigation without a server request', () => {
+    assert.equal(shouldBlockAdminNavigation(
+        true,
+        'https://app.example.com/admin/orders?status=open',
+        'https://app.example.com/admin/orders?status=open#order-42',
+    ), false);
+
+    assert.equal(shouldBlockAdminNavigation(
+        true,
+        'https://app.example.com/admin/orders?status=open',
+        'https://app.example.com/admin/orders?status=closed#order-42',
+    ), true);
+});
+
+test('push update signals expose only a candidate deployment id', () => {
+    assert.equal(updateSignalDeploymentId(' deploy-new '), 'deploy-new');
+    assert.equal(updateSignalDeploymentId({
+        deployment_id: 'deploy-direct',
+    }), 'deploy-direct');
+    assert.equal(updateSignalDeploymentId({
+        data: {
+            deployment_id: 'deploy-data',
+        },
+    }), 'deploy-data');
+    assert.equal(updateSignalDeploymentId({
+        notification: {
+            data: {
+                deployment_id: 'deploy-native',
+            },
+        },
+    }), 'deploy-native');
+    assert.equal(updateSignalDeploymentId({ data: {} }), null);
 });

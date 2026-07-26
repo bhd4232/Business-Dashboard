@@ -10,6 +10,13 @@
     "allowMixedContent": false
   },
   "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    },
     "StatusBar": {
       "overlaysWebView": false,
       "style": "DARK",

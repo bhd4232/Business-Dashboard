@@ -29,6 +29,7 @@ class CategoryForm
                     ->helperText('Shown on the storefront category card. Recommended: square, at least 400x400px. Automatically compressed to WebP on upload.')
                     ->image()
                     ->maxSize(1024)
+                    ->tap(static::browserCompactImagePrecompression())
                     ->disk(fn (): string => CompanyMedia::publicDiskName())
                     ->directory(fn ($record): string => CompanyMedia::publicDirectory('categories', $record))
                     ->fetchFileInformation(false)

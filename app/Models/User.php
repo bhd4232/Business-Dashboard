@@ -5,12 +5,14 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Concerns\ValidatesEmailAddress;
 use App\Support\AppDeployment;
+use App\Support\AppRelease;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Auth;
@@ -29,8 +31,17 @@ class User extends Authenticatable implements FilamentUser
                 Schema::hasColumn('users', 'acknowledged_app_deployment_id')
                 && blank($user->acknowledged_app_deployment_id)
             ) {
-                $user->acknowledged_app_deployment_id = AppDeployment::current()['deployment_id'] ?? null;
+                $deployment = AppDeployment::current();
+                $release = AppRelease::latestPublished();
+
+                $user->acknowledged_app_deployment_id = $deployment['deployment_id'] ?? null;
                 $user->app_upgrade_acknowledged_at = now();
+
+                if (Schema::hasColumn('users', 'acknowledged_app_version')) {
+                    $user->acknowledged_app_version = $release['version'] ?? null;
+                    $user->acknowledged_app_commit = $deployment['commit'] ?? null;
+                    $user->acknowledged_app_built_at = $deployment['built_at'] ?? null;
+                }
             }
         });
 
@@ -107,6 +118,7 @@ class User extends Authenticatable implements FilamentUser
             'password' => 'hashed',
             'is_active' => 'boolean',
             'app_upgrade_acknowledged_at' => 'datetime',
+            'acknowledged_app_built_at' => 'datetime',
         ];
     }
 
@@ -421,6 +433,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->belongsToMany(Company::class)
             ->withPivot(['role', 'is_default'])
             ->withTimestamps();
+    }
+
+    public function pushDevices(): HasMany
+    {
+        return $this->hasMany(PushDevice::class);
     }
 
     public function accessibleCompanies(): Builder|BelongsToMany

@@ -47,6 +47,17 @@ return [
             'report' => false,
         ],
 
+        // Livewire receives every FileUpload through a temporary local stage
+        // before Filament's field-specific disk (such as r2_public) is used.
+        // Keeping this disk explicit prevents a global FILESYSTEM_DISK change
+        // from turning the browser phase into a direct S3/R2 upload.
+        'livewire-tmp' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

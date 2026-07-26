@@ -240,11 +240,10 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::SCRIPTS_AFTER,
                 fn (): HtmlString => new HtmlString(<<<'HTML'
                     <script>
-                        // After any successful save/create/delete that doesn't already
-                        // navigate away (e.g. an Edit form staying on the same page, a
-                        // table row delete, a Settings page save), Filament flashes a
-                        // notification and dispatches this browser event. Reload so the
-                        // page always reflects the freshly persisted state.
+                        // Successful Livewire saves already update their component.
+                        // Re-check deployment readiness without automatically replacing
+                        // the loaded document; only the explicit Upgrade POST may cross
+                        // into a newer frontend build.
                         window.addEventListener('notificationsSent', async () => {
                             // Pages that manage their own live state (e.g. the
                             // Inbox chat) opt out — a full reload would wipe the
@@ -255,15 +254,7 @@ class AdminPanelProvider extends PanelProvider
 
                             if (window.ZamZamAppUpdater) {
                                 await window.ZamZamAppUpdater.reloadIfCurrent();
-
-                                return;
                             }
-
-                            if (window.__zzAppUpgradePending) {
-                                return;
-                            }
-
-                            window.location.reload();
                         });
 
                         // Chrome-style pull-to-refresh for the mobile app.
@@ -330,11 +321,12 @@ class AdminPanelProvider extends PanelProvider
                                             indicator.style.top = '-3.5rem';
                                             indicator.firstElementChild.style.animation = '';
                                         });
-                                    } else if (window.__zzAppUpgradePending) {
+                                    } else {
+                                        // If the updater failed to boot, fail closed:
+                                        // never let pull-to-refresh silently cross a
+                                        // deployment boundary.
                                         indicator.style.transition = 'top .2s';
                                         indicator.style.top = '-3.5rem';
-                                    } else {
-                                        window.location.reload();
                                     }
                                 } else {
                                     indicator.style.transition = 'top .2s';

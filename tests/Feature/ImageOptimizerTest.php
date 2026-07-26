@@ -82,6 +82,21 @@ class ImageOptimizerTest extends TestCase
         $this->assertSame(ImageOptimizerService::MAX_WIDTH_COMPACT, $width);
     }
 
+    public function test_tall_image_is_limited_by_its_longest_edge(): void
+    {
+        $upload = $this->makeTemporaryUpload(
+            UploadedFile::fake()->image('portrait.jpg', 600, 2400),
+            'portrait.jpg',
+        );
+
+        $path = app(ImageOptimizerService::class)->optimizeAndStore($upload, 'products', 'public');
+
+        [$width, $height] = getimagesizefromstring(Storage::disk('public')->get($path));
+
+        $this->assertSame(400, $width);
+        $this->assertSame(ImageOptimizerService::MAX_WIDTH_STANDARD, $height);
+    }
+
     public function test_svg_is_stored_untouched(): void
     {
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>';

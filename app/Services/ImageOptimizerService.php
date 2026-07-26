@@ -25,6 +25,9 @@ class ImageOptimizerService
     /** Smaller cap for images that only ever render small (logos, category tiles). */
     public const MAX_WIDTH_COMPACT = 800;
 
+    /** Largest original image accepted before browser-side pre-compression. */
+    public const MAX_SOURCE_UPLOAD_SIZE_KB = 12 * 1024;
+
     protected ImageManager $manager;
 
     public function __construct()
@@ -64,8 +67,8 @@ class ImageOptimizerService
 
         $image = $this->manager->read($file->getRealPath());
 
-        if ($image->width() > $maxWidth) {
-            $image->scaleDown(width: $maxWidth);
+        if ($image->width() > $maxWidth || $image->height() > $maxWidth) {
+            $image->scaleDown(width: $maxWidth, height: $maxWidth);
         }
 
         $encoded = (string) $image->toWebp($quality);

@@ -292,6 +292,7 @@ class CompanySettings extends Page
             ->label($label)
             ->image()
             ->maxSize(2048)
+            ->tap(static::browserCompactImagePrecompression())
             ->disk(fn (): string => CompanyMedia::publicDiskName())
             ->directory(fn (): string => CompanyMedia::publicDirectory('company', $this->selectedCompany()))
             ->fetchFileInformation(false)

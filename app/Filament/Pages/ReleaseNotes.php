@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Clusters\Settings;
+use App\Services\AppReleaseStateService;
 use App\Support\AppRelease;
 use BackedEnum;
 use Filament\Pages\Page;
@@ -26,14 +27,14 @@ class ReleaseNotes extends Page
         return Auth::check();
     }
 
-    public function release(): array
+    public function releaseState(): array
     {
-        return AppRelease::latestPublished();
+        return app(AppReleaseStateService::class)->forUser(Auth::user());
     }
 
     public function changelogEntries(): array
     {
-        return AppRelease::userFacingChangelogEntries();
+        return $this->installedEntries(AppRelease::userFacingChangelogEntries());
     }
 
     public function technicalChangelogEntries(): array
@@ -42,6 +43,29 @@ class ReleaseNotes extends Page
             return [];
         }
 
-        return AppRelease::technicalChangelogEntries();
+        return $this->installedEntries(AppRelease::technicalChangelogEntries());
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $entries
+     * @return array<int, array<string, mixed>>
+     */
+    protected function installedEntries(array $entries): array
+    {
+        $installedVersion = (string) ($this->releaseState()['installed']['version'] ?? '');
+
+        if ($installedVersion === '' || $installedVersion === 'previous') {
+            return array_slice($entries, 1);
+        }
+
+        $installedIndex = collect($entries)
+            ->search(fn (array $entry): bool => hash_equals(
+                (string) $entry['version'],
+                $installedVersion,
+            ));
+
+        return $installedIndex === false
+            ? $entries
+            : array_slice($entries, (int) $installedIndex);
     }
 }

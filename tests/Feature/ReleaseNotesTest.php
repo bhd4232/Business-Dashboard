@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\AppDeployment;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
@@ -11,6 +13,20 @@ use Tests\TestCase;
 class ReleaseNotesTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Config::set([
+            'release.deployment_manifest' => base_path('tests/fixtures/missing-deployment.json'),
+            'release.asset_manifest' => base_path('tests/fixtures/missing-vite-manifest.json'),
+            'release.deployment_id' => 'release-notes-deployment-1',
+            'release.deployment_built_at' => '2026-07-23T01:00:00.000Z',
+        ]);
+
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+    }
 
     public function test_health_version_endpoint_exposes_release_metadata(): void
     {
@@ -23,7 +39,7 @@ class ReleaseNotesTest extends TestCase
             ->assertOk()
             ->assertHeader('Cache-Control')
             ->assertJsonPath('version', '9.8.7')
-            ->assertJsonPath('published_version', '1.21.0')
+            ->assertJsonPath('published_version', '1.22.0')
             ->assertJsonPath('release_type', 'critical_fix')
             ->assertJsonPath('release_label', 'Critical Fix Update')
             ->assertJsonPath('release_date', '2026-06-21')
@@ -49,7 +65,8 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.21.0')
+            ->assertSee('v1.22.0')
+            ->assertSee('Installed version')
             ->assertSee('Minor Feature')
             ->assertSee('Released 2026-07-23')
             ->assertSee('Super Admin Database & Deployment Notes')
@@ -76,13 +93,54 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.21.0')
-            ->assertSee('Upgrade App in the profile menu')
+            ->assertSee('v1.22.0')
+            ->assertSee('Android update push notifications')
             ->assertSee('Added Customer and Order risk badges')
             ->assertDontSee('Added disposable SQLite backup restore verification')
             ->assertDontSee('Technical Notes')
             ->assertDontSee('Super Admin Database')
             ->assertDontSee('Production Update Rules')
             ->assertDontSee('Never run');
+    }
+
+    public function test_pending_release_is_not_presented_as_the_installed_version_before_upgrade(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'manager',
+            'is_active' => true,
+        ]);
+        $user->forceFill([
+            'acknowledged_app_version' => '1.21.0',
+        ])->saveQuietly();
+        $installedDeploymentId = $user->acknowledged_app_deployment_id;
+
+        Config::set([
+            'release.deployment_id' => 'release-notes-deployment-2',
+            'release.deployment_built_at' => '2026-07-23T02:00:00.000Z',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/admin/settings/release-notes')
+            ->assertOk()
+            ->assertSee('Update available: v1.22.0')
+            ->assertSee('Awaiting your approval')
+            ->assertSee('Installed version: v1.21.0')
+            ->assertDontSee('Android update push notifications');
+
+        $this->assertSame($installedDeploymentId, $user->fresh()->acknowledged_app_deployment_id);
+
+        $this->actingAs($user)
+            ->post(route('admin.app-upgrade'), [
+                'return_to' => url('/admin/settings/release-notes'),
+                'deployment_id' => AppDeployment::id(),
+            ])
+            ->assertRedirectContains('/admin/settings/release-notes');
+
+        $this->actingAs($user->fresh())
+            ->get('/admin/settings/release-notes')
+            ->assertOk()
+            ->assertDontSee('Awaiting your approval')
+            ->assertSee('Installed version: v1.22.0')
+            ->assertSee('Android update push notifications');
     }
 }

@@ -1,12 +1,44 @@
 <x-filament-panels::page>
-    @php($release = $this->release())
+    @php($releaseState = $this->releaseState())
+    @php($release = $releaseState['installed'])
+    @php($availableRelease = $releaseState['available'])
 
     <div class="space-y-6">
+        @if ($releaseState['update_available'] && $availableRelease)
+            <x-filament::section
+                icon="heroicon-o-arrow-up-circle"
+                icon-color="warning"
+                :heading="'Update available: v'.$availableRelease['version']"
+                description="The newer deployment is ready, but this user has not activated it. Only Upgrade App acknowledges the release and reloads the client."
+            >
+                <x-slot name="afterHeader">
+                    <x-filament::badge color="warning" icon="heroicon-m-bell-alert">
+                        Awaiting your approval
+                    </x-filament::badge>
+                </x-slot>
+
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    Your installed release remains identified separately below. Save unfinished work before upgrading.
+                </p>
+
+                <x-slot name="footer">
+                    <x-filament::button
+                        type="button"
+                        color="warning"
+                        icon="heroicon-o-arrow-up-circle"
+                        x-on:click="$dispatch('open-modal', { id: 'app-upgrade-confirmation' })"
+                    >
+                        Upgrade App
+                    </x-filament::button>
+                </x-slot>
+            </x-filament::section>
+        @endif
+
         <x-filament::section
             icon="heroicon-o-rocket-launch"
             icon-color="primary"
-            :heading="'v'.$release['version']"
-            :description="'Released '.($release['date'] ?? 'date not set').($release['short_commit'] ? ' - Commit '.$release['short_commit'] : '')"
+            :heading="'Installed version: v'.$release['version']"
+            :description="'Released '.($release['date'] ?? 'date not available').($release['short_commit'] ? ' - Commit '.$release['short_commit'] : '')"
         >
             <x-slot name="afterHeader">
                 <x-filament::badge color="primary" icon="heroicon-m-tag">
@@ -15,7 +47,7 @@
             </x-slot>
 
             <p class="text-sm text-gray-600 dark:text-gray-400">
-                Review the current application version and the changes included in each published release.
+                Release History below is limited to the version this user has acknowledged.
             </p>
 
             <x-slot name="footer">

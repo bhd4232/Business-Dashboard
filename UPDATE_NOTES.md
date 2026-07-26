@@ -2,6 +2,117 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-26 - Browser-side image pre-compression before Livewire/R2 upload
+
+Reason:
+
+- Server-side WebP optimization only begins after the browser has uploaded an original image to Livewire, wasting mobile bandwidth and making large camera photos more likely to fail before R2 is reached.
+
+Important changed files:
+
+- `app/Filament/Concerns/OptimizesUploadedImages.php` - adds a reusable native Filament/FilePond browser transform: JPEG/PNG sources are resized with `contain`, capped to 1600px standard or 800px compact, never upscaled, and permitted up to the aligned 12 MB source ceiling. Its scoped FilePond filter excludes SVG, GIF, and WebP to preserve vectors and animated formats.
+- Product/category/company/storefront Filament forms - opt into standard or compact browser pre-compression. Product variation images now also use the existing server `ImageOptimizerService`, closing the prior final-optimization gap.
+- `app/Services/ImageOptimizerService.php` - server fallback now truly caps the longest edge for tall portrait images as well as landscape images.
+- `tests/Feature/BrowserImagePrecompressionTest.php` and `tests/Feature/ImageOptimizerTest.php` - cover the native Field configuration, format exclusions, source limit, and tall-image server cap.
+- `PROJECT_GUIDE.md` and `docs/deployment.md` - document the browser → Livewire temporary storage → server WebP → R2 pipeline and the aligned 12 MB limits.
+
+Behavior and safety:
+
+- Browser pre-compression reduces the upload payload for JPEG/PNG but does not replace server-side validation or WebP conversion. A bypassed/unsupported browser still follows the safe server path.
+- No crop is applied, and small images are never upscaled. SVG, GIF, and WebP remain unmodified until the established server compatibility rules are applied.
+
+Verification:
+
+- `php artisan test tests/Feature/BrowserImagePrecompressionTest.php tests/Feature/ImageOptimizerTest.php` - 8 passed, 28 assertions.
+- Related upload/storage and affected form suites - 57 passed, 394 assertions.
+- Full `php artisan test` - 504 passed, 2,703 assertions.
+- Targeted Pint and `git diff --check` passed.
+
+Commit status:
+
+- Pending user approval; not committed or pushed.
+
+## 2026-07-26 - Production Livewire upload path and R2 activation hardening
+
+Reason:
+
+- A 1.4 MB storefront banner failed immediately with Filament's generic `data.image.… failed to upload` message despite a successful R2 connection test and active public custom domain.
+- Nixpacks' default Nginx template has no `client_max_body_size`, so its 1 MB default rejects that file at the proxy before Laravel, image optimization, or R2 storage is reached.
+- The Cloud Storage screen could make a verified-but-disabled public R2 setup look ready without clearly explaining that a successful test intentionally does not activate new R2 writes.
+
+Important changed files:
+
+- `nginx.template.conf` - adds the Nixpacks-compatible Laravel Nginx template with a 16 MB request-body limit, timeout protection, and PHP-FPM 12 MB file / 16 MB POST limits.
+- `config/livewire.php` and `config/filesystems.php` - pin Livewire's browser-stage uploads to a dedicated local `livewire-tmp` disk instead of inheriting any global filesystem-disk change.
+- `composer.json` - declares `ext-gd` so Nixpacks installs the GD/WebP capability required after temporary upload, when final media is optimized and written.
+- `app/Filament/Pages/CloudStorageSettings.php` - distinguishes configuration incomplete, verified-but-disabled, and active R2 write states in the native Filament status field.
+- `.env.example`, `.env.production.example`, `PROJECT_GUIDE.md`, and `docs/deployment.md` - document the two-stage upload boundary, required environment values, Coolify volume/permission requirements, activation sequence, and HTTP-status diagnosis.
+
+Behavior and deployment notes:
+
+- The red FilePond error shown while selecting a file is a Livewire temporary-upload failure, not proof of an R2 failure. The final `r2_public` write only happens after the form is submitted.
+- A successful bucket test still requires **Enable R2 for new uploads** to be turned on and **Save settings** to be clicked. The setting is intentionally not enabled by a test click.
+- Keep `FILESYSTEM_DISK=local` and `LIVEWIRE_TEMPORARY_UPLOAD_DISK=livewire-tmp`; do not point Livewire's temporary stage at R2 without intentionally implementing the separate CORS/presigned browser-upload flow.
+
+Verification:
+
+- Focused temporary-upload, Cloud Storage, image optimizer, and company-storage suite passed: 30 tests, 230 assertions.
+- Full application suite passed: 501 tests, 2,688 assertions.
+- Targeted Pint, PHP syntax checks, `composer validate --no-check-publish`, and `git diff --check` passed. Composer reported the pre-existing unbound `courier-fraud-checker-bd` version warning.
+- Nixpacks template structure is covered by a regression assertion. Its directives are based on Nixpacks' official PHP/Laravel template, with only the request/PHP upload limits added.
+
+Commit status:
+
+- Pending user approval; not committed or pushed.
+
+## 2026-07-23 - Click-controlled app upgrades and native Firebase update push
+
+Reason:
+
+- A newly deployed server build was already appearing as the current Release Notes version, and same-origin Filament SPA navigation could fetch the new UI before the user confirmed **Upgrade App**.
+- Filament database notifications only reach an open or later-reopened admin session; the Android app needs a real Firebase Cloud Messaging alert when it is backgrounded or closed.
+- Native registration tokens require encrypted storage, authenticated ownership, per-device/deployment deduplication, retry handling, and safe stale-token cleanup.
+- Release Notes needs durable installed release metadata that changes only after the user explicitly confirms Upgrade App.
+
+Important changed files:
+
+- `resources/js/app-updater.js` and `resources/views/filament/partials/app-updater.blade.php` - keep a pending deployment sticky, block same-origin admin SPA navigation across the update boundary, and make the confirmed Upgrade App POST the only acknowledgement/reload path.
+- `app/Services/AppReleaseStateService.php`, `app/Filament/Pages/ReleaseNotes.php`, and `resources/views/filament/pages/release-notes.blade.php` - show the user's acknowledged **Installed version** separately from an **Update available** release and keep pending changelog entries out of installed history.
+- `resources/js/push-notifications.js`, `capacitor.config.json`, and the Android Capacitor project files - request native Android notification permission, create the `app-updates` channel, register the FCM token, and forward received/tapped update messages to the existing upgrade prompt without acknowledging or reloading.
+- `database/migrations/2026_07_23_120000_create_native_push_tracking_tables.php` - adds encrypted-token device tracking, per-device update-push delivery state, and acknowledged version/commit/build metadata on users.
+- `app/Http/Controllers/Admin/PushDeviceController.php` and `routes/web.php` - add throttled authenticated register/unregister endpoints; token refresh is idempotent and a token follows the currently signed-in user.
+- `app/Services/FirebaseHttpV1Sender.php` and `config/native_push.php` - implement service-account OAuth and FCM HTTP v1 delivery without committing credentials, including bounded transient retries and provider-confirmed stale-token classification.
+- `app/Services/AppUpdatePushService.php` and `app/Console/Commands/NotifyLatestRelease.php` - send one visible high-priority push per active device/deployment after database notification synchronization, retry transient failures, and disable unregistered tokens.
+- `app/Models/PushDevice.php`, `app/Models/AppUpdatePushDelivery.php`, and `app/Support/FirebasePushResult.php` - model protected device state and typed provider outcomes.
+- `app/Models/User.php` and `app/Services/AppUpdateService.php` - initialize and update the explicitly acknowledged release version, commit, and build time.
+- `.github/workflows/deploy.yml`, `.env.example`, and `.env.production.example` - inject the ignored Android Firebase client file from a GitHub secret during APK builds and document disabled-by-default Firebase server settings plus read-only secret-file/base64 credential options.
+- `tests/Node/app-updater.test.mjs`, `tests/Node/push-notifications.test.mjs`, `tests/Feature/ReleaseNotesTest.php`, `tests/Feature/PushDeviceRegistrationTest.php`, `tests/Feature/AppUpdatePushTest.php`, and `tests/Unit/Services/FirebaseHttpV1SenderTest.php` - cover the click boundary, native client bridge, installed/available rendering, ownership, encryption, rotation, deduplication, retry, stale cleanup, payloads, and disabled configuration.
+- `PROJECT_GUIDE.md`, `docs/deployment.md`, and `CHANGELOG.md` - document Firebase provisioning, the first-device-registration limitation, the explicit acknowledgement contract, and the infrastructure boundary.
+
+Behavior and deployment notes:
+
+- A detected update preserves the already-loaded screen and prevents a pending Filament SPA navigation from replacing it. The update notification, modal, Release Notes action, or push tap can reveal the available release but cannot acknowledge it.
+- Only the authenticated **Upgrade App** POST records the acknowledged deployment/version and performs the cache-cleared reload. Release Notes labels an unacknowledged deployment as available rather than installed.
+- FCM service-account JSON must be mounted outside the repository and referenced by `FIREBASE_CREDENTIALS`; `FIREBASE_CREDENTIALS_JSON_BASE64` is the secret-value fallback.
+- Set `FIREBASE_PUSH_ENABLED=true` and `FIREBASE_PROJECT_ID` only after the matching Android Firebase client is configured.
+- The push payload advertises the deployment but never acknowledges it. Only the existing explicit Upgrade App POST changes installed release state.
+- Run `php artisan migrate --force`, then `php artisan release:notify-deploy` after the new build is healthy. The existing five-minute scheduler remains the retry/catch-up path.
+- The first FCM-enabled Android release cannot push to an existing installation until that installation opens the updated app, signs in, grants notification permission, and registers its token; subsequent deployments can reach that registered device.
+- This click boundary protects only the loaded client screen, not an already-replaced PHP backend. A refresh, sign-in, Android process restart/WebView eviction, deep link, or app reopen can load the current server before acknowledgement. True use of the old full application until approval requires immutable blue/green releases, restart-safe per-installation sticky routing, shared session/database/storage, and backward-compatible migrations; a single replaced Coolify container cannot provide it.
+- Native sending can be stopped without deleting registrations by setting `FIREBASE_PUSH_ENABLED=false` and rebuilding the config cache. Code rollback should retain the additive update/push migrations; blindly rolling them back would delete device delivery ledgers and acknowledged release metadata.
+
+Verification:
+
+- Focused native-push, release-notification, Release Notes, and app-upgrade suite passed: 41 tests, 244 assertions.
+- Full application suite passed: 498 tests, 2,675 assertions.
+- Deployment-metadata, browser-updater, and native-push client suites passed: 5, 9, and 9 tests respectively.
+- Production Vite build passed and generated a ready deployment manifest.
+- Capacitor correctly discovered all four Android plugins, including `@capacitor/push-notifications`. Local Android sync/build could not finish because this Windows workspace had locked generated Android folders and no configured Java/JAVA_HOME; the GitHub Actions Android job uses JDK 21 and remains the reproducible APK verification path.
+
+Commit status:
+
+- Pending user approval; not committed or pushed.
+
 ## 2026-07-23 - Single storefront-domain editor and sticky settings actions
 
 Reason:

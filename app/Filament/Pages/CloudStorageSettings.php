@@ -188,7 +188,7 @@ class CloudStorageSettings extends Page
                             ->autocomplete(false),
                         Placeholder::make('public_status')
                             ->label('Status')
-                            ->content(fn (): string => $this->isPublicConfigured() ? 'Ready for connection test' : 'Configuration incomplete')
+                            ->content(fn (): string => $this->publicStorageStatus())
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
@@ -285,6 +285,23 @@ class CloudStorageSettings extends Page
     public function isPublicConfigured(): bool
     {
         return app(StorageSettingsService::class)->isPublicConfigured();
+    }
+
+    public function publicStorageStatus(): string
+    {
+        $settings = app(StorageSettingsService::class);
+
+        if (! $settings->isPublicConfigured()) {
+            return 'Configuration incomplete';
+        }
+
+        if ($settings->enabled()) {
+            return 'R2 uploads active — new public media is written to the R2 public bucket.';
+        }
+
+        return $settings->publicTopologyLocked()
+            ? 'Connection verified — turn on “Enable R2 for new uploads” and save to activate R2 writes.'
+            : 'Ready for connection test — testing alone does not activate R2 uploads.';
     }
 
     public function isPrivateConfigured(): bool

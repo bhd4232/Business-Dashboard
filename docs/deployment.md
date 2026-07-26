@@ -44,7 +44,7 @@ APP_DEBUG=false
 APP_URL=https://your-domain.com
 ASSET_URL=https://your-domain.com
 TRUSTED_PROXIES=*
-APP_VERSION=1.21.0
+APP_VERSION=1.22.0
 APP_RELEASE_TYPE=minor
 APP_RELEASE_DATE=2026-07-23
 
@@ -62,6 +62,13 @@ ADMIN_PASSWORD=
 QUEUE_CONNECTION=sync
 SESSION_DRIVER=file
 CACHE_STORE=file
+
+# Native Android app-update push (enable only after Firebase is provisioned).
+FIREBASE_PUSH_ENABLED=false
+FIREBASE_PROJECT_ID=
+FIREBASE_CREDENTIALS=/run/secrets/firebase-service-account.json
+# Use this instead of FIREBASE_CREDENTIALS when the host cannot mount files:
+FIREBASE_CREDENTIALS_JSON_BASE64=
 ```
 
 Never commit `.env` or production credentials. `ADMIN_PASSWORD` must be at least 12 characters and include uppercase and lowercase letters, numbers, and symbols.
@@ -69,6 +76,65 @@ Never commit `.env` or production credentials. `ADMIN_PASSWORD` must be at least
 `APP_URL` and `ASSET_URL` must both use `https://` in production. Coolify/Traefik terminates TLS at the reverse proxy, so `TRUSTED_PROXIES=*` allows Laravel to honor its forwarded HTTPS scheme. Restrict this value to known proxy addresses if the application container is also directly exposed to untrusted traffic.
 
 For small single-server or SQLite installs, keep `SESSION_DRIVER=file`, `CACHE_STORE=file`, and `QUEUE_CONNECTION=sync`. For higher traffic MySQL deployments, use Redis where available, or database queue/cache with a dedicated queue worker.
+
+## File Uploads and Cloudflare R2
+
+The application intentionally separates browser upload staging from permanent
+R2 storage:
+
+1. For supported admin image fields, FilePond first resizes large JPEG and PNG
+   sources in the browser (1600px for product/slide/page media, 800px for
+   logos/category tiles) before the network upload begins. It preserves aspect
+   ratio, never upscales, and deliberately leaves SVG, GIF, and WebP sources
+   on the safe server-only path so vectors and animations are not altered.
+2. Livewire then stages the resulting file on its local `livewire-tmp` disk.
+3. When the form is saved, the application validates and performs the final
+   server-side WebP/metadata optimization, then writes public media to
+   `r2_public` only when R2 is enabled.
+
+Image fields accept a source image up to 12 MB so a camera photo can be reduced
+before it crosses the network. This is an input ceiling, not a promise that an
+untouched original is permanently stored: final server optimization remains
+mandatory.
+
+Keep these production values in place:
+
+```env
+FILESYSTEM_DISK=local
+LIVEWIRE_TEMPORARY_UPLOAD_DISK=livewire-tmp
+```
+
+Do **not** set either variable to `r2`, `r2_public`, or `r2_private`. That
+would change Livewire into a browser-to-R2 presigned upload flow, which needs
+separate R2 CORS rules and is not this application's storage design.
+
+For Nixpacks/Coolify, the committed `nginx.template.conf` raises the default
+Nginx request limit from 1 MB to 16 MB and applies PHP-FPM upload limits of
+12 MB per file / 16 MB per POST. This covers browser-side image source uploads
+and the 10 MB voucher attachment field. The persistent volume must cover all of
+`/app/storage` (not only `storage/app/public`), and both `storage/` and
+`bootstrap/cache/` must be writable by the running PHP user.
+
+A successful **Test public bucket** result validates a server-side R2
+write/read/public-domain probe, but deliberately does not enable R2. In Cloud
+Storage, then turn on **Enable R2 for new uploads** and click **Save settings**.
+The status must read **R2 uploads active** before newly saved public media uses
+the R2 bucket.
+
+If FilePond says `The data.image.… failed to upload` immediately after choosing
+a file, R2 has not been reached yet. Inspect the response for
+`POST /livewire/upload-file`:
+
+- `413` — proxy/Nginx/PHP upload limit; redeploy this Nginx template.
+- `401` — signed URL, `APP_URL`, or trusted-proxy host/scheme mismatch.
+- `419` — session/cookie/CSRF configuration issue.
+- `500` — inspect Laravel logs and confirm temporary-storage permissions.
+
+Safe post-deploy diagnosis (does not print credentials):
+
+```bash
+php artisan tinker --execute='$s=app(\App\Services\StorageSettingsService::class); dump(["r2_enabled"=>$s->enabled(),"public_configured"=>$s->isPublicConfigured(),"permanent_public_disk"=>app(\App\Services\CompanyStorageService::class)->publicDiskName(),"livewire_temp_disk"=>config("livewire.temporary_file_upload.disk"),"php_upload_max"=>ini_get("upload_max_filesize"),"php_post_max"=>ini_get("post_max_size"),"gd_loaded"=>extension_loaded("gd")]);'
+```
 
 ## First Deploy
 
@@ -146,10 +212,13 @@ Do not run `php artisan db:seed --force` during routine updates after real custo
 
 After `php artisan migrate --force`, existing users retain their last acknowledged deployment. When the new build is stable:
 
-- the open admin app continues without an automatic full reload;
+- the open admin app continues without an automatic full reload, and pending same-origin Filament SPA navigation is held on the already-loaded screen;
 - **Upgrade App** appears above **Sign out** in the avatar menu;
 - the Filament bell receives one persistent app-update notification per user/build;
-- the user can review Release Notes, save unfinished work, and choose when to reload.
+- Release Notes shows the acknowledged installed version separately from the newer available version;
+- the user can save unfinished work and choose when to reload.
+
+Receiving an in-app notification or Android push, opening Release Notes, opening or dismissing the upgrade modal, and tapping **Not now** never acknowledge the deployment. Only the authenticated **Upgrade App** confirmation posts the exact deployment ID, records the installed version, clears cached app files, and performs the full reload.
 
 The alert is inserted synchronously and therefore does not depend on the queue worker. The scheduler remains a recovery path, and this command can be run immediately after deployment:
 
@@ -170,13 +239,169 @@ use `built_at` to reject responses from older nodes, and the upgrade POST must
 match the exact deployment ID the user confirmed before it can acknowledge or
 clear cached files.
 
-This feature holds the already-loaded frontend shell until consent. The deployed PHP backend is still the active backend. Whole-stack old/new coexistence requires sticky blue/green routing and backward-compatible database changes.
+This feature holds only the already-loaded frontend shell until consent. The
+deployed PHP backend is still the active backend. A full page refresh, session
+expiry/sign-in, Android process restart, WebView eviction, direct deep link, or
+reopening the app can therefore load the current server release before the
+button is clicked. A single Coolify container replacement cannot guarantee
+continued use of the complete old application until approval.
+
+True old-backend retention requires immutable old/new blue/green releases,
+per-installation or per-user sticky routing that survives app restarts, shared
+sessions/database/object storage, backward-compatible migrations, and an
+explicit release promotion/retirement process. Do not describe the current
+single-container guard as whole-application version pinning.
 
 If a deploy fails while maintenance mode is enabled:
 
 ```bash
 php artisan up
 ```
+
+## Firebase Android App-Update Push
+
+Native pushes require two independent Firebase configurations: the Android client configuration compiled into the APK and a server-side service account used by Laravel to call FCM HTTP v1. Never commit either credential, and never expose a service-account value through a `VITE_*` environment variable.
+
+### 1. Register the Android app
+
+1. Create or select the production Firebase project.
+2. Add an Android app with the exact package name `com.zamzamint.erp`.
+3. Download its `google-services.json`.
+4. Keep that file outside the repository; `android/app/google-services.json` is ignored intentionally.
+5. Enable the Firebase Cloud Messaging API (HTTP v1) for the same Google Cloud/Firebase project.
+
+The GitHub Android build expects `google-services.json` as one base64-encoded repository secret named:
+
+```txt
+FIREBASE_ANDROID_GOOGLE_SERVICES_JSON_BASE64
+```
+
+Create the value on PowerShell:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\secure\google-services.json"))
+```
+
+Or on Linux:
+
+```bash
+base64 -w 0 /secure/google-services.json
+```
+
+The workflow decodes that secret to `android/app/google-services.json` immediately before `npx cap sync android`; the JSON remains untracked and must not be added to a commit.
+
+### 2. Configure Laravel/Coolify credentials
+
+Create a Google service account in the same project, grant only the Firebase
+Cloud Messaging API Admin role (`roles/firebasecloudmessaging.admin`), and then
+generate its JSON key. Prefer mounting that JSON into the app container as a
+read-only Coolify secret file:
+
+```env
+FIREBASE_PUSH_ENABLED=true
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_CREDENTIALS=/run/secrets/firebase-service-account.json
+FIREBASE_CREDENTIALS_JSON_BASE64=
+```
+
+If the Coolify environment cannot mount a secret file, store the base64-encoded service-account JSON as the masked secret `FIREBASE_CREDENTIALS_JSON_BASE64`, leave `FIREBASE_CREDENTIALS` blank, and keep the same project ID:
+
+```env
+FIREBASE_PUSH_ENABLED=true
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_CREDENTIALS=
+FIREBASE_CREDENTIALS_JSON_BASE64=BASE64_ENCODED_SERVICE_ACCOUNT_JSON
+```
+
+Do not configure both credential sources; the file path takes precedence when
+both are present. Keep `FIREBASE_PUSH_ENABLED=false` until the Android Firebase
+app, APK build secret, project ID, and one Laravel credential source all belong
+to the same Firebase project.
+
+### 3. Deploy, register devices, and notify
+
+After the new container is healthy:
+
+```bash
+php artisan migrate --force
+php artisan config:cache
+php artisan release:notify-deploy
+```
+
+The command synchronizes Filament database notifications first and then sends one FCM update alert per active device/deployment. Failed transient deliveries remain eligible for the scheduled retry; provider-confirmed unregistered or mismatched tokens are disabled.
+
+Use the same three commands as the Coolify post-deploy hook, or let the
+five-minute scheduler perform notification catch-up after the migration. Never
+run `release:notify-deploy` against a container whose `/health/version` response
+has `"ready": false`.
+
+Keep Laravel's scheduler running because `release:notify-deploy` is scheduled every five minutes as the catch-up/retry path:
+
+```cron
+* * * * * cd /path/to/project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+The migration creates the native device and delivery ledgers plus the user's acknowledged release metadata. A signed-in native Android app registers its FCM token through authenticated `POST /admin/push-devices` after notification permission is granted.
+
+The first FCM-enabled APK cannot send a push back in time to an installation that has never registered. Each device must install/open that updated APK, sign in, and grant notification permission once; only then can later deployments reach it while the app is backgrounded or closed. Receiving or tapping the push reveals the pending upgrade after server verification but does not acknowledge or reload the app.
+
+The current GitHub workflow builds a debug APK for validation. A production
+release still needs the normal signed APK/AAB build and distribution process.
+If `FIREBASE_ANDROID_GOOGLE_SERVICES_JSON_BASE64` is absent, the Android build
+continues without applying Google Services, so that artifact cannot register an
+FCM token.
+
+### 4. Verify without exposing credentials
+
+Confirm that Laravel can parse the configured service account:
+
+```bash
+php artisan tinker --execute='dump(app(\App\Services\FirebaseHttpV1Sender::class)->isConfigured());'
+```
+
+The result must be `true`. Then open the signed Android app, sign in, grant
+notification permission, and confirm at least one active registration without
+printing the encrypted token:
+
+```bash
+php artisan tinker --execute='dump(\App\Models\PushDevice::query()->where("is_active", true)->count());'
+```
+
+Run the deployment notifier and inspect delivery state:
+
+```bash
+php artisan release:notify-deploy
+php artisan tinker --execute='dump(\App\Models\AppUpdatePushDelivery::query()->selectRaw("status, count(*) as total")->groupBy("status")->pluck("total", "status")->all());'
+```
+
+Expected behavior:
+
+- the Android notification is visible when the app is backgrounded;
+- tapping it opens/reuses the app and reveals the verified update prompt;
+- the user's `acknowledged_app_deployment_id` and
+  `acknowledged_app_version` do not change until **Upgrade App** is confirmed;
+- repeating `release:notify-deploy` does not send another successful push for
+  the same device/deployment pair.
+
+### 5. Roll back safely
+
+To stop native sending immediately, set `FIREBASE_PUSH_ENABLED=false` and run
+`php artisan config:cache`. This does not delete registered devices or delivery
+history.
+
+For an application rollback, redeploy the previous immutable image/source
+artifact, clear/rebuild Laravel caches, restart queue workers, and verify
+`/health/version` before reopening traffic. Keep the two app-update migrations
+in place: they are additive, and the previous application ignores their extra
+tables/columns. Do not run `php artisan migrate:rollback` blindly on production;
+it drops the push ledgers and acknowledged release metadata and may roll back a
+different migration when batches contain other changes.
+
+If a release includes an incompatible or destructive migration, restore the
+matching pre-deploy database backup under a separately reviewed rollback plan.
+Rolling the single container back still does not create per-user old/new
+version retention; that requires the blue/green routing architecture described
+above.
 
 ## Live Data Safety
 

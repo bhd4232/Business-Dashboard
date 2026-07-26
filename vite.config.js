@@ -10,6 +10,7 @@ export default defineConfig({
                 'resources/css/filament/admin/theme.css',
                 'resources/js/app.js',
                 'resources/js/app-updater.js',
+                'resources/js/push-notifications.js',
             ],
             refresh: true,
         }),

@@ -83,6 +83,7 @@ class StorefrontPageResource extends Resource
                         ->helperText('Wide banner shown at the top of the page. Automatically compressed to WebP on upload.')
                         ->image()
                         ->maxSize(2048)
+                        ->tap(static::browserImagePrecompression())
                         ->disk(fn (): string => CompanyMedia::publicDiskName())
                         ->directory(fn (Get $get, ?StorefrontPage $record): string => CompanyMedia::publicDirectory('storefront/pages', $record, $get('company_id')))
                         ->fetchFileInformation(false)

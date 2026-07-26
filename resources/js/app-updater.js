@@ -66,7 +66,7 @@ export function classifyReloadObservations(
     }
 
     if (firstObservation.deployment_id === loadedDeploymentId) {
-        return 'reload';
+        return 'current';
     }
 
     if (!isDeploymentNewer(
@@ -92,6 +92,63 @@ export function classifyReloadObservations(
     return 'upgrade';
 }
 
+export function updateSignalDeploymentId(signal) {
+    if (typeof signal === 'string') {
+        return signal.trim() || null;
+    }
+
+    const deploymentId = signal?.deployment_id
+        ?? signal?.data?.deployment_id
+        ?? signal?.notification?.data?.deployment_id;
+
+    return typeof deploymentId === 'string' && deploymentId.trim()
+        ? deploymentId.trim()
+        : null;
+}
+
+export function shouldBlockAdminNavigation(
+    updatePending,
+    currentLocation,
+    destination,
+) {
+    if (!updatePending || !destination) {
+        return false;
+    }
+
+    try {
+        const currentUrl = new URL(currentLocation);
+        const destinationUrl = destination instanceof URL
+            ? destination
+            : new URL(destination, currentUrl);
+
+        if (destinationUrl.origin !== currentUrl.origin) {
+            return false;
+        }
+
+        if (
+            destinationUrl.pathname !== '/admin'
+            && !destinationUrl.pathname.startsWith('/admin/')
+        ) {
+            return false;
+        }
+
+        // Fragment navigation does not ask the server for a different app
+        // shell, so it is safe to keep in-page anchors working.
+        if (
+            destinationUrl.pathname === currentUrl.pathname
+            && destinationUrl.search === currentUrl.search
+            && destinationUrl.hash
+            && destinationUrl.hash !== currentUrl.hash
+        ) {
+            return false;
+        }
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 function createAppUpdater() {
     const config = document.querySelector('#zz-app-updater-config');
 
@@ -111,6 +168,7 @@ function createAppUpdater() {
     let latestDeployment = null;
     let pollInFlight = false;
     let synchronizedDeploymentId = null;
+    let allowConfirmedUpgradeNavigation = false;
 
     const upgradeActions = () => document.querySelectorAll('[data-zz-app-upgrade-action]');
 
@@ -258,6 +316,93 @@ function createAppUpdater() {
         }));
     };
 
+    const confirmNewDeployment = async (
+        expectedDeploymentId = null,
+        firstObservation = null,
+    ) => {
+        const first = firstObservation ?? await fetchVersion();
+
+        if (
+            !first?.ready
+            || !first.deployment_id
+            || (
+                expectedDeploymentId
+                && first.deployment_id !== expectedDeploymentId
+            )
+            || !isDeploymentNewer(
+                state.loadedDeploymentId,
+                state.loadedBuiltAt,
+                first.deployment_id,
+                first.built_at,
+            )
+        ) {
+            return null;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+
+        const second = await fetchVersion();
+
+        if (
+            expectedDeploymentId
+            && second?.deployment_id !== expectedDeploymentId
+        ) {
+            return null;
+        }
+
+        if (classifyReloadObservations(
+            state.loadedDeploymentId,
+            state.loadedBuiltAt,
+            first,
+            second,
+        ) !== 'upgrade') {
+            return null;
+        }
+
+        state = {
+            ...state,
+            candidateDeploymentId: second.deployment_id,
+            candidateHits: REQUIRED_CONFIRMATIONS,
+            isAvailable: true,
+        };
+        revealUpgrade(second);
+        void synchronizeNotification(second.deployment_id);
+
+        return second;
+    };
+
+    const receiveUpdateNotification = async (signal = null) => {
+        const expectedDeploymentId = updateSignalDeploymentId(signal);
+
+        if (
+            state.isAvailable
+            && (
+                !expectedDeploymentId
+                || latestDeployment?.deployment_id === expectedDeploymentId
+            )
+        ) {
+            openUpgradeDialog();
+
+            return true;
+        }
+
+        try {
+            const deployment = await confirmNewDeployment(expectedDeploymentId);
+
+            if (!deployment) {
+                return false;
+            }
+
+            // A foreground push only verifies and presents the update. The
+            // signed Upgrade POST remains the sole acknowledgement path.
+            openUpgradeDialog();
+
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
     const reloadIfCurrent = async () => {
         if (window.__zzAppUpgradePending) {
             openUpgradeDialog();
@@ -277,31 +422,21 @@ function createAppUpdater() {
                 return false;
             }
 
-            if (firstDecision === 'reload') {
-                window.location.reload();
-
-                return true;
+            if (firstDecision === 'current') {
+                // Save notifications and pull-to-refresh used to reload here.
+                // A deployment can switch between this check and the reload,
+                // so even a "same build" observation cannot safely authorize
+                // an automatic document replacement.
+                return false;
             }
 
-            await new Promise((resolve) => window.setTimeout(resolve, 1000));
-
-            const secondObservation = await fetchVersion();
-            const secondDecision = classifyReloadObservations(
-                state.loadedDeploymentId,
-                state.loadedBuiltAt,
+            const deployment = await confirmNewDeployment(
+                null,
                 firstObservation,
-                secondObservation,
             );
 
-            if (secondDecision === 'upgrade') {
-                state = {
-                    ...state,
-                    candidateDeploymentId: secondObservation.deployment_id,
-                    candidateHits: REQUIRED_CONFIRMATIONS,
-                    isAvailable: true,
-                };
-                revealUpgrade(secondObservation);
-                void synchronizeNotification(secondObservation.deployment_id);
+            if (deployment) {
+                openUpgradeDialog();
             }
 
             return false;
@@ -312,8 +447,26 @@ function createAppUpdater() {
         }
     };
 
+    const blockPendingNavigation = (event, destination) => {
+        if (!shouldBlockAdminNavigation(
+            state.isAvailable,
+            window.location.href,
+            destination,
+        )) {
+            return false;
+        }
+
+        event.preventDefault();
+        openUpgradeDialog();
+
+        return true;
+    };
+
     if (initialUpgradeAvailable) {
-        revealUpgrade();
+        revealUpgrade({
+            deployment_id: state.loadedDeploymentId,
+            built_at: state.loadedBuiltAt,
+        });
     } else {
         window.__zzAppUpgradePending = false;
     }
@@ -324,6 +477,75 @@ function createAppUpdater() {
 
     window.addEventListener('focus', () => void checkNow());
     window.addEventListener('online', () => void checkNow());
+    window.addEventListener('zz:app-update-available', (event) => {
+        void receiveUpdateNotification(event.detail);
+    });
+
+    if (window.__zzPendingAppUpdateSignal) {
+        const pendingUpdateSignal = window.__zzPendingAppUpdateSignal;
+
+        delete window.__zzPendingAppUpdateSignal;
+        void receiveUpdateNotification(pendingUpdateSignal);
+    }
+    window.addEventListener('keydown', (event) => {
+        const reloadShortcut = event.key === 'F5'
+            || (
+                (event.ctrlKey || event.metaKey)
+                && event.key.toLowerCase() === 'r'
+            );
+
+        if (!state.isAvailable || !reloadShortcut) {
+            return;
+        }
+
+        event.preventDefault();
+        openUpgradeDialog();
+    }, true);
+    window.addEventListener('beforeunload', (event) => {
+        if (!state.isAvailable || allowConfirmedUpgradeNavigation) {
+            return;
+        }
+
+        // Browsers and Android WebViews decide whether to show this native
+        // warning. It cannot stop an OS-forced restart, and the deployed PHP
+        // backend is already active; it only protects the loaded DOM/assets.
+        event.preventDefault();
+        event.returnValue = '';
+    });
+    document.addEventListener('submit', (event) => {
+        if (event.target?.matches?.('[data-zz-app-upgrade-form]')) {
+            allowConfirmedUpgradeNavigation = true;
+        }
+    }, true);
+    document.addEventListener('click', (event) => {
+        if (
+            event.defaultPrevented
+            || event.button !== 0
+            || event.metaKey
+            || event.ctrlKey
+            || event.shiftKey
+            || event.altKey
+        ) {
+            return;
+        }
+
+        const link = event.target?.closest?.('a[href]');
+
+        if (
+            !link
+            || link.hasAttribute('download')
+            || !['', '_self'].includes(link.getAttribute('target') ?? '')
+        ) {
+            return;
+        }
+
+        if (blockPendingNavigation(event, link.href)) {
+            event.stopImmediatePropagation();
+        }
+    }, true);
+    document.addEventListener('livewire:navigate', (event) => {
+        blockPendingNavigation(event, event.detail?.url);
+    });
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             void checkNow();
@@ -338,6 +560,7 @@ function createAppUpdater() {
     return {
         checkNow,
         openUpgradeDialog,
+        receiveUpdateNotification,
         reloadIfCurrent,
     };
 }

@@ -321,6 +321,35 @@ class CloudStorageSettingsTest extends TestCase
         $this->assertFalse(app(StorageSettingsService::class)->enabled());
     }
 
+    public function test_public_status_distinguishes_verified_disabled_storage_from_active_r2_writes(): void
+    {
+        $settings = app(StorageSettingsService::class);
+        $settings->save([
+            'enabled' => false,
+            'access_key_id' => 'access-key',
+            'secret_access_key' => 'secret-key',
+            'public_bucket' => 'public-bucket',
+            'endpoint' => 'https://account.r2.cloudflarestorage.com',
+            'public_url' => 'https://media.example.test',
+        ]);
+        AppSetting::setValue(StorageSettingsService::PUBLIC_TOPOLOGY_LOCKED, '1');
+        $settings->forgetCachedSettings();
+
+        $superAdmin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $this->actingAs($superAdmin);
+
+        Livewire::test(CloudStorageSettings::class)
+            ->assertSee('Connection verified')
+            ->assertSee('Enable R2 for new uploads');
+
+        AppSetting::setValue(StorageSettingsService::ENABLED, '1');
+        $settings->forgetCachedSettings();
+        $settings->configureNamedDisks();
+
+        Livewire::test(CloudStorageSettings::class)
+            ->assertSee('R2 uploads active');
+    }
+
     public function test_form_rejects_using_the_public_bucket_for_private_objects(): void
     {
         $superAdmin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
