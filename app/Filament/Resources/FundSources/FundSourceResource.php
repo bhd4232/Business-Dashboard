@@ -3,9 +3,6 @@
 namespace App\Filament\Resources\FundSources;
 
 use App\Filament\Clusters\Finance;
-use App\Filament\Resources\FundSources\Pages\CreateFundSource;
-use App\Filament\Resources\FundSources\Pages\EditFundSource;
-use App\Filament\Resources\FundSources\Pages\ListFundSources;
 use App\Models\FundSource;
 use BackedEnum;
 use Filament\Actions\EditAction;
@@ -35,6 +32,8 @@ class FundSourceResource extends Resource
     protected static ?string $navigationLabel = 'Fund Sources';
 
     protected static ?int $navigationSort = 1;
+
+    protected static bool $shouldRegisterNavigation = false;
 
     public static function form(Schema $schema): Schema
     {
@@ -93,10 +92,6 @@ class FundSourceResource extends Resource
 
     public static function getPages(): array
     {
-        return [
-            'index' => ListFundSources::route('/'),
-            'create' => CreateFundSource::route('/create'),
-            'edit' => EditFundSource::route('/{record}/edit'),
-        ];
+        return [];
     }
 }

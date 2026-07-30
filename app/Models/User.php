@@ -166,6 +166,8 @@ class User extends Authenticatable implements FilamentUser
             'fund_transfer.create',
             'fund_transfer.approve',
             'finance.dashboard',
+            'investments.view',
+            'investments.manage',
         ],
         'sales_staff' => [
             'dashboard.view',
@@ -206,6 +208,7 @@ class User extends Authenticatable implements FilamentUser
             'fund_source.manage',
             'fund_transfer.create',
             'finance.dashboard',
+            'investments.view',
         ],
     ];
 
@@ -245,6 +248,10 @@ class User extends Authenticatable implements FilamentUser
         'fund_transfer.create' => 'Fund Transfer: Create',
         'fund_transfer.approve' => 'Fund Transfer: Approve',
         'finance.dashboard' => 'Finance Dashboard: View',
+        'investments.view' => 'Investments: View',
+        'investments.manage' => 'Investments: Manage Projects and Investors',
+        'investments.settle' => 'Investments: Calculate Settlements and Pay Payouts',
+        'investments.manage_channel_partner' => 'Investments: Change Assigned Channel Partner',
     ];
 
     public const MODEL_MODULES = [
@@ -261,6 +268,14 @@ class User extends Authenticatable implements FilamentUser
         Expense::class => 'accounts',
         ExpenseCategory::class => 'accounts',
         TransactionLedger::class => 'accounts',
+        InvestmentProject::class => 'investments',
+        Investor::class => 'investments',
+        Investment::class => 'investments',
+        ProjectCostItem::class => 'investments',
+        InvestorSecurityInstrument::class => 'investments',
+        ProjectSettlement::class => 'investments',
+        SettlementPayout::class => 'investments',
+        ChannelPartnerPayout::class => 'investments',
         self::class => 'users',
         AuditLog::class => 'users',
     ];
@@ -490,6 +505,14 @@ class User extends Authenticatable implements FilamentUser
 
         if ($module === 'users') {
             return $this->canManageUsers();
+        }
+
+        if ($module === 'investments') {
+            return match ($ability) {
+                'viewAny', 'view' => $this->hasPermission('investments.view'),
+                'create', 'update' => $this->hasPermission('investments.manage'),
+                default => false,
+            };
         }
 
         $permissionAbility = match ($ability) {

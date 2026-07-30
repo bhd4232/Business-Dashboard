@@ -89,7 +89,7 @@ class PhaseSixPermissionsTest extends TestCase
         ]);
 
         $this->actingAs($user)->get('/admin/settings/users')->assertForbidden();
-        $this->actingAs($user)->get('/admin/accounts')->assertForbidden();
+        $this->actingAs($user)->get('/admin/finance/accounts')->assertForbidden();
     }
 
     public function test_sales_staff_can_view_reports_but_cannot_export_reports(): void

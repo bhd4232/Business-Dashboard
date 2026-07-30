@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\CustomerPayment;
 use App\Models\Expense;
-use App\Models\FundSource;
+use App\Models\Order;
 use App\Models\Purchase;
 use App\Models\SupplierPayment;
 use App\Models\TransactionLedger;
@@ -27,7 +27,7 @@ use Illuminate\Validation\ValidationException;
  * Rule 1 (never violate): inventory_purchase, capital_investment,
  * owner_withdrawal, asset_purchase, loan, and fund_transfer transaction
  * types NEVER create an Expense record — they move funds between a Fund
- * Source/Account and an asset/liability, they are not spend.
+ * Account and an asset/liability, they are not spend.
  */
 class VoucherService
 {
@@ -36,13 +36,15 @@ class VoucherService
      * into/out of) at submission time.
      */
     protected const ACCOUNT_REQUIRED_TYPES = [
-        'business_expense', 'supplier_payment', 'customer_payment',
+        'inventory_purchase', 'business_expense', 'supplier_payment', 'customer_payment',
         'capital_investment', 'owner_withdrawal', 'refund',
         'asset_purchase', 'loan', 'other',
     ];
 
     public function submit(array $data, User $user): Voucher
     {
+        [$data, $orderIds] = $this->prepareInvoiceSelection($data);
+        $data = $this->prepareRefundInvoice($data);
         $type = $data['type'] ?? null;
         $transactionType = $data['transaction_type'] ?? null;
 
@@ -57,12 +59,22 @@ class VoucherService
         }
 
         if ($transactionType === 'inventory_purchase') {
-            if (empty($data['purchase_id']) || empty($data['fund_source_id'])) {
+            if (empty($data['purchase_id'])) {
                 throw ValidationException::withMessages([
-                    'fund_source_id' => 'An inventory purchase voucher requires both a purchase and a funding source.',
+                    'purchase_id' => 'An inventory purchase voucher requires a purchase.',
                 ]);
             }
-        } elseif (in_array($transactionType, self::ACCOUNT_REQUIRED_TYPES, true) && empty($data['account_id'])) {
+
+            $purchase = Purchase::query()->find($data['purchase_id']);
+
+            if (! $purchase || $purchase->status !== 'draft') {
+                throw ValidationException::withMessages([
+                    'purchase_id' => 'Select an incomplete purchase.',
+                ]);
+            }
+        }
+
+        if (in_array($transactionType, self::ACCOUNT_REQUIRED_TYPES, true) && empty($data['account_id'])) {
             throw ValidationException::withMessages([
                 'account_id' => 'Please select the account this voucher moves money through.',
             ]);
@@ -80,12 +92,30 @@ class VoucherService
             throw ValidationException::withMessages(['expense_category_id' => 'Please select an expense category.']);
         }
 
-        return Voucher::query()->create([
-            ...$data,
-            'voucher_number' => Voucher::nextVoucherNumber($type),
-            'status' => Voucher::STATUS_PENDING,
-            'submitted_by' => $user->getKey(),
-        ]);
+        return DB::transaction(function () use ($data, $orderIds, $type, $user): Voucher {
+            $voucher = Voucher::query()->create([
+                ...$data,
+                'voucher_number' => Voucher::nextVoucherNumber($type),
+                'status' => Voucher::STATUS_PENDING,
+                'submitted_by' => $user->getKey(),
+            ]);
+            $voucher->orders()->sync($orderIds);
+
+            return $voucher;
+        });
+    }
+
+    public function update(Voucher $voucher, array $data): Voucher
+    {
+        [$data, $orderIds] = $this->prepareInvoiceSelection($data);
+        $data = $this->prepareRefundInvoice($data);
+
+        return DB::transaction(function () use ($voucher, $data, $orderIds): Voucher {
+            $voucher->update($data);
+            $voucher->orders()->sync($orderIds);
+
+            return $voucher->refresh();
+        });
     }
 
     public function verify(Voucher $voucher, User $user): void
@@ -210,10 +240,10 @@ class VoucherService
             'customer_payment' => $this->bookCustomerPayment($voucher),
             'supplier_payment' => $this->bookSupplierPayment($voucher),
             'business_expense' => $this->bookExpense($voucher),
-            'inventory_purchase' => $this->bookFundSourceLedger($voucher, 'out'),
-            'capital_investment', 'loan' => $this->bookFundSourceLedger($voucher, 'in'),
-            'owner_withdrawal', 'refund', 'asset_purchase' => $this->bookFundSourceLedger($voucher, 'out'),
-            'other' => $this->bookFundSourceLedger($voucher, $voucher->isCredit() ? 'in' : 'out'),
+            'inventory_purchase' => $this->bookAccountLedger($voucher, 'out'),
+            'capital_investment', 'loan' => $this->bookAccountLedger($voucher, 'in'),
+            'owner_withdrawal', 'refund', 'asset_purchase' => $this->bookAccountLedger($voucher, 'out'),
+            'other' => $this->bookAccountLedger($voucher, $voucher->isCredit() ? 'in' : 'out'),
             default => null,
         };
     }
@@ -260,29 +290,18 @@ class VoucherService
     }
 
     /**
-     * For transaction types that never create an Expense/Payment record
-     * (Rule 1): if the voucher's fund source is account-linked (cash/bank/
-     * mobile/wallet/petty cash), book a ledger entry so the Account balance
-     * moves. If the fund source is a capital-type pool (owner investment,
-     * loan, etc. — no linked Account), there is nothing further to book: its
-     * balance() already sums approved vouchers directly.
+     * For transaction types that never create an Expense/Payment record,
+     * book the movement directly against the voucher's Account.
      */
-    protected function bookFundSourceLedger(Voucher $voucher, string $direction): ?TransactionLedger
+    protected function bookAccountLedger(Voucher $voucher, string $direction): ?TransactionLedger
     {
-        $accountId = $voucher->account_id;
-
-        if (! $accountId && $voucher->fund_source_id) {
-            $fundSource = FundSource::query()->find($voucher->fund_source_id);
-            $accountId = $fundSource?->isAccountLinked() ? $fundSource->account_id : null;
-        }
-
-        if (! $accountId) {
+        if (! $voucher->account_id) {
             return null;
         }
 
         return TransactionLedger::query()->create([
             'company_id' => $voucher->company_id,
-            'account_id' => $accountId,
+            'account_id' => $voucher->account_id,
             'type' => $voucher->isCredit() ? 'voucher_credit' : 'voucher_debit',
             'direction' => $direction,
             'amount' => $voucher->amount,
@@ -291,5 +310,72 @@ class VoucherService
             'transaction_date' => now()->toDateString(),
             'note' => "Voucher {$voucher->voucher_number}",
         ]);
+    }
+
+    /**
+     * @return array{0: array<string, mixed>, 1: list<int>}
+     */
+    protected function prepareInvoiceSelection(array $data): array
+    {
+        $orderIds = collect($data['order_ids'] ?? [])
+            ->filter()
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+        unset($data['order_ids']);
+
+        if (
+            ($data['type'] ?? null) !== Voucher::TYPE_CREDIT
+            || (($data['transaction_type'] ?? null) !== 'customer_payment' && $orderIds->isEmpty())
+        ) {
+            return [$data, []];
+        }
+
+        $orders = Order::query()
+            ->whereKey($orderIds)
+            ->get(['id', 'customer_id']);
+
+        if ($orderIds->isEmpty() || $orders->count() !== $orderIds->count()) {
+            throw ValidationException::withMessages([
+                'order_ids' => 'Select at least one valid order invoice.',
+            ]);
+        }
+
+        $customerIds = $orders->pluck('customer_id')->filter()->unique();
+
+        if ($customerIds->count() !== 1 || $orders->contains(fn (Order $order): bool => ! $order->customer_id)) {
+            throw ValidationException::withMessages([
+                'order_ids' => 'All selected order invoices must belong to the same customer.',
+            ]);
+        }
+
+        $data['transaction_type'] = 'customer_payment';
+        $data['customer_id'] = $customerIds->first();
+        $data['order_id'] = $orderIds->first();
+
+        return [$data, $orderIds->all()];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function prepareRefundInvoice(array $data): array
+    {
+        if (($data['transaction_type'] ?? null) !== 'refund') {
+            return $data;
+        }
+
+        $order = Order::query()->find($data['order_id'] ?? null);
+
+        if (! $order || ! in_array($order->status, ['confirmed', 'completed'], true)) {
+            throw ValidationException::withMessages([
+                'order_id' => 'Select a confirmed or completed order invoice for this refund.',
+            ]);
+        }
+
+        $data['customer_id'] = $order->customer_id;
+
+        return $data;
     }
 }

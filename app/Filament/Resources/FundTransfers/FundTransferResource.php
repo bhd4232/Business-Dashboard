@@ -3,14 +3,11 @@
 namespace App\Filament\Resources\FundTransfers;
 
 use App\Filament\Clusters\Finance;
-use App\Filament\Resources\FundTransfers\Pages\CreateFundTransfer;
-use App\Filament\Resources\FundTransfers\Pages\ListFundTransfers;
 use App\Models\FundTransfer;
 use App\Services\FundTransferService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -34,6 +31,8 @@ class FundTransferResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function form(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
@@ -41,7 +40,7 @@ class FundTransferResource extends Resource
                 Select::make('from_account_id')->relationship('fromAccount', 'name')->label('From Account')->required(),
                 Select::make('to_account_id')->relationship('toAccount', 'name')->label('To Account')->required(),
                 TextInput::make('amount')->numeric()->prefix('BDT')->required(),
-                Textarea::make('remarks')->rows(3),
+                TextInput::make('transaction_cost')->label('Transaction Cost')->numeric()->prefix('BDT')->default(0)->minValue(0)->required(),
             ])->columns(2),
         ]);
     }
@@ -54,6 +53,7 @@ class FundTransferResource extends Resource
                 TextColumn::make('fromAccount.name')->label('From'),
                 TextColumn::make('toAccount.name')->label('To'),
                 TextColumn::make('amount')->money('BDT')->sortable(),
+                TextColumn::make('transaction_cost')->label('Transaction Cost')->money('BDT')->sortable(),
                 TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
                     'approved' => 'success',
                     'rejected' => 'danger',
@@ -109,9 +109,6 @@ class FundTransferResource extends Resource
 
     public static function getPages(): array
     {
-        return [
-            'index' => ListFundTransfers::route('/'),
-            'create' => CreateFundTransfer::route('/create'),
-        ];
+        return [];
     }
 }

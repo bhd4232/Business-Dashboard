@@ -10,17 +10,25 @@ use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\ChannelPartnerPayout;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Models\CustomerBlacklist;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\Investment;
+use App\Models\InvestmentProject;
+use App\Models\Investor;
+use App\Models\InvestorSecurityInstrument;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProjectCostItem;
+use App\Models\ProjectSettlement;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\SettlementPayout;
 use App\Models\StockMovement;
 use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
@@ -93,6 +101,14 @@ class AppServiceProvider extends ServiceProvider
             CustomerBlacklist::class,
             Expense::class,
             ExpenseCategory::class,
+            InvestmentProject::class,
+            Investor::class,
+            Investment::class,
+            ProjectCostItem::class,
+            InvestorSecurityInstrument::class,
+            ProjectSettlement::class,
+            SettlementPayout::class,
+            ChannelPartnerPayout::class,
             Order::class,
             OrderItem::class,
             Product::class,

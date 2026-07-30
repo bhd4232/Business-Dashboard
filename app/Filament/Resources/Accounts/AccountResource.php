@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Accounts;
 
-use App\Filament\Clusters\Accounts;
+use App\Filament\Clusters\Finance;
 use App\Filament\Resources\Accounts\Pages\CreateAccount;
 use App\Filament\Resources\Accounts\Pages\EditAccount;
 use App\Filament\Resources\Accounts\Pages\ListAccounts;
@@ -26,7 +26,7 @@ class AccountResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedWallet;
 
-    protected static ?string $cluster = Accounts::class;
+    protected static ?string $cluster = Finance::class;
 
     protected static ?string $recordTitleAttribute = 'name';
 

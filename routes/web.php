@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BackupDownloadController;
 use App\Http\Controllers\Admin\CompanySwitchController;
 use App\Http\Controllers\Admin\ConversationMediaController;
 use App\Http\Controllers\Admin\CustomerCsvController;
+use App\Http\Controllers\Admin\InvestorContractDownloadController;
 use App\Http\Controllers\Admin\LegacyAdminClusterRedirectController;
 use App\Http\Controllers\Admin\OrderPdfController;
 use App\Http\Controllers\Admin\ProductCsvController;
@@ -340,6 +341,15 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/admin/voucher-attachments/{attachment}/download', VoucherAttachmentDownloadController::class)
         ->whereNumber('attachment')
         ->name('voucher-attachments.download');
+
+    Route::get('/admin/investor-security-instruments/{instrument}/contract', InvestorContractDownloadController::class)
+        ->whereNumber('instrument')
+        ->name('investor-security-instruments.contract');
+
+    Route::get('/admin/finance/{legacy}/{path?}', LegacyAdminClusterRedirectController::class)
+        ->whereIn('legacy', ['fund-sources', 'fund-transfers'])
+        ->where('path', '.*')
+        ->name('admin.finance.legacy-fund-pages');
 
     Route::get('/admin/{legacy}/{path?}', LegacyAdminClusterRedirectController::class)
         ->whereIn('legacy', LegacyAdminClusterRedirectController::legacySegments())

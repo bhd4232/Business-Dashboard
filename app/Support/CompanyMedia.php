@@ -79,6 +79,22 @@ final class CompanyMedia
     }
 
     /**
+     * Filament image components only recognize fully-qualified URLs as URLs.
+     * Normalize local root-relative storage URLs so they are not interpreted
+     * as file paths on Filament's default disk.
+     */
+    public static function filamentPublicUrl(?string $path, mixed $record = null, mixed $companyId = null): ?string
+    {
+        $url = self::publicUrl($path, $record, $companyId);
+
+        if (blank($url) || filter_var($url, FILTER_VALIDATE_URL) !== false || str_starts_with($url, 'data:')) {
+            return $url;
+        }
+
+        return url('/'.ltrim($url, '/'));
+    }
+
+    /**
      * @return array{name: string, size: int, type: string|null, url: string}|null
      */
     public static function publicFileMetadata(string $file, mixed $record = null, mixed $companyId = null): ?array

@@ -9,6 +9,7 @@ use App\Services\OrderWorkflowService;
 use App\Services\ShippingFeeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Schema;
 
@@ -140,6 +141,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function vouchers(): BelongsToMany
+    {
+        return $this->belongsToMany(Voucher::class)->withTimestamps();
     }
 
     public function fraudChecks(): HasMany

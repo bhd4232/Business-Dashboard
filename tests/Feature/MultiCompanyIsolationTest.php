@@ -5,9 +5,14 @@ namespace Tests\Feature;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\Category;
+use App\Models\ChannelPartnerPayout;
+use App\Models\ChatOrderLink;
 use App\Models\Company;
+use App\Models\CompanyFaq;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Container;
+use App\Models\Conversation;
+use App\Models\ConversationChannel;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
 use App\Models\CourierStatusLog;
@@ -20,19 +25,37 @@ use App\Models\CustomerRiskReview;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\FraudCheck;
+use App\Models\FundSource;
+use App\Models\FundTransfer;
+use App\Models\Investment;
+use App\Models\InvestmentProject;
+use App\Models\Investor;
+use App\Models\InvestorSecurityInstrument;
+use App\Models\Lead;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductCarousel;
+use App\Models\ProjectCostItem;
+use App\Models\ProjectSettlement;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\Quotation;
+use App\Models\QuotationItem;
+use App\Models\SettlementPayout;
 use App\Models\Shipment;
 use App\Models\StockMovement;
+use App\Models\StorefrontCartRecord;
 use App\Models\StorefrontPage;
+use App\Models\StorefrontPayment;
 use App\Models\StorefrontSetting;
+use App\Models\StorefrontSlide;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\TransactionLedger;
 use App\Models\User;
+use App\Models\Voucher;
+use App\Models\VoucherAttachment;
 use App\Scopes\CompanyScope;
 use App\Services\CompanyContext;
 use App\Services\ReportService;
@@ -53,14 +76,18 @@ class MultiCompanyIsolationTest extends TestCase
             Order::class, OrderItem::class, Product::class, Purchase::class, PurchaseItem::class,
             StockMovement::class, Supplier::class, SupplierPayment::class, TransactionLedger::class,
             Container::class, Shipment::class, StorefrontPage::class, StorefrontSetting::class,
-            \App\Models\ProductCarousel::class, \App\Models\StorefrontPayment::class,
-            \App\Models\StorefrontCartRecord::class,
-            \App\Models\FundSource::class, \App\Models\Voucher::class,
-            \App\Models\VoucherAttachment::class, \App\Models\FundTransfer::class,
-            \App\Models\StorefrontSlide::class,
-            \App\Models\Lead::class, \App\Models\Quotation::class, \App\Models\QuotationItem::class,
-            \App\Models\Conversation::class, \App\Models\ConversationChannel::class,
-            \App\Models\ChatOrderLink::class, \App\Models\CompanyFaq::class,
+            ProductCarousel::class, StorefrontPayment::class,
+            StorefrontCartRecord::class,
+            FundSource::class, Voucher::class,
+            VoucherAttachment::class, FundTransfer::class,
+            StorefrontSlide::class,
+            Lead::class, Quotation::class, QuotationItem::class,
+            Conversation::class, ConversationChannel::class,
+            ChatOrderLink::class, CompanyFaq::class,
+            InvestmentProject::class, Investor::class,
+            Investment::class, ProjectCostItem::class,
+            InvestorSecurityInstrument::class, ProjectSettlement::class,
+            SettlementPayout::class, ChannelPartnerPayout::class,
         ];
 
         foreach ($models as $modelClass) {

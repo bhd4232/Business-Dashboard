@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\ExpenseCategories;
 
-use App\Filament\Clusters\Accounts;
+use App\Filament\Clusters\Finance;
 use App\Filament\Resources\ExpenseCategories\Pages\CreateExpenseCategory;
 use App\Filament\Resources\ExpenseCategories\Pages\EditExpenseCategory;
 use App\Filament\Resources\ExpenseCategories\Pages\ListExpenseCategories;
@@ -23,7 +23,7 @@ class ExpenseCategoryResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
 
-    protected static ?string $cluster = Accounts::class;
+    protected static ?string $cluster = Finance::class;
 
     protected static ?string $recordTitleAttribute = 'name';
 

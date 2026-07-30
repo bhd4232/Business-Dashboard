@@ -7,6 +7,9 @@ use App\Filament\Resources\Vouchers\Pages\CreateVoucher;
 use App\Filament\Resources\Vouchers\Pages\EditVoucher;
 use App\Filament\Resources\Vouchers\Pages\ListVouchers;
 use App\Filament\Resources\Vouchers\Pages\ViewVoucher;
+use App\Models\Account;
+use App\Models\Order;
+use App\Models\Purchase;
 use App\Models\Voucher;
 use App\Models\VoucherAttachment;
 use App\Services\CompanyContext;
@@ -23,6 +26,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -53,19 +57,132 @@ class VoucherResource extends Resource
     {
         return $schema->columns(1)->components([
             Section::make('Voucher')->columnSpanFull()->schema([
-                Select::make('type')->options(Voucher::TYPES)->required()->live()->default('credit'),
+                Select::make('type')
+                    ->label('Voucher Type')
+                    ->options(function (string $operation): array {
+                        if ($operation !== 'create') {
+                            return Voucher::TYPES;
+                        }
+
+                        $options = Auth::user()?->canCreateVoucher() ? Voucher::TYPES : [];
+
+                        if (Auth::user()?->canCreateFundTransfer()) {
+                            $options[Voucher::FORM_TYPE_FUND_TRANSFER] = Voucher::FORM_TYPES[Voucher::FORM_TYPE_FUND_TRANSFER];
+                        }
+
+                        return $options;
+                    })
+                    ->required()
+                    ->live()
+                    ->afterStateUpdated(function (?string $state, Set $set): void {
+                        if ($state === Voucher::TYPE_CREDIT) {
+                            $set('transaction_type', 'customer_payment');
+
+                            return;
+                        }
+
+                        if ($state === Voucher::TYPE_DEBIT) {
+                            $set('transaction_type', null);
+                            $set('order_ids', []);
+                        }
+                    })
+                    ->default(fn (): string => (Auth::user()?->canCreateVoucher() ?? false)
+                        ? Voucher::TYPE_CREDIT
+                        : Voucher::FORM_TYPE_FUND_TRANSFER),
                 Select::make('transaction_type')
                     ->label('Transaction Type')
                     ->options(fn () => collect(Voucher::TRANSACTION_TYPES)->except('fund_transfer')->all())
-                    ->required()
-                    ->live(),
+                    ->visible(fn (Get $get): bool => $get('type') === Voucher::TYPE_DEBIT)
+                    ->required(fn (Get $get): bool => $get('type') === Voucher::TYPE_DEBIT)
+                    ->dehydrated(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER)
+                    ->dehydratedWhenHidden()
+                    ->live()
+                    ->default('customer_payment'),
+                Select::make('purchase_id')
+                    ->label('Purchase Number')
+                    ->options(fn (): array => static::latestIncompletePurchaseOptions())
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search): array => static::incompletePurchaseSearchResults($search))
+                    ->getOptionLabelUsing(fn ($value): ?string => Purchase::query()->find($value)?->purchase_number)
+                    ->helperText('Shows the latest 5 incomplete purchases. Search by purchase number to find older incomplete purchases.')
+                    ->visible(fn (Get $get) => $get('transaction_type') === 'inventory_purchase')
+                    ->required(fn (Get $get) => $get('transaction_type') === 'inventory_purchase'),
+                Select::make('order_id')
+                    ->label('Order Invoice')
+                    ->options(fn (): array => static::latestRefundInvoiceOptions())
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search): array => static::refundInvoiceSearchResults($search))
+                    ->getOptionLabelUsing(fn ($value): ?string => ($order = Order::query()->with('customer')->find($value))
+                        ? static::creditInvoiceLabel($order)
+                        : null)
+                    ->helperText('Search by customer name, phone number, invoice number, or invoice ID.')
+                    ->visible(fn (Get $get): bool => $get('transaction_type') === 'refund')
+                    ->required(fn (Get $get): bool => $get('transaction_type') === 'refund'),
+                Select::make('account_id')
+                    ->relationship('account', 'name')
+                    ->label(fn (Get $get): string => $get('type') === Voucher::TYPE_CREDIT ? 'Receiving Account' : 'Account')
+                    ->helperText(fn (Get $get): string => $get('type') === Voucher::TYPE_CREDIT
+                        ? 'Select the account where this credit payment will be received.'
+                        : 'The account this voucher moves money through.')
+                    ->searchable()
+                    ->visible(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER)
+                    ->required(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER),
                 TextInput::make('amount')->numeric()->prefix('BDT')->required(),
-                Select::make('confirmation_source')->options(Voucher::CONFIRMATION_SOURCES)->label('Confirmed Via'),
-                TextInput::make('payment_method')->label('Payment Method')->maxLength(60),
-                TextInput::make('transaction_id')->label('Transaction / Reference ID')->maxLength(120),
+                Select::make('from_account_id')
+                    ->label('From Account')
+                    ->options(fn () => Account::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->searchable()
+                    ->visible(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
+                    ->required(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
+                    ->dehydrated(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER),
+                Select::make('to_account_id')
+                    ->label('To Account')
+                    ->options(fn () => Account::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->searchable()
+                    ->different('from_account_id')
+                    ->visible(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
+                    ->required(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
+                    ->dehydrated(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER),
+                TextInput::make('transaction_cost')
+                    ->label('Transaction Cost')
+                    ->numeric()
+                    ->prefix('BDT')
+                    ->default(0)
+                    ->minValue(0)
+                    ->helperText('This cost will be deducted from the source account in addition to the transfer amount.')
+                    ->visible(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
+                    ->required(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
+                    ->dehydrated(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER),
+                Select::make('confirmation_source')
+                    ->options(Voucher::CONFIRMATION_SOURCES)
+                    ->label('Confirmed Via')
+                    ->visible(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER),
+                TextInput::make('transaction_id')
+                    ->label('Transaction / Reference ID')
+                    ->maxLength(120)
+                    ->visible(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER),
+                Select::make('order_ids')
+                    ->label('Order Invoices')
+                    ->relationship('orders', 'order_number')
+                    ->multiple()
+                    ->searchable()
+                    ->getSearchResultsUsing(fn (string $search, Get $get): array => static::creditInvoiceSearchResults(
+                        $search,
+                        (array) ($get('order_ids') ?? []),
+                    ))
+                    ->getOptionLabelsUsing(fn (array $values): array => static::creditInvoiceLabels($values))
+                    ->helperText('Search by customer name, phone number, invoice number, or invoice ID. All selected invoices must belong to the same customer.')
+                    ->visible(fn (Get $get): bool => $get('type') === Voucher::TYPE_CREDIT)
+                    ->required(fn (Get $get): bool => $get('type') === Voucher::TYPE_CREDIT)
+                    ->dehydrated()
+                    ->minItems(1),
             ])->columns(2),
 
-            Section::make('Parties & Fund')->columnSpanFull()->schema([
+            Section::make('Parties & Account')
+                ->columnSpanFull()
+                ->visible(fn (Get $get): bool => $get('type') === Voucher::TYPE_DEBIT
+                    && in_array($get('transaction_type'), ['customer_payment', 'supplier_payment', 'business_expense'], true))
+                ->schema([
                 Select::make('customer_id')->relationship('customer', 'name')->searchable()
                     ->visible(fn (Get $get) => $get('transaction_type') === 'customer_payment')
                     ->required(fn (Get $get) => $get('transaction_type') === 'customer_payment'),
@@ -75,22 +192,10 @@ class VoucherResource extends Resource
                 Select::make('expense_category_id')->relationship('expenseCategory', 'name')->searchable()
                     ->visible(fn (Get $get) => $get('transaction_type') === 'business_expense')
                     ->required(fn (Get $get) => $get('transaction_type') === 'business_expense'),
-                Select::make('purchase_id')->relationship('purchase', 'purchase_number')->searchable()
-                    ->visible(fn (Get $get) => $get('transaction_type') === 'inventory_purchase')
-                    ->required(fn (Get $get) => $get('transaction_type') === 'inventory_purchase'),
-                Select::make('fund_source_id')->relationship('fundSource', 'name')->searchable()
-                    ->visible(fn (Get $get) => $get('transaction_type') === 'inventory_purchase')
-                    ->required(fn (Get $get) => $get('transaction_type') === 'inventory_purchase'),
-                Select::make('account_id')->relationship('account', 'name')->searchable()
-                    ->label('Account')
-                    ->helperText('The account this voucher moves money through.')
-                    ->visible(fn (Get $get) => $get('transaction_type') !== 'inventory_purchase')
-                    ->required(fn (Get $get) => $get('transaction_type') !== 'inventory_purchase'),
             ])->columns(2),
 
             Section::make('Notes & Attachments')->columnSpanFull()->schema([
-                Textarea::make('purpose')->rows(2),
-                Textarea::make('remarks')->rows(2),
+                Textarea::make('purpose')->label('Notes')->rows(2),
                 Repeater::make('attachments')
                     ->relationship()
                     ->schema([
@@ -114,7 +219,7 @@ class VoucherResource extends Resource
                     ->columns(2)
                     ->defaultItems(0)
                     ->addActionLabel('Add attachment'),
-            ]),
+            ])->visible(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER),
         ]);
     }
 
@@ -199,7 +304,132 @@ class VoucherResource extends Resource
 
     public static function canCreate(): bool
     {
-        return Auth::user()?->canCreateVoucher() ?? false;
+        return (Auth::user()?->canCreateVoucher() ?? false)
+            || (Auth::user()?->canCreateFundTransfer() ?? false);
+    }
+
+    /**
+     * @param  array<int, int|string>  $selectedOrderIds
+     * @return array<int, string>
+     */
+    protected static function creditInvoiceSearchResults(string $search, array $selectedOrderIds): array
+    {
+        $customerId = Order::query()
+            ->whereKey(collect($selectedOrderIds)->filter()->first())
+            ->value('customer_id');
+
+        return Order::query()
+            ->with('customer')
+            ->whereNotNull('customer_id')
+            ->when($customerId, fn (Builder $query) => $query->where('customer_id', $customerId))
+            ->where(function (Builder $query) use ($search): void {
+                $query
+                    ->where('order_number', 'like', "%{$search}%")
+                    ->orWhereHas('customer', fn (Builder $customerQuery) => $customerQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%"));
+
+                if (ctype_digit($search)) {
+                    $query->orWhere('id', (int) $search);
+                }
+            })
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->mapWithKeys(fn (Order $order): array => [$order->getKey() => static::creditInvoiceLabel($order)])
+            ->all();
+    }
+
+    /**
+     * @param  array<int, int|string>  $orderIds
+     * @return array<int, string>
+     */
+    protected static function creditInvoiceLabels(array $orderIds): array
+    {
+        return Order::query()
+            ->with('customer')
+            ->whereKey($orderIds)
+            ->get()
+            ->mapWithKeys(fn (Order $order): array => [$order->getKey() => static::creditInvoiceLabel($order)])
+            ->all();
+    }
+
+    protected static function creditInvoiceLabel(Order $order): string
+    {
+        $customer = $order->customer;
+        $customerLabel = $customer
+            ? "{$customer->name}".(filled($customer->phone) ? " ({$customer->phone})" : '')
+            : $order->customer_name;
+
+        return "{$order->order_number} · {$customerLabel} · ID {$order->getKey()}";
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected static function latestIncompletePurchaseOptions(): array
+    {
+        return Purchase::query()
+            ->where('status', 'draft')
+            ->latest('id')
+            ->limit(5)
+            ->pluck('purchase_number', 'id')
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected static function incompletePurchaseSearchResults(string $search): array
+    {
+        return Purchase::query()
+            ->where('status', 'draft')
+            ->where('purchase_number', 'like', "%{$search}%")
+            ->latest('id')
+            ->limit(50)
+            ->pluck('purchase_number', 'id')
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected static function latestRefundInvoiceOptions(): array
+    {
+        return Order::query()
+            ->with('customer')
+            ->whereIn('status', ['confirmed', 'completed'])
+            ->latest('id')
+            ->limit(10)
+            ->get()
+            ->mapWithKeys(fn (Order $order): array => [$order->getKey() => static::creditInvoiceLabel($order)])
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected static function refundInvoiceSearchResults(string $search): array
+    {
+        return Order::query()
+            ->with('customer')
+            ->whereIn('status', ['confirmed', 'completed'])
+            ->where(function (Builder $query) use ($search): void {
+                $query
+                    ->where('order_number', 'like', "%{$search}%")
+                    ->orWhereHas('customer', fn (Builder $customerQuery) => $customerQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%"));
+
+                if (ctype_digit($search)) {
+                    $query->orWhere('id', (int) $search);
+                }
+            })
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->mapWithKeys(fn (Order $order): array => [$order->getKey() => static::creditInvoiceLabel($order)])
+            ->all();
     }
 
     public static function canEdit($record): bool
@@ -215,7 +445,7 @@ class VoucherResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['submitter', 'fundSource']);
+        return parent::getEloquentQuery()->with(['submitter', 'account']);
     }
 
     protected static function voucherAttachmentDirectory(): string

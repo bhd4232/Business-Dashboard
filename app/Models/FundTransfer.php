@@ -30,6 +30,7 @@ class FundTransfer extends Model
         'from_account_id',
         'to_account_id',
         'amount',
+        'transaction_cost',
         'status',
         'remarks',
         'requested_by',
@@ -39,6 +40,7 @@ class FundTransfer extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'transaction_cost' => 'decimal:2',
         'approved_at' => 'datetime',
     ];
 

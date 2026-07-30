@@ -91,17 +91,17 @@ class PhaseFourAdminPagesTest extends TestCase
         ]);
 
         foreach ([
-            '/admin/accounts/accounts',
+            '/admin/finance/accounts',
             '/admin/sales/customer-payments',
             '/admin/purchasing/supplier-payments',
-            '/admin/accounts/expense-categories',
-            '/admin/accounts/expenses',
-            '/admin/accounts/transaction-ledgers',
+            '/admin/finance/expense-categories',
+            '/admin/finance/expenses',
+            '/admin/finance/transaction-ledgers',
             '/admin/storefront/storefront-settings',
             '/admin/storefront/storefront-pages',
             "/admin/sales/customer-payments/{$customerPayment->id}",
             "/admin/purchasing/supplier-payments/{$supplierPayment->id}",
-            "/admin/accounts/expenses/{$expense->id}",
+            "/admin/finance/expenses/{$expense->id}",
             "/admin/storefront/storefront-settings/{$storefrontSetting->id}/edit",
             "/admin/storefront/storefront-pages/{$storefrontPage->id}/edit",
         ] as $url) {

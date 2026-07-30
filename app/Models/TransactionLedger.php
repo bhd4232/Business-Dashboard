@@ -24,6 +24,7 @@ class TransactionLedger extends Model
         'voucher_credit' => 'Voucher Credit',
         'voucher_debit' => 'Voucher Debit',
         'fund_transfer' => 'Fund Transfer',
+        'fund_transfer_cost' => 'Fund Transfer Cost',
     ];
 
     protected $fillable = [

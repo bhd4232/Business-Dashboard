@@ -585,6 +585,46 @@ Related planning documents:
 
 ---
 
+## Phase 15: Investor / Mudarabah Profit Sharing
+
+**Goal:** Track deal-specific investment capital, transparent direct costs, Shariah-based profit sharing, security instruments, and auditable payouts.
+
+**Status:** Done.
+
+**Completed:**
+
+- Company-scoped projects, investors, investments, cost items, security instruments, settlements, investor payouts, and channel-partner payouts.
+- Configurable project profit split with 40/10/50 defaults, live form total/status feedback, submit validation, and model-level exact 100% validation.
+- Itemized landed/local direct cost ledger with optional Purchase traceability, category grouping/subtotals, and separate landed/local/grand totals on project and settlement views.
+- Funding progress badge with invested-versus-target context.
+- Direct project-investment View action with security-instrument count, cheque/guarantor/contract workflow, and a valid breadcrumb fallback for the hidden investment resource.
+- Transactional, duplicate-safe settlement with immutable confirmed amounts.
+- Investor profit allocation by aggregate invested-capital ratio and rounding-safe payout totals.
+- Single-channel-partner rule for the initial release; channel compensation is proportional to referred capital, while unallocated channel share returns to Company Net.
+- Private signed-contract storage and authenticated downloads.
+- Super Admin-only settlement and channel-partner reassignment, mandatory reassignment reason, and audit logging.
+- Default Filament project, investor, investment/security, settlement, and payout workflows.
+- Financial calculation, isolation, permission, audit, Filament page-flow, and signed Shearing Machine example coverage.
+
+**Future Work:**
+
+- Multiple channel partners in one project with an owner-approved distribution rule.
+- Multi-currency investments.
+- Partial early withdrawal and reinvestment after the contractual 1.5–2 month window.
+- Investor-facing portal.
+- Written notice-period tracking (60 days / 2 months).
+- Explicit loss-sharing and settlement reversal workflows.
+
+**Done Criteria:**
+
+- `php artisan test --compact tests/Feature/InvestmentSettlementTest.php` passes.
+- Project splits cannot be saved unless they total 100%.
+- Duplicate and negative-profit settlements are blocked.
+- Payout totals reconcile to principal plus allocated profit.
+- Another company's records and private contracts are inaccessible.
+
+---
+
 ## Recommended Immediate Next Work
 
 Priority:

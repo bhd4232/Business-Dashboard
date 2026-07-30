@@ -6,6 +6,7 @@ use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -17,9 +18,16 @@ class Voucher extends Model
 
     public const TYPE_DEBIT = 'debit';
 
+    public const FORM_TYPE_FUND_TRANSFER = 'fund_transfer';
+
     public const TYPES = [
         self::TYPE_CREDIT => 'Credit Voucher',
         self::TYPE_DEBIT => 'Debit Voucher',
+    ];
+
+    public const FORM_TYPES = [
+        ...self::TYPES,
+        self::FORM_TYPE_FUND_TRANSFER => 'Fund Transfer',
     ];
 
     public const STATUS_PENDING = 'pending';
@@ -156,6 +164,11 @@ class Voucher extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function orders(): BelongsToMany
+    {
+        return $this->belongsToMany(Order::class)->withTimestamps();
     }
 
     public function purchase(): BelongsTo

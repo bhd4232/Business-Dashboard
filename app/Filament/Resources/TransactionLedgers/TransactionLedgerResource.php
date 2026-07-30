@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\TransactionLedgers;
 
-use App\Filament\Clusters\Accounts;
+use App\Filament\Clusters\Finance;
 use App\Filament\Resources\TransactionLedgers\Pages\ListTransactionLedgers;
 use App\Filament\Resources\TransactionLedgers\Pages\ViewTransactionLedger;
 use App\Filament\Resources\TransactionLedgers\Schemas\TransactionLedgerInfolist;
@@ -20,7 +20,7 @@ class TransactionLedgerResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
-    protected static ?string $cluster = Accounts::class;
+    protected static ?string $cluster = Finance::class;
 
     protected static ?string $recordTitleAttribute = 'type';
 

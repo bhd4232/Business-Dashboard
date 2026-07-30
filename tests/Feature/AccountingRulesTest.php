@@ -45,12 +45,11 @@ class AccountingRulesTest extends TestCase
         $this->company();
         $supplier = Supplier::query()->create(['name' => 'Rule1 Supplier']);
         $product = Product::query()->create(['name' => 'Rule1 Product', 'sku' => 'R1-001', 'price' => 100, 'sale_price' => 100, 'stock' => 0]);
-        $purchase = Purchase::query()->create(['supplier_id' => $supplier->getKey(), 'purchase_date' => now(), 'status' => 'received']);
+        $purchase = Purchase::query()->create(['supplier_id' => $supplier->getKey(), 'purchase_date' => now(), 'status' => 'draft']);
         PurchaseItem::query()->create(['purchase_id' => $purchase->getKey(), 'product_id' => $product->getKey(), 'quantity' => 10, 'unit_cost' => 1000]);
         $purchase->refresh();
 
         $account = Account::query()->create(['name' => 'Cash', 'type' => 'cash', 'opening_balance' => 50000]);
-        $fundSource = FundSource::query()->create(['name' => 'Business Cash', 'type' => 'cash', 'account_id' => $account->getKey()]);
         $user = $this->user();
 
         $expenseCountBefore = Expense::query()->count();
@@ -60,7 +59,7 @@ class AccountingRulesTest extends TestCase
             'transaction_type' => 'inventory_purchase',
             'amount' => (float) $purchase->total_amount,
             'purchase_id' => $purchase->getKey(),
-            'fund_source_id' => $fundSource->getKey(),
+            'account_id' => $account->getKey(),
         ], $user);
 
         app(VoucherService::class)->approve($voucher, $user);
@@ -113,17 +112,44 @@ class AccountingRulesTest extends TestCase
         $this->assertSame($totalBefore, (float) $from->fresh()->current_balance + (float) $to->fresh()->current_balance);
     }
 
+    public function test_fund_transfer_transaction_cost_is_deducted_from_source_account(): void
+    {
+        $this->company();
+        $from = Account::query()->create(['name' => 'Bank', 'type' => 'bank', 'opening_balance' => 10000]);
+        $to = Account::query()->create(['name' => 'Cash', 'type' => 'cash', 'opening_balance' => 0]);
+        $user = $this->user();
+
+        $transfer = app(FundTransferService::class)->submit([
+            'from_account_id' => $from->getKey(),
+            'to_account_id' => $to->getKey(),
+            'amount' => 3000,
+            'transaction_cost' => 50,
+        ], $user);
+
+        app(FundTransferService::class)->approve($transfer, $user);
+
+        $this->assertSame('6950.00', $from->fresh()->current_balance);
+        $this->assertSame('3000.00', $to->fresh()->current_balance);
+        $this->assertDatabaseHas('transaction_ledgers', [
+            'account_id' => $from->getKey(),
+            'type' => 'fund_transfer_cost',
+            'direction' => 'out',
+            'amount' => 50,
+            'reference_type' => FundTransfer::class,
+            'reference_id' => $transfer->getKey(),
+        ]);
+    }
+
     public function test_funding_a_purchase_beyond_its_total_is_rejected(): void
     {
         $this->company();
         $supplier = Supplier::query()->create(['name' => 'Overfund Supplier']);
         $product = Product::query()->create(['name' => 'Overfund Product', 'sku' => 'OF-001', 'price' => 100, 'sale_price' => 100, 'stock' => 0]);
-        $purchase = Purchase::query()->create(['supplier_id' => $supplier->getKey(), 'purchase_date' => now(), 'status' => 'received']);
+        $purchase = Purchase::query()->create(['supplier_id' => $supplier->getKey(), 'purchase_date' => now(), 'status' => 'draft']);
         PurchaseItem::query()->create(['purchase_id' => $purchase->getKey(), 'product_id' => $product->getKey(), 'quantity' => 1, 'unit_cost' => 1000]);
         $purchase->refresh();
 
         $account = Account::query()->create(['name' => 'Cash', 'type' => 'cash', 'opening_balance' => 50000]);
-        $fundSource = FundSource::query()->create(['name' => 'Cash', 'type' => 'cash', 'account_id' => $account->getKey()]);
         $user = $this->user();
         $service = app(VoucherService::class);
 
@@ -132,7 +158,7 @@ class AccountingRulesTest extends TestCase
             'transaction_type' => 'inventory_purchase',
             'amount' => (float) $purchase->total_amount + 500,
             'purchase_id' => $purchase->getKey(),
-            'fund_source_id' => $fundSource->getKey(),
+            'account_id' => $account->getKey(),
         ], $user);
 
         $this->expectException(ValidationException::class);

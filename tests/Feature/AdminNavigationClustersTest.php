@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Clusters\Accounts;
 use App\Filament\Clusters\Crm;
 use App\Filament\Clusters\Finance;
 use App\Filament\Clusters\Inventory;
@@ -45,12 +44,17 @@ use App\Filament\Resources\Suppliers\SupplierResource;
 use App\Filament\Resources\TransactionLedgers\TransactionLedgerResource;
 use App\Filament\Resources\UserRoles\UserRoleResource;
 use App\Filament\Resources\Users\UserResource;
+use App\Filament\Resources\Vouchers\Pages\CreateVoucher;
 use App\Filament\Resources\Vouchers\VoucherResource;
+use App\Models\Account;
+use App\Models\FundTransfer;
 use App\Models\User;
+use App\Services\CompanyContext;
 use Filament\Pages\Enums\SubNavigationPosition;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AdminNavigationClustersTest extends TestCase
@@ -79,6 +83,10 @@ class AdminNavigationClustersTest extends TestCase
                 VoucherResource::class,
                 FundSourceResource::class,
                 FundTransferResource::class,
+                AccountResource::class,
+                ExpenseResource::class,
+                ExpenseCategoryResource::class,
+                TransactionLedgerResource::class,
             ],
             Sales::class => [
                 CustomerResource::class,
@@ -94,12 +102,6 @@ class AdminNavigationClustersTest extends TestCase
                 ProductResource::class,
                 StockMovementResource::class,
                 CategoryResource::class,
-            ],
-            Accounts::class => [
-                AccountResource::class,
-                ExpenseResource::class,
-                ExpenseCategoryResource::class,
-                TransactionLedgerResource::class,
             ],
             ReportsCluster::class => [Reports::class],
             Settings::class => [
@@ -150,7 +152,7 @@ class AdminNavigationClustersTest extends TestCase
             '/admin/sales' => 'filament.admin.sales.resources.customers.index',
             '/admin/purchasing' => 'filament.admin.purchasing.resources.suppliers.index',
             '/admin/inventory' => 'filament.admin.inventory.resources.products.index',
-            '/admin/accounts' => 'filament.admin.accounts.resources.accounts.index',
+            '/admin/accounts' => 'filament.admin.finance.resources.accounts.index',
             '/admin/reports' => 'filament.admin.reports.pages.reports',
             '/admin/settings' => 'filament.admin.settings.resources.users.index',
         ];
@@ -161,6 +163,92 @@ class AdminNavigationClustersTest extends TestCase
                 ->get($clusterUrl)
                 ->assertRedirect(route($firstPageRoute));
         }
+    }
+
+    public function test_finance_navigation_uses_accounts_and_hides_legacy_fund_pages(): void
+    {
+        $this->assertTrue(AccountResource::shouldRegisterNavigation());
+        $this->assertFalse(FundSourceResource::shouldRegisterNavigation());
+        $this->assertFalse(FundTransferResource::shouldRegisterNavigation());
+        $this->assertSame([], FundSourceResource::getPages());
+        $this->assertSame([], FundTransferResource::getPages());
+        $this->assertFalse(Route::has('filament.admin.finance.resources.fund-sources.index'));
+        $this->assertFalse(Route::has('filament.admin.finance.resources.fund-transfers.index'));
+    }
+
+    public function test_vouchers_page_contains_the_merged_fund_transfers_table(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->withSession(['current_company_id' => $admin->defaultCompany()->getKey()])
+            ->get('/admin/finance/vouchers')
+            ->assertOk()
+            ->assertSee('Fund Transfers');
+
+        $this->actingAs($admin)
+            ->withSession(['current_company_id' => $admin->defaultCompany()->getKey()])
+            ->get('/admin/finance/vouchers/create')
+            ->assertOk()
+            ->assertSee('Voucher Type')
+            ->assertSee('Fund Transfer')
+            ->assertSee('Receiving Account')
+            ->assertSee('Amount')
+            ->assertSee('Confirmed Via')
+            ->assertSee('Transaction / Reference ID')
+            ->assertSee('Order Invoices')
+            ->assertSee('Notes & Attachments')
+            ->assertDontSee('Payment Method')
+            ->assertDontSee('Parties & Account');
+    }
+
+    public function test_voucher_form_creates_a_fund_transfer(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $company = $admin->defaultCompany();
+        app(CompanyContext::class)->set($company);
+
+        $from = Account::query()->create([
+            'name' => 'Main Bank',
+            'type' => 'bank',
+            'opening_balance' => 10000,
+        ]);
+        $to = Account::query()->create([
+            'name' => 'Petty Cash',
+            'type' => 'cash',
+            'opening_balance' => 0,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(CreateVoucher::class)
+            ->fillForm([
+                'type' => 'fund_transfer',
+                'from_account_id' => $from->getKey(),
+                'to_account_id' => $to->getKey(),
+                'amount' => 1500,
+                'transaction_cost' => 25,
+                'remarks' => 'Office cash float',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors()
+            ->assertRedirect(VoucherResource::getUrl('index'));
+
+        $this->assertDatabaseHas(FundTransfer::class, [
+            'company_id' => $company->getKey(),
+            'from_account_id' => $from->getKey(),
+            'to_account_id' => $to->getKey(),
+            'amount' => 1500,
+            'transaction_cost' => 25,
+            'requested_by' => $admin->getKey(),
+            'status' => FundTransfer::STATUS_PENDING,
+        ]);
+        $this->assertDatabaseCount('vouchers', 0);
     }
 
     public function test_cluster_page_renders_filament_page_selector_items(): void
@@ -215,6 +303,22 @@ class AdminNavigationClustersTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/orders/99/edit?tab=items')
             ->assertRedirect('/admin/sales/orders/99/edit?tab=items');
+    }
+
+    public function test_legacy_fund_pages_redirect_to_their_merged_finance_destinations(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/finance/fund-sources?search=bank')
+            ->assertRedirect('/admin/finance/accounts?search=bank');
+
+        $this->actingAs($admin)
+            ->get('/admin/finance/fund-transfers/create?from=2')
+            ->assertRedirect('/admin/finance/vouchers?from=2');
     }
 
     public function test_legacy_report_filters_survive_the_cluster_root_redirect(): void

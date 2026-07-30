@@ -26,7 +26,7 @@ class ProductsTable
             ->columns([
                 ImageColumn::make('image')
                     ->label('Image')
-                    ->state(fn (Product $record): ?string => CompanyMedia::publicUrl($record->image, $record))
+                    ->state(fn (Product $record): ?string => CompanyMedia::filamentPublicUrl($record->image, $record))
                     ->height(48)
                     ->square()
                     ->toggleable(),

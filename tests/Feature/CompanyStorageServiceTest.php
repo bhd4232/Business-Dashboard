@@ -8,6 +8,7 @@ use App\Models\LegacyPrivateStoragePath;
 use App\Services\CompanyContext;
 use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
+use App\Support\CompanyMedia;
 use App\Support\StorageUrl;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -206,6 +207,34 @@ class CompanyStorageServiceTest extends TestCase
         $this->assertSame('public-data', $storage->readPublic($publicPath, $company));
         $this->assertSame('private-data', $storage->readPrivate($privatePath, $company));
         $this->assertSame(Storage::disk('public')->url($publicPath), StorageUrl::for($publicPath));
+    }
+
+    public function test_filament_public_url_normalizes_local_urls_and_preserves_absolute_urls(): void
+    {
+        config()->set('app.url', 'https://erp.example.test');
+        config()->set('filesystems.disks.public.url', '/storage');
+
+        $settings = app(StorageSettingsService::class);
+        $settings->save(['enabled' => false]);
+
+        Storage::fake('public');
+
+        $company = $this->company('Filament Media Company', 'filament-media-company');
+        $path = app(CompanyStorageService::class)->putPublic(
+            $company,
+            'products',
+            'photo.jpg',
+            'image-data',
+        );
+
+        $this->assertSame(
+            url('/storage/'.$path),
+            CompanyMedia::filamentPublicUrl($path, $company),
+        );
+        $this->assertSame(
+            'https://cdn.example.test/products/photo.jpg',
+            CompanyMedia::filamentPublicUrl('https://cdn.example.test/products/photo.jpg', $company),
+        );
     }
 
     public function test_enabled_r2_uses_separate_public_and_private_disks_without_rebinding_public(): void

@@ -78,17 +78,16 @@ Canonical module routes and selectors:
 | --- | --- | --- |
 | Site | `/admin/storefront` | Hero Slides, Settings, Pages, Homepage Carousels, Payments |
 | CRM | `/admin/crm` | Leads, Quotations, Inbox, Chat Channels, AI Assistant, FAQs |
-| Finance | `/admin/finance` | Vouchers, Fund Sources, Fund Transfers |
+| Finance | `/admin/finance` | Vouchers, Accounts, Expenses |
 | Sales | `/admin/sales` | Customers, Orders, Customer Payments |
 | Purchasing | `/admin/purchasing` | Suppliers, Purchases, Supplier Payments |
 | Inventory | `/admin/inventory` | Products, Stock Movements, Categories |
-| Accounts | `/admin/accounts` | Accounts, Expenses |
 | Reports | `/admin/reports` | Reports |
 | Settings | `/admin/settings` | Users, Product Setup, Audit Logs, Backups, Cloud Storage Settings, Release Notes |
 
 `Site` is the admin-facing display name for the storefront module. This is a presentation-only change: the canonical `/admin/storefront` route and existing `Storefront*` PHP classes, resources, models, tables, and public-domain terminology remain unchanged.
 
-Courier, Customer Success, and Company Management follow the same cluster pattern. Hidden support resources remain hidden: Shipment and Container stay embedded in Purchases; Expense Categories and Transaction Ledgers remain routable support pages; User Roles remains reachable from Users. Hidden pages must not create extra sidebar or selector entries.
+Courier, Customer Success, and Company Management follow the same cluster pattern. Hidden support resources remain hidden: Shipment and Container stay embedded in Purchases; Expense Categories and Transaction Ledgers remain routable support pages; User Roles remains reachable from Users. Fund Transfers are embedded on the Vouchers page, while the legacy Fund Source and standalone Fund Transfer resources do not register navigation or routes. Hidden pages must not create extra sidebar or selector entries.
 
 Former top-level Filament child URLs are handled by `LegacyAdminClusterRedirectController`, which preserves nested record paths and query strings. Existing custom operational URLs such as order print/PDF, report exports, CSV import/export samples, backup downloads, and private attachment downloads remain unchanged.
 
@@ -147,6 +146,7 @@ Storage contract:
 - Nixpacks deployments use the repository `nginx.template.conf`, which raises Nginx to a 16 MB request body and PHP-FPM to a 12 MB file / 16 MB POST limit. Image fields intentionally accept 12 MB sources so browser pre-compression can reduce camera photos before transfer; voucher attachments retain their 10 MB limit. The `ext-gd` Composer platform dependency ensures Nixpacks installs GD for the final WebP optimization step.
 - When R2 is disabled, new writes return to the stable local `public`/`local` disks. Reads continue checking configured R2 disks, so disabling cloud writes does not hide previously uploaded cloud objects.
 - `CompanyStorageService` is the storage boundary for disk selection, safe path construction, ownership validation, dual-read lookup, writes, and legacy copy operations. `CompanyMedia`/`StorageUrl` are the public-media presentation helpers.
+- Filament product list/view image components must use `CompanyMedia::filamentPublicUrl()`. It converts local `/storage/...` URLs to fully-qualified URLs so Filament does not mistake them for paths on its default disk, while preserving absolute CDN/R2 URLs. Verify with `php artisan test --compact tests/Feature/CompanyStorageServiceTest.php tests/Feature/WooCommerceImportTest.php`.
 - `CompanyStorageService` deliberately rejects malformed, wrong-scope, and cross-company paths. Optional UI branding/media resolvers fail closed to `null` when a stale database value violates that contract, so login and `/admin/company-management/companies` remain usable without exposing another company's object. The stored value is not rewritten automatically; audit it, keep a recovery copy, and re-upload the affected logo under the owning company's generated storage UUID.
 - Private downloads use authenticated routes `conversation-messages.media` and `voucher-attachments.download`. Both resolve the selected company and return `404` for cross-company records; voucher downloads also enforce voucher permissions and own/all visibility.
 - `DownloadConversationMediaJob` must resolve the channel's company explicitly, write through `putPrivate()`, and clear `CompanyContext` in `finally`.
@@ -786,6 +786,8 @@ Sales behavior:
 - Expenses
 - Transaction Ledger
 
+Accounts are part of the Finance cluster. Their canonical route is `/admin/finance/accounts`; the former `/admin/accounts` entry redirects there. Expenses and the hidden Expense Categories/Transaction Ledger support pages also use the `/admin/finance/...` route prefix.
+
 Money behavior:
 
 - Account balance = opening balance + ledger inflow - ledger outflow.
@@ -795,6 +797,50 @@ Money behavior:
 - Overpayments are blocked.
 - Supplier payments and expenses are blocked if account balance would become negative.
 - Transaction Ledger is intended as read-only history.
+
+### Vouchers and Fund Transfers
+
+- Canonical Vouchers route: `/admin/finance/vouchers`.
+- Voucher forms select an `Account` directly for every transaction type, including inventory purchases.
+- Fund Source is retained only as legacy data compatibility; it has no admin navigation or registered Filament page.
+- Voucher Type offers Credit Voucher, Debit Voucher, and Fund Transfer on the create form.
+- Credit Voucher uses a focused receipt form only: Receiving Account, Amount, Confirmed Via, Transaction / Reference ID, Order Invoices, and Notes & Attachments.
+- Order Invoices is a searchable multi-select. It searches customer name, customer phone, invoice number, and numeric invoice ID.
+- Once an invoice is selected, subsequent search results are limited to that invoice's customer. Server-side validation also rejects mixed-customer invoice IDs, and the voucher customer is derived automatically from the selected invoices.
+- Credit Voucher invoice associations are stored in `order_voucher`; the legacy `vouchers.order_id` retains the first selected invoice for backward compatibility.
+- On Debit Voucher, selecting `Inventory Purchase` uses the field order `Transaction Type → Purchase Number → Account → Amount`. Purchase Number is searchable: opening it lists only the latest 5 `draft` purchases, while search can find older draft purchase numbers. `received` (completed) and `cancelled` purchases are excluded in both the UI and server-side submission validation.
+- Voucher forms do not expose a Payment Method field; downstream payment records continue to use the existing `other` fallback when no legacy method value is present.
+- On Debit Voucher, selecting `Refund` requires a searchable Order Invoice. Only confirmed/completed invoices are eligible; search supports customer name, customer phone, invoice number, and numeric invoice ID. The selected invoice also supplies the voucher's customer reference.
+- Voucher forms expose one `Notes` field backed by the existing `purpose` column. The redundant `remarks` field is no longer shown on Voucher or Fund Transfer forms; legacy stored remarks remain untouched.
+- Selecting Fund Transfer shows `From Account`, `To Account`, and `Transaction Cost` in the same Voucher section; transaction-specific voucher fields are hidden.
+- Submitting that form creates a pending `FundTransfer`, not an invalid third value in the persisted credit/debit voucher enum.
+- Fund Transfers appear as a native Filament table on the Vouchers list page for history and approval.
+- Authorized users create transfers from the Voucher form and approve or reject them from the embedded table.
+- On approval, the destination receives the transfer amount. The source is debited by the transfer amount plus `transaction_cost`; a non-zero cost creates a separate `fund_transfer_cost` ledger entry for audit visibility.
+- Existing transfers remain compatible because `transaction_cost` defaults to `0.00`.
+- The former standalone Fund Transfer resource has no registered Filament page.
+
+Important files:
+
+```text
+app/Filament/Resources/Vouchers/VoucherResource.php
+app/Filament/Resources/Vouchers/Pages/ListVouchers.php
+app/Filament/Resources/Vouchers/Widgets/FundTransfersWidget.php
+app/Filament/Resources/Accounts/AccountResource.php
+app/Services/VoucherService.php
+app/Services/FundTransferService.php
+app/Http/Controllers/Admin/LegacyAdminClusterRedirectController.php
+database/migrations/2026_07_29_000000_add_transaction_cost_to_fund_transfers_table.php
+database/migrations/2026_07_29_010000_create_order_voucher_table.php
+```
+
+Verification:
+
+```bash
+php artisan test --filter=AdminNavigationClustersTest
+php artisan test --filter=AccountingRulesTest
+php artisan test --filter=VoucherWorkflowTest
+```
 
 ### Reports and Dashboard
 
@@ -909,6 +955,46 @@ Focused verification:
 
 ```bash
 php artisan test --compact tests/Feature/MetaMessagingReliabilityTest.php tests/Feature/ConversationIngestTest.php tests/Feature/ConversationChannelResourceTest.php tests/Feature/InboxPageTest.php
+```
+
+### Investor / Mudarabah Module
+
+The company-scoped Mudarabah module lives under **Investments** in the Filament admin panel:
+
+- **Projects** (`InvestmentProject`) hold the deal/purchase link, trade-cycle dates, target, status, and configurable profit split. The current default is Investor 40%, Channel Partner 10%, Company 50%. The form shows a live total with a success/error callout, blocks submission unless the split is exactly 100%, and the model repeats the same financial guard.
+- Every Create/Edit Investment Project field has a Filament-default information icon. Its accessible tooltip and modal explain what to enter and whether the field affects funding progress, annualized reporting, or settlement calculations.
+- **Investors** (`Investor`) hold legal identity and optional channel-partner assignment. Once assigned, a channel partner can only be changed by a Super Admin and a written reason is required and audited.
+- Project lists show a Filament funding badge with the invested/target amount and percentage. Project View also shows the current funding percentage.
+- **Investments** belong to a project and investor, record receipt details, and currently enforce at most one channel partner per project. Each project investment row shows its security-record count and has a direct **View** action. Signed contracts, security cheque, and guarantor data are managed from that investment view; contract files use company-private storage and the authenticated download route `investor-security-instruments.contract`. The hidden investment resource sends its breadcrumb back to the Investment Projects list instead of requiring a nonexistent index page.
+- **Direct Costs** (`ProjectCostItem`) are itemized as landed cost or local expense and may link to an existing purchase. The project cost table is grouped by category and shows category subtotals plus a grand total. Project View and Settlement View show Total Landed Cost, Total Local Expense, and Total Direct Cost separately. Settlement cost is always calculated from these items; ordinary business overhead is not entered here.
+- **Settlement** is available only for a closed project and only to a Super Admin. `SettlementService` locks the project, blocks duplicate/loss settlements, calculates investor payouts by invested-capital ratio, and writes immutable confirmed amounts. Channel share is paid only for the proportion of capital referred by the project's single channel partner; any unallocated channel share is added to Company Net.
+- Investor payouts aggregate multiple deposits by the same investor. The rounding remainder is assigned to the final investor so the payout schedule equals the configured investor pool exactly. Payout recipient/bank details may be completed before **Mark as Paid**.
+- Permissions: `investments.view` (Manager and Accountant by default), `investments.manage` (Manager), `investments.settle` and `investments.manage_channel_partner` (Super Admin through wildcard permission).
+- Core models are registered with `AuditObserver`; settlement also writes a dedicated `project_settled` event containing request IP/user-agent through `AuditLogService`.
+- The financial regression suite includes the signed Shearing Machine example: BDT 6,199,942 landed cost + BDT 255,500 local expense, BDT 544,558 net profit, and BDT 217,823.20 investor pool at 40%.
+
+Important files:
+
+```text
+database/migrations/2026_07_27_120000_create_investor_mudarabah_tables.php
+app/Models/InvestmentProject.php
+app/Models/Investor.php
+app/Models/Investment.php
+app/Models/ProjectSettlement.php
+app/Services/Investment/SettlementService.php
+app/Filament/Clusters/Investments.php
+app/Filament/Resources/InvestmentProjects/
+app/Filament/Resources/Investors/
+app/Filament/Resources/InvestmentRecords/
+app/Filament/Resources/ProjectSettlements/
+app/Http/Controllers/Admin/InvestorContractDownloadController.php
+tests/Feature/InvestmentSettlementTest.php
+```
+
+Focused verification:
+
+```bash
+php artisan test --compact tests/Feature/InvestmentSettlementTest.php tests/Feature/MultiCompanyIsolationTest.php tests/Feature/PhaseSixPermissionsTest.php tests/Feature/AdminNavigationClustersTest.php
 ```
 
 AI auto-reply (grounded-only assistant):

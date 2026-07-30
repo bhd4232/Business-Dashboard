@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Expenses;
 
-use App\Filament\Clusters\Accounts;
+use App\Filament\Clusters\Finance;
 use App\Filament\Resources\Expenses\Pages\CreateExpense;
 use App\Filament\Resources\Expenses\Pages\EditExpense;
 use App\Filament\Resources\Expenses\Pages\ListExpenses;
@@ -25,7 +25,7 @@ class ExpenseResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedReceiptPercent;
 
-    protected static ?string $cluster = Accounts::class;
+    protected static ?string $cluster = Finance::class;
 
     protected static ?string $recordTitleAttribute = 'expense_number';
 

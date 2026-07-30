@@ -28,6 +28,7 @@ class LegacyAdminClusterRedirectController extends Controller
         'vouchers' => 'finance',
         'fund-sources' => 'finance',
         'fund-transfers' => 'finance',
+        'accounts' => 'finance',
         'customers' => 'sales',
         'orders' => 'sales',
         'customer-payments' => 'sales',
@@ -37,9 +38,9 @@ class LegacyAdminClusterRedirectController extends Controller
         'products' => 'inventory',
         'stock-movements' => 'inventory',
         'categories' => 'inventory',
-        'expenses' => 'accounts',
-        'expense-categories' => 'accounts',
-        'transaction-ledgers' => 'accounts',
+        'expenses' => 'finance',
+        'expense-categories' => 'finance',
+        'transaction-ledgers' => 'finance',
         'users' => 'settings',
         'user-roles' => 'settings',
         'product-setup' => 'settings',
@@ -60,9 +61,23 @@ class LegacyAdminClusterRedirectController extends Controller
     public function __invoke(Request $request, string $legacy, ?string $path = null): RedirectResponse
     {
         $cluster = self::CLUSTERS[$legacy] ?? abort(404);
+
+        if ($legacy === 'fund-sources') {
+            return $this->redirectWithQuery($request, '/admin/finance/accounts');
+        }
+
+        if ($legacy === 'fund-transfers') {
+            return $this->redirectWithQuery($request, '/admin/finance/vouchers');
+        }
+
         $suffix = filled($path) ? '/'.ltrim($path, '/') : '';
         $target = "/admin/{$cluster}/{$legacy}{$suffix}";
 
+        return $this->redirectWithQuery($request, $target);
+    }
+
+    protected function redirectWithQuery(Request $request, string $target): RedirectResponse
+    {
         if (filled($query = $request->getQueryString())) {
             $target .= "?{$query}";
         }
