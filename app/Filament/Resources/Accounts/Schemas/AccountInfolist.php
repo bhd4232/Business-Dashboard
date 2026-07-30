@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Accounts\Schemas;
 
+use App\Models\Account;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -16,15 +17,19 @@ class AccountInfolist
                 ->columnSpanFull()
                 ->schema([
                     TextEntry::make('name'),
-                    TextEntry::make('type')->badge(),
+                    TextEntry::make('type')
+                        ->badge()
+                        ->formatStateUsing(fn (string $state): string => Account::TYPES[$state] ?? $state),
                     IconEntry::make('is_active')->boolean(),
                 ])->columns(2),
             Section::make('Balance')
                 ->columnSpanFull()
                 ->schema([
-                    TextEntry::make('opening_balance')->money('BDT'),
-                    TextEntry::make('current_balance')->money('BDT'),
-                ])->columns(2),
+                    TextEntry::make('balance')
+                        ->label('Balance')
+                        ->state(fn (Account $record): float => $record->balance())
+                        ->money('BDT'),
+                ]),
         ]);
     }
 }

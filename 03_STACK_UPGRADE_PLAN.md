@@ -90,12 +90,24 @@ composer remove shahariar-ahmad/courier-fraud-checker-bd
 ### ১.৫ টেস্ট
 
 ```txt
-[ ] বিদ্যমান কুরিয়ার-ফ্রড-সংক্রান্ত টেস্ট (যদি থাকে) নতুন ক্লায়েন্ট দিয়ে পাস করছে
-[ ] প্রতিটা নতুন Client-এ Http::fake() দিয়ে সাকসেস ও ফেইলিউর দুই কেসের ইউনিট টেস্ট
-[ ] ExternalCourierFraudService::checkByPhone() কোনো কুরিয়ার fail করলেও exception
-    থ্রো করে না তা কনফার্ম (বিদ্যমান আচরণ অপরিবর্তিত)
-[ ] CheckExternalCourierFraudJob (checkout flow-এ ব্যবহৃত) স্বাভাবিকভাবে চলছে
+[x] বিদ্যমান কুরিয়ার-ফ্রড-সংক্রান্ত টেস্ট (যদি থাকে) নতুন ক্লায়েন্ট দিয়ে পাস করছে
+    — ExternalCourierFraudCheckTest (6 tests) অপরিবর্তিত অবস্থায় নতুন ক্লায়েন্টের
+    বিপরীতে পাস করেছে
+[x] প্রতিটা নতুন Client-এ Http::fake() দিয়ে সাকসেস ও ফেইলিউর দুই কেসের ইউনিট টেস্ট
+    — tests/Unit/Services/CourierFraud/{Pathao,Steadfast,Redx}FraudClientTest.php
+    (১৪টা টেস্ট)
+[x] ExternalCourierFraudService::checkByPhone() কোনো কুরিয়ার fail করলেও exception
+    থ্রো করে না তা কনফার্ম (বিদ্যমান আচরণ অপরিবর্তিত) — try/catch + null-চেক অক্ষত
+[x] CheckExternalCourierFraudJob (checkout flow-এ ব্যবহৃত) স্বাভাবিকভাবে চলছে —
+    সার্ভিসের পাবলিক ইন্টারফেস অপরিবর্তিত, job/controller-এ কোনো পরিবর্তন লাগেনি
 ```
+
+**সম্পন্ন — ২০২৬-০৭-৩০।** `app/Services/CourierFraud/` এ নতুন ইন্টারফেস + ৩টা ক্লায়েন্ট
+(`PathaoFraudClient`, `SteadfastFraudClient`, `RedxFraudClient`), `ExternalCourierFraudService`
+রিওয়্যার করা হয়েছে, প্যাকেজ `composer remove` দিয়ে সরানো হয়েছে। পূর্ণাঙ্গ বিস্তারিত
+`UPDATE_NOTES.md`-এর "2026-07-30 - Stack Upgrade Plan, Step 1" এন্ট্রিতে। পুরো
+`php artisan test` স্যুট — ৫৪৫ পাস (২৮৭৫ অ্যাসারশন), কোনো রিগ্রেশন নেই। কমিট এখনো
+owner-এর অনুমোদনের অপেক্ষায়।
 
 ---
 

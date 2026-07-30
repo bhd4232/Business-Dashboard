@@ -49,12 +49,16 @@ class AccountResource extends Resource
 
     public static function canEdit(Model $record): bool
     {
-        return Auth::user()?->canEditAccounts() ?? false;
+        return $record instanceof Account
+            && ! $record->isSystem()
+            && (Auth::user()?->canEditAccounts() ?? false);
     }
 
     public static function canDelete(Model $record): bool
     {
-        return Auth::user()?->canDeleteSensitiveRecords() ?? false;
+        return $record instanceof Account
+            && ! $record->isSystem()
+            && (Auth::user()?->canDeleteSensitiveRecords() ?? false);
     }
 
     public static function canDeleteAny(): bool

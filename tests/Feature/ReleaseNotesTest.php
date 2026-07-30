@@ -39,7 +39,7 @@ class ReleaseNotesTest extends TestCase
             ->assertOk()
             ->assertHeader('Cache-Control')
             ->assertJsonPath('version', '9.8.7')
-            ->assertJsonPath('published_version', '1.22.0')
+            ->assertJsonPath('published_version', '1.22.1')
             ->assertJsonPath('release_type', 'critical_fix')
             ->assertJsonPath('release_label', 'Critical Fix Update')
             ->assertJsonPath('release_date', '2026-06-21')
@@ -65,10 +65,10 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.22.0')
+            ->assertSee('v1.22.1')
             ->assertSee('Installed version')
             ->assertSee('Minor Feature')
-            ->assertSee('Released 2026-07-23')
+            ->assertSee('Released 2026-07-30')
             ->assertSee('Super Admin Database & Deployment Notes')
             ->assertSee('Added disposable SQLite backup restore verification')
             ->assertSee('Production Update Rules')
@@ -122,7 +122,7 @@ class ReleaseNotesTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/settings/release-notes')
             ->assertOk()
-            ->assertSee('Update available: v1.22.0')
+            ->assertSee('Update available: v1.22.1')
             ->assertSee('Awaiting your approval')
             ->assertSee('Installed version: v1.21.0')
             ->assertDontSee('Android update push notifications');
@@ -140,7 +140,7 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertDontSee('Awaiting your approval')
-            ->assertSee('Installed version: v1.22.0')
+            ->assertSee('Installed version: v1.22.1')
             ->assertSee('Android update push notifications');
     }
 }

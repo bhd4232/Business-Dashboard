@@ -49,6 +49,7 @@ use App\Filament\Resources\Vouchers\VoucherResource;
 use App\Models\Account;
 use App\Models\FundTransfer;
 use App\Models\User;
+use App\Models\Voucher;
 use App\Services\CompanyContext;
 use Filament\Pages\Enums\SubNavigationPosition;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -200,6 +201,7 @@ class AdminNavigationClustersTest extends TestCase
             ->assertSee('Confirmed Via')
             ->assertSee('Transaction / Reference ID')
             ->assertSee('Order Invoices')
+            ->assertSee('Customer Account')
             ->assertSee('Notes & Attachments')
             ->assertDontSee('Payment Method')
             ->assertDontSee('Parties & Account');
@@ -228,6 +230,11 @@ class AdminNavigationClustersTest extends TestCase
         Livewire::actingAs($admin)
             ->test(CreateVoucher::class)
             ->fillForm([
+                'type' => Voucher::TYPE_DEBIT,
+                'transaction_type' => 'refund',
+            ])
+            ->assertSchemaComponentVisible('order_id')
+            ->fillForm([
                 'type' => 'fund_transfer',
                 'from_account_id' => $from->getKey(),
                 'to_account_id' => $to->getKey(),
@@ -235,6 +242,7 @@ class AdminNavigationClustersTest extends TestCase
                 'transaction_cost' => 25,
                 'remarks' => 'Office cash float',
             ])
+            ->assertSchemaComponentHidden('order_id')
             ->call('create')
             ->assertHasNoFormErrors()
             ->assertRedirect(VoucherResource::getUrl('index'));

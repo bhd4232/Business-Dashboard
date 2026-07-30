@@ -37,8 +37,8 @@ class FundTransferResource extends Resource
     {
         return $schema->columns(1)->components([
             Section::make('Fund Transfer')->columnSpanFull()->schema([
-                Select::make('from_account_id')->relationship('fromAccount', 'name')->label('From Account')->required(),
-                Select::make('to_account_id')->relationship('toAccount', 'name')->label('To Account')->required(),
+                Select::make('from_account_id')->relationship('fromAccount', 'name', fn ($query) => $query->manual())->label('From Account')->required(),
+                Select::make('to_account_id')->relationship('toAccount', 'name', fn ($query) => $query->manual())->label('To Account')->required(),
                 TextInput::make('amount')->numeric()->prefix('BDT')->required(),
                 TextInput::make('transaction_cost')->label('Transaction Cost')->numeric()->prefix('BDT')->default(0)->minValue(0)->required(),
             ])->columns(2),

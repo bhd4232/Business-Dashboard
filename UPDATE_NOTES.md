@@ -2,6 +2,39 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-07-30 - Stack Upgrade Plan, Step 1: remove courier-fraud-checker-bd
+
+Reason:
+
+- `03_STACK_UPGRADE_PLAN.md` Step 1: `shahariar-ahmad/courier-fraud-checker-bd` is pinned in `composer.json` with no version constraint (`"*"`) and has an individual maintainer, making it a risk to the planned PHP 8.4/Laravel 13/Filament 5 upgrade (`composer update` could get stuck resolving it, or it could simply stop being compatible). The plan calls for removing it first, in isolation, before touching PHP/Laravel/Filament versions.
+
+Important changed files:
+
+- `app/Services/CourierFraud/CourierFraudClient.php` (new) - the `checkByPhone(string $phone, array $credentials): ?array` contract shared by all three clients.
+- `app/Services/CourierFraud/PathaoFraudClient.php`, `SteadfastFraudClient.php`, `RedxFraudClient.php` (new) - direct `Illuminate\Support\Facades\Http` replacements for the package's `PathaoService`/`SteadfastService`/`RedxService`, replicating each one's exact HTTP flow (endpoints, auth, cookie/CSRF handling for Steadfast, cached access token for RedX) but taking credentials per-call instead of reading them from package config, and returning `null` on any failure instead of an `['error' => ...]` array.
+- `app/Services/ExternalCourierFraudService.php` - `DRIVER_SERVICE_MAP`/`DRIVER_METHOD_MAP`/`applyConfig()` (package-config-based dispatch) replaced with `DRIVER_CLIENT_MAP` resolving the new clients via the container; the 24h cache, graceful per-courier failure, and `CustomerRiskEvent` audit logging are all unchanged.
+- `composer.json`/`composer.lock` - `shahariar-ahmad/courier-fraud-checker-bd` removed via `composer remove`; `bootstrap/cache/packages.php`/`services.php` regenerated via `composer install` to clear the stale cached provider manifest (a leftover `vendor/shahariar-ahmad` directory that Windows initially failed to delete - likely locked by antivirus/indexer - was removed on retry).
+- `tests/Unit/Services/CourierFraud/PathaoFraudClientTest.php`, `SteadfastFraudClientTest.php`, `RedxFraudClientTest.php` (new) - 14 tests covering success and failure paths per client via `Http::fake()`.
+- `CHANGELOG.md` - new `[1.22.1] - 2026-07-30` Maintenance Update entry (Technical Notes only, no user-facing change). `.env.example`/`.env.production.example` - `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE` bumped to match.
+- `tests/Feature/ReleaseNotesTest.php` - the three assertions coupled to the top `CHANGELOG.md` entry (`published_version`, the installed-version banner's version/date, and the pending-upgrade-available version) updated from `1.22.0`/`2026-07-23` to `1.22.1`/`2026-07-30` to match the new top entry.
+- `03_STACK_UPGRADE_PLAN.md` - Step 1 checklist items marked done.
+
+Behavior and safety:
+
+- Drop-in replacement only - no behavior change. The existing `ExternalCourierFraudCheckTest` suite (6 tests, written against the old package-backed service) passes unmodified against the new clients, confirming the cache/logging/graceful-failure contract held.
+- Credentials remain admin-configured per company (`CourierProvider.credentials['fraud_check']`), never touched here.
+
+Verification:
+
+- `php artisan test --filter=CourierFraud` - 20 passed (30 assertions): the 14 new client tests plus the existing `ExternalCourierFraudCheckTest` (6 tests) all green.
+- `php artisan test --filter=ReleaseNotesTest` - 4 passed (50 assertions), confirming the CHANGELOG version-bump-coupled assertions were updated correctly.
+- Full `php artisan test` - 545 passed (2,875 assertions), no regressions.
+- `composer remove shahariar-ahmad/courier-fraud-checker-bd` succeeded; `grep -rl "shahariar-ahmad\|CourierFraudCheckerBd" vendor/composer/ app/` shows no remaining references outside the new clients' own explanatory doc comments.
+
+Commit status:
+
+- Pending user approval; not committed or pushed.
+
 ## 2026-07-26 - Browser-side image pre-compression before Livewire/R2 upload
 
 Reason:

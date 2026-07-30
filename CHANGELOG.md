@@ -2,6 +2,19 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [1.22.1] - 2026-07-30
+
+**Release type:** Maintenance Update
+
+Replaces the third-party `shahariar-ahmad/courier-fraud-checker-bd` package (Part 1 of the Stack Upgrade Plan) with an in-house HTTP client for the same Pathao/Steadfast/RedX fraud-check lookups. No user-facing behavior changes — this is a drop-in replacement that clears an unversioned (`"*"` constraint) dependency out of the way before the planned PHP 8.4/Laravel 13/Filament 5 upgrade.
+
+### Technical Notes
+
+- New `App\Services\CourierFraud\CourierFraudClient` interface plus `PathaoFraudClient`, `SteadfastFraudClient`, and `RedxFraudClient` — each replicates its corresponding package class's HTTP flow (Pathao merchant login + success-ratio lookup; Steadfast portal CSRF/cookie/login/fetch/logout; RedX token login with per-merchant cached access token) using `Illuminate\Support\Facades\Http` directly, with credentials passed in per call instead of read from static package config.
+- `App\Services\ExternalCourierFraudService` now dispatches to the new clients (`DRIVER_CLIENT_MAP`) instead of the package's `PathaoService`/`SteadfastService`/`RedxService`; behavior (24h cache, graceful per-courier failure, audit logging) is unchanged, confirmed by the existing `ExternalCourierFraudCheckTest` suite passing unmodified against the new clients.
+- Removed `shahariar-ahmad/courier-fraud-checker-bd` via `composer remove`; `bootstrap/cache/packages.php`/`services.php` regenerated via `composer install` to clear the stale manifest.
+- New `tests/Unit/Services/CourierFraud/{Pathao,Steadfast,Redx}FraudClientTest.php` (14 tests) cover success and failure paths for each client with `Http::fake()`.
+
 ## [1.22.0] - 2026-07-23
 
 **Release type:** Minor Feature Update

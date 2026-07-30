@@ -4,32 +4,27 @@ namespace App\Services;
 
 use App\Models\CourierProvider;
 use App\Models\CustomerRiskEvent;
+use App\Services\CourierFraud\CourierFraudClient;
+use App\Services\CourierFraud\PathaoFraudClient;
+use App\Services\CourierFraud\RedxFraudClient;
+use App\Services\CourierFraud\SteadfastFraudClient;
 use Illuminate\Support\Facades\Cache;
-use ShahariarAhmad\CourierFraudCheckerBd\Services\PathaoService;
-use ShahariarAhmad\CourierFraudCheckerBd\Services\RedxService;
-use ShahariarAhmad\CourierFraudCheckerBd\Services\SteadfastService;
 use Throwable;
 
 /**
  * Looks up a phone number's delivery history across Pathao, Steadfast, and
- * RedX merchant panels via shahariar-ahmad/courier-fraud-checker-bd. Never
- * throws: a failed/unconfigured courier is simply omitted from the result,
- * so this can never block order creation or courier booking.
+ * RedX merchant panels via our own CourierFraud HTTP clients. Never throws:
+ * a failed/unconfigured courier is simply omitted from the result, so this
+ * can never block order creation or courier booking.
  */
 class ExternalCourierFraudService
 {
     public const CACHE_TTL_HOURS = 24;
 
-    protected const DRIVER_SERVICE_MAP = [
-        CourierProvider::DRIVER_PATHAO => PathaoService::class,
-        CourierProvider::DRIVER_STEADFAST => SteadfastService::class,
-        CourierProvider::DRIVER_REDX => RedxService::class,
-    ];
-
-    protected const DRIVER_METHOD_MAP = [
-        CourierProvider::DRIVER_PATHAO => 'pathao',
-        CourierProvider::DRIVER_STEADFAST => 'steadfast',
-        CourierProvider::DRIVER_REDX => 'getCustomerDeliveryStats',
+    protected const DRIVER_CLIENT_MAP = [
+        CourierProvider::DRIVER_PATHAO => PathaoFraudClient::class,
+        CourierProvider::DRIVER_STEADFAST => SteadfastFraudClient::class,
+        CourierProvider::DRIVER_REDX => RedxFraudClient::class,
     ];
 
     /**
@@ -86,8 +81,8 @@ class ExternalCourierFraudService
     {
         $result = [];
 
-        foreach (self::DRIVER_SERVICE_MAP as $driver => $serviceClass) {
-            $stats = $this->checkDriver($driver, $serviceClass, $phone, $companyId);
+        foreach (self::DRIVER_CLIENT_MAP as $driver => $clientClass) {
+            $stats = $this->checkDriver($driver, $clientClass, $phone, $companyId);
 
             if ($stats !== null) {
                 $result[$driver] = $stats;
@@ -101,7 +96,7 @@ class ExternalCourierFraudService
         return $result;
     }
 
-    protected function checkDriver(string $driver, string $serviceClass, string $phone, int $companyId): ?array
+    protected function checkDriver(string $driver, string $clientClass, string $phone, int $companyId): ?array
     {
         $provider = CourierProvider::query()
             ->where('company_id', $companyId)
@@ -116,44 +111,25 @@ class ExternalCourierFraudService
         }
 
         try {
-            $this->applyConfig($driver, $credentials);
-            $service = new $serviceClass;
-            $method = self::DRIVER_METHOD_MAP[$driver];
-            $response = $service->{$method}($phone);
+            /** @var CourierFraudClient $client */
+            $client = app($clientClass);
+
+            $stats = $client->checkByPhone($phone, $credentials);
         } catch (Throwable $exception) {
             report($exception);
 
             return null;
         }
 
-        if (! is_array($response) || isset($response['error']) || ! is_numeric($response['total'] ?? null)) {
+        if (! is_array($stats) || ! is_numeric($stats['total'] ?? null)) {
             return null;
         }
 
         return [
-            'success' => (int) ($response['success'] ?? 0),
-            'cancel' => (int) ($response['cancel'] ?? 0),
-            'total' => (int) ($response['total'] ?? 0),
+            'success' => (int) ($stats['success'] ?? 0),
+            'cancel' => (int) ($stats['cancel'] ?? 0),
+            'total' => (int) ($stats['total'] ?? 0),
         ];
-    }
-
-    protected function applyConfig(string $driver, array $credentials): void
-    {
-        match ($driver) {
-            CourierProvider::DRIVER_PATHAO => config([
-                'courier-fraud-checker-bd.pathao.user' => $credentials['username'],
-                'courier-fraud-checker-bd.pathao.password' => $credentials['password'],
-            ]),
-            CourierProvider::DRIVER_STEADFAST => config([
-                'courier-fraud-checker-bd.steadfast.user' => $credentials['username'],
-                'courier-fraud-checker-bd.steadfast.password' => $credentials['password'],
-            ]),
-            CourierProvider::DRIVER_REDX => config([
-                'courier-fraud-checker-bd.redx.phone' => $credentials['username'],
-                'courier-fraud-checker-bd.redx.password' => $credentials['password'],
-            ]),
-            default => null,
-        };
     }
 
     protected function logEvent(int $companyId, ?int $customerId, ?int $orderId, array $result): void

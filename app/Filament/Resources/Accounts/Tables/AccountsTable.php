@@ -20,16 +20,25 @@ class AccountsTable
         return $table
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
-                TextColumn::make('type')->badge()->sortable(),
-                TextColumn::make('opening_balance')->money('BDT')->sortable()->toggleable(),
-                TextColumn::make('current_balance')->money('BDT')->sortable(),
+                TextColumn::make('type')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => Account::TYPES[$state] ?? $state)
+                    ->sortable(),
+                TextColumn::make('balance')
+                    ->label('Balance')
+                    ->state(fn (Account $record): float => $record->balance())
+                    ->money('BDT'),
                 IconColumn::make('is_active')->label('Active')->boolean(),
             ])
             ->filters([
                 SelectFilter::make('type')->options(Account::TYPES),
                 TernaryFilter::make('is_active')->label('Active status'),
             ])
-            ->recordActions([ViewAction::make(), EditAction::make()])
+            ->recordActions([
+                ViewAction::make(),
+                EditAction::make()->visible(fn (Account $record): bool => ! $record->isSystem()),
+            ])
+            ->checkIfRecordIsSelectableUsing(fn (Account $record): bool => ! $record->isSystem())
             ->toolbarActions([BulkActionGroup::make([DeleteBulkAction::make()])]);
     }
 }

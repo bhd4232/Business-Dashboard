@@ -37,6 +37,12 @@ class Expense extends Model
         });
 
         static::saving(function (Expense $expense): void {
+            if ($expense->exists && $expense->isDirty('expense_number')) {
+                throw ValidationException::withMessages([
+                    'expense_number' => 'Expense number is generated automatically and cannot be changed.',
+                ]);
+            }
+
             if ((float) $expense->amount <= 0) {
                 throw ValidationException::withMessages([
                     'amount' => 'Expense amount must be greater than zero.',

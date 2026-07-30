@@ -6,11 +6,14 @@ use App\Filament\Resources\Vouchers\Pages\CreateVoucher;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\Customer;
+use App\Models\CustomerPayment;
+use App\Models\Expense;
 use App\Models\ExpenseCategory;
-use App\Models\FundSource;
 use App\Models\Order;
 use App\Models\Purchase;
 use App\Models\Supplier;
+use App\Models\SupplierPayment;
+use App\Models\TransactionLedger;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Services\CompanyContext;
@@ -112,7 +115,7 @@ class VoucherWorkflowTest extends TestCase
         $voucher->refresh();
 
         $this->assertSame(Voucher::STATUS_APPROVED, $voucher->status);
-        $this->assertSame(\App\Models\CustomerPayment::class, $voucher->resulting_model_type);
+        $this->assertSame(CustomerPayment::class, $voucher->resulting_model_type);
         $this->assertNotNull($voucher->resulting_model_id);
         $this->assertSame('500.00', $account->fresh()->current_balance);
         $this->assertSame(1500.0, (float) $customer->fresh()->current_balance);
@@ -139,6 +142,95 @@ class VoucherWorkflowTest extends TestCase
             'amount' => 500,
             'order_ids' => [$firstOrder->getKey(), $secondOrder->getKey()],
             'account_id' => $account->getKey(),
+        ], $this->user());
+    }
+
+    public function test_credit_voucher_accepts_customer_payment_without_an_order_invoice(): void
+    {
+        $this->company();
+        $customer = Customer::query()->create([
+            'name' => 'Advance Payment Customer',
+            'phone' => '01710000003',
+        ]);
+        $account = Account::query()->create(['name' => 'Advance Cash', 'type' => 'cash', 'opening_balance' => 0]);
+        $user = $this->user();
+
+        Livewire::actingAs($user)
+            ->test(CreateVoucher::class)
+            ->fillForm([
+                'type' => Voucher::TYPE_CREDIT,
+                'customer_id' => $customer->getKey(),
+                'account_id' => $account->getKey(),
+                'amount' => 750,
+                'order_ids' => [],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $voucher = Voucher::query()->sole();
+
+        $this->assertSame($customer->getKey(), $voucher->customer_id);
+        $this->assertNull($voucher->order_id);
+        $this->assertCount(0, $voucher->orders);
+    }
+
+    public function test_credit_voucher_without_customer_or_invoice_books_a_direct_account_inflow(): void
+    {
+        $this->company();
+        $account = Account::query()->create(['name' => 'Unassigned Credit Bank', 'type' => 'bank', 'opening_balance' => 0]);
+        $user = $this->user();
+
+        Livewire::actingAs($user)
+            ->test(CreateVoucher::class)
+            ->assertSchemaComponentExists('customer_id', 'form', fn (Select $field): bool => ! $field->isRequired())
+            ->fillForm([
+                'type' => Voucher::TYPE_CREDIT,
+                'customer_id' => null,
+                'order_ids' => [],
+                'account_id' => $account->getKey(),
+                'amount' => 900,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $voucher = Voucher::query()->sole();
+
+        $this->assertNull($voucher->customer_id);
+        $this->assertNull($voucher->order_id);
+
+        app(VoucherService::class)->verify($voucher, $user);
+        app(VoucherService::class)->approve($voucher->fresh(), $user);
+
+        $this->assertDatabaseCount('customer_payments', 0);
+        $this->assertDatabaseHas('transaction_ledgers', [
+            'account_id' => $account->getKey(),
+            'reference_type' => Voucher::class,
+            'reference_id' => $voucher->getKey(),
+            'type' => 'voucher_credit',
+            'direction' => 'in',
+            'amount' => 900,
+        ]);
+        $this->assertSame(TransactionLedger::class, $voucher->fresh()->resulting_model_type);
+        $this->assertSame('900.00', $account->fresh()->current_balance);
+    }
+
+    public function test_credit_voucher_rejects_invoice_from_a_different_selected_customer(): void
+    {
+        $this->company();
+        $selectedCustomer = Customer::query()->create(['name' => 'Selected Customer', 'phone' => '01710000004']);
+        $invoiceCustomer = Customer::query()->create(['name' => 'Invoice Customer', 'phone' => '01710000005']);
+        $order = $this->orderFor($invoiceCustomer, 'INV-CUSTOMER-MISMATCH');
+        $account = Account::query()->create(['name' => 'Mismatch Cash', 'type' => 'cash', 'opening_balance' => 0]);
+
+        $this->expectException(ValidationException::class);
+
+        app(VoucherService::class)->submit([
+            'type' => Voucher::TYPE_CREDIT,
+            'transaction_type' => 'customer_payment',
+            'customer_id' => $selectedCustomer->getKey(),
+            'order_ids' => [$order->getKey()],
+            'account_id' => $account->getKey(),
+            'amount' => 500,
         ], $this->user());
     }
 
@@ -200,7 +292,7 @@ class VoucherWorkflowTest extends TestCase
         $voucher->refresh();
 
         $this->assertSame(Voucher::STATUS_APPROVED, $voucher->status);
-        $this->assertSame(\App\Models\Expense::class, $voucher->resulting_model_type);
+        $this->assertSame(Expense::class, $voucher->resulting_model_type);
         $this->assertSame('8000.00', $account->fresh()->current_balance);
     }
 
@@ -416,7 +508,7 @@ class VoucherWorkflowTest extends TestCase
 
         $service->approve($voucher, $user);
 
-        $this->assertSame(\App\Models\SupplierPayment::class, $voucher->fresh()->resulting_model_type);
+        $this->assertSame(SupplierPayment::class, $voucher->fresh()->resulting_model_type);
         $this->assertSame('4000.00', $account->fresh()->current_balance);
     }
 }

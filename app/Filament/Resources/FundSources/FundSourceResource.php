@@ -42,7 +42,7 @@ class FundSourceResource extends Resource
                 TextInput::make('name')->required()->maxLength(255),
                 Select::make('type')->options(FundSource::TYPES)->required()->live()->default('cash'),
                 Select::make('account_id')
-                    ->relationship('account', 'name')
+                    ->relationship('account', 'name', fn ($query) => $query->manual())
                     ->label('Linked Account')
                     ->helperText('Required for cash/bank/mobile banking/wallet/petty cash types — balance is always read from this account.')
                     ->visible(fn (Get $get) => in_array($get('type'), FundSource::ACCOUNT_LINKED_TYPES, true))

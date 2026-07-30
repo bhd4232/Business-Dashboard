@@ -87,6 +87,10 @@ class Company extends Model
             $company->invoice_prefix = static::normalizeInvoicePrefix($company->invoice_prefix, $company->name);
             $company->domain = static::normalizeDomain($company->domain);
         });
+
+        static::created(function (Company $company): void {
+            Account::ensureSystemAccountsForCompany($company);
+        });
     }
 
     public function users(): BelongsToMany

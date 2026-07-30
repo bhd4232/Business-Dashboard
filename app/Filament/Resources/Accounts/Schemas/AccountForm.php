@@ -18,15 +18,19 @@ class AccountForm
                 ->columnSpanFull()
                 ->schema([
                     TextInput::make('name')->required()->maxLength(255),
-                    Select::make('type')->options(Account::TYPES)->default('cash')->required(),
+                    Select::make('type')->options(Account::MANUAL_TYPES)->default('cash')->required(),
                     Toggle::make('is_active')->label('Active')->default(true),
                 ])->columns(2),
             Section::make('Balance')
                 ->columnSpanFull()
                 ->schema([
-                    TextInput::make('opening_balance')->numeric()->prefix('BDT')->default(0)->required(),
-                    TextInput::make('current_balance')->numeric()->prefix('BDT')->disabled()->dehydrated(false),
-                ])->columns(2),
+                    TextInput::make('current_balance')
+                        ->label('Balance')
+                        ->numeric()
+                        ->prefix('BDT')
+                        ->disabled()
+                        ->dehydrated(false),
+                ]),
         ]);
     }
 }

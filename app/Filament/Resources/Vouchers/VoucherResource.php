@@ -104,7 +104,6 @@ class VoucherResource extends Resource
                     ->searchable()
                     ->getSearchResultsUsing(fn (string $search): array => static::incompletePurchaseSearchResults($search))
                     ->getOptionLabelUsing(fn ($value): ?string => Purchase::query()->find($value)?->purchase_number)
-                    ->helperText('Shows the latest 5 incomplete purchases. Search by purchase number to find older incomplete purchases.')
                     ->visible(fn (Get $get) => $get('transaction_type') === 'inventory_purchase')
                     ->required(fn (Get $get) => $get('transaction_type') === 'inventory_purchase'),
                 Select::make('order_id')
@@ -115,29 +114,27 @@ class VoucherResource extends Resource
                     ->getOptionLabelUsing(fn ($value): ?string => ($order = Order::query()->with('customer')->find($value))
                         ? static::creditInvoiceLabel($order)
                         : null)
-                    ->helperText('Search by customer name, phone number, invoice number, or invoice ID.')
-                    ->visible(fn (Get $get): bool => $get('transaction_type') === 'refund')
-                    ->required(fn (Get $get): bool => $get('transaction_type') === 'refund'),
+                    ->visible(fn (Get $get): bool => $get('type') === Voucher::TYPE_DEBIT
+                        && $get('transaction_type') === 'refund')
+                    ->required(fn (Get $get): bool => $get('type') === Voucher::TYPE_DEBIT
+                        && $get('transaction_type') === 'refund'),
                 Select::make('account_id')
-                    ->relationship('account', 'name')
+                    ->relationship('account', 'name', fn (Builder $query) => $query->manual())
                     ->label(fn (Get $get): string => $get('type') === Voucher::TYPE_CREDIT ? 'Receiving Account' : 'Account')
-                    ->helperText(fn (Get $get): string => $get('type') === Voucher::TYPE_CREDIT
-                        ? 'Select the account where this credit payment will be received.'
-                        : 'The account this voucher moves money through.')
                     ->searchable()
                     ->visible(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER)
                     ->required(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER),
                 TextInput::make('amount')->numeric()->prefix('BDT')->required(),
                 Select::make('from_account_id')
                     ->label('From Account')
-                    ->options(fn () => Account::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->options(fn () => Account::query()->manual()->orderBy('name')->pluck('name', 'id')->all())
                     ->searchable()
                     ->visible(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
                     ->required(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
                     ->dehydrated(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER),
                 Select::make('to_account_id')
                     ->label('To Account')
-                    ->options(fn () => Account::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->options(fn () => Account::query()->manual()->orderBy('name')->pluck('name', 'id')->all())
                     ->searchable()
                     ->different('from_account_id')
                     ->visible(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
@@ -149,7 +146,6 @@ class VoucherResource extends Resource
                     ->prefix('BDT')
                     ->default(0)
                     ->minValue(0)
-                    ->helperText('This cost will be deducted from the source account in addition to the transfer amount.')
                     ->visible(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
                     ->required(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)
                     ->dehydrated(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER),
@@ -169,30 +165,37 @@ class VoucherResource extends Resource
                     ->getSearchResultsUsing(fn (string $search, Get $get): array => static::creditInvoiceSearchResults(
                         $search,
                         (array) ($get('order_ids') ?? []),
+                        filled($get('customer_id')) ? (int) $get('customer_id') : null,
                     ))
                     ->getOptionLabelsUsing(fn (array $values): array => static::creditInvoiceLabels($values))
-                    ->helperText('Search by customer name, phone number, invoice number, or invoice ID. All selected invoices must belong to the same customer.')
                     ->visible(fn (Get $get): bool => $get('type') === Voucher::TYPE_CREDIT)
-                    ->required(fn (Get $get): bool => $get('type') === Voucher::TYPE_CREDIT)
-                    ->dehydrated()
-                    ->minItems(1),
+                    ->dehydrated(),
+                Select::make('customer_id')
+                    ->label('Customer Account')
+                    ->relationship('customer', 'name', fn (Builder $query) => $query->orderBy('name'))
+                    ->searchable(['name', 'phone'])
+                    ->live()
+                    ->afterStateUpdated(function (Set $set): void {
+                        $set('order_ids', []);
+                    })
+                    ->visible(fn (Get $get): bool => $get('type') === Voucher::TYPE_CREDIT
+                        || ($get('type') === Voucher::TYPE_DEBIT && $get('transaction_type') === 'customer_payment'))
+                    ->required(fn (Get $get): bool => $get('type') === Voucher::TYPE_DEBIT
+                        && $get('transaction_type') === 'customer_payment'),
             ])->columns(2),
 
             Section::make('Parties & Account')
                 ->columnSpanFull()
                 ->visible(fn (Get $get): bool => $get('type') === Voucher::TYPE_DEBIT
-                    && in_array($get('transaction_type'), ['customer_payment', 'supplier_payment', 'business_expense'], true))
+                    && in_array($get('transaction_type'), ['supplier_payment', 'business_expense'], true))
                 ->schema([
-                Select::make('customer_id')->relationship('customer', 'name')->searchable()
-                    ->visible(fn (Get $get) => $get('transaction_type') === 'customer_payment')
-                    ->required(fn (Get $get) => $get('transaction_type') === 'customer_payment'),
-                Select::make('supplier_id')->relationship('supplier', 'name')->searchable()
-                    ->visible(fn (Get $get) => $get('transaction_type') === 'supplier_payment')
-                    ->required(fn (Get $get) => $get('transaction_type') === 'supplier_payment'),
-                Select::make('expense_category_id')->relationship('expenseCategory', 'name')->searchable()
-                    ->visible(fn (Get $get) => $get('transaction_type') === 'business_expense')
-                    ->required(fn (Get $get) => $get('transaction_type') === 'business_expense'),
-            ])->columns(2),
+                    Select::make('supplier_id')->relationship('supplier', 'name')->searchable()
+                        ->visible(fn (Get $get) => $get('transaction_type') === 'supplier_payment')
+                        ->required(fn (Get $get) => $get('transaction_type') === 'supplier_payment'),
+                    Select::make('expense_category_id')->relationship('expenseCategory', 'name')->searchable()
+                        ->visible(fn (Get $get) => $get('transaction_type') === 'business_expense')
+                        ->required(fn (Get $get) => $get('transaction_type') === 'business_expense'),
+                ])->columns(2),
 
             Section::make('Notes & Attachments')->columnSpanFull()->schema([
                 Textarea::make('purpose')->label('Notes')->rows(2),
@@ -312,9 +315,12 @@ class VoucherResource extends Resource
      * @param  array<int, int|string>  $selectedOrderIds
      * @return array<int, string>
      */
-    protected static function creditInvoiceSearchResults(string $search, array $selectedOrderIds): array
-    {
-        $customerId = Order::query()
+    protected static function creditInvoiceSearchResults(
+        string $search,
+        array $selectedOrderIds,
+        ?int $selectedCustomerId = null,
+    ): array {
+        $customerId = $selectedCustomerId ?: Order::query()
             ->whereKey(collect($selectedOrderIds)->filter()->first())
             ->value('customer_id');
 

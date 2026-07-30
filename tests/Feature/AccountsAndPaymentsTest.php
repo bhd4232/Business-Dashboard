@@ -2,17 +2,22 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Expenses\Pages\CreateExpense;
 use App\Models\Account;
 use App\Models\Customer;
 use App\Models\CustomerPayment;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Order;
+use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\TransactionLedger;
+use App\Models\User;
+use App\Services\CompanyContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AccountsAndPaymentsTest extends TestCase
@@ -61,7 +66,7 @@ class AccountsAndPaymentsTest extends TestCase
         $account = Account::query()->create(['name' => 'Cash', 'opening_balance' => 500]);
         $supplier = Supplier::query()->create(['name' => 'Supplier', 'opening_balance' => 50]);
 
-        $purchase = \App\Models\Purchase::query()->create([
+        $purchase = Purchase::query()->create([
             'supplier_id' => $supplier->id,
             'purchase_date' => now(),
             'total_amount' => 200,
@@ -114,6 +119,39 @@ class AccountsAndPaymentsTest extends TestCase
             'amount' => 75,
             'reference_type' => Expense::class,
         ]);
+    }
+
+    public function test_expense_number_is_hidden_auto_generated_and_immutable(): void
+    {
+        $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $company = $user->defaultCompany();
+        app(CompanyContext::class)->set($company);
+        $this->session(['current_company_id' => $company->getKey()]);
+
+        $account = Account::query()->create(['name' => 'Expense Cash', 'opening_balance' => 500]);
+        $category = ExpenseCategory::query()->create([
+            'name' => 'Utilities',
+            'slug' => 'utilities',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(CreateExpense::class)
+            ->assertSchemaComponentDoesNotExist('expense_number')
+            ->fillForm([
+                'expense_category_id' => $category->getKey(),
+                'account_id' => $account->getKey(),
+                'expense_date' => now()->toDateString(),
+                'amount' => 100,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $expense = Expense::query()->sole();
+
+        $this->assertMatchesRegularExpression('/^EXP-\d{8}-[A-Z0-9]{5}$/', $expense->expense_number);
+
+        $this->expectException(ValidationException::class);
+        $expense->update(['expense_number' => 'EXP-CHANGED']);
     }
 
     public function test_customer_payment_cannot_exceed_customer_due(): void

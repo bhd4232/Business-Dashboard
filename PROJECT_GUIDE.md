@@ -794,9 +794,31 @@ Money behavior:
 - Customer payments create ledger entries with direction `in`.
 - Supplier payments create ledger entries with direction `out`.
 - Expenses create ledger entries with direction `out`.
+- Expense Number is generated automatically by the `Expense` model, is hidden on create/edit forms, and cannot be changed after creation.
 - Overpayments are blocked.
 - Supplier payments and expenses are blocked if account balance would become negative.
 - Transaction Ledger is intended as read-only history.
+
+### Permanent Finance Accounts
+
+- The Accounts UI no longer exposes Opening Balance. New manually created accounts start from the database default of zero, and `Current Balance` is presented simply as `Balance`.
+- Every company automatically owns three permanent, read-only system accounts:
+  - `Inventory Value` (`inventory`) = current non-variant product stock × cost price, plus active variant stock × variant cost price (falling back to the parent product cost).
+  - `Customer Due` (`customer_due`) = the total of all positive customer current balances for that company.
+  - `New Shipment` (`shipment`) = the total value of distinct purchases linked to planned/booked/shipped/in-transit/customs shipments. Received and cancelled shipments are excluded.
+- System account balances are calculated live from company data; they are not ledger-operated cash/bank accounts.
+- System accounts cannot be edited, deleted, bulk-selected, or selected in Voucher, Fund Transfer, Customer Payment, Supplier Payment, Expense, or legacy Fund Source account fields.
+- The system-only `inventory`, `customer_due`, and `shipment` types are displayed in the Accounts list but are not offered on the New Account form.
+
+Important files:
+
+```text
+app/Models/Account.php
+app/Services/AccountBalanceService.php
+app/Filament/Resources/Accounts/
+database/migrations/2026_07_30_000000_add_permanent_system_accounts.php
+tests/Feature/PermanentSystemAccountsTest.php
+```
 
 ### Vouchers and Fund Transfers
 
@@ -804,15 +826,17 @@ Money behavior:
 - Voucher forms select an `Account` directly for every transaction type, including inventory purchases.
 - Fund Source is retained only as legacy data compatibility; it has no admin navigation or registered Filament page.
 - Voucher Type offers Credit Voucher, Debit Voucher, and Fund Transfer on the create form.
-- Credit Voucher uses a focused receipt form only: Receiving Account, Amount, Confirmed Via, Transaction / Reference ID, Order Invoices, and Notes & Attachments.
-- Order Invoices is a searchable multi-select. It searches customer name, customer phone, invoice number, and numeric invoice ID.
-- Once an invoice is selected, subsequent search results are limited to that invoice's customer. Server-side validation also rejects mixed-customer invoice IDs, and the voucher customer is derived automatically from the selected invoices.
+- Credit Voucher uses a focused receipt form only: Receiving Account, Amount, Confirmed Via, Transaction / Reference ID, optional Order Invoices, Customer Account, and Notes & Attachments.
+- Customer Account is optional for a Credit Voucher. If neither Customer Account nor Order Invoice is selected, approval records a direct account inflow without creating a Customer Payment.
+- Order Invoices is an optional searchable multi-select. It searches customer name, customer phone, invoice number, and numeric invoice ID.
+- When a customer is selected, invoice search results are limited to that customer. Server-side validation rejects mixed-customer invoices and invoices belonging to anyone other than the selected customer; when Customer Account is blank, the selected invoices supply the customer automatically.
 - Credit Voucher invoice associations are stored in `order_voucher`; the legacy `vouchers.order_id` retains the first selected invoice for backward compatibility.
 - On Debit Voucher, selecting `Inventory Purchase` uses the field order `Transaction Type → Purchase Number → Account → Amount`. Purchase Number is searchable: opening it lists only the latest 5 `draft` purchases, while search can find older draft purchase numbers. `received` (completed) and `cancelled` purchases are excluded in both the UI and server-side submission validation.
 - Voucher forms do not expose a Payment Method field; downstream payment records continue to use the existing `other` fallback when no legacy method value is present.
 - On Debit Voucher, selecting `Refund` requires a searchable Order Invoice. Only confirmed/completed invoices are eligible; search supports customer name, customer phone, invoice number, and numeric invoice ID. The selected invoice also supplies the voucher's customer reference.
 - Voucher forms expose one `Notes` field backed by the existing `purpose` column. The redundant `remarks` field is no longer shown on Voucher or Fund Transfer forms; legacy stored remarks remain untouched.
-- Selecting Fund Transfer shows `From Account`, `To Account`, and `Transaction Cost` in the same Voucher section; transaction-specific voucher fields are hidden.
+- Voucher form fields do not display helper/instruction text beneath the controls.
+- Selecting Fund Transfer shows `From Account`, `To Account`, and `Transaction Cost` in the same Voucher section; transaction-specific voucher fields, including the Debit Refund `Order Invoice`, are hidden and not required.
 - Submitting that form creates a pending `FundTransfer`, not an invalid third value in the persisted credit/debit voucher enum.
 - Fund Transfers appear as a native Filament table on the Vouchers list page for history and approval.
 - Authorized users create transfers from the Voucher form and approve or reject them from the embedded table.

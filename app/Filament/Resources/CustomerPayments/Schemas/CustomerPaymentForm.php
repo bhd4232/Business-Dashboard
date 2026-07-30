@@ -31,7 +31,7 @@ class CustomerPaymentForm
                         ->required(),
                     Select::make('account_id')
                         ->label('Receive To Account')
-                        ->relationship('account', 'name', fn ($query) => $query->where('is_active', true))
+                        ->relationship('account', 'name', fn ($query) => $query->manual()->where('is_active', true))
                         ->searchable()
                         ->required(),
                     DatePicker::make('payment_date')->default(now())->required(),

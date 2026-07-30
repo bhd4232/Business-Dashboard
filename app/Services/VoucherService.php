@@ -80,7 +80,7 @@ class VoucherService
             ]);
         }
 
-        if ($transactionType === 'customer_payment' && empty($data['customer_id'])) {
+        if ($type === Voucher::TYPE_DEBIT && $transactionType === 'customer_payment' && empty($data['customer_id'])) {
             throw ValidationException::withMessages(['customer_id' => 'Please select a customer.']);
         }
 
@@ -237,7 +237,9 @@ class VoucherService
     protected function applyAccountingEffect(Voucher $voucher): ?object
     {
         return match ($voucher->transaction_type) {
-            'customer_payment' => $this->bookCustomerPayment($voucher),
+            'customer_payment' => $voucher->customer_id
+                ? $this->bookCustomerPayment($voucher)
+                : $this->bookAccountLedger($voucher, 'in'),
             'supplier_payment' => $this->bookSupplierPayment($voucher),
             'business_expense' => $this->bookExpense($voucher),
             'inventory_purchase' => $this->bookAccountLedger($voucher, 'out'),
@@ -324,10 +326,19 @@ class VoucherService
             ->values();
         unset($data['order_ids']);
 
-        if (
-            ($data['type'] ?? null) !== Voucher::TYPE_CREDIT
-            || (($data['transaction_type'] ?? null) !== 'customer_payment' && $orderIds->isEmpty())
-        ) {
+        if (($data['type'] ?? null) !== Voucher::TYPE_CREDIT) {
+            return [$data, []];
+        }
+
+        if (($data['transaction_type'] ?? null) !== 'customer_payment' && $orderIds->isEmpty()) {
+            return [$data, []];
+        }
+
+        $data['transaction_type'] = 'customer_payment';
+
+        if ($orderIds->isEmpty()) {
+            $data['order_id'] = null;
+
             return [$data, []];
         }
 
@@ -335,9 +346,9 @@ class VoucherService
             ->whereKey($orderIds)
             ->get(['id', 'customer_id']);
 
-        if ($orderIds->isEmpty() || $orders->count() !== $orderIds->count()) {
+        if ($orders->count() !== $orderIds->count()) {
             throw ValidationException::withMessages([
-                'order_ids' => 'Select at least one valid order invoice.',
+                'order_ids' => 'Select valid order invoices.',
             ]);
         }
 
@@ -349,8 +360,14 @@ class VoucherService
             ]);
         }
 
-        $data['transaction_type'] = 'customer_payment';
-        $data['customer_id'] = $customerIds->first();
+        if (empty($data['customer_id'])) {
+            $data['customer_id'] = $customerIds->first();
+        } elseif ((int) $data['customer_id'] !== (int) $customerIds->first()) {
+            throw ValidationException::withMessages([
+                'order_ids' => 'Selected order invoices must belong to the selected customer account.',
+            ]);
+        }
+
         $data['order_id'] = $orderIds->first();
 
         return [$data, $orderIds->all()];
