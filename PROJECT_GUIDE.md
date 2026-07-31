@@ -70,7 +70,7 @@ tests/Feature/MultiCompanyIsolationTest.php
 
 ### Filament Admin Navigation Clusters
 
-Business modules use Filament's native `Cluster` pattern instead of separate sidebar groups. Each module has one sidebar destination, desktop top sub-navigation, and Filament's responsive mobile page selector. Child pages keep their own authorization rules, and every cluster root checks whether the user can access at least one child before redirecting.
+Business modules use Filament's native `Cluster` and nested `NavigationItem` patterns. Each module heading is a toggle rather than a destination: clicking it only expands or collapses the submenu, and a chevron identifies headings that contain child links. Every authorized child page remains a separate icon-bearing navigation link. The submenus behave as an accordion, so opening one module collapses the others; the active module is restored open after navigation. Main menu spacing is compact, with a small consistent gap between neighboring items. Child pages keep their own authorization rules, and every cluster root checks whether the user can access at least one child before redirecting.
 
 Canonical module routes and selectors:
 
@@ -87,7 +87,7 @@ Canonical module routes and selectors:
 
 `Site` is the admin-facing display name for the storefront module. This is a presentation-only change: the canonical `/admin/storefront` route and existing `Storefront*` PHP classes, resources, models, tables, and public-domain terminology remain unchanged.
 
-Courier, Customer Success, and Company Management follow the same cluster pattern. Hidden support resources remain hidden: Shipment and Container stay embedded in Purchases; Expense Categories and Transaction Ledgers remain routable support pages; User Roles remains reachable from Users. Fund Transfers are embedded on the Vouchers page, while the legacy Fund Source and standalone Fund Transfer resources do not register navigation or routes. Hidden pages must not create extra sidebar or selector entries.
+Courier, Customer Success, and Company Management follow the same cluster pattern. Hidden support resources remain hidden: Shipment and Container stay embedded in Purchases; Expense Categories and Transaction Ledgers remain routable support pages; User Roles remains reachable from Users. Fund Transfers are embedded on the Vouchers page, while the legacy Fund Source and standalone Fund Transfer resources do not register navigation or routes. Hidden pages must not create extra sidebar submenu entries.
 
 Former top-level Filament child URLs are handled by `LegacyAdminClusterRedirectController`, which preserves nested record paths and query strings. Existing custom operational URLs such as order print/PDF, report exports, CSV import/export samples, backup downloads, and private attachment downloads remain unchanged.
 
@@ -95,8 +95,11 @@ Important files:
 
 ```text
 app/Filament/Clusters/
+app/Filament/Clusters/NavigationCluster.php
 app/Http/Controllers/Admin/LegacyAdminClusterRedirectController.php
 app/Providers/Filament/AdminPanelProvider.php
+resources/css/filament/admin/theme.css
+resources/views/filament/partials/sidebar-navigation.blade.php
 routes/web.php
 tests/Feature/AdminNavigationClustersTest.php
 ```
@@ -807,6 +810,7 @@ Money behavior:
   - `Customer Due` (`customer_due`) = the total of all positive customer current balances for that company.
   - `New Shipment` (`shipment`) = the total value of distinct purchases linked to planned/booked/shipped/in-transit/customs shipments. Received and cancelled shipments are excluded.
 - System account balances are calculated live from company data; they are not ledger-operated cash/bank accounts.
+- In `All Companies` mode, the Accounts list displays one aggregated set of the three permanent accounts instead of repeating one set per company. Selecting a specific company returns to that company's three rows and company-specific live balances.
 - System accounts cannot be edited, deleted, bulk-selected, or selected in Voucher, Fund Transfer, Customer Payment, Supplier Payment, Expense, or legacy Fund Source account fields.
 - The system-only `inventory`, `customer_due`, and `shipment` types are displayed in the Accounts list but are not offered on the New Account form.
 

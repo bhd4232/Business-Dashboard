@@ -3,11 +3,10 @@
 namespace App\Filament\Clusters;
 
 use BackedEnum;
-use Filament\Clusters\Cluster;
 use Filament\Pages\Enums\SubNavigationPosition;
 use Filament\Support\Icons\Heroicon;
 
-class Purchasing extends Cluster
+class Purchasing extends NavigationCluster
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingBag;
 

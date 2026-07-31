@@ -4,11 +4,10 @@ namespace App\Filament\Clusters;
 
 use App\Filament\Pages\Reports as ReportsPage;
 use BackedEnum;
-use Filament\Clusters\Cluster;
 use Filament\Pages\Enums\SubNavigationPosition;
 use Filament\Support\Icons\Heroicon;
 
-class Reports extends Cluster
+class Reports extends NavigationCluster
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 

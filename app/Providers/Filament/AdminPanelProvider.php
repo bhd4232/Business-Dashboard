@@ -86,7 +86,6 @@ class AdminPanelProvider extends PanelProvider
                 // custom properties for whichever company is active.
                 'primary' => Color::Amber,
             ])
-            ->sidebarCollapsibleOnDesktop()
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 function (): HtmlString {
@@ -346,6 +345,10 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn (): HtmlString => new HtmlString(view('filament.partials.app-updater')->render()),
+            )
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): HtmlString => new HtmlString(view('filament.partials.sidebar-navigation')->render()),
             )
             ->renderHook(
                 PanelsRenderHook::GLOBAL_SEARCH_BEFORE,

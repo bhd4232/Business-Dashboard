@@ -3,11 +3,10 @@
 namespace App\Filament\Clusters;
 
 use BackedEnum;
-use Filament\Clusters\Cluster;
 use Filament\Pages\Enums\SubNavigationPosition;
 use Filament\Support\Icons\Heroicon;
 
-class Crm extends Cluster
+class Crm extends NavigationCluster
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
 

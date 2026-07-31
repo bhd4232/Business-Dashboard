@@ -3,11 +3,10 @@
 namespace App\Filament\Clusters;
 
 use BackedEnum;
-use Filament\Clusters\Cluster;
 use Filament\Pages\Enums\SubNavigationPosition;
 use Filament\Support\Icons\Heroicon;
 
-class Storefront extends Cluster
+class Storefront extends NavigationCluster
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedGlobeAlt;
 

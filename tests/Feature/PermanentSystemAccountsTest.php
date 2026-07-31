@@ -190,4 +190,61 @@ class PermanentSystemAccountsTest extends TestCase
             Account::query()->where('system_key', 'new_shipment')->sole()->balance(),
         );
     }
+
+    public function test_all_companies_shows_one_aggregated_set_of_system_accounts(): void
+    {
+        $firstCompany = $this->company();
+
+        Product::query()->create([
+            'name' => 'First Company Product',
+            'sku' => 'ALL-FIRST',
+            'cost_price' => 25,
+            'price' => 40,
+            'stock' => 2,
+            'has_variants' => false,
+        ]);
+
+        $secondCompany = Company::query()->create([
+            'name' => 'Second System Account Company',
+            'slug' => 'second-system-account-company',
+            'invoice_prefix' => 'SSC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($secondCompany);
+
+        Product::query()->create([
+            'name' => 'Second Company Product',
+            'sku' => 'ALL-SECOND',
+            'cost_price' => 50,
+            'price' => 70,
+            'stock' => 3,
+            'has_variants' => false,
+        ]);
+
+        app(CompanyContext::class)->all();
+
+        $systemAccounts = AccountResource::getEloquentQuery()
+            ->whereNotNull('accounts.system_key')
+            ->orderBy('accounts.system_key')
+            ->get();
+
+        $this->assertSame(3, $systemAccounts->count());
+        $this->assertSame(
+            ['customer_due', 'inventory_value', 'new_shipment'],
+            $systemAccounts->pluck('system_key')->all(),
+        );
+        $this->assertSame(
+            200.0,
+            $systemAccounts->firstWhere('system_key', 'inventory_value')->balance(),
+        );
+
+        app(CompanyContext::class)->set($firstCompany);
+
+        $this->assertSame(
+            50.0,
+            Account::query()->where('system_key', 'inventory_value')->sole()->balance(),
+        );
+    }
 }

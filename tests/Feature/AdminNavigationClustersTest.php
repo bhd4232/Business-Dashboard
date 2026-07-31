@@ -51,7 +51,6 @@ use App\Models\FundTransfer;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Services\CompanyContext;
-use Filament\Pages\Enums\SubNavigationPosition;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -62,7 +61,7 @@ class AdminNavigationClustersTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_business_modules_use_native_top_navigation_clusters(): void
+    public function test_business_modules_use_native_collapsible_sidebar_submenus(): void
     {
         $components = [
             Storefront::class => [
@@ -117,7 +116,7 @@ class AdminNavigationClustersTest extends TestCase
         ];
 
         foreach ($components as $cluster => $clusteredComponents) {
-            $this->assertSame(SubNavigationPosition::Top, $cluster::getSubNavigationPosition());
+            $this->assertFalse($cluster::shouldRegisterSubNavigation());
 
             foreach ($clusteredComponents as $component) {
                 $this->assertSame($cluster, $component::getCluster());
@@ -125,6 +124,47 @@ class AdminNavigationClustersTest extends TestCase
         }
 
         $this->assertSame('CRM', Crm::getClusterBreadcrumb());
+    }
+
+    public function test_active_cluster_navigation_contains_authorized_child_items(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($admin->defaultCompany());
+        $this->actingAs($admin);
+
+        $financeItem = Finance::getNavigationItems()[0];
+        $financeChildItems = collect($financeItem->getChildItems());
+        $childLabels = $financeChildItems
+            ->map(fn ($item): string => $item->getLabel())
+            ->all();
+
+        $this->assertContains('Vouchers', $childLabels);
+        $this->assertContains('Accounts', $childLabels);
+        $this->assertContains('Expenses', $childLabels);
+        $this->assertNotContains('Fund Sources', $childLabels);
+        $this->assertNotContains('Fund Transfers', $childLabels);
+        $this->assertSame('Finance', $financeItem->getLabel());
+        $this->assertNotNull($financeItem->getIcon());
+        $this->assertNull($financeItem->getUrl());
+        $this->assertSame('Finance', $financeItem->getExtraAttributes()['data-zz-sidebar-menu']);
+
+        foreach ($financeChildItems as $financeChildItem) {
+            $this->assertNull($financeChildItem->getGroup());
+            $this->assertNotNull($financeChildItem->getIcon());
+            $this->assertStringContainsString('zz-sidebar-child-item', $financeChildItem->getExtraAttributes()['class']);
+
+            $encodedIcon = $financeChildItem->getExtraAttributes()['data-zz-sidebar-icon'];
+            $iconMarkup = base64_decode($encodedIcon, strict: true);
+            $iconDocument = new \DOMDocument;
+
+            $this->assertIsString($iconMarkup);
+            $this->assertTrue(@$iconDocument->loadXML($iconMarkup));
+            $this->assertSame('svg', $iconDocument->documentElement->localName);
+            $this->assertStringContainsString('zz-sidebar-child-icon', $iconDocument->documentElement->getAttribute('class'));
+        }
     }
 
     public function test_storefront_cluster_uses_concise_site_navigation_labels(): void
@@ -259,20 +299,43 @@ class AdminNavigationClustersTest extends TestCase
         $this->assertDatabaseCount('vouchers', 0);
     }
 
-    public function test_cluster_page_renders_filament_page_selector_items(): void
+    public function test_cluster_page_renders_filament_collapsible_sidebar_items(): void
     {
         $admin = User::factory()->create([
             'role' => 'super_admin',
             'is_active' => true,
         ]);
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->withSession(['current_company_id' => $admin->defaultCompany()->getKey()])
             ->get('/admin/sales/customers')
             ->assertOk()
+            ->assertSee('zz-sidebar-menu-parent', escape: false)
+            ->assertSee('zz-sidebar-submenu-open', escape: false)
+            ->assertSee('data-zz-sidebar-menu="Sales"', escape: false)
+            ->assertSee('zz-sidebar-child-item', escape: false)
+            ->assertSee('data-zz-sidebar-icon=', escape: false)
+            ->assertDontSee('fi-body-has-sidebar-collapsible-on-desktop', escape: false)
             ->assertSee('Customers')
             ->assertSee('Orders')
             ->assertSee('Customer Payments');
+
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $xpath = new \DOMXPath($document);
+        $sidebarNavigation = $xpath->query(
+            '//nav[contains(concat(" ", normalize-space(@class), " "), " fi-sidebar-nav ")]'
+        )->item(0);
+
+        $this->assertNotNull($sidebarNavigation);
+
+        $sidebarHtml = $document->saveHTML($sidebarNavigation);
+
+        $this->assertStringContainsString('Dashboard', $sidebarHtml);
+        $this->assertStringContainsString('data-zz-sidebar-menu="Sales"', $sidebarHtml);
+        $this->assertStringContainsString('Customers', $sidebarHtml);
+        $this->assertStringContainsString('Orders', $sidebarHtml);
+        $this->assertStringContainsString('Customer Payments', $sidebarHtml);
     }
 
     public function test_hidden_purchasing_resources_do_not_bypass_cluster_permissions(): void

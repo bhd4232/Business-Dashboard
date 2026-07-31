@@ -183,6 +183,9 @@ Related planning documents:
 
 ## Phase 4: Accounts and Payments
 
+- `All Companies` now presents the three permanent finance accounts once with cross-company aggregate live balances; company-specific views remain scoped.
+- Admin modules use compact, accordion-style Filament submenus: module headings toggle icon-bearing child links and display a dropdown chevron.
+
 **Goal:** Track business cash flow, due amounts, expenses, and payments.
 
 **Status:** Done.

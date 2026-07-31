@@ -10,24 +10,28 @@ class AccountBalanceService
 {
     public function for(Account $account): float
     {
+        $companyId = app(CompanyContext::class)->isAllCompanies()
+            ? null
+            : (int) $account->company_id;
+
         return match ($account->system_key) {
-            'inventory_value' => $this->inventoryValue((int) $account->company_id),
-            'customer_due' => $this->customerDue((int) $account->company_id),
-            'new_shipment' => $this->newShipmentValue((int) $account->company_id),
+            'inventory_value' => $this->inventoryValue($companyId),
+            'customer_due' => $this->customerDue($companyId),
+            'new_shipment' => $this->newShipmentValue($companyId),
             default => (float) $account->current_balance,
         };
     }
 
-    public function inventoryValue(int $companyId): float
+    public function inventoryValue(?int $companyId): float
     {
         $baseProducts = (float) DB::table('products')
-            ->where('company_id', $companyId)
+            ->when($companyId !== null, fn ($query) => $query->where('company_id', $companyId))
             ->where('has_variants', false)
             ->sum(DB::raw('stock * cost_price'));
 
         $variantProducts = (float) DB::table('product_variants')
             ->join('products', 'products.id', '=', 'product_variants.product_id')
-            ->where('product_variants.company_id', $companyId)
+            ->when($companyId !== null, fn ($query) => $query->where('product_variants.company_id', $companyId))
             ->where('products.has_variants', true)
             ->where('product_variants.is_active', true)
             ->sum(DB::raw('product_variants.stock * COALESCE(product_variants.cost_price, products.cost_price)'));
@@ -35,23 +39,23 @@ class AccountBalanceService
         return $baseProducts + $variantProducts;
     }
 
-    public function customerDue(int $companyId): float
+    public function customerDue(?int $companyId): float
     {
         return (float) DB::table('customers')
-            ->where('company_id', $companyId)
+            ->when($companyId !== null, fn ($query) => $query->where('company_id', $companyId))
             ->where('current_balance', '>', 0)
             ->sum('current_balance');
     }
 
-    public function newShipmentValue(int $companyId): float
+    public function newShipmentValue(?int $companyId): float
     {
         $activeStatuses = array_diff(array_keys(Shipment::STATUSES), ['received', 'cancelled']);
 
         return (float) DB::table('purchases')
-            ->where('company_id', $companyId)
+            ->when($companyId !== null, fn ($query) => $query->where('company_id', $companyId))
             ->whereIn('id', DB::table('shipments')
                 ->select('purchase_id')
-                ->where('company_id', $companyId)
+                ->when($companyId !== null, fn ($query) => $query->where('company_id', $companyId))
                 ->whereNotNull('purchase_id')
                 ->whereIn('status', $activeStatuses))
             ->sum('total_amount');
