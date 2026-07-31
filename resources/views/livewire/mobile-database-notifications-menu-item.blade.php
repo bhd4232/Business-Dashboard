@@ -1,6 +1,6 @@
 <x-filament::dropdown.list.item
     class="zz-mobile-notifications-item"
-    wire:poll.15s="$refresh"
+    wire:poll.visible.15s="$refresh"
     icon="heroicon-o-bell"
     :badge="$unreadCount ?: null"
     :aria-label="$unreadCount

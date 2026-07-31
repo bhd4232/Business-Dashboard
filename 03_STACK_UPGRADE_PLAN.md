@@ -102,10 +102,10 @@ composer remove shahariar-ahmad/courier-fraud-checker-bd
     সার্ভিসের পাবলিক ইন্টারফেস অপরিবর্তিত, job/controller-এ কোনো পরিবর্তন লাগেনি
 ```
 
-**সম্পন্ন — ২০২৬-০৭-৩০।** `app/Services/CourierFraud/` এ নতুন ইন্টারফেস + ৩টা ক্লায়েন্ট
+**সম্পন্ন — ২০২৬-০৮-০১।** `app/Services/CourierFraud/` এ নতুন ইন্টারফেস + ৩টা ক্লায়েন্ট
 (`PathaoFraudClient`, `SteadfastFraudClient`, `RedxFraudClient`), `ExternalCourierFraudService`
 রিওয়্যার করা হয়েছে, প্যাকেজ `composer remove` দিয়ে সরানো হয়েছে। পূর্ণাঙ্গ বিস্তারিত
-`UPDATE_NOTES.md`-এর "2026-07-30 - Stack Upgrade Plan, Step 1" এন্ট্রিতে। পুরো
+`UPDATE_NOTES.md`-এর "2026-08-01 - Stack Upgrade Plan, Step 1" এন্ট্রিতে। পুরো
 `php artisan test` স্যুট — ৫৪৫ পাস (২৮৭৫ অ্যাসারশন), কোনো রিগ্রেশন নেই। কমিট এখনো
 owner-এর অনুমোদনের অপেক্ষায়।
 
@@ -120,15 +120,32 @@ PHP 8.3-এর সিকিউরিটি সাপোর্ট শেষ ড�
 ### ২.২ ইমপ্লিমেন্টেশন
 
 ```txt
-[ ] Coolify-তে অ্যাপের Build Pack/Dockerfile/nixpacks.toml-এ PHP ভার্সন 8.4-এ পরিবর্তন
-[ ] composer.json-এ "php": "^8.2" → "php": "^8.4" আপডেট
+[x] Coolify-তে অ্যাপের Build Pack/Dockerfile/nixpacks.toml-এ PHP ভার্সন 8.4-এ পরিবর্তন
+    — এই রিপোতে Dockerfile নেই, nixpacks.toml-ই আসল Coolify বিল্ড কনফিগ; সেখানে কোনো
+    PHP ভার্সন হার্ডকোড করা নেই, Nixpacks composer.json থেকেই অটো-ডিটেক্ট করে — তাই
+    নিচের composer.json পরিবর্তনই যথেষ্ট, আলাদা এডিট লাগেনি
+[x] composer.json-এ "php": "^8.2" → "php": "^8.4" আপডেট
 [ ] স্টেজিং সার্ভারে rebuild করে dependency/extension সমস্যা (gd, intl, imagick ইত্যাদি
-    এক্সটেনশন লোড হচ্ছে কিনা) যাচাই
+    এক্সটেনশন লোড হচ্ছে কিনা) যাচাই — **স্থগিত, staging-এ করতে হবে।** এই ডেভ মেশিনে
+    (Laragon) শুধু PHP 8.3.30 আছে, PHP 8.4 নেই। `composer update --dry-run` চালিয়ে
+    কনফার্ম করা হয়েছে composer নিজেই আটকে দেয়: "Root composer.json requires php ^8.4
+    but your php version (8.3.30) does not satisfy that requirement" — owner-কে
+    জিজ্ঞাসা করে জানানো হয়েছে, staging rebuild-এ Nixpacks PHP 8.4 প্রোভিশন করার পর
+    সেখানেই আসল composer update + এক্সটেনশন যাচাই হবে
 [ ] php artisan test পুরো স্যুট চালিয়ে দেখুন — deprecation warning থাকলে সেগুলো এই
-    ধাপেই ধরা পড়বে, Laravel আপগ্রেডের সাথে গুলিয়ে ফেলার আগে
+    ধাপেই ধরা পড়বে, Laravel আপগ্রেডের সাথে গুলিয়ে ফেলার আগে — **একই কারণে স্থগিত,
+    staging PHP 8.4-এ করতে হবে।** এই দফায় শুধু app/-এ স্ট্যাটিক স্ক্যান করা হয়েছে
+    (implicit-nullable-parameter ডেপ্রিকেশন প্যাটার্নের জন্য — কিছু পাওয়া যায়নি)
 ```
 
 **নোট:** PHP 8.3/8.4-এ কিছু deprecated ফিচার (implicit nullable params, কিছু dynamic property warning) স্ট্রিক্টার হয়েছে — Laravel/Filament নিজেরা এসব সামলায়, কিন্তু প্রজেক্টের নিজস্ব কোডে (custom Service ক্লাসগুলো) কোনো constructor-এ `public function __construct($x = null)` টাইপের implicit-nullable প্যাটার্ন থাকলে PHP 8.4-এ deprecation notice আসতে পারে — টেস্ট রান করলে লগে দেখা যাবে।
+
+**আংশিক সম্পন্ন — ২০২৬-০৮-০১।** কোড/ডকুমেন্টেশনের অংশ (composer.json, docs/deployment.md,
+নিক্সপ্যাকস-চেক) শেষ, কিন্তু **স্টেজিং যাচাই এখনো বাকি** — composer.lock এই দফায়
+রিফ্রেশ করা হয়নি (লোকাল মেশিনে PHP 8.4 নেই বলে করা যায়নি)। পরের ধাপে (৩ নম্বর, Laravel
+13) যাওয়ার আগে owner-কে স্টেজিং-এ ডিপ্লয় করে rebuild + `composer update` + পুরো টেস্ট
+স্যুট চালিয়ে PHP 8.4 আসলেই ঠিকভাবে কাজ করছে কিনা কনফার্ম করতে হবে। বিস্তারিত
+`UPDATE_NOTES.md`-এর "2026-08-01 - Stack Upgrade Plan, Step 2" এন্ট্রিতে।
 
 ---
 

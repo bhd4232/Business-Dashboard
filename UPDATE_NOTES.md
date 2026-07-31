@@ -2,7 +2,7 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
-## 2026-07-30 - Stack Upgrade Plan, Step 1: remove courier-fraud-checker-bd
+## 2026-08-01 - Stack Upgrade Plan, Step 1: remove courier-fraud-checker-bd
 
 Reason:
 
@@ -15,8 +15,8 @@ Important changed files:
 - `app/Services/ExternalCourierFraudService.php` - `DRIVER_SERVICE_MAP`/`DRIVER_METHOD_MAP`/`applyConfig()` (package-config-based dispatch) replaced with `DRIVER_CLIENT_MAP` resolving the new clients via the container; the 24h cache, graceful per-courier failure, and `CustomerRiskEvent` audit logging are all unchanged.
 - `composer.json`/`composer.lock` - `shahariar-ahmad/courier-fraud-checker-bd` removed via `composer remove`; `bootstrap/cache/packages.php`/`services.php` regenerated via `composer install` to clear the stale cached provider manifest (a leftover `vendor/shahariar-ahmad` directory that Windows initially failed to delete - likely locked by antivirus/indexer - was removed on retry).
 - `tests/Unit/Services/CourierFraud/PathaoFraudClientTest.php`, `SteadfastFraudClientTest.php`, `RedxFraudClientTest.php` (new) - 14 tests covering success and failure paths per client via `Http::fake()`.
-- `CHANGELOG.md` - new `[1.22.1] - 2026-07-30` Maintenance Update entry (Technical Notes only, no user-facing change). `.env.example`/`.env.production.example` - `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE` bumped to match.
-- `tests/Feature/ReleaseNotesTest.php` - the three assertions coupled to the top `CHANGELOG.md` entry (`published_version`, the installed-version banner's version/date, and the pending-upgrade-available version) updated from `1.22.0`/`2026-07-23` to `1.22.1`/`2026-07-30` to match the new top entry.
+- `CHANGELOG.md` - new `[1.22.1] - 2026-08-01` Maintenance Update entry (Technical Notes only, no user-facing change). `.env.example`/`.env.production.example` - `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE` bumped to match.
+- `tests/Feature/ReleaseNotesTest.php` - the three assertions coupled to the top `CHANGELOG.md` entry (`published_version`, the installed-version banner's version/date, and the pending-upgrade-available version) updated from `1.22.0`/`2026-07-23` to `1.22.1`/`2026-08-01` to match the new top entry.
 - `03_STACK_UPGRADE_PLAN.md` - Step 1 checklist items marked done.
 
 Behavior and safety:
@@ -34,6 +34,36 @@ Verification:
 Commit status:
 
 - Pending user approval; not committed or pushed.
+
+## 2026-08-01 - Stack Upgrade Plan, Step 2: PHP 8.2 to 8.4 target
+
+Reason:
+
+- `03_STACK_UPGRADE_PLAN.md` Step 2: raise the minimum PHP version to 8.4 (longest remaining security-support window; Laravel 13 requires 8.3+ minimum anyway) before the Laravel 13/Filament 5 upgrade in Steps 3-5.
+
+Important changed files:
+
+- `composer.json` - `"php": "^8.2"` -> `"^8.4"`.
+- `docs/deployment.md` - Server Requirements line updated from "PHP 8.2 or newer" to "PHP 8.4 or newer".
+- `CHANGELOG.md` - folded into the still-open `[1.22.1]` Maintenance Update entry (Step 1 and Step 2 are one uncommitted batch); `.env.example`/`.env.production.example` dates corrected to the actual current date, `2026-08-01` (an earlier pass in this same session had mistakenly written `2026-07-30` in the Step 1 entry/env files/plan doc/test assertions - all corrected back to `2026-08-01` in this pass, re-verified with `php artisan test --filter=ReleaseNotesTest`).
+- `03_STACK_UPGRADE_PLAN.md` - Step 2 checklist items marked, noting which are done locally versus deferred to staging.
+
+Behavior and safety:
+
+- No dependency versions changed yet (Step 3-5 still pending) - only the declared minimum PHP version and docs.
+- `nixpacks.toml` (the Coolify build config actually present in this repo - there is no Dockerfile) has no hardcoded PHP version; Nixpacks' PHP provider auto-detects it from `composer.json`'s `require.php`, so no separate Coolify build-file edit was needed.
+- Static-scanned `app/` for the PHP 8.4 implicit-nullable-parameter deprecation (`SomeType $x = null` without a leading `?`) - zero matches; the few `mixed $x = null` hits found are not affected (`mixed` already includes `null`).
+
+Verification:
+
+- Confirmed the real local blocker rather than assuming: `composer update --dry-run` against the new constraint fails cleanly with "Root composer.json requires php ^8.4 but your php version (8.3.30) does not satisfy that requirement" - this machine (Laragon) only has PHP 8.3.30 installed, no PHP 8.4 binary anywhere on it.
+- Did not force through with `--ignore-platform-reqs` - that would produce a false "pass" without proving anything about real PHP 8.4 compatibility (extension availability, runtime behavior).
+- Asked the owner how to proceed; owner chose to defer `composer update` + the full extension/test-suite verification to the Coolify staging server, where Nixpacks will provision real PHP 8.4 from the updated `composer.json` on the next staging build/rebuild.
+- `php artisan test --filter=ReleaseNotesTest` - 4 passed (50 assertions) after the date correction, confirming CHANGELOG.md still parses correctly and the top-entry-coupled assertions match.
+
+Commit status:
+
+- Pending user approval; not committed or pushed. **Also pending: staging verification (composer update under real PHP 8.4, extension check, full test suite) before Step 3 (Laravel 13) begins**, per the owner's explicit choice above.
 
 ## 2026-07-26 - Browser-side image pre-compression before Livewire/R2 upload
 

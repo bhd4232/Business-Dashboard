@@ -6,7 +6,7 @@
     "keywords": ["laravel", "filament", "inventory-management", "business-dashboard", "sales-management", "purchase-management", "accounting", "erp-lite", "small-business", "wholesale"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "barryvdh/laravel-dompdf": "^3.1",
         "ext-gd": "*",
         "filament/filament": "^4.11.4",

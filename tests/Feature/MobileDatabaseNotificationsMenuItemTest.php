@@ -72,7 +72,7 @@ class MobileDatabaseNotificationsMenuItemTest extends TestCase
 
         $component = Livewire::actingAs($user)
             ->test(MobileDatabaseNotificationsMenuItem::class)
-            ->assertSeeHtml('wire:poll.15s="$refresh"')
+            ->assertSeeHtml('wire:poll.visible.15s="$refresh"')
             ->assertSeeHtml('x-on:click="$dispatch(\'open-modal\', { id: \'database-notifications\' })"')
             ->assertSee('Notifications');
 

@@ -25,7 +25,7 @@ production**, or the app is either insecure or unreliable under load:
 
 ## Server Requirements
 
-- PHP 8.2 or newer
+- PHP 8.4 or newer
 - Composer
 - Node.js 20
 - MySQL or MariaDB for production

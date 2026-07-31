@@ -2,11 +2,11 @@
 
 All notable production changes to Business Dashboard are documented here.
 
-## [1.22.1] - 2026-07-30
+## [1.22.1] - 2026-08-01
 
 **Release type:** Maintenance Update
 
-Replaces the third-party `shahariar-ahmad/courier-fraud-checker-bd` package (Part 1 of the Stack Upgrade Plan) with an in-house HTTP client for the same Pathao/Steadfast/RedX fraud-check lookups. No user-facing behavior changes — this is a drop-in replacement that clears an unversioned (`"*"` constraint) dependency out of the way before the planned PHP 8.4/Laravel 13/Filament 5 upgrade.
+Replaces the third-party `shahariar-ahmad/courier-fraud-checker-bd` package (Part 1 of the Stack Upgrade Plan) with an in-house HTTP client for the same Pathao/Steadfast/RedX fraud-check lookups, and raises the minimum PHP version to 8.4 (Part 2). No user-facing behavior changes — these are infrastructure steps ahead of the planned Laravel 13/Filament 5 upgrade.
 
 ### Technical Notes
 
@@ -14,6 +14,7 @@ Replaces the third-party `shahariar-ahmad/courier-fraud-checker-bd` package (Par
 - `App\Services\ExternalCourierFraudService` now dispatches to the new clients (`DRIVER_CLIENT_MAP`) instead of the package's `PathaoService`/`SteadfastService`/`RedxService`; behavior (24h cache, graceful per-courier failure, audit logging) is unchanged, confirmed by the existing `ExternalCourierFraudCheckTest` suite passing unmodified against the new clients.
 - Removed `shahariar-ahmad/courier-fraud-checker-bd` via `composer remove`; `bootstrap/cache/packages.php`/`services.php` regenerated via `composer install` to clear the stale manifest.
 - New `tests/Unit/Services/CourierFraud/{Pathao,Steadfast,Redx}FraudClientTest.php` (14 tests) cover success and failure paths for each client with `Http::fake()`.
+- `composer.json`'s `"php"` constraint raised `^8.2` → `^8.4` (longest security-support window; Laravel 13 requires PHP 8.3+ minimum). `docs/deployment.md`'s server requirement updated to match. `nixpacks.toml` needs no separate PHP-version pin — Nixpacks' PHP provider auto-detects the version from `composer.json`. Static scan of `app/` for the PHP 8.4 implicit-nullable-parameter deprecation (a typed scalar/class param defaulting to `null` without an explicit `?` prefix) found none. `composer.lock` intentionally left un-refreshed: the local dev machine only has PHP 8.3.30 installed, and `composer update`/`install` correctly refuses to resolve against the new `^8.4` constraint from an 8.3 CLI (verified: "Root composer.json requires php ^8.4 but your php version (8.3.30) does not satisfy that requirement"). Per owner's decision, `composer update` and the full extension/test-suite verification will happen once this lands on the Coolify staging server, where Nixpacks provisions real PHP 8.4.
 
 ## [1.22.0] - 2026-07-23
 
