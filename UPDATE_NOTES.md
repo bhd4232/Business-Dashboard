@@ -33,7 +33,7 @@ Verification:
 
 Commit status:
 
-- Pending user approval; not committed or pushed.
+- Committed by the owner directly (bundled with unrelated finance/accounts work, commit `0aa90018` "feat: enhance finance accounts and voucher workflows") - already on `main`/production before Step 2 started.
 
 ## 2026-08-01 - Stack Upgrade Plan, Step 2: PHP 8.2 to 8.4 target
 
@@ -63,7 +63,40 @@ Verification:
 
 Commit status:
 
-- Pending user approval; not committed or pushed. **Also pending: staging verification (composer update under real PHP 8.4, extension check, full test suite) before Step 3 (Laravel 13) begins**, per the owner's explicit choice above.
+- Committed to a new `staging` branch (commit `fef119e0`, "feat: raise PHP requirement to 8.4, poll mobile notifications only when visible") and pushed to `origin/staging` for a Coolify staging Resource the owner is setting up (this repo had no staging branch/resource before now - `main` tracks `origin/main` directly, which is the production Coolify app). Also bundled in the same commit at the owner's request: two pre-existing unrelated uncommitted local changes (`resources/views/livewire/mobile-database-notifications-menu-item.blade.php` + its test, `wire:poll.15s` -> `wire:poll.visible.15s` so the mobile notifications menu item stops polling while its tab is backgrounded). Not on `main`/production - by design, per the plan's own precondition to verify in staging before touching production.
+
+## 2026-08-01 (continued) - Local PHP 8.4.24 install, real verification, and a staging nginx crash-loop fix
+
+Reason:
+
+- Owner asked to actually update the local PC's PHP version rather than only defer to staging, so `composer update` and the full test suite could be genuinely verified locally instead of only declared safe by inspection.
+- Separately, the owner's first Coolify staging build (a fresh Resource pointed at the new `staging` branch) crash-looped; the owner pasted the container logs.
+
+Important changed files:
+
+- No repo files changed by the local PHP install itself - `C:/laragon/bin/php/php-8.4.24-Win32-vs17-x64/` was added as a new, separate PHP version alongside the existing 8.3.30 (which is untouched), following Laragon's own folder convention.
+- `composer.lock` - refreshed for real via `composer update` under the new PHP 8.4.24 binary (Laravel 12.62.0 -> 12.64.0, Filament 4.11.7 -> 4.12.5, Livewire 3.8.1 -> 3.8.3, and other patch/minor bumps; nothing pinned to Laravel 13/Filament 5 yet, per plan ordering - Step 3 hasn't started).
+- `nginx.template.conf` - fixed a real, pre-existing bug: the `IS_LARAVEL` and `NIXPACKS_PHP_FALLBACK_PATH` `location /` blocks were two independent `$if` blocks. Since this repo's `nixpacks.toml` sets `NIXPACKS_PHP_FALLBACK_PATH="/index.php"` and `IS_LARAVEL` auto-detects true for this project, Nixpacks rendered **both** blocks into the final `nginx.conf`, and nginx refuses to start with two identical `location "/"` contexts ("duplicate location"). Fixed by nesting the fallback block inside the Laravel block's `else`, so only one ever renders - matching Nixpacks' own upstream template shape. Root cause confirmed directly from the pasted container log line `nginx: [emerg] duplicate location "/" in /nginx.conf:57`.
+- `tests/Feature/LivewireTemporaryUploadConfigurationTest.php` - new `test_nixpacks_template_never_renders_two_independent_root_location_blocks()` asserts the fallback `$if` is textually nested inside the Laravel block's `else (`, so this exact regression (someone "simplifying" the nesting back to two siblings) fails the suite instead of only surfacing on the next fresh Coolify build.
+- `CHANGELOG.md` - appended to the same still-open `[1.22.1]` entry; `03_STACK_UPGRADE_PLAN.md` Step 2 checklist items flipped from "deferred to staging" to done, with the nginx finding noted.
+
+Behavior and safety:
+
+- This bug is **not caused by the PHP 8.4 change** - it would break any from-scratch Nixpacks build of this exact repo state, staging or production, PHP 8.2/8.3/8.4 alike. It surfaced now only because this staging Resource's build is the first completely fresh build since `nginx.template.conf` was added; the running production container was never rebuilt from scratch against this file.
+- The wall of `[laravel:warn] ... environment variable, but it is not set` lines in the pasted log are expected/benign - they're Laravel enumerating optional integrations (SQS, AWS, Postmark, Slack, Firebase, R2, Redis, etc.) that a fresh staging environment simply hasn't configured yet; none of them are fatal on their own.
+- One warning in the log **is** real and still needs the owner's action in the Coolify UI (not a code fix): `Your app key is not set!` - the new staging Resource needs its own `APP_KEY` environment variable (generate with `php artisan key:generate --show` or `openssl rand -base64 32`), separate from production's key.
+
+Verification:
+
+- Downloaded the official PHP 8.4.24 Windows build (TS, VS17, x64) from `windows.php.net`, verified its sha256 against `releases.json` before extracting (`7b57fc98...cedff3174`) - matched exactly.
+- Replicated the working 8.3.30 `php.ini`'s extension set (gd, intl, mbstring, exif, mysqli, openssl, pdo_mysql, pdo_sqlite, sodium, sqlite3, xsl, zip, curl, fileinfo) into the new install; `php -m` confirms all load; `php -v` clean (also silenced two now-deprecated `session.sid_length`/`session.sid_bits_per_character` ini directives that PHP 8.4 warns about on startup).
+- `composer update` under the real PHP 8.4.24 binary: succeeded on retry (first attempt hit the same transient Windows antivirus/indexer file-lock seen during the Step 1 package removal - "Could not delete ...composer/tmp-....zip"; composer is safely re-runnable after this). `composer validate` clean, no lock-file-out-of-date warning.
+- Full `php artisan test` under PHP 8.4.24: **555 passed, 2,974 assertions**, zero regressions, zero deprecation notices.
+- `php artisan test --filter=LivewireTemporaryUploadConfigurationTest`: 3 passed (12 assertions), confirming the nginx regression test itself is correct and passes against the fixed template.
+
+Commit status:
+
+- About to be committed to `staging` and pushed so the owner's next Coolify rebuild picks up the nginx fix. `composer.lock` deliberately stays on `staging` only for now, not `main` - Step 3-5 (Laravel 13/Filament 5) haven't started, so `main`/production keeps its currently-locked dependency versions.
 
 ## 2026-07-26 - Browser-side image pre-compression before Livewire/R2 upload
 

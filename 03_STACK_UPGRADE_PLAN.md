@@ -125,27 +125,30 @@ PHP 8.3-এর সিকিউরিটি সাপোর্ট শেষ ড�
     PHP ভার্সন হার্ডকোড করা নেই, Nixpacks composer.json থেকেই অটো-ডিটেক্ট করে — তাই
     নিচের composer.json পরিবর্তনই যথেষ্ট, আলাদা এডিট লাগেনি
 [x] composer.json-এ "php": "^8.2" → "php": "^8.4" আপডেট
-[ ] স্টেজিং সার্ভারে rebuild করে dependency/extension সমস্যা (gd, intl, imagick ইত্যাদি
-    এক্সটেনশন লোড হচ্ছে কিনা) যাচাই — **স্থগিত, staging-এ করতে হবে।** এই ডেভ মেশিনে
-    (Laragon) শুধু PHP 8.3.30 আছে, PHP 8.4 নেই। `composer update --dry-run` চালিয়ে
-    কনফার্ম করা হয়েছে composer নিজেই আটকে দেয়: "Root composer.json requires php ^8.4
-    but your php version (8.3.30) does not satisfy that requirement" — owner-কে
-    জিজ্ঞাসা করে জানানো হয়েছে, staging rebuild-এ Nixpacks PHP 8.4 প্রোভিশন করার পর
-    সেখানেই আসল composer update + এক্সটেনশন যাচাই হবে
-[ ] php artisan test পুরো স্যুট চালিয়ে দেখুন — deprecation warning থাকলে সেগুলো এই
-    ধাপেই ধরা পড়বে, Laravel আপগ্রেডের সাথে গুলিয়ে ফেলার আগে — **একই কারণে স্থগিত,
-    staging PHP 8.4-এ করতে হবে।** এই দফায় শুধু app/-এ স্ট্যাটিক স্ক্যান করা হয়েছে
-    (implicit-nullable-parameter ডেপ্রিকেশন প্যাটার্নের জন্য — কিছু পাওয়া যায়নি)
+[x] স্টেজিং সার্ভারে rebuild করে dependency/extension সমস্যা (gd, intl, imagick ইত্যাদি
+    এক্সটেনশন লোড হচ্ছে কিনা) যাচাই — **লোকালিই যাচাই হয়ে গেছে।** owner-এর অনুরোধে
+    windows.php.net থেকে অফিসিয়াল PHP 8.4.24 (TS, VS17, x64) বাইনারি ডাউনলোড করে
+    (sha256 ভেরিফাই করে) Laragon-এ পাশাপাশি ইনস্টল করা হয়েছে, php.ini-তে ঠিক একই
+    এক্সটেনশন সেট (gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, xsl, zip
+    ইত্যাদি) কনফিগার করে `composer update` চালানো হয়েছে — সফল, `composer.lock`
+    রিফ্রেশড (Laravel 12.62.0→12.64.0, Filament 4.11.7→4.12.5, Livewire 3.8.1→3.8.3)।
+    এছাড়াও staging-এ একটা প্রথম-বার-ফ্রেশ-বিল্ডেই একটা আসল বাগ ধরা পড়েছে ও ফিক্স হয়েছে
+    (নিচে দেখো — nginx.template.conf crash loop)
+[x] php artisan test পুরো স্যুট চালিয়ে দেখুন — deprecation warning থাকলে সেগুলো এই
+    ধাপেই ধরা পড়বে, Laravel আপগ্রেডের সাথে গুলিয়ে ফেলার আগে — **আসল PHP 8.4.24-এ পুরো
+    স্যুট চালানো হয়েছে: ৫৫৫ পাস (২৯৭৪ অ্যাসারশন), কোনো deprecation/regression নেই।**
 ```
 
 **নোট:** PHP 8.3/8.4-এ কিছু deprecated ফিচার (implicit nullable params, কিছু dynamic property warning) স্ট্রিক্টার হয়েছে — Laravel/Filament নিজেরা এসব সামলায়, কিন্তু প্রজেক্টের নিজস্ব কোডে (custom Service ক্লাসগুলো) কোনো constructor-এ `public function __construct($x = null)` টাইপের implicit-nullable প্যাটার্ন থাকলে PHP 8.4-এ deprecation notice আসতে পারে — টেস্ট রান করলে লগে দেখা যাবে।
 
-**আংশিক সম্পন্ন — ২০২৬-০৮-০১।** কোড/ডকুমেন্টেশনের অংশ (composer.json, docs/deployment.md,
-নিক্সপ্যাকস-চেক) শেষ, কিন্তু **স্টেজিং যাচাই এখনো বাকি** — composer.lock এই দফায়
-রিফ্রেশ করা হয়নি (লোকাল মেশিনে PHP 8.4 নেই বলে করা যায়নি)। পরের ধাপে (৩ নম্বর, Laravel
-13) যাওয়ার আগে owner-কে স্টেজিং-এ ডিপ্লয় করে rebuild + `composer update` + পুরো টেস্ট
-স্যুট চালিয়ে PHP 8.4 আসলেই ঠিকভাবে কাজ করছে কিনা কনফার্ম করতে হবে। বিস্তারিত
-`UPDATE_NOTES.md`-এর "2026-08-01 - Stack Upgrade Plan, Step 2" এন্ট্রিতে।
+**সম্পন্ন — ২০২৬-০৮-০১।** কোড/ডকুমেন্টেশন + লোকাল PHP 8.4.24 ভেরিফিকেশন — দুটোই শেষ।
+staging Coolify-তে প্রথম ফ্রেশ বিল্ডে `nginx.template.conf`-এর একটা প্রি-এক্সিস্টিং বাগ
+(IS_LARAVEL আর NIXPACKS_PHP_FALLBACK_PATH দুটো স্বাধীন `$if` ব্লক একসাথে `location /`
+রেন্ডার করছিল → nginx `duplicate location` এরর → কন্টেইনার restart loop) ধরা পড়ে ফিক্স
+করা হয়েছে — এটা PHP 8.4-এর কারণে না, এই ফাইলের যেকোনো ফ্রেশ বিল্ডেই হতো। বিস্তারিত
+`UPDATE_NOTES.md`-এর "2026-08-01 - Stack Upgrade Plan, Step 2" এন্ট্রিতে। এরপর staging-এ
+রিডিপ্লয় করে আসল রানটাইম কনফার্মেশন বাকি (`APP_KEY` env var-ও staging resource-এ সেট করা
+লাগবে — লগে "Your app key is not set" ওয়ার্নিং এসেছে)।
 
 ---
 

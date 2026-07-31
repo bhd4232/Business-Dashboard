@@ -33,4 +33,23 @@ class LivewireTemporaryUploadConfigurationTest extends TestCase
         $this->assertStringContainsString('post_max_size=16M', $template);
         $this->assertStringContainsString('fastcgi_param PHP_VALUE', $template);
     }
+
+    /**
+     * IS_LARAVEL and NIXPACKS_PHP_FALLBACK_PATH are both true for this repo,
+     * so the two "location /" blocks must be nested ($if...else($if...)),
+     * never two independent top-level $if blocks -- both would render at
+     * once and nginx fails to start with "duplicate location \"/\"" ,
+     * crash-looping the container. This regression was caught on a fresh
+     * Coolify staging build (2026-08-01).
+     */
+    public function test_nixpacks_template_never_renders_two_independent_root_location_blocks(): void
+    {
+        $template = file_get_contents(base_path('nginx.template.conf'));
+
+        $this->assertIsString($template);
+        $this->assertStringContainsString(
+            "\$if(IS_LARAVEL) (\n            location / {\n                try_files \$uri \$uri/ /index.php?\$query_string;\n            }\n        ) else (\n            \$if(NIXPACKS_PHP_FALLBACK_PATH) (",
+            $template,
+        );
+    }
 }
