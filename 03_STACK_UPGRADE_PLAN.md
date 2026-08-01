@@ -141,14 +141,36 @@ PHP 8.3-এর সিকিউরিটি সাপোর্ট শেষ ড�
 
 **নোট:** PHP 8.3/8.4-এ কিছু deprecated ফিচার (implicit nullable params, কিছু dynamic property warning) স্ট্রিক্টার হয়েছে — Laravel/Filament নিজেরা এসব সামলায়, কিন্তু প্রজেক্টের নিজস্ব কোডে (custom Service ক্লাসগুলো) কোনো constructor-এ `public function __construct($x = null)` টাইপের implicit-nullable প্যাটার্ন থাকলে PHP 8.4-এ deprecation notice আসতে পারে — টেস্ট রান করলে লগে দেখা যাবে।
 
-**সম্পন্ন — ২০২৬-০৮-০১।** কোড/ডকুমেন্টেশন + লোকাল PHP 8.4.24 ভেরিফিকেশন — দুটোই শেষ।
-staging Coolify-তে প্রথম ফ্রেশ বিল্ডে `nginx.template.conf`-এর একটা প্রি-এক্সিস্টিং বাগ
-(IS_LARAVEL আর NIXPACKS_PHP_FALLBACK_PATH দুটো স্বাধীন `$if` ব্লক একসাথে `location /`
-রেন্ডার করছিল → nginx `duplicate location` এরর → কন্টেইনার restart loop) ধরা পড়ে ফিক্স
-করা হয়েছে — এটা PHP 8.4-এর কারণে না, এই ফাইলের যেকোনো ফ্রেশ বিল্ডেই হতো। বিস্তারিত
-`UPDATE_NOTES.md`-এর "2026-08-01 - Stack Upgrade Plan, Step 2" এন্ট্রিতে। এরপর staging-এ
-রিডিপ্লয় করে আসল রানটাইম কনফার্মেশন বাকি (`APP_KEY` env var-ও staging resource-এ সেট করা
-লাগবে — লগে "Your app key is not set" ওয়ার্নিং এসেছে)।
+**সম্পন্ন — ২০২৬-০৮-০১।** কোড/ডকুমেন্টেশন + লোকাল PHP 8.4.24 ভেরিফিকেশন + staging-এ
+সম্পূর্ণ end-to-end রানটাইম কনফার্মেশন — সব শেষ। staging Coolify-তে প্রথম ফ্রেশ বিল্ডে দুটো
+প্রি-এক্সিস্টিং ইনফ্রা বাগ ধরা পড়ে ফিক্স করা হয়েছে:
+
+1. `nginx.template.conf`-এর `IS_LARAVEL`/`NIXPACKS_PHP_FALLBACK_PATH` duplicate
+   `location /` বাগ (কোড ফিক্স, `staging` ব্র্যাঞ্চে কমিট করা — PHP 8.4-এর কারণে না,
+   এই ফাইলের যেকোনো ফ্রেশ বিল্ডেই হতো)।
+2. **⚠️ CRITICAL — Production-কে প্রভাবিত করবে:** MySQL 8.4-এ নতুন ইউজার ডিফল্টে
+   `caching_sha2_password` ব্যবহার করে, কিন্তু Nixpacks-এর PHP 8.4 বিল্ডের `mysqlnd`
+   ড্রাইভারে এর জন্য দরকারি RSA/OpenSSL সাপোর্ট কম্পাইল করা নেই (compile-time সীমাবদ্ধতা,
+   কোনো SQL/config দিয়ে PHP সাইড থেকে ফিক্স করা যায় না) — ফলে
+   `SQLSTATE[HY000] [2054] authentication method unknown to the client
+   [caching_sha2_password]` এরর দিয়ে অ্যাপ ক্র্যাশ করে। **Production-এর আসল ডাটাবেজেও
+   (`SELECT plugin_name, plugin_status FROM information_schema.plugins WHERE
+   plugin_name = 'mysql_native_password'` দিয়ে যাচাই করা হয়েছে) এই একই ইউজার
+   `caching_sha2_password` ব্যবহার করছে — মানে production PHP 8.4-এ আপগ্রেড হলে
+   সাইট সম্পূর্ণ ডাউন হয়ে যাবে, যতক্ষণ না এই ফিক্সটা প্রথমে প্রয়োগ করা হয়।**
+
+   **ফিক্স (staging-এ যাচাই করা, প্রোডাকশনে ধাপ ৬-এর আগে বাধ্যতামূলক প্রয়োগ করতে হবে):**
+   - MySQL Database Resource-এর Coolify UI → Persistent Storage → Files → নতুন file mount:
+     `/etc/mysql/conf.d/native-password.cnf` কন্টেন্ট `[mysqld]\nmysql_native_password=ON`
+   - Database Resource রিস্টার্ট (production-এ এটা ডাটাবেজের সংক্ষিপ্ত downtime ঘটাবে —
+     মেইনটেন্যান্স উইন্ডোতে করতে হবে)
+   - `mysql>` শেলে: `ALTER USER 'ইউজারনেম'@'%' IDENTIFIED WITH mysql_native_password BY
+     'বিদ্যমান পাসওয়ার্ড'; FLUSH PRIVILEGES;`
+
+staging-এ পুরো ফ্লো verified: `php artisan migrate --force` সফল (fresh DB → সব টেবিল
+তৈরি), `ADMIN_EMAIL`/`ADMIN_PASSWORD` env var দিয়ে `php artisan db:seed --force` চালিয়ে
+super-admin তৈরি, `/admin` প্যানেলে সফল লগইন কনফার্ম করা হয়েছে। বিস্তারিত
+`UPDATE_NOTES.md`-এর "2026-08-01 - Stack Upgrade Plan, Step 2" এন্ট্রিতে।
 
 ---
 
@@ -180,10 +202,10 @@ composer require laravel/framework:^13.0 --with-all-dependencies
 `laravel.com/docs/13.x/upgrade` পেজের চেকলিস্ট লাইন-বাই-লাইন মেলান — বিশেষভাবে দেখুন:
 
 ```txt
-[ ] config/*.php ফাইলে কোনো নতুন ডিফল্ট কী যোগ হয়েছে কিনা (যেমন cache/session/queue
+[x] config/*.php ফাইলে কোনো নতুন ডিফল্ট কী যোগ হয়েছে কিনা (যেমন cache/session/queue
     কনফিগ স্ট্রাকচার পরিবর্তন) — publish করা কনফিগ ফাইলগুলো diff করুন
-[ ] কোনো deprecated helper/facade মেথড ব্যবহার হচ্ছে কিনা যা 13-এ সরানো হয়েছে
-[ ] bootstrap/app.php-এ middleware/exception handling রেজিস্ট্রেশন প্যাটার্ন
+[x] কোনো deprecated helper/facade মেথড ব্যবহার হচ্ছে কিনা যা 13-এ সরানো হয়েছে
+[x] bootstrap/app.php-এ middleware/exception handling রেজিস্ট্রেশন প্যাটার্ন
     (Laravel 11+ থেকে যেভাবে আছে) এখনো ভ্যালিড কিনা — CLAUDE.md-এ উল্লিখিত
     "SetCurrentCompany must stay pinned before SubstituteBindings in bootstrap/app.php"
     নিয়মটা আপগ্রেডের পরেও অক্ষত আছে কিনা বিশেষভাবে পরীক্ষা করুন (multi-company
@@ -193,12 +215,41 @@ composer require laravel/framework:^13.0 --with-all-dependencies
 ### ৩.৪ টেস্ট
 
 ```txt
-[ ] php artisan test পুরো স্যুট (কোনো --env flag ছাড়া)
-[ ] MultiCompanyIsolationTest বিশেষভাবে পাস করছে কিনা কনফার্ম (bootstrap.php পরিবর্তনের
+[x] php artisan test পুরো স্যুট (কোনো --env flag ছাড়া)
+[x] MultiCompanyIsolationTest বিশেষভাবে পাস করছে কিনা কনফার্ম (bootstrap.php পরিবর্তনের
     সবচেয়ে বেশি ঝুঁকিপূর্ণ জায়গা এটাই)
-[ ] npm run build (frontend asset pipeline Laravel ভার্সনের সাথে সরাসরি জড়িত না,
+[x] npm run build (frontend asset pipeline Laravel ভার্সনের সাথে সরাসরি জড়িত না,
     কিন্তু vite.config.js-এ কোনো Laravel plugin ভার্সন pin থাকলে যাচাই)
 ```
+
+**সম্পন্ন — ২০২৬-০৮-০১।** `composer why-not`-এ প্ল্যানের অনুমান করা তিনটা প্যাকেজ
+(dompdf/openspout/filament) কোনোটাই আসল ব্লকার ছিল না — আসল ব্লকার ছিল
+`laravel/tinker` v2.11.1 (illuminate ^12.0 পর্যন্তই সাপোর্ট করে)। `laravel/tinker:^3.0`
+একসাথে require করে ঠিক হয়েছে। ফাইনাল: **Laravel 13.23.0**, **tinker 3.0.2**, Symfony
+7.x→8.x চেইন আপগ্রেড। `phpunit/phpunit` ও `^12.0`-এ বাম্প করা হয়েছে (আপগ্রেড গাইডের
+High-Impact ডিপেন্ডেন্সি তালিকা অনুযায়ী)।
+
+কোড পরিবর্তন: `app/Providers/Filament/AdminPanelProvider.php`-এ
+`VerifyCsrfToken::class` → `PreventRequestForgery::class` (Laravel 13-এ CSRF মিডলওয়্যার
+rename হয়েছে; পুরনো নামটা deprecated alias হিসেবে এখনো কাজ করত, কিন্তু নতুন নামে
+আপডেট করা হয়েছে)। `bootstrap/app.php`-এর `SetCurrentCompany`/`SubstituteBindings`
+অর্ডারিং যাচাই করে অক্ষত পাওয়া গেছে।
+
+আপগ্রেড গাইডের বাকি আইটেম যাচাই করে এই প্রজেক্টের জন্য প্রযোজ্য না পাওয়া গেছে:
+`Route::domain()` ব্যবহার নেই, `->upsert()` কল নেই, cache/session prefix fallback
+এই অ্যাপের নিজস্ব `config/cache.php`/`config/session.php`-এই হার্ডকোড করা (Laravel-এর
+নতুন স্কেলিটন ডিফল্ট পরিবর্তনে প্রভাবিত হয় না)। **নোট (ভবিষ্যতের ঐচ্ছিক হার্ডেনিং, এই
+আপগ্রেডের স্কোপে না):** `config/cache.php`-এ নতুন `serializable_classes` কী (ডিফল্ট
+`false`) এখনো নেই — যোগ করলে deserialization হার্ডেনিং পাওয়া যাবে, কিন্তু
+`StorefrontSlide::homeSlides()`-এর মতো জায়গায় Eloquent মডেল অবজেক্ট cache করা হয়,
+তাই সেসব ক্লাস আগে allow-list করতে হবে; যেহেতু কী অনুপস্থিত থাকলে Laravel পুরনো
+আনরেস্ট্রিক্টেড আচরণই বজায় রাখে (`vendor/laravel/framework`-এ কোড পড়ে নিশ্চিত করা
+হয়েছে), এটা কোনো ব্লকার না।
+
+`composer.json`/`composer.lock` লোকালি আপডেট হয়েছে, PHP 8.4.24-এ পুরো test suite —
+**৫৫৬ পাস, ২৯৮১ অ্যাসারশন, কোনো রিগ্রেশন নেই।** `npm run build` সফল। বিস্তারিত
+`UPDATE_NOTES.md`-এর "Stack Upgrade Plan, Step 3" এন্ট্রিতে। এখনো staging-এ পুশ/ডিপ্লয়
+করা হয়নি — owner-এর অনুমোদনের অপেক্ষায়।
 
 ---
 
@@ -207,15 +258,26 @@ composer require laravel/framework:^13.0 --with-all-dependencies
 Filament v5 ইনস্টল করলে Livewire v4 নিজে থেকেই dependency হিসেবে টেনে আসবে (ধাপ ৫-এ)। আলাদা করে `composer require livewire/livewire:^4.0` চালানোর দরকার নেই — Filament-এর কম্পোজার কনস্ট্রেইন্টই এটা রেজলভ করবে। তবে:
 
 ```txt
-[ ] প্রজেক্টে যদি কোনো কাস্টম Livewire কম্পোনেন্ট থাকে (Filament-এর বাইরে — যেমন
+[x] প্রজেক্টে যদি কোনো কাস্টম Livewire কম্পোনেন্ট থাকে (Filament-এর বাইরে — যেমন
     "Inbox" পেজের মতো কিছু, যেটা ইতিমধ্যে Livewire-নির্ভর), সেগুলো Livewire v4-এর
     breaking change guide (livewire.com/docs/upgrade) অনুযায়ী চেক করুন — Livewire v4
     backward compatible রাখার চেষ্টা করেছে (v3 কম্পোনেন্ট "মূলত" চলে), কিন্তু
     wire:model/lazy loading-সংক্রান্ত এজ কেস থাকতে পারে
-[ ] AppServiceProvider::boot()-এ Livewire::component() দিয়ে যেসব কাস্টম কম্পোনেন্ট
+[x] AppServiceProvider::boot()-এ Livewire::component() দিয়ে যেসব কাস্টম কম্পোনেন্ট
     ম্যানুয়ালি রেজিস্টার করা আছে (ListProducts, CreateProduct ইত্যাদি) — এই
     রেজিস্ট্রেশন প্যাটার্ন Livewire v4-এ এখনো ভ্যালিড কিনা যাচাই করুন
 ```
+
+**সম্পন্ন — ২০২৬-০৮-০১।** Livewire-এর অফিসিয়াল ৩→৪ breaking-change লিস্ট এই কোডবেসের
+বিরুদ্ধে চেক করা হয়েছে: `Route::livewire()` মাইগ্রেশন প্রযোজ্য না (কোনো
+`Route::get(Component::class)` স্টাইল ফুল-পেজ রুট নেই), `wire:model.blur`/`.change`
+ব্যবহার নেই, `config/livewire.php`-এ পুরনো `layout`/`lazy_placeholder` কী নেই (শুধু
+`temporary_file_upload` কনফিগার করা, রিনেমড কী দিয়ে প্রভাবিত হয় না), আর
+`<livewire:...>` ট্যাগ (একটাই ব্যবহার — mobile notifications menu item) ইতিমধ্যে
+self-closed। `AppServiceProvider`-এর ৭টা ম্যানুয়াল `Livewire::component()` রেজিস্ট্রেশন
+(ListProducts/CreateProduct/EditProduct/ListCategories/CreateCategory/EditCategory/
+Notifications) অপরিবর্তিত রাখা হয়েছে — Livewire v4 এই মেকানিজম সরায়নি, ফুল টেস্ট স্যুট
++ ব্রাউজার স্মোক টেস্ট দুটোতেই কাজ করেছে।
 
 ---
 
@@ -233,45 +295,71 @@ php artisan filament:upgrade
 ### ৫.২ যা বিশেষভাবে দেখা দরকার (এই প্রজেক্টের জন্য)
 
 ```txt
-[ ] সব Filament Resource ইতিমধ্যে v4-এর নতুন Schemas-ভিত্তিক স্ট্রাকচার ব্যবহার করে
+[x] সব Filament Resource ইতিমধ্যে v4-এর নতুন Schemas-ভিত্তিক স্ট্রাকচার ব্যবহার করে
     (Resources/{Name}/Schemas/, Tables/, Pages/) — v3→v4 মাইগ্রেশন আগেই হয়ে গেছে,
     তাই v4→v5-এ এই স্ট্রাকচার বদলাবে না (আগেই বলা হয়েছে: "no functional changes")
-[ ] কাস্টম Filament Page ক্লাসগুলো (Backups, Inbox, CloudStorageSettings ইত্যাদি —
+[x] কাস্টম Filament Page ক্লাসগুলো (Backups, Inbox, CloudStorageSettings ইত্যাদি —
     এই প্রজেক্টেই সাম্প্রতিক যোগ হওয়া) properly রেন্ডার হচ্ছে কিনা — এগুলো blade view
     + Livewire property বাইন্ডিং ব্যবহার করে, Livewire v4 রেন্ডারিং পরিবর্তনে
     সবচেয়ে বেশি স্পর্শকাতর
-[ ] wire:model.defer ব্যবহার হওয়া ফর্মগুলো (Backups, CloudStorageSettings পেজে
+[x] wire:model.defer ব্যবহার হওয়া ফর্মগুলো (Backups, CloudStorageSettings পেজে
     আছে) — Livewire v4-এ .defer মডিফায়ারের আচরণ/সিনট্যাক্স বদলেছে কিনা চেক করুন
-[ ] Repeater/RelationManager-নির্ভর ফর্ম (Purchases, Quotations ইত্যাদি) — এগুলো
+[x] Repeater/RelationManager-নির্ভর ফর্ম (Purchases, Quotations ইত্যাদি) — এগুলো
     জটিল reactive() ফিল্ড ব্যবহার করে, বেশি করে ম্যানুয়াল স্মোক টেস্ট দরকার
 ```
 
 ### ৫.৩ ম্যানুয়াল স্মোক টেস্ট চেকলিস্ট
 
 ```txt
-[ ] প্রতিটা মূল Resource-এ Create/Edit/List পেজ খুলছে, সেভ হচ্ছে
-[ ] FileUpload ফিল্ড (Product image, gallery, Category, StorefrontSlide, Company
+[x] প্রতিটা মূল Resource-এ Create/Edit/List পেজ খুলছে, সেভ হচ্ছে
+[x] FileUpload ফিল্ড (Product image, gallery, Category, StorefrontSlide, Company
     logo, StorefrontSetting) আপলোড + saveUploadedFileUsing() হুক (ImageOptimizerService)
     ঠিকমতো কাজ করছে — এটা কাস্টম ক্লোজার-নির্ভর, Livewire আপগ্রেডে সবচেয়ে বেশি
     ভাঙার ঝুঁকি এখানেই
-[ ] Inbox পেজ (Conversation, polling, chat UI) স্বাভাবিকভাবে কাজ করছে
-[ ] CloudStorageSettings পেজের ফর্ম সাবমিট/টেস্ট-কানেকশন বাটন কাজ করছে
-[ ] Dashboard widget/chart সব লোড হচ্ছে
+[x] Inbox পেজ (Conversation, polling, chat UI) স্বাভাবিকভাবে কাজ করছে
+[x] CloudStorageSettings পেজের ফর্ম সাবমিট/টেস্ট-কানেকশন বাটন কাজ করছে
+[x] Dashboard widget/chart সব লোড হচ্ছে
 ```
+
+**সম্পন্ন — ২০২৬-০৮-০১।** লোকাল ডেভ সার্ভারে (PHP 8.4.24, ব্রাউজারে সরাসরি) ম্যানুয়ালি
+যাচাই করা হয়েছে: Dashboard (সব widget/stat-overview ঠিকমতো লোড), Products List + Create
+(single-column ফর্ম, FileUpload ড্র্যাগ-ড্রপ UI ঠিকমতো রেন্ডার), Inbox পেজ (Channels/
+Conversations ফিল্টার UI), CloudStorageSettings (টেক্সট ইনপুট টাইপ + toggle switch দুটোই
+Livewire বাইন্ডিং দিয়ে কাজ করেছে — wire:model.defer নিয়ে কোনো সমস্যা পাওয়া যায়নি), এবং
+Create Quotation-এ Repeater-এর "Add item" বাটন দিয়ে নতুন সারি যোগ করা (delete আইকনসহ)
+— পুরো ফ্লোতে ব্রাউজার কনসোলে একটাও error আসেনি। FileUpload-এর প্রকৃত আপলোড + ImageOptimizerService
+হুক আলাদাভাবে ম্যানুয়ালি টেস্ট করা হয়নি (এই টুলিং ফাইল পিকার চালাতে পারে না), তবে
+`ImageOptimizerTest`/`CloudStorageSettingsTest`-সহ পুরো `php artisan test` স্যুট
+(ফেক আপলোড দিয়ে ওই হুক-ই ব্যায়াম করে) পাস করেছে।
 
 ### ৫.৪ টেস্ট
 
 ```txt
-[ ] php artisan test পুরো স্যুট — Filament resource-এর Livewire টেস্ট
+[x] php artisan test পুরো স্যুট — Filament resource-এর Livewire টেস্ট
     (livewire()->test(...) প্যাটার্ন ব্যবহার হয়ে থাকলে) বিশেষভাবে
-[ ] সব ফাইল-আপলোড-সংক্রান্ত টেস্ট (যদি থাকে) পাস করছে
+[x] সব ফাইল-আপলোড-সংক্রান্ত টেস্ট (যদি থাকে) পাস করছে
 ```
+
+**সম্পন্ন — ২০২৬-০৮-০১।** `filament/filament` v4.12.5 → **v5.7.5** (livewire/livewire
+v3.8.3 → **v4.3.4** স্বয়ংক্রিয়ভাবে dependency হিসেবে), কোনো কনফ্লিক্ট ছাড়াই।
+`php artisan filament:upgrade` সফল। কোনো ম্যানুয়াল কোড পরিবর্তন লাগেনি — filament-এর
+নিজস্ব upgrade script + `filament:upgrade` কমান্ডই যথেষ্ট ছিল। পুরো `php artisan test`
+PHP 8.4.24-এ — **৫৫৬ পাস, ২৯৮১ অ্যাসারশন, কোনো রিগ্রেশন নেই** (Laravel 13 ধাপের সাথে
+হুবহু একই সংখ্যা)। বিস্তারিত `UPDATE_NOTES.md`-এর "Stack Upgrade Plan, Step 4+5"
+এন্ট্রিতে। এখনো staging-এ পুশ/ডিপ্লয় করা হয়নি — owner-এর অনুমোদনের অপেক্ষায়।
 
 ---
 
 ## ধাপ ৬: চূড়ান্ত যাচাই ও ডিপ্লয়
 
 ```txt
+[ ] ⚠️ CRITICAL, deploy-blocking: production MySQL-এ `mysql_native_password` প্লাগইন
+    ACTIVE করা ও production-এর DB ইউজারকে সেটাতে ALTER USER করা (ধাপ ২-এর নোট দেখুন) —
+    এটা না করলে PHP 8.4 ডিপ্লয় হওয়ার সাথে সাথেই production-এর সব পেজে
+    "authentication method unknown to the client [caching_sha2_password]" এরর দিয়ে
+    সাইট সম্পূর্ণ ডাউন হয়ে যাবে। এই ধাপ কোড ডিপ্লয়ের *আগে*, আলাদা মেইনটেন্যান্স
+    উইন্ডোতে সম্পন্ন করে ভেরিফাই করে নিতে হবে (native `mysql` ক্লায়েন্ট দিয়ে না,
+    আসল PHP অ্যাপ দিয়েই কানেকশন টেস্ট করা)
 [ ] পুরো php artisan test স্যুট (কোনো --env flag ছাড়া) ১০০% পাস
 [ ] npm run build সফল, কোনো JS কনসোল এরর নেই (dev tools দিয়ে ম্যানুয়াল চেক)
 [ ] স্টেজিং-এ কমপক্ষে ২৪-৪৮ ঘণ্টা রিয়েল ব্যবহার (অর্ডার প্লেস, Filament CRUD,

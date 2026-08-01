@@ -2,6 +2,63 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-01 - Stack Upgrade Plan, Step 4+5: Livewire 3 to 4, Filament 4 to 5
+
+Reason:
+
+- `03_STACK_UPGRADE_PLAN.md` Steps 4 and 5, next after Step 3 (Laravel 13, verified). The plan calls for doing these two together since Filament v5 pulls Livewire v4 in as a dependency automatically. Owner asked to proceed with the next step, configure/commit later, before pushing to `main`.
+
+What happened:
+
+- `composer require "filament/filament:^5.0" --with-all-dependencies` under PHP 8.4.24: clean resolution, `filament/filament` (and all `filament/*` sub-packages: actions, forms, infolists, notifications, query-builder, schemas, support, tables, widgets) v4.12.5 → v5.7.5, with `livewire/livewire` v3.8.3 → v4.3.4 pulled in automatically as required. No dependency conflicts. `php artisan filament:upgrade` completed successfully (republished vendor JS/CSS/font assets, cleared config/route/view caches).
+- Read Livewire's official 3.x-to-4.x breaking-change list and checked every item against this codebase:
+  - `Route::livewire()` migration: not applicable — no `Route::get(SomeComponent::class)` style full-page Livewire routes exist; all `Route::get()` calls in `routes/web.php` point to controllers.
+  - `wire:model.blur` / `.change` needing a `.live` prefix: no matches anywhere in `resources/`.
+  - `config/livewire.php` key renames (`layout` → `component_layout`, `lazy_placeholder` → `component_placeholder`): this app's published config only defines `temporary_file_upload` (disk/rules/directory for the dedicated `livewire-tmp` disk), never used the renamed keys, so nothing to change.
+  - `<livewire:...>` tags must now self-close: only one manual usage exists (`resources/views/filament/partials/mobile-notifications-menu-item.blade.php`), already self-closed.
+  - The 7 manual `Livewire::component('app.filament.resources...', SomeClass::class)` registrations in `AppServiceProvider::boot()` (for `ListProducts`, `CreateProduct`, `EditProduct`, `ListCategories`, `CreateCategory`, `EditCategory`, and the notifications component) — this registration mechanism itself wasn't removed or changed in v4, left as-is.
+- Filament's own 4-to-5 upgrade guide page didn't fully render through automated fetching (the docs site appears to require JS execution that a static fetch can't reproduce), so verification leaned on the empirical path instead: full automated test suite, then a real browser session against every area the plan specifically flagged as highest-risk.
+
+Verification:
+
+- Full `php artisan test` (no `--env` flag) under PHP 8.4.24 + Laravel 13.23.0 + Filament 5.7.5 + Livewire 4.3.4: **556 passed, 2,981 assertions, zero regressions** — identical count to the pre-Filament-5 baseline.
+- Updated `.claude/launch.json`'s dev-server `runtimeExecutable` from bare `php` (which still resolves to the system's old PHP 8.3.30 on PATH) to the full PHP 8.4.24 binary path, so the local preview server actually runs the target version instead of immediately fatal-erroring on Composer's platform check.
+- Manual browser smoke test against a real `php artisan serve` session (logged in as the local demo super-admin, `demo@example.com`): Dashboard (all stats-overview/table widgets rendered with live data, no stuck "Loading..." states once the page settled), Products List, Create Product (single-column layout intact, both FileUpload fields — Featured Image and Gallery Images — rendered their drag-and-drop UI correctly), Inbox (Channels/Conversations filter panel, search, status/assignment dropdowns), Cloud Storage Settings (typed into the Access Key ID text input and toggled the "Enable R2 for new uploads" switch — both Livewire bindings updated correctly, confirming no `wire:model.defer` regression), and Create Quotation (clicked "Add item" on the Repeater — a new row with its own Product/Quantity/Unit price/Subtota/delete-icon appeared correctly). Zero browser console errors and zero server log errors across the entire session.
+- Did not exercise an actual file upload (drag-and-drop / native file picker isn't reachable through the browser automation tooling used here) — instead relied on `ImageOptimizerTest` and `CloudStorageSettingsTest` (both use fake uploads to exercise the real `saveUploadedFileUsing()` hook) passing as part of the full suite above.
+
+Commit status:
+
+- Owner approved committing and pushing this + the Step 3 changes together to `staging` (not `main` — production DB fix still pending, per Step 6). Changed files: `composer.json`, `composer.lock`, `.claude/launch.json` (local dev tooling only, not app behavior), republished `public/js/filament/**` vendor assets (from `filament:upgrade`), `03_STACK_UPGRADE_PLAN.md`, `CHANGELOG.md`, this file. No `app/` code changes were needed for this step.
+
+## 2026-08-01 - Stack Upgrade Plan, Step 3: Laravel 12 to 13
+
+Reason:
+
+- `03_STACK_UPGRADE_PLAN.md` Step 3, next in the stack-upgrade sequence after Step 2 (PHP 8.4, verified end-to-end on staging). Owner asked to proceed with the next step and configure/commit later, before pushing to `main`.
+
+What happened:
+
+- `composer why-not laravel/framework "^13.0"` showed the plan's three suspected blockers (barryvdh/laravel-dompdf, openspout/openspout, filament/filament) were all fine — the actual blocker was `laravel/tinker` v2.11.1, which only supports `illuminate/*` up to `^12.0`. Laravel's own 13.x upgrade guide confirms `laravel/tinker:^3.0` as a required companion bump.
+- `composer require "laravel/framework:^13.0" "laravel/tinker:^3.0" --with-all-dependencies` under real PHP 8.4.24: clean resolution, no conflicts with `filament/filament` v4.12.5's dependency chain. Result: `laravel/framework` v12.64.0 → v13.23.0, `laravel/tinker` v2.11.1 → v3.0.2, `symfony/*` packages v7.4.x → v8.1.x (console, error-handler, finder, http-foundation, http-kernel, mailer, mime, process, routing, uid, var-dumper), `brick/math` 0.14.8 → 0.18.0.
+- Post-update `php artisan package:discover` failed with "bootstrap/cache directory must be present and writable" even though the directory existed with normal permissions. Root cause: PHP's `is_writable()` on Windows can return a false negative for a directory whose Windows read-only DOS attribute is set, independent of actual ACL permissions — confirmed by a manual `file_put_contents()` test into the same directory succeeding despite `is_writable()` returning `false`. Fixed locally with `attrib -R` on `bootstrap/cache` (a one-time local-environment fix, not a code or repo change — Linux/Coolify containers are unaffected, this is a Windows-only PHP quirk).
+- Bumped `phpunit/phpunit` from `^11.5.3` to `^12.0` per the upgrade guide's "High Impact: Updating Dependencies" item (Laravel 13 / PHPUnit 12 pairing). Installed 12.5.33 cleanly, no test syntax changes needed.
+- Read Laravel's official 13.x upgrade guide in full and checked every item against this codebase:
+  - **Request Forgery Protection (High Impact):** `VerifyCsrfToken` renamed to `PreventRequestForgery`. Found one direct reference in `app/Providers/Filament/AdminPanelProvider.php`'s panel `->middleware([...])` array; updated the `use` import and the array entry to `PreventRequestForgery::class`. (The old name remains a working deprecated alias, so this wasn't a functional break, but the guide recommends updating direct references.) Separately, ~15 storefront test files use `$this->withoutMiddleware(ValidateCsrfToken::class)` — verified empirically via the full test run that this still correctly excludes the renamed middleware; no changes needed there.
+  - **bootstrap/app.php ordering:** confirmed `SetCurrentCompany::class` is still `prepend`-ed before `SubstituteBindings::class` — the CLAUDE.md multi-company isolation invariant survived the upgrade untouched.
+  - **Cache serializable_classes (Medium Impact):** this app's `config/cache.php` doesn't define the key. Read `vendor/laravel/framework`'s `CacheManager`/`FileStore` source directly to confirm: the restrictive `unserialize(..., ['allowed_classes' => ...])` branch only activates when the config value is non-null; an absent key means Laravel falls back to unrestricted `unserialize()`, i.e. old behavior, i.e. no functional change. Left as a documented, optional future hardening item (would need to allow-list `App\Models\StorefrontSlide` and similar, since `Cache::remember()` there stores Eloquent model objects) rather than pulled into this upgrade's scope.
+  - **Database upsert / MySQL DELETE with JOIN / Domain route registration precedence:** none apply — no `->upsert(` calls and no `Route::domain(` usage anywhere in this codebase.
+  - **Cache/session key prefix defaults (Low Impact):** this app's `config/cache.php` and `config/session.php` already hardcode their own `Str::slug(..., '_')` fallback (predates this upgrade), so Laravel's changed *skeleton* default doesn't apply — confirmed by reading both files directly.
+
+Verification:
+
+- Full `php artisan test` (no `--env` flag) under real PHP 8.4.24 + Laravel 13.23.0 + PHPUnit 12.5.33: **556 passed, 2,981 assertions, zero regressions** (identical pass count to the pre-upgrade PHP 8.4 baseline).
+- `php artisan test --filter=MultiCompanyIsolationTest` run separately per the plan's specific call-out: 7 passed, 122 assertions.
+- `npm run build`: succeeded, `public/build/deployment.json` written, no console/build errors.
+
+Commit status:
+
+- Owner approved committing and pushing this + the Step 4+5 changes together to `staging` (not `main` — production DB fix still pending, per Step 6). Changed files: `composer.json`, `composer.lock`, `app/Providers/Filament/AdminPanelProvider.php`, `03_STACK_UPGRADE_PLAN.md`, this file. `bootstrap/cache`'s Windows read-only attribute fix is a local filesystem change only, nothing to commit for it.
+
 ## 2026-08-01 - Stack Upgrade Plan, Step 1: remove courier-fraud-checker-bd
 
 Reason:
@@ -125,7 +182,42 @@ Verification:
 
 Commit status:
 
-- Not committed yet - awaiting owner approval. Owner's staging Resource is currently down (container exits immediately) until this fix is deployed; owner should redeploy immediately after this is pushed to `staging`.
+- Committed and pushed by owner directly to `staging` (`e19a459a`, "fix: nginx template's earlier duplicate-location fix was itself broken").
+
+## 2026-08-01 (continued once more) - Staging fully live: MySQL 8.4 `caching_sha2_password` blocker found and fixed, first super-admin created
+
+Reason:
+
+- After the `e19a459a` nginx fix, staging's container started cleanly, but `php artisan migrate --force` (the Coolify post-deployment command) failed with `SQLSTATE[HY000] [2054] The server requested authentication method unknown to the client [caching_sha2_password]`, and visiting the site produced the same error from `SetCurrentCompany` middleware's `Schema::hasTable('companies')` check.
+
+Root cause:
+
+- MySQL 8.0.4+ (including staging's `mysql:8` / 8.4.11 image) creates new accounts with the `caching_sha2_password` auth plugin by default. Nixpacks' PHP 8.4 Nix package (`php84.withExtensions`) ships `mysqlnd` without the OpenSSL/RSA support that plugin needs to negotiate a password over a plaintext connection — a compile-time limitation of that specific Nix derivation, not something fixable via PHP config or SQL. Confirmed the server side was fine: `root`, using the same `caching_sha2_password` plugin, logs in without issue via the native `mysql` CLI (a full client built with proper OpenSSL linkage) — only PHP's bundled driver is affected.
+- Checked **production's real database** (read-only): `SELECT VERSION()` → `8.4.9`; `information_schema.plugins` shows `mysql_native_password` present but `DISABLED`; production's own DB user's `plugin` column is `caching_sha2_password`. **This means production will hit the exact same fatal error the moment it is rebuilt under PHP 8.4 by Nixpacks — this is a hard blocker for the whole stack-upgrade plan's PHP 8.4 step reaching production, not just a staging quirk.**
+- `mysql_native_password` cannot be enabled via `SET PERSIST` (unknown system variable in this build) or `INSTALL PLUGIN` (`ERROR 1125: Function already exists` — it's a *built-in*, not a loadable `.so`, and `UNINSTALL PLUGIN` refuses built-ins too). It can only be flipped from `DISABLED` to `ACTIVE` via a server-startup config option.
+
+Fix (verified working on staging; **must be applied to production before production is ever rebuilt on PHP 8.4** — see the `⚠️ CRITICAL` note added to `03_STACK_UPGRADE_PLAN.md`'s Step 2):
+
+- Coolify → MySQL Database Resource → Persistent Storage → Files → add file mount, destination `/etc/mysql/conf.d/native-password.cnf`, content:
+  ```
+  [mysqld]
+  mysql_native_password=ON
+  ```
+- Restart the Database Resource (brief DB downtime — on production this needs a maintenance window).
+- In `mysql>`: confirm `SELECT plugin_name, plugin_status FROM information_schema.plugins WHERE plugin_name = 'mysql_native_password';` now shows `ACTIVE`, then `ALTER USER '<db_user>'@'%' IDENTIFIED WITH mysql_native_password BY '<existing password>'; FLUSH PRIVILEGES;` (no password change, no data touched — only the auth method).
+
+No application code changed for this fix — it is entirely Coolify/MySQL server configuration, done through the Coolify UI and a `mysql` shell, not through this repository.
+
+Verification:
+
+- `php artisan migrate --force` on staging: succeeded, all tables created against the previously-empty `default` database.
+- Set `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars on the staging App Resource, ran `php artisan db:seed --force`: created the default company + first super-admin user via `DatabaseSeeder`.
+- Logged into `https://staging-app.zamzamint.com/admin` with the seeded credentials: dashboard loads correctly (Business Overview, sidebar navigation, all widgets render with zero-state data as expected for a fresh company).
+- Staging is now a fully working, end-to-end PHP 8.4 + Laravel 12.64 + Filament 4.12.5 environment.
+
+Commit status:
+
+- No code changes in this entry — nothing to commit. Only `03_STACK_UPGRADE_PLAN.md` and this file were updated (documentation), not yet committed; will bundle with the next code commit or push separately with owner approval.
 
 ## 2026-07-26 - Browser-side image pre-compression before Livewire/R2 upload
 

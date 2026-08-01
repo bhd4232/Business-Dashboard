@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "laravel",
-      "runtimeExecutable": "php",
+      "runtimeExecutable": "C:/laragon/bin/php/php-8.4.24-Win32-vs17-x64/php.exe",
       "runtimeArgs": ["artisan", "serve", "--port=8931"],
       "port": 8931
     }
