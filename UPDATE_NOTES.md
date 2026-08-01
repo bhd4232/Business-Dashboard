@@ -96,7 +96,36 @@ Verification:
 
 Commit status:
 
-- About to be committed to `staging` and pushed so the owner's next Coolify rebuild picks up the nginx fix. `composer.lock` deliberately stays on `staging` only for now, not `main` - Step 3-5 (Laravel 13/Filament 5) haven't started, so `main`/production keeps its currently-locked dependency versions.
+- Committed and pushed to `staging` (`d2f6ca40`). **This nesting fix turned out to be broken** - see the next entry below, which corrects it after the owner's next staging redeploy crash-looped again with a different (new) symptom.
+
+## 2026-08-01 (continued again) - nginx fix correction: Nixpacks' template renderer cannot parse nested `$if`
+
+Reason:
+
+- Owner redeployed staging with the `d2f6ca40` nesting fix above. The build itself succeeded this time (no `duplicate location` error, container reached "Started"), but the app container then exited immediately afterward, and the staging URL redirected to the Coolify dashboard instead of the app - a different, new symptom from the first crash loop.
+- The deploy log's "Executing post-deployment command" step showed no output, which was a red herring; the real problem was the container itself exiting right after start.
+
+Root cause:
+
+- Nixpacks' template renderer (`scripts/config/template.mjs`, dumped in full by Coolify's own debug log) resolves `$if(COND) (...) else (...)` with a **single-pass, non-greedy regex**: `` /\$if\s*\((\w+)\)\s*\(([^]*?)\)\s*else\s*\(([^]*?)\)/gm ``. Non-greedy `[^]*?` stops each capture group at the *first* literal `)` it encounters - it cannot parse balanced/nested parentheses.
+- The `d2f6ca40` fix nested a second `$if(NIXPACKS_PHP_FALLBACK_PATH)` inside the first `$if(IS_LARAVEL)`'s `else (...)` branch. As plain text this reads as correctly nested, and the earlier regression test (a raw substring match on the source file) passed - but Nixpacks' actual regex engine mis-captures it: the "otherwise" group closes at the first `)` inside the nested `$if(NIXPACKS_PHP_FALLBACK_PATH)`, leaving the rest of the nested block (its own `location /` body, its `else ()`, and the outer block's final closing `)`) as **literal, unresolved text** in the rendered `nginx.conf` - stray `(`, `)`, and `else ()` tokens inside the `server {}` block. nginx cannot parse this and exits immediately on container start, which is exactly the "app exited" / dashboard-redirect symptom reported.
+- Confirmed by literally running Nixpacks' own `replaceStr()` function (copied verbatim into a throwaway Node script) against the real `nginx.template.conf` with `IS_LARAVEL=yes` and `NIXPACKS_PHP_FALLBACK_PATH` both empty and set (matching the two real Coolify environments - "Production Environment Variables" leaves it empty, `nixpacks.toml` sets it to `/index.php`) - both renders produced the same broken output with orphaned `(`, `) else ()` fragments.
+
+Important changed files:
+
+- `nginx.template.conf` - removed the `$if`/`else` conditional around the root `location /` block entirely. This repo's `nixpacks.toml` and Nixpacks' own auto-detection mean `IS_LARAVEL` is always `"yes"` for this project, so the non-Laravel fallback-path branch is unreachable dead code; it's simply omitted now instead of conditioned, which sidesteps the renderer's nesting limitation altogether rather than working around it. Comment updated to explain why no conditional may be reintroduced here.
+- `tests/Feature/LivewireTemporaryUploadConfigurationTest.php` - replaced the old substring-matching regression test (which the broken `d2f6ca40` fix passed despite being wrong) with `test_nixpacks_template_renders_without_leftover_conditional_syntax()`, which actually renders the template via a faithful PHP port of Nixpacks' exact algorithm (same non-greedy regex, same recursion-into-captured-branch behavior) under two realistic environment combinations, and asserts exactly one `location / {` block and zero leftover `$if(`/`else (` text. This is the right level of test for this class of bug - checking raw source text is not enough, since broken nesting can still look correct as plain text.
+- `CHANGELOG.md` - the `[1.22.1]` entry's nginx bullet corrected to describe both the original bug and this correction to the first attempted fix.
+
+Verification:
+
+- Rendered the fixed `nginx.template.conf` with the real Nixpacks `replaceStr()` algorithm (Node script, not a simulation) under `IS_LARAVEL=yes`, `NIXPACKS_PHP_FALLBACK_PATH=''` (matching Coolify's current staging config): output has exactly one `location / {` block, zero occurrences of `$if(`, clean valid nginx syntax throughout.
+- `php artisan test --filter=LivewireTemporaryUploadConfigurationTest` - 3 passed (17 assertions).
+- Full `php artisan test` under PHP 8.4.24: 556 passed, 2,981 assertions, zero regressions.
+
+Commit status:
+
+- Not committed yet - awaiting owner approval. Owner's staging Resource is currently down (container exits immediately) until this fix is deployed; owner should redeploy immediately after this is pushed to `staging`.
 
 ## 2026-07-26 - Browser-side image pre-compression before Livewire/R2 upload
 
