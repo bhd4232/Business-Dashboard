@@ -2,6 +2,24 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-01 - nixpacks.toml: bump NIXPACKS_NODE_VERSION 20 to 22
+
+Reason:
+
+- The Step 4+5 (Filament 5/Livewire 4) push deployed cleanly to staging, but the build log showed: "Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js version." Nixpacks' `nodejs_20` package resolves to 20.18.1, just under `package.json`'s own `engines.node: ">=20.19.0"` floor and `vite:^7.3.5`'s requirement. The build still completed (non-fatal warning), but leaving it unaddressed risks a future Nixpacks/vite bump turning this into a hard failure.
+
+What happened:
+
+- `nixpacks.toml`'s `[variables]` block: `NIXPACKS_NODE_VERSION = "20"` → `"22"`. Nixpacks only supports major-version selection (no patch-level pin), so `22` is the fix rather than trying to force `20.19` specifically.
+
+Verification:
+
+- Config-only change, not testable locally (this repo's local dev/build doesn't go through Nixpacks) — will be confirmed by the next staging deploy's build log showing the Vite warning gone and a Node 22.x version in the `npm ci`/`npm run build` output.
+
+Commit status:
+
+- Not committed yet — awaiting owner approval.
+
 ## 2026-08-01 - Stack Upgrade Plan, Step 4+5: Livewire 3 to 4, Filament 4 to 5
 
 Reason:
