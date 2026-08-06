@@ -25,11 +25,11 @@ class StorefrontManualPaymentTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
-    public function test_delivery_area_sets_shipping_fee_on_the_order(): void
+    public function test_delivery_area_is_detected_from_address_and_client_area_is_ignored(): void
     {
         $company = $this->createStore('delivery.example.test', [
-            'delivery_charge_inside' => 60,
-            'delivery_charge_outside' => 120,
+            'delivery_first_kg_inside' => 60,
+            'delivery_first_kg_outside' => 120,
         ]);
 
         app(CompanyContext::class)->set($company);
@@ -41,13 +41,35 @@ class StorefrontManualPaymentTest extends TestCase
             'name' => 'Outside Buyer',
             'phone' => '01712345678',
             'address' => 'Rangpur',
-            'delivery_area' => 'outside',
+            'delivery_area' => 'inside',
             'payment_method' => 'cod',
         ])->assertRedirectContains('/checkout/success/');
 
         $order = Order::withoutGlobalScopes()->latest()->first();
         $this->assertSame('outside', $order->shipping_zone);
         $this->assertSame(120.0, (float) $order->shipping_fee);
+    }
+
+    public function test_dhaka_division_address_outside_the_city_uses_outside_rate(): void
+    {
+        $company = $this->createStore('dhaka-division.example.test', [
+            'delivery_first_kg_inside' => 70,
+            'delivery_first_kg_outside' => 110,
+        ]);
+        app(CompanyContext::class)->set($company);
+        $product = $this->createProduct('Division Delivery Item', 'DIVISION-DELIVERY-001');
+        app(StorefrontCart::class)->add($company, $product, 1);
+
+        $this->post('http://dhaka-division.example.test/checkout', [
+            'name' => 'Narayanganj Buyer',
+            'phone' => '01712345679',
+            'address' => 'Fatullah, Narayanganj, Dhaka Division',
+            'payment_method' => 'cod',
+        ])->assertRedirectContains('/checkout/success/');
+
+        $order = Order::withoutGlobalScopes()->latest()->firstOrFail();
+        $this->assertSame('outside', $order->shipping_zone);
+        $this->assertSame(110.0, (float) $order->shipping_fee);
     }
 
     public function test_manual_bkash_payment_creates_pending_verification_record(): void
@@ -128,7 +150,8 @@ class StorefrontManualPaymentTest extends TestCase
         $this->assertMatchesRegularExpression('/id="payment-method-bkash"[^>]*checked/', $content);
         $response
             ->assertDontSee('payment-method-cod', false)
-            ->assertSee('id="checkout-delivery-area"', false)
+            ->assertDontSee('name="delivery_area"', false)
+            ->assertSee('Detected delivery area:', false)
             ->assertSee('id="checkout-payment-method"', false)
             ->assertSeeInOrder(['Order summary', 'Place order']);
 
@@ -232,6 +255,7 @@ class StorefrontManualPaymentTest extends TestCase
             'company_id' => $company->getKey(),
             'theme_color' => '#0F766E',
             'is_published' => true,
+            'new_customer_delivery_advance_enabled' => false,
         ], $settingOverrides));
 
         return $company;

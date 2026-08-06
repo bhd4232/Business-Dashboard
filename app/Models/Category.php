@@ -10,7 +10,7 @@ class Category extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'name', 'slug', 'description', 'image', 'is_active'];
+    protected $fillable = ['company_id', 'name', 'slug', 'description', 'image', 'icon', 'is_active'];
 
     protected static function booted(): void
     {

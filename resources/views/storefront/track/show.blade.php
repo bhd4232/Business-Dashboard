@@ -15,16 +15,16 @@
 @endphp
 
 @section('content')
-    <section class="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-        <div class="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
+    <section class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-5 lg:px-6">
+        <div class="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">Order tracking</p>
                 <h1 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Track your storefront order.</h1>
-                <p class="mt-4 text-base leading-7 text-gray-600 dark:text-gray-300">
+                <p class="storefront-page-copy mt-3">
                     Enter your ERP order number to see the latest order, delivery, and courier information from {{ $company->name }}.
                 </p>
 
-                <form class="mt-8 rounded-xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-white/5" method="GET" action="{{ $trackIndexUrl }}">
+                <form class="mt-5 rounded-lg border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-900" method="GET" action="{{ $trackIndexUrl }}">
                     <label class="text-xs font-medium text-gray-500" for="order_number">Order number</label>
                     <input
                         class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/10 dark:bg-gray-950"

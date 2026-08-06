@@ -51,6 +51,7 @@ use App\Models\FundTransfer;
 use App\Models\User;
 use App\Models\Voucher;
 use App\Services\CompanyContext;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -124,6 +125,11 @@ class AdminNavigationClustersTest extends TestCase
         }
 
         $this->assertSame('CRM', Crm::getClusterBreadcrumb());
+        $this->assertSame('Inventory', Inventory::getNavigationLabel());
+        $this->assertSame('Inventory', Inventory::getClusterBreadcrumb());
+        $this->assertSame('Products', ProductResource::getNavigationLabel());
+        $this->assertSame('Categories', CategoryResource::getNavigationLabel());
+        $this->assertSame('Stock Movement', StockMovementResource::getNavigationLabel());
     }
 
     public function test_active_cluster_navigation_contains_authorized_child_items(): void
@@ -165,6 +171,12 @@ class AdminNavigationClustersTest extends TestCase
             $this->assertSame('svg', $iconDocument->documentElement->localName);
             $this->assertStringContainsString('zz-sidebar-child-icon', $iconDocument->documentElement->getAttribute('class'));
         }
+
+        $productModuleLabels = collect(Inventory::getNavigationItems()[0]->getChildItems())
+            ->map(fn ($item): string => $item->getLabel())
+            ->all();
+
+        $this->assertSame(['Products', 'Categories', 'Stock Movement'], $productModuleLabels);
     }
 
     public function test_storefront_cluster_uses_concise_site_navigation_labels(): void
@@ -172,7 +184,7 @@ class AdminNavigationClustersTest extends TestCase
         $this->assertSame('Site', Storefront::getNavigationLabel());
         $this->assertSame('Site', Storefront::getClusterBreadcrumb());
         $this->assertSame('Hero Slides', StorefrontSlideResource::getNavigationLabel());
-        $this->assertSame('Settings', StorefrontSettingResource::getNavigationLabel());
+        $this->assertSame('Site Theme', StorefrontSettingResource::getNavigationLabel());
         $this->assertSame('Pages', StorefrontPageResource::getNavigationLabel());
         $this->assertSame('Homepage Carousels', ProductCarouselResource::getNavigationLabel());
         $this->assertSame('Payments', StorefrontPaymentResource::getNavigationLabel());
@@ -315,7 +327,9 @@ class AdminNavigationClustersTest extends TestCase
             ->assertSee('data-zz-sidebar-menu="Sales"', escape: false)
             ->assertSee('zz-sidebar-child-item', escape: false)
             ->assertSee('data-zz-sidebar-icon=', escape: false)
-            ->assertDontSee('fi-body-has-sidebar-collapsible-on-desktop', escape: false)
+            ->assertSee('fi-body-has-sidebar-collapsible-on-desktop', escape: false)
+            ->assertSee('zzHoverExpansionReady', escape: false)
+            ->assertSee('__zzCategoryIconSearchReady', escape: false)
             ->assertSee('Customers')
             ->assertSee('Orders')
             ->assertSee('Customer Payments');
@@ -336,6 +350,8 @@ class AdminNavigationClustersTest extends TestCase
         $this->assertStringContainsString('Customers', $sidebarHtml);
         $this->assertStringContainsString('Orders', $sidebarHtml);
         $this->assertStringContainsString('Customer Payments', $sidebarHtml);
+        $this->assertTrue(Filament::getPanel('admin')->isSidebarCollapsibleOnDesktop());
+        $this->assertFalse(Filament::getPanel('admin')->isSidebarFullyCollapsibleOnDesktop());
     }
 
     public function test_hidden_purchasing_resources_do_not_bypass_cluster_permissions(): void

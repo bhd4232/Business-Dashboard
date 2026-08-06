@@ -1,0 +1,60 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Order;
+use App\Models\StorefrontPayment;
+use App\Models\StorefrontSetting;
+use RuntimeException;
+
+class StorefrontPaymentService
+{
+    public function __construct(
+        protected ZiniPayClient $zinipay,
+        protected StorefrontOrderPlacementService $orders,
+    ) {}
+
+    public function verifyAndFinalize(
+        StorefrontPayment $payment,
+        StorefrontSetting $setting,
+        ?string $invoiceId = null,
+    ): ?Order {
+        if ($payment->order_id && $payment->status === StorefrontPayment::STATUS_COMPLETED) {
+            return $payment->order()->withoutGlobalScopes()->first();
+        }
+
+        $invoiceId = trim((string) ($invoiceId ?: $payment->invoice_id));
+
+        if ($invoiceId === '') {
+            throw new RuntimeException('The payment invoice reference is missing.');
+        }
+
+        if ($payment->status !== StorefrontPayment::STATUS_COMPLETED) {
+            $verified = $this->zinipay->verifyPayment($setting, $invoiceId);
+            $status = strtoupper((string) ($verified['status'] ?? ''));
+            $amountMatches = abs(((float) ($verified['amount'] ?? 0)) - (float) $payment->amount) < 0.01;
+
+            if ($status === 'COMPLETED' && $amountMatches) {
+                $payment->update([
+                    'status' => StorefrontPayment::STATUS_COMPLETED,
+                    'invoice_id' => $invoiceId,
+                    'payment_method' => $verified['payment_method'] ?? null,
+                    'transaction_id' => $verified['transaction_id'] ?? null,
+                    'payload' => $verified,
+                ]);
+            } elseif ($status === 'FAILED') {
+                $payment->update(['status' => StorefrontPayment::STATUS_FAILED, 'payload' => $verified]);
+
+                return null;
+            } else {
+                return null;
+            }
+        }
+
+        if ($payment->purpose === StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY) {
+            return $this->orders->placePaidCheckout($payment->fresh());
+        }
+
+        return $payment->order()->withoutGlobalScopes()->first();
+    }
+}

@@ -73,7 +73,7 @@ class OrderTrackController extends Controller
         return $this->trackView(
             company: $company,
             setting: $setting,
-            order: $this->storefrontOrder($company, $orderNo, $phone),
+            order: $this->storefrontOrderForRequest($request, $company, $orderNo, $phone),
             previewSlug: $company->slug,
             orderNumber: trim($orderNo),
             phone: $phone,

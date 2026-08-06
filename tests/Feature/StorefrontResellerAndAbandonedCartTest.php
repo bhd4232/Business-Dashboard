@@ -228,6 +228,7 @@ class StorefrontResellerAndAbandonedCartTest extends TestCase
             'company_id' => $company->getKey(),
             'theme_color' => '#0F766E',
             'is_published' => true,
+            'new_customer_delivery_advance_enabled' => false,
             'abandoned_cart_reminders_enabled' => $reminders,
             'abandoned_cart_delay_hours' => 6,
             'notification_credentials' => $reminders ? [

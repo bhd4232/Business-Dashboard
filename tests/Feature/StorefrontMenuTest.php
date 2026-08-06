@@ -120,6 +120,34 @@ class StorefrontMenuTest extends TestCase
         $company->storefrontSetting->update([
             'customer_accounts_enabled' => false,
             'theme_color' => '#F7F7F7',
+            'theme_secondary_color' => '#123456',
+            'theme_accent_color' => '#D97706',
+            'theme_background_color' => '#FAFAF9',
+            'theme_surface_color' => '#FFFFFF',
+            'theme_text_color' => '#1C1917',
+            'theme_muted_text_color' => '#78716C',
+            'theme_border_color' => '#D6D3D1',
+            'theme_dark_background_color' => '#0C0A09',
+            'theme_dark_surface_color' => '#1C1917',
+            'theme_dark_text_color' => '#FAFAF9',
+            'theme_dark_muted_text_color' => '#A8A29E',
+            'theme_dark_border_color' => '#44403C',
+            'typography_heading_font' => 'rubik',
+            'typography_body_font' => 'nunito_sans',
+            'typography_base_size' => 15,
+            'typography_heading_weight' => 800,
+            'typography_body_weight' => 400,
+            'typography_scale' => 'expressive',
+            'typography_line_height' => 'relaxed',
+            'typography_heading_tracking' => 'wide',
+            'typography_body_tracking' => 'relaxed',
+            'typography_content_width' => 'narrow',
+            'appearance_container_width' => 'standard',
+            'appearance_page_gutter' => 'spacious',
+            'appearance_corner_radius' => 'rounded',
+            'appearance_shadow' => 'elevated',
+            'appearance_motion' => 'subtle',
+            'appearance_card_hover' => 'lift',
         ]);
 
         $this->withSession(['storefront_status' => 'Your changes were saved.'])
@@ -134,7 +162,33 @@ class StorefrontMenuTest extends TestCase
             ->assertSee('aria-current="page"', false)
             ->assertSee('role="status"', false)
             ->assertSee('--storefront-brand-contrast: #000000;', false)
+            ->assertSee('--storefront-secondary: #123456;', false)
+            ->assertSee('--storefront-accent: #D97706;', false)
+            ->assertSee('--storefront-background: #FAFAF9;', false)
+            ->assertSee('--storefront-dark-surface: #1C1917;', false)
+            ->assertSee('--storefront-heading-font: &#039;Rubik&#039;, Arial, sans-serif;', false)
+            ->assertSee('--storefront-body-font: &#039;Nunito Sans&#039;, Arial, sans-serif;', false)
+            ->assertSee('--storefront-base-size: 15px;', false)
+            ->assertSee('--storefront-heading-weight: 800;', false)
+            ->assertSee('--storefront-line-height: 1.65;', false)
+            ->assertSee('--storefront-heading-tracking: 0.015em;', false)
+            ->assertSee('--storefront-body-tracking: 0.01em;', false)
+            ->assertSee('--storefront-content-measure: 62ch;', false)
+            ->assertSee('--storefront-content-width: 80rem;', false)
+            ->assertSee('--storefront-page-gutter: clamp(1.25rem, 3vw, 3rem);', false)
+            ->assertSee('--storefront-motion-duration: 150ms;', false)
+            ->assertSee('--radius-xl: 1.25rem;', false)
+            ->assertSee('data-typography-scale="expressive"', false)
+            ->assertSee('data-card-hover="lift"', false)
+            ->assertSee('data-motion="subtle"', false)
+            ->assertSee('fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800', false)
             ->assertDontSee('Find my orders');
+
+        $company->storefrontSetting->update(['theme_foreground_mode' => 'light']);
+
+        $this->get('http://accessible-menu.example.test/')
+            ->assertOk()
+            ->assertSee('--storefront-brand-contrast: #FFFFFF;', false);
 
         $this->get('http://accessible-menu.example.test/products')
             ->assertOk()

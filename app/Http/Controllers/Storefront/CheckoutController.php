@@ -8,10 +8,15 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\StorefrontCustomerActivity;
 use App\Models\StorefrontPayment;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
+use App\Services\StorefrontCustomerActivityService;
+use App\Services\StorefrontDeliveryAreaResolver;
+use App\Services\StorefrontDeliveryService;
+use App\Services\StorefrontPaymentService;
 use App\Services\ZiniPayClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +32,10 @@ class CheckoutController extends Controller
         protected CompanyContext $context,
         protected StorefrontCart $cart,
         protected ZiniPayClient $zinipay,
+        protected StorefrontCustomerActivityService $activities,
+        protected StorefrontDeliveryService $delivery,
+        protected StorefrontDeliveryAreaResolver $deliveryAreas,
+        protected StorefrontPaymentService $payments,
     ) {}
 
     /**
@@ -60,10 +69,33 @@ class CheckoutController extends Controller
     public function store(Request $request): RedirectResponse
     {
         [$company, $setting] = $this->domainStorefront($request);
-        $advanceDue = self::advanceDue($this->cart->items($company));
+        $items = $this->cart->items($company);
+        $data = $this->validatedCheckout($request, $setting);
+        $data['delivery_area'] = $this->deliveryAreas->resolve($data['address'], $setting);
+        $quote = $this->delivery->quote($items, $data['delivery_area'], $setting);
+        $isNewCustomer = ! Customer::query()->where('phone', $data['phone'])->exists();
+        $advanceDue = self::advanceDue($items);
+
+        if ($isNewCustomer && $advanceDue <= 0 && ($setting->new_customer_delivery_advance_enabled ?? true)) {
+            $this->assertOnlinePaymentAvailable($setting, 'New customers must pay the delivery charge online before the order can be placed.');
+
+            return $this->startNewCustomerPayment($company, $setting, $data, $items, $quote);
+        }
+
         $this->assertPayableCheckout($setting, $advanceDue);
-        $order = $this->createOrder($request, $company, $setting);
+        $order = $this->createOrder($company, $data, $items, $quote['fee']);
         $successUrl = $this->signedSuccessUrl($order);
+        $customer = auth('customer')->user();
+
+        if ($customer instanceof Customer && $customer->getKey() === $order->customer_id) {
+            $this->activities->record(
+                $customer,
+                StorefrontCustomerActivity::TYPE_ORDER_PLACED,
+                'Order placed',
+                "Order {$order->order_number} was submitted successfully.",
+                ['order_number' => $order->order_number, 'total_amount' => (float) $order->total_amount],
+            );
+        }
 
         if ($advanceDue > 0) {
             return $this->startAdvancePayment($company, $setting, $order, $advanceDue,
@@ -78,9 +110,21 @@ class CheckoutController extends Controller
     public function storePreview(Request $request, Company $company): RedirectResponse
     {
         $setting = $this->previewStorefront($company);
-        $advanceDue = self::advanceDue($this->cart->items($company));
+        $items = $this->cart->items($company);
+        $data = $this->validatedCheckout($request, $setting);
+        $data['delivery_area'] = $this->deliveryAreas->resolve($data['address'], $setting);
+        $quote = $this->delivery->quote($items, $data['delivery_area'], $setting);
+        $isNewCustomer = ! Customer::query()->where('phone', $data['phone'])->exists();
+        $advanceDue = self::advanceDue($items);
+
+        if ($isNewCustomer && $advanceDue <= 0 && ($setting->new_customer_delivery_advance_enabled ?? true)) {
+            $this->assertOnlinePaymentAvailable($setting, 'New customers must pay the delivery charge online before the order can be placed.');
+
+            return $this->startNewCustomerPayment($company, $setting, $data, $items, $quote, $company->slug);
+        }
+
         $this->assertPayableCheckout($setting, $advanceDue);
-        $order = $this->createOrder($request, $company, $setting);
+        $order = $this->createOrder($company, $data, $items, $quote['fee']);
 
         if ($advanceDue > 0) {
             return $this->startAdvancePayment($company, $setting, $order, $advanceDue,
@@ -101,6 +145,81 @@ class CheckoutController extends Controller
         }
     }
 
+    protected function assertOnlinePaymentAvailable(StorefrontSetting $setting, string $message): void
+    {
+        if (! ZiniPayClient::isConfigured($setting)) {
+            throw ValidationException::withMessages(['payment' => $message.' No active online payment gateway is available right now.']);
+        }
+    }
+
+    /**
+     * Start a hosted delivery-charge payment without creating a Customer or
+     * Order. The verified webhook/return flow places both records atomically.
+     */
+    protected function startNewCustomerPayment(
+        Company $company,
+        StorefrontSetting $setting,
+        array $data,
+        $items,
+        array $quote,
+        ?string $previewSlug = null,
+    ): RedirectResponse {
+        $this->cart->rememberContact($company, $data['phone'], $data['name']);
+        $this->assertCartStock($items);
+
+        $payment = StorefrontPayment::query()->create([
+            'company_id' => $company->getKey(),
+            'order_id' => null,
+            'gateway' => 'zinipay',
+            'purpose' => StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY,
+            'amount' => round((float) $quote['fee'], 2),
+            'status' => StorefrontPayment::STATUS_PENDING,
+            'checkout_data' => [
+                ...$data,
+                'shipping_fee' => (float) $quote['fee'],
+                'total_weight' => (float) $quote['weight'],
+                'billed_weight' => (int) $quote['billed_weight'],
+                'items' => collect($items)->map(fn (array $item): array => [
+                    'product_id' => $item['product']->getKey(),
+                    'product_variant_id' => ($item['variant'] ?? null)?->getKey(),
+                    'variant_label' => ($item['variant'] ?? null)?->label(),
+                    'quantity' => (int) $item['quantity'],
+                    'unit_price' => (float) $item['unit_price'],
+                    'unit_cost' => (float) (($item['variant'] ?? null)?->cost_price ?? $item['product']->cost_price ?? 0),
+                ])->values()->all(),
+            ],
+        ]);
+
+        $redirectUrl = $previewSlug
+            ? URL::temporarySignedRoute('storefront.preview.checkout.payment-return', now()->addHour(), ['company' => $previewSlug, 'payment' => $payment])
+            : URL::temporarySignedRoute('storefront.checkout.payment-return', now()->addHour(), ['payment' => $payment]);
+        $cancelUrl = $previewSlug
+            ? route('storefront.preview.checkout.show', $previewSlug)
+            : route('storefront.checkout.show');
+
+        try {
+            $created = $this->zinipay->createPayment(
+                $setting,
+                (float) $quote['fee'],
+                $data['name'],
+                $data['email'],
+                $redirectUrl,
+                $cancelUrl,
+                webhookUrl: route('zinipay.webhook', $payment),
+                metadata: ['payment_id' => $payment->getKey(), 'purpose' => StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY],
+            );
+        } catch (\Throwable $exception) {
+            $payment->update(['status' => StorefrontPayment::STATUS_FAILED, 'payload' => ['error' => $exception->getMessage()]]);
+            Log::warning('New-customer delivery payment creation failed', ['payment' => $payment->getKey(), 'error' => $exception->getMessage()]);
+
+            throw ValidationException::withMessages(['payment' => 'The secure payment page could not be opened. No order was placed; please try again.']);
+        }
+
+        $payment->update(['invoice_id' => $created['invoice_id']]);
+
+        return redirect()->away($created['payment_url']);
+    }
+
     protected function startAdvancePayment(
         Company $company,
         StorefrontSetting $setting,
@@ -113,6 +232,7 @@ class CheckoutController extends Controller
             'company_id' => $company->getKey(),
             'order_id' => $order->getKey(),
             'gateway' => 'zinipay',
+            'purpose' => StorefrontPayment::PURPOSE_PREORDER_ADVANCE,
             'amount' => round($advanceDue, 2),
             'status' => StorefrontPayment::STATUS_PENDING,
         ]);
@@ -128,7 +248,7 @@ class CheckoutController extends Controller
                 webhookUrl: route('zinipay.webhook', $payment),
                 metadata: ['order_number' => $order->order_number, 'payment_id' => $payment->getKey()],
             );
-        } catch (\RuntimeException $exception) {
+        } catch (\Throwable $exception) {
             $payment->update(['status' => StorefrontPayment::STATUS_FAILED, 'payload' => ['error' => $exception->getMessage()]]);
             Log::warning('ZiniPay payment creation failed', ['order' => $order->order_number, 'error' => $exception->getMessage()]);
 
@@ -184,6 +304,55 @@ class CheckoutController extends Controller
         ]);
     }
 
+    public function paymentReturn(Request $request, StorefrontPayment $payment): RedirectResponse
+    {
+        abort_unless($request->hasValidSignature(), 403);
+        [$company, $setting] = $this->domainStorefront($request);
+
+        return $this->completePaymentReturn($payment, $company, $setting);
+    }
+
+    public function paymentReturnPreview(Request $request, Company $company, StorefrontPayment $payment): RedirectResponse
+    {
+        abort_unless($request->hasValidSignature(), 403);
+        $setting = $this->previewStorefront($company);
+
+        return $this->completePaymentReturn($payment, $company, $setting, $company->slug);
+    }
+
+    protected function completePaymentReturn(
+        StorefrontPayment $payment,
+        Company $company,
+        StorefrontSetting $setting,
+        ?string $previewSlug = null,
+    ): RedirectResponse {
+        abort_unless($payment->company_id === $company->getKey(), 404);
+
+        try {
+            $order = $this->payments->verifyAndFinalize($payment, $setting);
+        } catch (\Throwable $exception) {
+            Log::warning('Storefront payment return could not be finalized', [
+                'payment' => $payment->getKey(),
+                'error' => $exception->getMessage(),
+            ]);
+
+            $order = null;
+        }
+
+        if (! $order) {
+            return redirect($previewSlug
+                ? route('storefront.preview.checkout.show', $previewSlug)
+                : route('storefront.checkout.show'))
+                ->withErrors(['payment' => 'Payment was not completed or could not be verified. No order was placed.']);
+        }
+
+        $this->cart->clear($company);
+
+        return $previewSlug
+            ? redirect()->route('storefront.preview.checkout.success', [$previewSlug, $order])
+            : redirect()->to($this->signedSuccessUrl($order));
+    }
+
     protected function checkoutView(Company $company, StorefrontSetting $setting, ?string $previewSlug = null): View|RedirectResponse
     {
         $items = $this->cart->items($company);
@@ -194,6 +363,9 @@ class CheckoutController extends Controller
                 : route('storefront.cart.show'))->with('storefront_status', 'Add products before checkout.');
         }
 
+        $insideQuote = $this->delivery->quote($items, 'inside', $setting);
+        $outsideQuote = $this->delivery->quote($items, 'outside', $setting);
+
         return view('storefront.checkout.show', [
             'company' => $company,
             'setting' => $setting,
@@ -202,16 +374,16 @@ class CheckoutController extends Controller
             'subtotal' => $this->cart->subtotal($company),
             'advanceDue' => self::advanceDue($items),
             'onlinePaymentAvailable' => ZiniPayClient::isConfigured($setting),
+            'insideQuote' => $insideQuote,
+            'outsideQuote' => $outsideQuote,
+            'insideDhakaKeywords' => $this->deliveryAreas->keywords($setting),
+            'outsideDhakaMarkers' => $this->deliveryAreas->outsideMarkers(),
         ]);
     }
 
-    protected function createOrder(Request $request, Company $company, StorefrontSetting $setting): Order
+    protected function validatedCheckout(Request $request, StorefrontSetting $setting): array
     {
         $defaultPaymentMethod = $this->defaultPaymentMethod($setting);
-
-        if (! $request->filled('delivery_area')) {
-            $request->merge(['delivery_area' => 'inside']);
-        }
 
         if (! $request->filled('payment_method') && $defaultPaymentMethod !== null) {
             $request->merge(['payment_method' => $defaultPaymentMethod]);
@@ -223,7 +395,6 @@ class CheckoutController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['required', 'string', 'max:1000'],
             'note' => ['nullable', 'string', 'max:1000'],
-            'delivery_area' => ['required', 'in:inside,outside'],
             'payment_method' => ['required', 'in:cod,manual_bkash,manual_nagad'],
             'sender_number' => ['required_if:payment_method,manual_bkash,manual_nagad', 'nullable', 'string', 'max:20'],
             'trx_id' => ['required_if:payment_method,manual_bkash,manual_nagad', 'nullable', 'string', 'max:40'],
@@ -241,12 +412,14 @@ class CheckoutController extends Controller
             throw ValidationException::withMessages(['payment_method' => 'Nagad payment is not available right now.']);
         }
 
-        $deliveryCharge = $data['delivery_area'] === 'inside'
-            ? (float) ($setting->delivery_charge_inside ?? 0)
-            : (float) ($setting->delivery_charge_outside ?? 0);
+        $data['phone'] = trim($data['phone']);
+        $data['email'] = $data['email'] ?? null;
 
-        $items = $this->cart->items($company);
+        return $data;
+    }
 
+    protected function createOrder(Company $company, array $data, $items, float $deliveryCharge): Order
+    {
         // Keep the contact on the persisted cart so abandoned-cart
         // reminders can reach the customer if this checkout fails.
         $this->cart->rememberContact($company, $data['phone'], $data['name']);
@@ -254,19 +427,7 @@ class CheckoutController extends Controller
         return DB::transaction(function () use ($company, $data, $items, $deliveryCharge): Order {
             abort_if($items->isEmpty(), 422, 'Your cart is empty.');
 
-            foreach ($items as $item) {
-                $variant = $item['variant'] ?? null;
-                $availableStock = $variant
-                    ? (int) $variant->stock
-                    : (int) $item['product']->stock;
-
-                // Pre-order product lines may exceed current stock by design.
-                if (! $variant && $item['product']->is_preorder) {
-                    continue;
-                }
-
-                abort_if($item['quantity'] > $availableStock, 422, "{$item['product']->name} does not have enough stock.");
-            }
+            $this->assertCartStock($items);
 
             $customer = Customer::query()->firstOrNew([
                 'phone' => $data['phone'],
@@ -334,6 +495,22 @@ class CheckoutController extends Controller
 
             return $order;
         });
+    }
+
+    protected function assertCartStock($items): void
+    {
+        abort_if(collect($items)->isEmpty(), 422, 'Your cart is empty.');
+
+        foreach ($items as $item) {
+            $variant = $item['variant'] ?? null;
+            $availableStock = $variant ? (int) $variant->stock : (int) $item['product']->stock;
+
+            if (! $variant && $item['product']->is_preorder) {
+                continue;
+            }
+
+            abort_if($item['quantity'] > $availableStock, 422, "{$item['product']->name} does not have enough stock.");
+        }
     }
 
     protected function defaultPaymentMethod(StorefrontSetting $setting): ?string

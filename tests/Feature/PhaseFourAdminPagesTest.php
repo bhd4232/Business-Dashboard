@@ -113,6 +113,7 @@ class PhaseFourAdminPagesTest extends TestCase
             ->assertOk()
             ->assertSee('Launch Readiness')
             ->assertSee('Missing Setup')
+            ->assertSee('Built-in Theme')
             ->assertSee('Products')
             ->assertSee('Pages')
             ->assertSee('Preview')
@@ -151,8 +152,52 @@ class PhaseFourAdminPagesTest extends TestCase
         $component = Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
             ->assertFormFieldExists('company_domain')
             ->assertFormFieldExists('company_domain_verified')
+            ->assertFormFieldExists('storefront_theme')
+            ->assertFormFieldExists('homepage_template')
+            ->assertFormFieldExists('marketplace_announcement_enabled')
+            ->assertFormFieldExists('marketplace_product_limit')
+            ->assertFormFieldExists('theme_foreground_mode')
+            ->assertFormFieldExists('theme_palette_preset')
+            ->assertFormFieldExists('theme_secondary_color')
+            ->assertFormFieldExists('theme_dark_surface_color')
+            ->assertFormFieldExists('typography_preset')
+            ->assertFormFieldExists('typography_heading_font')
+            ->assertFormFieldExists('typography_body_font')
+            ->assertFormFieldExists('typography_base_size')
+            ->assertFormFieldExists('typography_heading_tracking')
+            ->assertFormFieldExists('typography_content_width')
+            ->assertFormFieldExists('appearance_preset')
+            ->assertFormFieldExists('appearance_corner_radius')
+            ->assertFormFieldExists('appearance_motion')
             ->assertSet('data.company_domain', 'old-store.example.test')
-            ->assertSet('data.company_domain_verified', true);
+            ->assertSet('data.company_domain_verified', true)
+            ->assertSet('data.storefront_theme', 'builtin')
+            ->assertSet('data.homepage_template', 'default');
+
+        $component
+            ->set('data.storefront_theme', 'marketplace_pro')
+            ->assertSet('data.homepage_template', 'hero_driven')
+            ->set('data.homepage_template', 'compact_dense')
+            ->set('data.marketplace_product_limit', 15);
+
+        $component
+            ->set('data.theme_surface_color', '#FFFFFF')
+            ->set('data.theme_text_color', '#FFFFFF')
+            ->call('save')
+            ->assertHasFormErrors(['theme_text_color'])
+            ->set('data.theme_text_color', '#111827')
+            ->set('data.theme_palette_preset', 'ocean')
+            ->assertSet('data.theme_color', '#0369A1')
+            ->assertSet('data.theme_accent_color', '#D97706')
+            ->set('data.typography_preset', 'commerce')
+            ->assertSet('data.typography_heading_font', 'rubik')
+            ->assertSet('data.typography_body_font', 'nunito_sans')
+            ->assertSet('data.typography_base_size', 16)
+            ->assertSet('data.typography_content_width', 'comfortable')
+            ->set('data.appearance_preset', 'premium')
+            ->assertSet('data.appearance_corner_radius', 'rounded')
+            ->assertSet('data.appearance_shadow', 'elevated')
+            ->assertSet('data.appearance_card_hover', 'lift');
 
         $headerActions = collect($component->instance()->getCachedHeaderActions());
 
@@ -169,7 +214,8 @@ class PhaseFourAdminPagesTest extends TestCase
             ->set('data.company_domain', 'https://www.synced-store.example.test/catalog')
             ->set('data.company_domain_verified', true)
             ->set('data.is_published', true)
-            ->set('data.theme_color', '#0F766E')
+            ->set('data.theme_color', '#0369A1')
+            ->set('data.theme_foreground_mode', 'dark')
             ->set('data.whatsapp_number', '+8801700000000')
             ->set('data.meta_title', 'Synced Store')
             ->set('data.meta_description', 'Synced storefront settings.')
@@ -180,6 +226,16 @@ class PhaseFourAdminPagesTest extends TestCase
 
         $this->assertSame('synced-store.example.test', $company->domain);
         $this->assertFalse($company->domain_verified);
+        $this->assertSame('dark', $setting->refresh()->theme_foreground_mode);
+        $this->assertSame('#D97706', $setting->theme_accent_color);
+        $this->assertSame('rubik', $setting->typography_heading_font);
+        $this->assertSame(16, $setting->typography_base_size);
+        $this->assertSame('comfortable', $setting->typography_content_width);
+        $this->assertSame('rounded', $setting->appearance_corner_radius);
+        $this->assertSame('lift', $setting->appearance_card_hover);
+        $this->assertSame('marketplace_pro', $setting->storefront_theme);
+        $this->assertSame('compact_dense', $setting->homepage_template);
+        $this->assertSame(15, $setting->marketplace_product_limit);
 
         Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
             ->assertSet('data.company_domain', 'synced-store.example.test')
@@ -205,7 +261,15 @@ class PhaseFourAdminPagesTest extends TestCase
 
         $component = Livewire::test(CreateStorefrontSetting::class)
             ->assertFormFieldExists('company_domain')
-            ->assertFormFieldExists('company_domain_verified');
+            ->assertFormFieldExists('company_domain_verified')
+            ->assertFormFieldExists('theme_foreground_mode')
+            ->assertFormFieldExists('theme_palette_preset')
+            ->assertFormFieldExists('theme_background_color')
+            ->assertFormFieldExists('typography_preset')
+            ->assertFormFieldExists('typography_line_height')
+            ->assertFormFieldExists('typography_body_tracking')
+            ->assertFormFieldExists('appearance_preset')
+            ->assertFormFieldExists('appearance_container_width');
 
         $headerActions = collect($component->instance()->getCachedHeaderActions());
 
@@ -222,7 +286,11 @@ class PhaseFourAdminPagesTest extends TestCase
                 'is_published' => false,
                 'customer_accounts_enabled' => true,
                 'theme_color' => '#0F766E',
+                'theme_foreground_mode' => 'auto',
+                'theme_palette_preset' => 'custom',
                 'theme_mode' => 'system',
+                'typography_preset' => 'system',
+                'appearance_preset' => 'modern',
             ])
             ->call('create')
             ->assertHasNoFormErrors();
@@ -230,6 +298,11 @@ class PhaseFourAdminPagesTest extends TestCase
         $this->assertDatabaseHas('storefront_settings', [
             'company_id' => $company->getKey(),
             'is_published' => false,
+            'theme_foreground_mode' => 'auto',
+            'theme_palette_preset' => 'custom',
+            'typography_preset' => 'system',
+            'typography_base_size' => 16,
+            'appearance_preset' => 'modern',
         ]);
         $this->assertSame('create-store.example.test', $company->refresh()->domain);
         $this->assertTrue($company->domain_verified);

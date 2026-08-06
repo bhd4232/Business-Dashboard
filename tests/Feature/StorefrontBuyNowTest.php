@@ -89,6 +89,7 @@ class StorefrontBuyNowTest extends TestCase
             'company_id' => $company->getKey(),
             'theme_color' => '#0F766E',
             'is_published' => true,
+            'new_customer_delivery_advance_enabled' => false,
         ]);
 
         return $company;

@@ -5,14 +5,14 @@
 @endphp
 
 @section('content')
-    <section class="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <section class="mx-auto w-full max-w-3xl px-4 py-6 sm:px-5 lg:px-6">
         <p class="text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">Wholesale partnership</p>
         <h1 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Become a {{ $company->name }} reseller.</h1>
-        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
+        <p class="storefront-page-copy mt-3">
             Apply with your business details. After the store approves your application, you get access to wholesale pricing and direct ordering support.
         </p>
 
-        <form class="mt-8 space-y-5 rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/5" method="POST" action="{{ $applyUrl }}">
+        <form class="mt-5 space-y-5 rounded-lg border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-900" method="POST" action="{{ $applyUrl }}">
             @csrf
             <div class="grid gap-5 sm:grid-cols-2">
                 <div>

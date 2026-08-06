@@ -34,7 +34,7 @@ class HomeController extends Controller
 
         abort_unless($setting?->is_published, 404);
 
-        return view('storefront.home', [
+        return view($setting->homepageView(), [
             'company' => $company,
             'setting' => $setting,
             'categories' => Category::query()

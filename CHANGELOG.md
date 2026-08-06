@@ -2,6 +2,54 @@
 
 All notable production changes to Business Dashboard are documented here.
 
+## [Unreleased]
+
+### Added
+
+- New-customer checkout now collects only the calculated delivery charge through the active verified online gateway before creating the customer and order.
+- Weight-based delivery pricing supports separate first-kilogram rates for inside and outside Dhaka plus a shared additional-kilogram rate.
+- Customer complaints can be submitted with an order/invoice/phone reference and routed to a company-specific Telegram destination while remaining manageable from Filament.
+- Registered customers can sign in with a secure, single-use email or SMS OTP alongside the existing password and password-reset flows.
+
+### Changed
+
+- Checkout derives the delivery area from the submitted address instead of asking the customer to select an area. The server remains authoritative, configurable Dhaka locality keywords drive detection, and ambiguous addresses default to the outside-Dhaka rate.
+- The order thank-you page shows customer/order details and a configurable WhatsApp group CTA.
+
+### Security
+
+- Login OTP values are stored hashed, expire after 10 minutes, allow at most five failed attempts, have a one-minute resend cooldown, and use non-enumerating responses for unknown accounts.
+
+## [1.23.0] - 2026-08-03
+
+**Release type:** Minor Feature Update
+
+Introduces a professional, fully configurable storefront design system with multiple homepage themes, a complete customer account experience, responsive commerce refinements, and richer category presentation.
+
+### Added
+
+- **Site Theme system:** the existing storefront is now the **Built-in Theme**, joined by **Marketplace Pro** with Hero-driven, Campaign-driven, and Compact & dense homepage templates. Each theme exposes only the feature settings relevant to its layout while sharing the existing catalog, cart, checkout, tracking, and account functionality.
+- **Professional theme controls:** Storefront Settings now provides clearly separated brand, light-mode, and dark-mode palettes; automatic or explicit foreground contrast; typography presets and individual font controls; and modern appearance settings for content width, gutters, radius, card depth, hover feedback, and motion.
+- **Complete customer account area:** customers can access an account overview, profile and password settings, order history, reorder actions, account activity, order tracking, reseller status, and logout. The header profile dropdown links directly to these destinations and contains the storefront light/dark switch.
+- **Category image and icon support:** category create/edit forms and the Product form's inline Create category action can assign a compressed square image or a curated storefront icon. Storefront category tiles fall back from image to icon to category initial.
+- **Visual Filament icon browser:** clicking the Category icon field opens a searchable, scrollable modal containing every solid and outline Heroicon bundled with the installed Filament version. Selecting a tile applies it immediately, while existing category icons remain backward compatible.
+
+### Changed
+
+- Storefront pages now use a denser responsive commerce layout with compact Amazon-inspired typography, spacing, cards, headings, controls, and account screens while retaining accessible 44px mobile touch targets.
+- The responsive header keeps navigation below the logo/search row on desktop, moves account and theme controls into one compact profile menu, uses a mobile drawer below the desktop breakpoint, and hides the duplicate header cart on phones.
+- Homepage banners preserve the complete uploaded image at full available width on desktop and mobile, adapting their height to each image's intrinsic aspect ratio instead of cropping it into a fixed stage.
+- Product detail galleries are capped to a compact premium size and add pointer-position hover zoom on supported desktop devices; thumbnails and purchasing controls remain mobile responsive.
+- Theme-colored buttons, badges, selected states, CTA areas, and navigation now resolve readable text from the configured foreground mode. Dark-mode cards use opaque matching surfaces so decorative lines and page effects do not bleed through them.
+- The **Inventory** sidebar module exposes Products, Categories, and Stock Movement as direct submenu destinations. The desktop sidebar now rests in an icon-only collapsed state, expands on pointer hover or keyboard focus, and collapses when interaction leaves without changing Filament's mobile drawer.
+
+### Technical Notes
+
+- New storefront settings migrations add customer activity storage, theme foreground mode, palette and typography tokens, advanced appearance controls, theme/template selection, category icons, and sufficient icon-key length for every bundled Filament Heroicon. Deploy with `php artisan migrate --force` before serving the updated storefront.
+- Theme registration and safe template resolution live in `App\Support\StorefrontThemeRegistry`; category icon validation lives in `App\Support\StorefrontCategoryIcons`. Shared CSS variables from `StorefrontSetting` drive palette, typography, spacing, radius, elevation, and motion consistently across storefront pages.
+- The category icon picker is a Filament field/modal built from the installed `Filament\Support\Icons\Heroicon` enum, so the catalog tracks the framework icon library without maintaining a separate hardcoded list. A delegated panel script now filters the rendered icon tiles directly on typing, native search-clear, or Enter and prevents Enter from submitting the category form. Sidebar behavior uses Filament's native collapsible desktop state with a progressive hover/focus controller.
+- Added storefront theme and category-media feature coverage. The focused theme/category/image-precompression suite passes with 9 tests and 55 assertions, and the production Vite build succeeds.
+
 ## [1.22.1] - 2026-08-01
 
 **Release type:** Maintenance Update

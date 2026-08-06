@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Resources\Categories\Schemas\CategoryForm;
 use App\Models\Category;
 use App\Models\Product;
 use App\Support\CompanyMedia;
@@ -38,20 +39,7 @@ class ProductForm
                             ->label('Category')
                             ->relationship('category', 'name')
                             ->searchable()
-                            ->createOptionForm([
-                                TextInput::make('name')
-                                    ->label('Category Name')
-                                    ->required()
-                                    ->maxLength(255),
-
-                                Textarea::make('description')
-                                    ->rows(3)
-                                    ->columnSpanFull(),
-
-                                Toggle::make('is_active')
-                                    ->label('Active')
-                                    ->default(true),
-                            ])
+                            ->createOptionForm(self::categoryCreateOptionForm())
                             ->createOptionUsing(function (array $data): int {
                                 $slug = Str::slug($data['name']);
                                 $originalSlug = $slug;
@@ -66,6 +54,8 @@ class ProductForm
                                     'name' => $data['name'],
                                     'slug' => $slug,
                                     'description' => $data['description'] ?? null,
+                                    'image' => $data['image'] ?? null,
+                                    'icon' => $data['icon'] ?? null,
                                     'is_active' => $data['is_active'] ?? true,
                                 ])->getKey();
                             })
@@ -331,5 +321,22 @@ class ProductForm
                     ->collapsible()
                     ->persistCollapsed(),
             ]);
+    }
+
+    public static function categoryCreateOptionForm(): array
+    {
+        return [
+            TextInput::make('name')
+                ->label('Category Name')
+                ->required()
+                ->maxLength(255),
+            Textarea::make('description')
+                ->rows(3)
+                ->columnSpanFull(),
+            ...CategoryForm::mediaFields(),
+            Toggle::make('is_active')
+                ->label('Active')
+                ->default(true),
+        ];
     }
 }

@@ -2,15 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Mail\StorefrontLoginOtp;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\StorefrontCustomerActivity;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class StorefrontCustomerAuthTest extends TestCase
@@ -63,6 +67,149 @@ class StorefrontCustomerAuthTest extends TestCase
             'password' => 'super-secret',
         ])->assertRedirect('http://auth.example.test/account/profile');
         $this->assertAuthenticatedAs($customer->fresh(), 'customer');
+    }
+
+    public function test_customer_account_dashboard_and_activity_are_functional_and_private(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Account Store', 'account.example.test');
+
+        $this->post('http://account.example.test/account/register', [
+            'name' => 'Account Buyer',
+            'phone' => '01710101010',
+            'email' => 'account@example.test',
+            'password' => 'account-password',
+            'password_confirmation' => 'account-password',
+        ]);
+
+        $customer = Customer::query()->where('phone', '01710101010')->firstOrFail();
+
+        $this->get('http://account.example.test/account')
+            ->assertOk()
+            ->assertSee('Welcome back, Account')
+            ->assertSee('Overview')
+            ->assertSee('Profile')
+            ->assertSee('Orders')
+            ->assertSee('Activity')
+            ->assertSee('Account overview')
+            ->assertSee('Profile settings')
+            ->assertSee('My orders')
+            ->assertSee('Account activity');
+
+        $this->patch('http://account.example.test/account/profile', [
+            'name' => 'Account Buyer Updated',
+            'email' => 'updated-account@example.test',
+            'address' => 'Updated delivery address',
+        ])->assertRedirect('http://account.example.test/account/profile');
+
+        $this->put('http://account.example.test/account/password', [
+            'current_password' => 'account-password',
+            'password' => 'new-account-password',
+            'password_confirmation' => 'new-account-password',
+        ])->assertRedirect('http://account.example.test/account/profile');
+
+        app(CompanyContext::class)->set($company);
+        $product = $this->createProduct('Account Product', 'ACCOUNT-PRODUCT-001');
+
+        $this->post('http://account.example.test/cart/items/'.$product->slug, ['quantity' => 1])->assertRedirect();
+        $this->post('http://account.example.test/checkout', [
+            'name' => 'Account Buyer Updated',
+            'phone' => '01710101010',
+            'email' => 'updated-account@example.test',
+            'address' => 'Updated delivery address',
+        ])->assertRedirect();
+
+        StorefrontCustomerActivity::query()->create([
+            'company_id' => $company->getKey(),
+            'customer_id' => Customer::query()->create([
+                'name' => 'Private Buyer',
+                'phone' => '01720202020',
+                'is_active' => true,
+            ])->getKey(),
+            'type' => StorefrontCustomerActivity::TYPE_PROFILE_UPDATED,
+            'title' => 'Private customer activity',
+        ]);
+
+        $this->get('http://account.example.test/account/activity')
+            ->assertOk()
+            ->assertSee('Account created')
+            ->assertSee('Profile updated')
+            ->assertSee('Password changed')
+            ->assertSee('Order placed')
+            ->assertDontSee('Private customer activity');
+
+        $this->assertDatabaseHas('storefront_customer_activities', [
+            'company_id' => $company->getKey(),
+            'customer_id' => $customer->getKey(),
+            'type' => StorefrontCustomerActivity::TYPE_PASSWORD_CHANGED,
+        ]);
+    }
+
+    public function test_local_preview_header_account_menu_can_open_customer_profile(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Preview Account Store', 'preview-account.example.test');
+        $baseUrl = 'http://localhost/storefront/'.$company->slug;
+
+        $this->get($baseUrl.'/cart')
+            ->assertOk()
+            ->assertSee('Log in')
+            ->assertSee('Create account');
+
+        $this->get($baseUrl.'/account/profile')
+            ->assertRedirect($baseUrl.'/account/login');
+
+        $this->get($baseUrl.'/account/login')
+            ->assertOk()
+            ->assertSee($baseUrl.'/account/login', false)
+            ->assertSee($baseUrl.'/account/register', false);
+
+        $this->post($baseUrl.'/account/register', [
+            'name' => 'Preview Customer',
+            'phone' => '01730303030',
+            'email' => 'preview-customer@example.test',
+            'password' => 'preview-password',
+            'password_confirmation' => 'preview-password',
+        ])->assertRedirect($baseUrl.'/account/profile');
+
+        $this->get($baseUrl.'/cart')
+            ->assertOk()
+            ->assertSee('Account overview')
+            ->assertSee('Profile settings')
+            ->assertSee('My orders')
+            ->assertSee('Account activity')
+            ->assertSee('min-h-10 items-center gap-2.5 rounded-lg', false);
+
+        $this->get($baseUrl.'/account/profile')
+            ->assertOk()
+            ->assertSee('Profile settings')
+            ->assertSee('Preview Customer')
+            ->assertSee('lg:grid-cols-[14rem_minmax(0,1fr)]', false);
+
+        $this->get($baseUrl.'/account/orders')
+            ->assertOk()
+            ->assertSee('Your order history.')
+            ->assertDontSee('Checkout phone number');
+
+        $this->post($baseUrl.'/account/logout')
+            ->assertRedirect($baseUrl);
+        $this->assertGuest('customer');
+    }
+
+    public function test_registration_stays_available_while_activity_table_is_temporarily_missing(): void
+    {
+        $this->createPublishedStorefrontCompany('Migration Safe Store', 'migration-safe.example.test');
+        Schema::drop('storefront_customer_activities');
+
+        $this->post('http://migration-safe.example.test/account/register', [
+            'name' => 'Migration Safe Buyer',
+            'phone' => '01740404040',
+            'password' => 'migration-safe-password',
+            'password_confirmation' => 'migration-safe-password',
+        ])->assertRedirect('http://migration-safe.example.test/account/profile');
+
+        $this->assertDatabaseHas('customers', [
+            'phone' => '01740404040',
+            'name' => 'Migration Safe Buyer',
+        ]);
     }
 
     public function test_login_rejects_wrong_password(): void
@@ -229,6 +376,92 @@ class StorefrontCustomerAuthTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_customer_can_log_in_with_phone_otp(): void
+    {
+        $this->createPublishedStorefrontCompany('Phone OTP Store', 'phone-otp.example.test', [
+            'notification_credentials' => [
+                'sms_api_url' => 'http://sms.example.test/send?to={phone}&msg={message}',
+            ],
+        ]);
+        $this->post('http://phone-otp.example.test/account/register', [
+            'name' => 'Phone OTP Buyer',
+            'phone' => '01790000001',
+            'password' => 'phone-otp-password',
+            'password_confirmation' => 'phone-otp-password',
+        ]);
+        $this->post('http://phone-otp.example.test/account/logout');
+        Http::fake(['sms.example.test/*' => Http::response('OK')]);
+
+        $this->post('http://phone-otp.example.test/account/otp', [
+            'identifier' => '01790000001',
+        ])->assertRedirect('http://phone-otp.example.test/account/otp/verify');
+
+        $sentUrl = null;
+        Http::assertSent(function ($request) use (&$sentUrl): bool {
+            $sentUrl = urldecode($request->url());
+
+            return true;
+        });
+        preg_match('/login code is (\d{6})/', (string) $sentUrl, $matches);
+        $this->assertNotEmpty($matches);
+
+        $this->post('http://phone-otp.example.test/account/otp/verify', [
+            'code' => $matches[1],
+        ])->assertRedirect('http://phone-otp.example.test/account/profile');
+
+        $customer = Customer::query()->where('phone', '01790000001')->firstOrFail();
+        $this->assertAuthenticatedAs($customer, 'customer');
+        $this->assertNull($customer->fresh()->login_otp_code);
+    }
+
+    public function test_customer_can_log_in_with_email_otp(): void
+    {
+        $this->createPublishedStorefrontCompany('Email OTP Store', 'email-otp.example.test');
+        $this->post('http://email-otp.example.test/account/register', [
+            'name' => 'Email OTP Buyer',
+            'phone' => '01790000002',
+            'email' => 'otp-buyer@example.test',
+            'password' => 'email-otp-password',
+            'password_confirmation' => 'email-otp-password',
+        ]);
+        $this->post('http://email-otp.example.test/account/logout');
+        Mail::fake();
+
+        $this->post('http://email-otp.example.test/account/otp', [
+            'identifier' => 'OTP-BUYER@example.test',
+        ])->assertRedirect('http://email-otp.example.test/account/otp/verify');
+
+        $code = null;
+        Mail::assertSent(StorefrontLoginOtp::class, function (StorefrontLoginOtp $mail) use (&$code): bool {
+            $code = $mail->code;
+
+            return $mail->hasTo('otp-buyer@example.test');
+        });
+
+        $this->post('http://email-otp.example.test/account/otp/verify', [
+            'code' => $code,
+        ])->assertRedirect('http://email-otp.example.test/account/profile');
+
+        $this->assertAuthenticated('customer');
+    }
+
+    public function test_login_otp_rejects_invalid_codes_and_does_not_reveal_unknown_accounts(): void
+    {
+        $this->createPublishedStorefrontCompany('Safe OTP Store', 'safe-otp.example.test');
+        Mail::fake();
+
+        $this->post('http://safe-otp.example.test/account/otp', [
+            'identifier' => 'unknown@example.test',
+        ])->assertRedirect('http://safe-otp.example.test/account/otp/verify')
+            ->assertSessionHas('storefront_status', fn (string $message): bool => str_contains($message, 'If a matching account exists'));
+
+        Mail::assertNothingSent();
+        $this->post('http://safe-otp.example.test/account/otp/verify', [
+            'code' => '123456',
+        ])->assertSessionHasErrors('code');
+        $this->assertGuest('customer');
+    }
+
     public function test_customer_accounts_can_be_disabled_per_company(): void
     {
         $this->createPublishedStorefrontCompany('Disabled Accounts Store', 'disabled.example.test', [
@@ -311,6 +544,7 @@ class StorefrontCustomerAuthTest extends TestCase
             'whatsapp_number' => '+8801700000000',
             'meta_title' => $name,
             'is_published' => true,
+            'new_customer_delivery_advance_enabled' => false,
         ], $settingOverrides));
 
         return $company;

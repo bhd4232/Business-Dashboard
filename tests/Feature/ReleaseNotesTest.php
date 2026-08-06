@@ -39,7 +39,7 @@ class ReleaseNotesTest extends TestCase
             ->assertOk()
             ->assertHeader('Cache-Control')
             ->assertJsonPath('version', '9.8.7')
-            ->assertJsonPath('published_version', '1.22.1')
+            ->assertJsonPath('published_version', '1.23.0')
             ->assertJsonPath('release_type', 'critical_fix')
             ->assertJsonPath('release_label', 'Critical Fix Update')
             ->assertJsonPath('release_date', '2026-06-21')
@@ -65,10 +65,11 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.22.1')
+            ->assertSee('v1.23.0')
             ->assertSee('Installed version')
             ->assertSee('Minor Feature')
-            ->assertSee('Released 2026-08-01')
+            ->assertSee('Released 2026-08-03')
+            ->assertSee('Site Theme system')
             ->assertSee('Super Admin Database & Deployment Notes')
             ->assertSee('Added disposable SQLite backup restore verification')
             ->assertSee('Production Update Rules')
@@ -93,8 +94,8 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.22.0')
-            ->assertSee('Android update push notifications')
+            ->assertSee('v1.23.0')
+            ->assertSee('Complete customer account area')
             ->assertSee('Added Customer and Order risk badges')
             ->assertDontSee('Added disposable SQLite backup restore verification')
             ->assertDontSee('Technical Notes')
@@ -122,7 +123,7 @@ class ReleaseNotesTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/settings/release-notes')
             ->assertOk()
-            ->assertSee('Update available: v1.22.1')
+            ->assertSee('Update available: v1.23.0')
             ->assertSee('Awaiting your approval')
             ->assertSee('Installed version: v1.21.0')
             ->assertDontSee('Android update push notifications');
@@ -140,7 +141,7 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertDontSee('Awaiting your approval')
-            ->assertSee('Installed version: v1.22.1')
-            ->assertSee('Android update push notifications');
+            ->assertSee('Installed version: v1.23.0')
+            ->assertSee('Complete customer account area');
     }
 }

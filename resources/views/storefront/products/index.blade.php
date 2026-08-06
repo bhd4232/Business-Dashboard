@@ -11,7 +11,7 @@
 
 @section('content')
     <section class="border-b border-gray-200 dark:border-white/10">
-        <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-5 lg:px-6">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">{{ ($search ?? '') !== '' ? 'Search' : ($category?->name ?? 'Catalog') }}</p>
@@ -27,15 +27,15 @@
             </div>
 
             @if ($categories->isNotEmpty())
-                <div class="mt-6 flex flex-wrap gap-2">
-                    <a class="rounded-full border px-4 py-1.5 text-sm font-medium transition {{ ! $category ? 'border-[var(--storefront-brand)] bg-[var(--storefront-brand)] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400 dark:border-white/10 dark:text-gray-300' }}" href="{{ $baseProductsUrl }}" @if (! $category) aria-current="page" @endif>
+                <div class="-mx-4 mt-6 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+                    <a class="inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 text-sm font-medium transition {{ ! $category ? 'border-[var(--storefront-brand)] bg-[var(--storefront-brand)] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400 dark:border-white/10 dark:text-gray-300' }}" href="{{ $baseProductsUrl }}" @if (! $category) aria-current="page" @endif>
                         All
                     </a>
                     @foreach ($categories as $chip)
                         @php
                             $chipUrl = isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $chip->slug]) : route('storefront.categories.show', $chip->slug);
                         @endphp
-                        <a class="rounded-full border px-4 py-1.5 text-sm font-medium transition {{ $category?->id === $chip->id ? 'border-[var(--storefront-brand)] bg-[var(--storefront-brand)] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400 dark:border-white/10 dark:text-gray-300' }}" href="{{ $chipUrl }}" @if ($category?->id === $chip->id) aria-current="page" @endif>
+                        <a class="inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 text-sm font-medium transition {{ $category?->id === $chip->id ? 'border-[var(--storefront-brand)] bg-[var(--storefront-brand)] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400 dark:border-white/10 dark:text-gray-300' }}" href="{{ $chipUrl }}" @if ($category?->id === $chip->id) aria-current="page" @endif>
                             {{ $chip->name }}
                         </a>
                     @endforeach
@@ -44,13 +44,13 @@
         </div>
     </section>
 
-    <section class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <form class="mb-6 flex justify-end" method="GET">
+    <section class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-5 lg:px-6">
+        <form class="mb-6 flex items-center justify-between gap-3 sm:justify-end" method="GET">
             @if (($search ?? '') !== '')
                 <input type="hidden" name="q" value="{{ $search }}">
             @endif
-            <label class="sr-only" for="sort">Sort products</label>
-            <select id="sort" name="sort" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200" onchange="this.form.submit()">
+            <label class="text-sm font-medium text-gray-600 sm:sr-only dark:text-gray-300" for="sort">Sort by</label>
+            <select id="sort" name="sort" class="min-h-11 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 sm:flex-none dark:border-white/10 dark:bg-gray-950 dark:text-gray-200" onchange="this.form.submit()">
                 @foreach ($sortOptions as $value => $label)
                     <option value="{{ $value }}" @selected($sort === $value)>{{ $label }}</option>
                 @endforeach

@@ -40,7 +40,7 @@
         $tiers = $product->normalizedTiers();
     @endphp
 
-    <nav class="mx-auto w-full max-w-7xl px-4 pt-6 text-sm text-gray-500 sm:px-6 lg:px-8 dark:text-gray-400" aria-label="Breadcrumb">
+    <nav class="mx-auto w-full max-w-7xl px-4 pt-4 text-xs text-gray-500 sm:px-5 lg:px-6 dark:text-gray-400" aria-label="Breadcrumb">
         <a class="hover:text-gray-900 dark:hover:text-white" href="{{ $productsUrl }}">Shop all</a>
         @if ($categoryUrl)
             <span class="mx-2">/</span>
@@ -50,10 +50,16 @@
         <span class="text-gray-900 dark:text-white">{{ $product->name }}</span>
     </nav>
 
-    <section class="mx-auto grid w-full max-w-7xl gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8" data-product-page>
-        <div class="lg:sticky lg:top-24 lg:self-start">
+    <section class="mx-auto grid w-full max-w-7xl gap-6 px-4 py-6 sm:px-5 lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] lg:gap-8 lg:px-6" data-product-page>
+        <div class="w-full max-w-[460px] lg:sticky lg:top-28 lg:self-start">
             @if ($galleryImages->isNotEmpty())
-                <img data-main-image class="aspect-square w-full rounded-2xl border border-gray-200 bg-white object-cover dark:border-white/10 dark:bg-white/5" src="{{ \App\Support\CompanyMedia::publicUrl($galleryImages->first(), $company) }}" alt="{{ $product->name }}" width="1200" height="1200" fetchpriority="high">
+                <div data-zoom-frame class="group relative aspect-square w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+                    <img data-main-image class="h-full w-full cursor-zoom-in object-contain transition-transform duration-200 ease-out will-change-transform" src="{{ \App\Support\CompanyMedia::publicUrl($galleryImages->first(), $company) }}" alt="{{ $product->name }}" width="960" height="960" fetchpriority="high">
+                    <div class="pointer-events-none absolute bottom-3 right-3 hidden items-center gap-1.5 rounded-full border border-white/70 bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm backdrop-blur lg:flex dark:border-gray-700 dark:bg-gray-950/90 dark:text-gray-200">
+                        <svg class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m2.1-5.4a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0ZM11.25 8.25v6m3-3h-6"/></svg>
+                        Hover to zoom
+                    </div>
+                </div>
                 <div data-thumbnails class="mt-3 grid grid-cols-5 gap-2 {{ $galleryImages->count() < 2 && $variantData->pluck('images')->flatten()->isEmpty() ? 'hidden' : '' }}">
                     @foreach ($galleryImages as $galleryImage)
                         <button type="button" data-thumb data-src="{{ \App\Support\CompanyMedia::publicUrl($galleryImage, $company) }}" class="overflow-hidden rounded-lg border border-gray-200 transition hover:border-[var(--storefront-brand)] dark:border-white/10">
@@ -62,17 +68,17 @@
                     @endforeach
                 </div>
             @else
-                <div class="grid aspect-square w-full place-items-center rounded-2xl border border-gray-200 bg-gray-100 text-8xl font-semibold text-[var(--storefront-brand)] dark:border-white/10 dark:bg-white/5">
+                <div class="grid aspect-square w-full place-items-center rounded-lg border border-gray-200 bg-gray-100 text-7xl font-semibold text-[var(--storefront-brand)] dark:border-gray-800 dark:bg-gray-900">
                     {{ mb_substr($product->name, 0, 1) }}
                 </div>
             @endif
         </div>
 
         <div>
-            <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">{{ $product->name }}</h1>
+            <h1>{{ $product->name }}</h1>
             <div data-price class="mt-3 text-2xl font-semibold text-gray-950 dark:text-white">BDT {{ number_format($product->selling_price, 2) }}</div>
             @if ($tiers !== [] && ! $isVariableProduct)
-                <div class="mt-6 max-w-xl overflow-hidden rounded-xl border border-gray-200 dark:border-white/15">
+                <div class="mt-4 max-w-xl overflow-hidden rounded-lg border border-gray-200 dark:border-white/15">
                     <div class="border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
                         Wholesale pricing
                     </div>
@@ -102,12 +108,12 @@
             @endif
 
             @if ($isPreorder && ! $inStock)
-                <div class="mt-4 rounded-xl border border-[var(--storefront-brand)]/30 bg-[var(--storefront-brand)]/5 px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+                <div class="mt-4 rounded-lg border border-[var(--storefront-brand)]/30 bg-[var(--storefront-brand)]/5 px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
                     This item is available for pre-order. An advance payment of {{ $product->preorderAdvancePercent() }}% is collected online at checkout; cash on delivery is not available for pre-order quantities.
                 </div>
             @endif
 
-            <dl class="mt-6 grid grid-cols-3 gap-3 border-y border-gray-200 py-5 text-sm dark:border-white/10">
+            <dl class="mt-4 grid grid-cols-3 gap-3 border-y border-gray-200 py-4 text-sm dark:border-white/10">
                 <div>
                     <dt class="text-gray-400">Stock</dt>
                     <dd data-stock class="mt-1 font-semibold">{{ (int) $product->stock }}</dd>
@@ -124,7 +130,7 @@
                 </div>
             </dl>
 
-            <form id="product-purchase-form" class="mt-6" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.cart.add', [$previewSlug, $product->slug]) : route('storefront.cart.add', $product->slug) }}" data-purchase-form>
+            <form id="product-purchase-form" class="mt-4" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.cart.add', [$previewSlug, $product->slug]) : route('storefront.cart.add', $product->slug) }}" data-purchase-form>
                 @csrf
 
                 @if ($isVariableProduct)
@@ -148,10 +154,10 @@
                                         </button>
                                         @if ($variant['stock'] > 0)
                                             <div class="flex shrink-0 items-center rounded-lg border border-gray-300 dark:border-white/15" data-qty-stepper>
-                                                <button type="button" data-qty-decrement class="grid h-10 w-9 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white [touch-action:manipulation]" aria-label="Decrease quantity">&minus;</button>
+                                                <button type="button" data-qty-decrement class="grid h-11 w-11 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white [touch-action:manipulation]" aria-label="Decrease quantity">&minus;</button>
                                                 <label class="sr-only" for="variant-qty-{{ $variant['id'] }}">Quantity for {{ $variant['label'] }}</label>
-                                                <input id="variant-qty-{{ $variant['id'] }}" data-qty-input data-variant-qty class="h-10 w-12 border-x border-gray-300 bg-transparent text-center text-sm font-semibold text-gray-950 outline-none focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:text-white" type="number" name="quantities[{{ $variant['id'] }}]" value="0" min="0" max="{{ $variant['stock'] }}" autocomplete="off">
-                                                <button type="button" data-qty-increment class="grid h-10 w-9 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white [touch-action:manipulation]" aria-label="Increase quantity">+</button>
+                                                <input id="variant-qty-{{ $variant['id'] }}" data-qty-input data-variant-qty class="h-11 w-12 border-x border-gray-300 bg-transparent text-center text-sm font-semibold text-gray-950 outline-none focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:text-white" type="number" name="quantities[{{ $variant['id'] }}]" value="0" min="0" max="{{ $variant['stock'] }}" autocomplete="off">
+                                                <button type="button" data-qty-increment class="grid h-11 w-11 place-items-center text-gray-600 hover:text-gray-950 dark:text-gray-300 dark:hover:text-white [touch-action:manipulation]" aria-label="Increase quantity">+</button>
                                             </div>
                                         @endif
                                     </div>
@@ -206,7 +212,7 @@
         </div>
     @endif
 
-    <section class="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8" x-data="{ tab: 'description' }">
+    <section class="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-5 lg:px-6" x-data="{ tab: 'description' }">
         <div class="flex gap-6 border-b border-gray-200 text-sm font-medium dark:border-white/10" role="tablist" aria-label="Product information">
             <button
                 id="product-tab-description"
@@ -220,7 +226,7 @@
                 @keydown.right.prevent="tab = 'shipping'; $nextTick(() => $refs.shippingTab.focus())"
                 @keydown.end.prevent="tab = 'shipping'; $nextTick(() => $refs.shippingTab.focus())"
                 :class="tab === 'description' ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white' : 'border-transparent text-gray-500 dark:text-gray-400'"
-                class="border-b-2 pb-3 transition"
+                class="inline-flex min-h-11 items-center border-b-2 transition"
             >Description</button>
             <button
                 id="product-tab-shipping"
@@ -234,7 +240,7 @@
                 @keydown.left.prevent="tab = 'description'; $nextTick(() => $refs.descriptionTab.focus())"
                 @keydown.home.prevent="tab = 'description'; $nextTick(() => $refs.descriptionTab.focus())"
                 :class="tab === 'shipping' ? 'border-gray-950 text-gray-950 dark:border-white dark:text-white' : 'border-transparent text-gray-500 dark:text-gray-400'"
-                class="border-b-2 pb-3 transition"
+                class="inline-flex min-h-11 items-center border-b-2 transition"
             >Shipping &amp; Return</button>
         </div>
         <div class="max-w-3xl py-6 text-sm leading-7 text-gray-600 dark:text-gray-300">
@@ -251,7 +257,7 @@
     </section>
 
     @if ($related->isNotEmpty())
-        <section class="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <section class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
             <h2 class="mb-6 text-2xl font-semibold tracking-tight">You may also like</h2>
             <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
                 @foreach ($related as $relatedProduct)
@@ -271,13 +277,34 @@
             if (!page) return;
 
             var mainImage = page.querySelector('[data-main-image]');
+            var zoomFrame = page.querySelector('[data-zoom-frame]');
             var thumbsWrap = page.querySelector('[data-thumbnails]');
             var baseThumbsHtml = thumbsWrap ? thumbsWrap.innerHTML : '';
+
+            function resetZoom() {
+                if (!mainImage) return;
+                mainImage.style.transform = 'scale(1)';
+                mainImage.style.transformOrigin = '50% 50%';
+            }
+
+            if (zoomFrame && mainImage && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+                zoomFrame.addEventListener('pointerenter', function () {
+                    mainImage.style.transform = 'scale(1.7)';
+                });
+                zoomFrame.addEventListener('pointermove', function (event) {
+                    var bounds = zoomFrame.getBoundingClientRect();
+                    var x = Math.max(0, Math.min(100, ((event.clientX - bounds.left) / bounds.width) * 100));
+                    var y = Math.max(0, Math.min(100, ((event.clientY - bounds.top) / bounds.height) * 100));
+                    mainImage.style.transformOrigin = x + '% ' + y + '%';
+                });
+                zoomFrame.addEventListener('pointerleave', resetZoom);
+            }
 
             function bindThumbs() {
                 if (!thumbsWrap || !mainImage) return;
                 thumbsWrap.querySelectorAll('[data-thumb]').forEach(function (thumb) {
                     thumb.addEventListener('click', function () {
+                        resetZoom();
                         mainImage.src = thumb.getAttribute('data-src');
                     });
                 });
@@ -361,11 +388,15 @@
                             thumbsWrap.innerHTML = variant.images.map(function (src) {
                                 return '<button type="button" data-thumb data-src="' + src + '" class="overflow-hidden rounded-lg border border-gray-200 transition hover:border-[var(--storefront-brand)] dark:border-white/10"><img class="aspect-square w-full object-cover" src="' + src + '" alt="" width="240" height="240" loading="lazy" decoding="async"></button>';
                             }).join('');
+                            resetZoom();
                             mainImage.src = variant.images[0];
                         } else {
                             thumbsWrap.innerHTML = baseThumbsHtml;
                             var firstThumb = thumbsWrap.querySelector('[data-thumb]');
-                            if (firstThumb) mainImage.src = firstThumb.getAttribute('data-src');
+                            if (firstThumb) {
+                                resetZoom();
+                                mainImage.src = firstThumb.getAttribute('data-src');
+                            }
                         }
                         bindThumbs();
                     }

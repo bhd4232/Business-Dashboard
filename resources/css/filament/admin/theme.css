@@ -97,3 +97,28 @@ html:not(.zz-sidebar-navigation-ready) .zz-sidebar-menu-parent.fi-sidebar-route-
 .dark .zz-sidebar-menu-parent.fi-sidebar-route-active > .fi-sidebar-item-btn > .fi-icon {
     color: var(--primary-400);
 }
+
+@media (min-width: 1024px) {
+    .fi-main-sidebar {
+        transition: width 180ms ease, box-shadow 180ms ease;
+    }
+
+    .fi-main-sidebar.fi-sidebar-open {
+        box-shadow: 8px 0 24px rgb(15 23 42 / 0.08);
+    }
+
+    .dark .fi-main-sidebar.fi-sidebar-open {
+        box-shadow: 8px 0 24px rgb(0 0 0 / 0.24);
+    }
+
+    .fi-main-sidebar:not(.fi-sidebar-open) .zz-sidebar-menu-parent > .fi-sidebar-item-btn::after,
+    .fi-main-sidebar:not(.fi-sidebar-open) .zz-sidebar-menu-parent > .fi-sidebar-sub-group-items {
+        display: none !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fi-main-sidebar {
+        transition: none;
+    }
+}

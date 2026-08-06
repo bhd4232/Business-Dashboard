@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Mail\StorefrontLoginOtp;
 use App\Models\ConversationChannel;
 use App\Models\StorefrontSetting;
 use App\Services\Meta\MetaGraphService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Sends customer notifications (abandoned-cart reminders etc.) over a
@@ -48,6 +50,19 @@ class StorefrontNotificationService
             return Http::timeout(20)->get($url)->successful();
         } catch (\Throwable $exception) {
             Log::warning('Storefront SMS send failed', ['error' => $exception->getMessage()]);
+
+            return false;
+        }
+    }
+
+    public function sendLoginOtpEmail(string $email, string $companyName, string $code): bool
+    {
+        try {
+            Mail::to($email)->send(new StorefrontLoginOtp($companyName, $code));
+
+            return true;
+        } catch (\Throwable $exception) {
+            Log::warning('Storefront login OTP email failed', ['error' => $exception->getMessage()]);
 
             return false;
         }

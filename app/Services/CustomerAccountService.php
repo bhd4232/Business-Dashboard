@@ -92,6 +92,87 @@ class CustomerAccountService
             ->first();
     }
 
+    public function findRegisteredByIdentifier(string $identifier): ?Customer
+    {
+        $identifier = trim($identifier);
+        $query = Customer::query()
+            ->whereNotNull('password')
+            ->where('is_active', true);
+
+        if (str_contains($identifier, '@')) {
+            $query->whereRaw('LOWER(email) = ?', [mb_strtolower($identifier)]);
+        } else {
+            $this->wherePhoneMatches($query, $identifier);
+        }
+
+        return $query->first();
+    }
+
+    /**
+     * Sends a one-time login code over the channel implied by the identifier.
+     * A one-minute resend cooldown prevents accidental or abusive bursts.
+     */
+    public function sendLoginOtp(Company $company, StorefrontSetting $setting, Customer $customer, string $identifier): bool
+    {
+        if ($customer->login_otp_sent_at?->isAfter(now()->subMinute()) && $customer->login_otp_expires_at?->isFuture()) {
+            return true;
+        }
+
+        $channel = str_contains($identifier, '@') ? 'email' : 'sms';
+        $code = (string) random_int(100000, 999999);
+
+        $customer->forceFill([
+            'login_otp_code' => Hash::make($code),
+            'login_otp_channel' => $channel,
+            'login_otp_expires_at' => now()->addMinutes(10),
+            'login_otp_sent_at' => now(),
+            'login_otp_attempts' => 0,
+        ])->save();
+
+        $sent = $channel === 'email'
+            ? $this->notifications->sendLoginOtpEmail((string) $customer->email, $company->name, $code)
+            : $this->notifications->sendSms(
+                $setting,
+                $customer->phone,
+                "Your {$company->name} login code is {$code}. It expires in 10 minutes.",
+            );
+
+        if (! $sent) {
+            $this->clearLoginOtp($customer);
+        }
+
+        return $sent;
+    }
+
+    public function verifyLoginOtp(Customer $customer, string $code): bool
+    {
+        if (
+            blank($customer->login_otp_code)
+            || ! $customer->login_otp_expires_at
+            || $customer->login_otp_expires_at->isPast()
+            || (int) $customer->login_otp_attempts >= 5
+        ) {
+            $this->clearLoginOtp($customer);
+
+            return false;
+        }
+
+        if (! Hash::check($code, $customer->login_otp_code)) {
+            $attempts = (int) $customer->login_otp_attempts + 1;
+            $customer->forceFill(['login_otp_attempts' => $attempts])->save();
+
+            if ($attempts >= 5) {
+                $this->clearLoginOtp($customer);
+            }
+
+            return false;
+        }
+
+        $this->clearLoginOtp($customer);
+
+        return true;
+    }
+
     /**
      * Sends a 6-digit SMS reset code. Returns false when no SMS gateway is
      * configured for this company - the caller still shows the generic
@@ -150,6 +231,17 @@ class CustomerAccountService
             ->where('email', $email)
             ->when($ignoreCustomerId, fn (Builder $query) => $query->whereKeyNot($ignoreCustomerId))
             ->exists();
+    }
+
+    protected function clearLoginOtp(Customer $customer): void
+    {
+        $customer->forceFill([
+            'login_otp_code' => null,
+            'login_otp_channel' => null,
+            'login_otp_expires_at' => null,
+            'login_otp_sent_at' => null,
+            'login_otp_attempts' => 0,
+        ])->save();
     }
 
     protected function wherePhoneMatches(Builder $query, string $phone): void

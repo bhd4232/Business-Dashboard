@@ -1,18 +1,22 @@
 @extends('storefront.layout')
 
 @php
-    $loginStoreUrl = route('storefront.account.login.store');
-    $registerStoreUrl = route('storefront.account.register.store');
-    $forgotUrl = route('storefront.account.forgot-password');
+    $accountRoute = static fn (string $name) => isset($previewSlug)
+        ? route('storefront.preview.account.'.$name, $previewSlug)
+        : route('storefront.account.'.$name);
+    $loginStoreUrl = $accountRoute('login.store');
+    $registerStoreUrl = $accountRoute('register.store');
+    $forgotUrl = $accountRoute('forgot-password');
+    $otpUrl = $accountRoute('otp');
 @endphp
 
 @section('content')
-    <section class="mx-auto w-full max-w-md px-4 py-12 sm:px-6 lg:px-8">
+    <section class="mx-auto w-full max-w-md px-4 py-8 sm:px-5 lg:px-6">
         <div
             x-data="{ tab: '{{ $activeTab }}' }"
             x-init="$nextTick(() => (tab === 'login' ? $refs.loginFirst : $refs.registerFirst)?.focus())"
         >
-            <div class="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-white/10 dark:bg-white/5" role="group" aria-label="Log in or create an account">
+            <div class="grid grid-cols-2 gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-white/10 dark:bg-gray-900" role="group" aria-label="Log in or create an account">
                 <button
                     type="button"
                     :aria-pressed="(tab === 'login').toString()"
@@ -33,11 +37,11 @@
                 </button>
             </div>
 
-            <div x-show="tab === 'login'" x-cloak class="mt-6">
+            <div x-show="tab === 'login'" x-cloak class="mt-5">
                 <h1 class="text-2xl font-semibold tracking-tight">Welcome back</h1>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Log in with your phone number or email.</p>
 
-                <form class="mt-6 space-y-5 rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/5" method="POST" action="{{ $loginStoreUrl }}">
+                <form class="mt-5 space-y-5 rounded-lg border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-900" method="POST" action="{{ $loginStoreUrl }}">
                     @csrf
                     <div>
                         <label class="text-xs font-medium text-gray-500" for="identifier">Phone number or email</label>
@@ -59,14 +63,22 @@
                     <button class="w-full rounded-lg bg-[var(--storefront-brand)] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90 [touch-action:manipulation]" type="submit">
                         Log in
                     </button>
+                    <div class="flex items-center gap-3" aria-hidden="true">
+                        <span class="h-px flex-1 bg-gray-200 dark:bg-white/10"></span>
+                        <span class="text-xs text-gray-400">or</span>
+                        <span class="h-px flex-1 bg-gray-200 dark:bg-white/10"></span>
+                    </div>
+                    <a class="flex min-h-11 w-full items-center justify-center rounded-lg border border-gray-300 px-6 py-3 text-sm font-medium text-gray-800 transition hover:border-[var(--storefront-brand)] hover:text-[var(--storefront-brand)] dark:border-white/15 dark:text-gray-100" href="{{ $otpUrl }}">
+                        Log in with an OTP
+                    </a>
                 </form>
             </div>
 
-            <div x-show="tab === 'register'" x-cloak class="mt-6">
+            <div x-show="tab === 'register'" x-cloak class="mt-5">
                 <h1 class="text-2xl font-semibold tracking-tight">Create your account</h1>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">See your order history and check out faster next time.</p>
 
-                <form class="mt-6 space-y-5 rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/5" method="POST" action="{{ $registerStoreUrl }}">
+                <form class="mt-5 space-y-5 rounded-lg border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-900" method="POST" action="{{ $registerStoreUrl }}">
                     @csrf
                     <div>
                         <label class="text-xs font-medium text-gray-500" for="name">Your name</label>

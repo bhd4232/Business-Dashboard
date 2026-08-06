@@ -9,6 +9,12 @@ class StorefrontPayment extends Model
 {
     use BelongsToCompany;
 
+    public const PURPOSE_ORDER_PAYMENT = 'order_payment';
+
+    public const PURPOSE_PREORDER_ADVANCE = 'preorder_advance';
+
+    public const PURPOSE_NEW_CUSTOMER_DELIVERY = 'new_customer_delivery';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_COMPLETED = 'completed';
@@ -25,17 +31,20 @@ class StorefrontPayment extends Model
         'company_id',
         'order_id',
         'gateway',
+        'purpose',
         'invoice_id',
         'amount',
         'status',
         'payment_method',
         'transaction_id',
         'payload',
+        'checkout_data',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'payload' => 'array',
+        'checkout_data' => 'encrypted:array',
     ];
 
     public function order()

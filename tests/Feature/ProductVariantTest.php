@@ -3,9 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -97,7 +102,7 @@ class ProductVariantTest extends TestCase
         $product = $this->makeVariableProduct();
         $variant = $product->variants()->create(['options' => ['Size' => 'M'], 'stock' => 10, 'is_active' => true]);
 
-        $customer = \App\Models\Customer::query()->create([
+        $customer = Customer::query()->create([
             'name' => 'Variant Buyer',
             'phone' => '01700000001',
             'customer_type' => 'regular',
@@ -105,7 +110,7 @@ class ProductVariantTest extends TestCase
             'is_active' => true,
         ]);
 
-        $order = \App\Models\Order::query()->create([
+        $order = Order::query()->create([
             'customer_id' => $customer->getKey(),
             'customer_name' => $customer->name,
             'order_date' => now()->toDateString(),
@@ -115,7 +120,7 @@ class ProductVariantTest extends TestCase
             'status' => 'draft',
         ]);
 
-        \App\Models\OrderItem::query()->create([
+        OrderItem::query()->create([
             'order_id' => $order->getKey(),
             'product_id' => $product->getKey(),
             'product_variant_id' => $variant->getKey(),
@@ -139,11 +144,11 @@ class ProductVariantTest extends TestCase
     public function test_multiple_variants_added_to_cart_in_one_submit(): void
     {
         $this->withoutVite();
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+        $this->withoutMiddleware(ValidateCsrfToken::class);
 
         $this->company->update(['domain' => 'variants.example.test', 'domain_verified' => true]);
 
-        \App\Models\StorefrontSetting::query()->create([
+        StorefrontSetting::query()->create([
             'company_id' => $this->company->getKey(),
             'theme_color' => '#0F766E',
             'meta_title' => 'Variant Co',
@@ -174,7 +179,7 @@ class ProductVariantTest extends TestCase
         $this->withoutVite();
         $this->company->update(['domain' => 'variant-ui.example.test', 'domain_verified' => true]);
 
-        \App\Models\StorefrontSetting::query()->create([
+        StorefrontSetting::query()->create([
             'company_id' => $this->company->getKey(),
             'theme_color' => '#0F766E',
             'meta_title' => 'Variant UI',
@@ -182,6 +187,7 @@ class ProductVariantTest extends TestCase
         ]);
 
         $product = $this->makeVariableProduct();
+        $product->update(['image' => 'products/variable-shirt.jpg']);
         $product->variants()->create(['options' => ['Size' => 'M'], 'stock' => 5, 'is_active' => true]);
 
         $this->get('http://variant-ui.example.test/products')
@@ -192,6 +198,9 @@ class ProductVariantTest extends TestCase
 
         $this->get('http://variant-ui.example.test/product/'.$product->slug)
             ->assertOk()
+            ->assertSee('data-zoom-frame', false)
+            ->assertSee('Hover to zoom')
+            ->assertSee("mainImage.style.transform = 'scale(1.7)'", false)
             ->assertSee('data-add-to-cart-mobile', false)
             ->assertSee('data-mobile-purchase-spacer', false)
             ->assertSee("document.querySelectorAll('[data-add-to-cart]')", false)

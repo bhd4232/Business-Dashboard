@@ -58,6 +58,7 @@ class Customer extends Model implements AuthenticatableContract
         'password',
         'remember_token',
         'password_reset_code',
+        'login_otp_code',
     ];
 
     public const RESELLER_STATUSES = [
@@ -72,6 +73,9 @@ class Customer extends Model implements AuthenticatableContract
         'current_balance' => 'decimal:2',
         'is_active' => 'boolean',
         'password_reset_expires_at' => 'datetime',
+        'login_otp_expires_at' => 'datetime',
+        'login_otp_sent_at' => 'datetime',
+        'login_otp_attempts' => 'integer',
     ];
 
     protected static function booted(): void
@@ -97,6 +101,11 @@ class Customer extends Model implements AuthenticatableContract
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function storefrontActivities(): HasMany
+    {
+        return $this->hasMany(StorefrontCustomerActivity::class);
     }
 
     public function payments(): HasMany

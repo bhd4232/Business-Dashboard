@@ -128,8 +128,8 @@ The first version should focus on a stable customer-facing storefront, product c
 - [ ] Optional Bangla and English customer-facing UI
 - [ ] BDT currency formatting
 - [ ] Bangladesh address format with division, district, upazila, and area
-- [ ] Area-based shipping rates
-- [ ] Cash on delivery
+- [x] Address-detected, weight-based inside/outside-Dhaka shipping rates
+- [x] Cash on delivery
 - [ ] Delivery time slot selection
 - [ ] Return and refund policy workflow
 - [ ] Customer support ticket system
@@ -291,8 +291,8 @@ GET    /api/v1/customer/orders       Customer order list
 
 | Method | Status |
 |---|---|
-| Standard delivery inside Dhaka | Planned |
-| Standard delivery outside Dhaka | Planned |
+| Standard delivery inside Dhaka | Implemented: address-detected, weight-based |
+| Standard delivery outside Dhaka | Implemented: address-detected, weight-based |
 | Express delivery | Planned |
 | Courier API integration with Pathao, Steadfast, or RedX | Future |
 | Air shipping from China | Planned |
@@ -368,14 +368,14 @@ The product order page should show a clear cost breakdown when the product is im
 
 ### Phase 11: Cart, Checkout, and Orders
 
-- [ ] Shopping cart for guest and logged-in customers
-- [ ] Checkout flow
-- [ ] Order placement
-- [ ] Customer account registration and login
-- [ ] Customer order tracking
+- [x] Shopping cart for guest and logged-in customers
+- [x] Checkout flow with server-authoritative address-based delivery detection
+- [x] Order placement
+- [x] Customer account registration, password login, and email/SMS OTP login
+- [x] Customer order tracking
 - [ ] Email or SMS notifications
-- [ ] Payment gateway integration
-- [ ] Cash on delivery
+- [x] Initial verified payment gateway integration
+- [x] Cash on delivery
 
 **Done Criteria:** Customers can place orders and track them from their account or by order number.
 

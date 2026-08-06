@@ -1,19 +1,22 @@
 @extends('storefront.layout')
 
 @php
-    $resetStoreUrl = route('storefront.account.reset-password.store');
-    $forgotUrl = route('storefront.account.forgot-password');
+    $accountRoute = static fn (string $name) => isset($previewSlug)
+        ? route('storefront.preview.account.'.$name, $previewSlug)
+        : route('storefront.account.'.$name);
+    $resetStoreUrl = $accountRoute('reset-password.store');
+    $forgotUrl = $accountRoute('forgot-password');
 @endphp
 
 @section('content')
-    <section class="mx-auto w-full max-w-md px-4 py-12 sm:px-6 lg:px-8">
+    <section class="mx-auto w-full max-w-md px-4 py-8 sm:px-5 lg:px-6">
         <p class="text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">Account recovery</p>
         <h1 class="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Enter your reset code</h1>
         <p class="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
             Enter the 6-digit code we texted you and choose a new password. The code expires in 15 minutes.
         </p>
 
-        <form class="mt-6 space-y-5 rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/5" method="POST" action="{{ $resetStoreUrl }}">
+        <form class="mt-5 space-y-5 rounded-lg border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-gray-900" method="POST" action="{{ $resetStoreUrl }}">
             @csrf
             <div>
                 <label class="text-xs font-medium text-gray-500" for="phone">Phone number</label>

@@ -4,6 +4,42 @@
         const triggerSelector = ':scope > .fi-sidebar-item-btn';
         const navigation = window.ZamZamSidebarNavigation ?? {};
 
+        const setupHoverExpansion = () => {
+            const sidebar = document.querySelector('.fi-main-sidebar');
+
+            if (! sidebar || sidebar.dataset.zzHoverExpansionReady === 'true') {
+                return;
+            }
+
+            sidebar.dataset.zzHoverExpansionReady = 'true';
+
+            const desktopPointer = window.matchMedia('(min-width: 1025px) and (hover: hover) and (pointer: fine)');
+            const sidebarStore = () => window.Alpine?.store('sidebar');
+            const open = () => desktopPointer.matches && sidebarStore()?.open();
+            const close = () => desktopPointer.matches && sidebarStore()?.close();
+
+            sidebar.addEventListener('mouseenter', open);
+            sidebar.addEventListener('mouseleave', close);
+            sidebar.addEventListener('focusin', open);
+            sidebar.addEventListener('focusout', (event) => {
+                if (! sidebar.contains(event.relatedTarget)) {
+                    close();
+                }
+            });
+
+            if (! navigation.hoverExpansionInitialized) {
+                navigation.hoverExpansionInitialized = true;
+
+                const collapseWhenReady = () => window.requestAnimationFrame(close);
+
+                if (sidebarStore()) {
+                    collapseWhenReady();
+                } else {
+                    window.addEventListener('alpine:initialized', collapseWhenReady, { once: true });
+                }
+            }
+        };
+
         const hydrateChildIcons = () => {
             const parser = new DOMParser();
 
@@ -68,6 +104,7 @@
         const prepareMenus = () => {
             revealSidebar();
             hydrateChildIcons();
+            setupHoverExpansion();
             document.documentElement.classList.add('zz-sidebar-navigation-ready');
 
             const menus = document.querySelectorAll(menuSelector);

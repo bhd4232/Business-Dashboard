@@ -19,7 +19,9 @@ use App\Services\CompanyContext;
 use App\Services\WooCommerceImportService;
 use App\Services\ZiniPayClient;
 use App\Support\CompanyMedia;
+use App\Support\StorefrontThemeRegistry;
 use BackedEnum;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -34,6 +36,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\Utilities\Get;
@@ -60,7 +63,7 @@ class StorefrontSettingResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $navigationLabel = 'Settings';
+    protected static ?string $navigationLabel = 'Site Theme';
 
     protected static ?string $recordTitleAttribute = 'company.name';
 
@@ -93,10 +96,6 @@ class StorefrontSettingResource extends Resource
                         ->label('Enable customer login & registration')
                         ->default(true)
                         ->helperText('Turn off to hide login/register and fall back to guest phone-number order lookup only.'),
-                    ColorPicker::make('theme_color')
-                        ->label('Theme color')
-                        ->default('#0F766E')
-                        ->required(),
                     TextInput::make('whatsapp_number')
                         ->tel()
                         ->maxLength(40)
@@ -116,14 +115,361 @@ class StorefrontSettingResource extends Resource
                         ->maxLength(120)
                         ->placeholder('Saturday-Friday, 10:00 AM to 10:00 PM')
                         ->helperText('Shown on the Contact page under the Call Us card.'),
-                    Select::make('theme_mode')
-                        ->label('Default color mode')
-                        ->options(StorefrontSetting::THEME_MODES)
-                        ->default('system')
-                        ->required()
-                        ->helperText('Used for a visitor\'s first visit only; their own light/dark toggle choice is remembered after that.'),
                 ])
                 ->columns(2)
+                ->collapsible(),
+
+            Section::make('Site Theme')
+                ->columnSpanFull()
+                ->description('Choose the storefront design and its homepage layout. Built-in Theme preserves the current storefront; Marketplace Pro adds three B2B-focused homepage templates.')
+                ->schema([
+                    Select::make('storefront_theme')
+                        ->label('Active theme')
+                        ->options(StorefrontThemeRegistry::themeOptions())
+                        ->default(StorefrontThemeRegistry::BUILT_IN)
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, ?string $state): void {
+                            $set('homepage_template', array_key_first(StorefrontThemeRegistry::templateOptions($state)));
+                        })
+                        ->helperText(fn (Get $get): string => StorefrontThemeRegistry::themeDescription($get('storefront_theme'))),
+                    Select::make('homepage_template')
+                        ->label('Homepage template')
+                        ->options(fn (Get $get): array => StorefrontThemeRegistry::templateOptions($get('storefront_theme')))
+                        ->default(StorefrontThemeRegistry::BUILT_IN_DEFAULT)
+                        ->required()
+                        ->live()
+                        ->helperText('Templates change homepage composition while keeping catalog, product, cart, checkout, and account functionality intact.'),
+                ])
+                ->columns(2),
+
+            Section::make('Marketplace Pro Features')
+                ->columnSpanFull()
+                ->description('Enable only the B2B features needed by this storefront. Template-specific controls appear automatically.')
+                ->visible(fn (Get $get): bool => $get('storefront_theme') === StorefrontThemeRegistry::MARKETPLACE_PRO)
+                ->schema([
+                    Toggle::make('marketplace_announcement_enabled')
+                        ->label('Announcement bar')
+                        ->default(true)
+                        ->live(),
+                    Toggle::make('marketplace_quote_enabled')
+                        ->label('Quote actions')
+                        ->default(true),
+                    Toggle::make('marketplace_business_accounts_enabled')
+                        ->label('Business account callouts')
+                        ->default(true),
+                    Toggle::make('marketplace_trust_strip_enabled')
+                        ->label('Trust and service strip')
+                        ->default(true),
+                    Toggle::make('marketplace_deals_enabled')
+                        ->label('Deals section')
+                        ->default(true),
+                    Toggle::make('marketplace_categories_enabled')
+                        ->label('Category section')
+                        ->default(true),
+                    Toggle::make('marketplace_bulk_pricing_enabled')
+                        ->label('Bulk pricing panel')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('homepage_template') === StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN),
+                    Toggle::make('marketplace_sidebar_enabled')
+                        ->label('Category sidebar')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('homepage_template') === StorefrontThemeRegistry::MARKETPLACE_COMPACT),
+                    Select::make('marketplace_product_limit')
+                        ->label('Homepage product density')
+                        ->options([5 => '5 products', 8 => '8 products', 10 => '10 products', 12 => '12 products', 15 => '15 products', 20 => '20 products'])
+                        ->default(10)
+                        ->required(),
+                ])
+                ->columns(3)
+                ->collapsible(),
+
+            Section::make('Marketplace Pro Content')
+                ->columnSpanFull()
+                ->description('Theme-specific announcement and campaign copy. Empty campaign fields fall back to professional defaults using the company name.')
+                ->visible(fn (Get $get): bool => $get('storefront_theme') === StorefrontThemeRegistry::MARKETPLACE_PRO)
+                ->schema([
+                    TextInput::make('marketplace_announcement_text')
+                        ->label('Announcement text')
+                        ->maxLength(160)
+                        ->placeholder('Verified business accounts get flexible payment terms')
+                        ->visible(fn (Get $get): bool => (bool) $get('marketplace_announcement_enabled'))
+                        ->columnSpanFull(),
+                    TextInput::make('marketplace_campaign_badge')
+                        ->label('Campaign badge')
+                        ->maxLength(60)
+                        ->placeholder('WHOLESALE OFFERS'),
+                    TextInput::make('marketplace_campaign_heading')
+                        ->label('Campaign heading')
+                        ->maxLength(140)
+                        ->placeholder('Up to 25% off on bulk orders')
+                        ->columnSpanFull(),
+                    Textarea::make('marketplace_campaign_subheading')
+                        ->label('Campaign description')
+                        ->rows(2)
+                        ->maxLength(280)
+                        ->placeholder('Factory-direct pricing and dependable nationwide support for every business order.')
+                        ->columnSpanFull(),
+                    TextInput::make('marketplace_campaign_cta_label')
+                        ->label('Campaign action label')
+                        ->maxLength(40)
+                        ->placeholder('Shop wholesale'),
+                ])
+                ->columns(2)
+                ->collapsible(),
+
+            Section::make('Theme Color Palette')
+                ->columnSpanFull()
+                ->description('Configure shared brand colors first, then review the light and dark surfaces side by side. Each field maps to the same role across every storefront page.')
+                ->schema([
+                    Grid::make(['default' => 1, 'lg' => 2])
+                        ->schema([
+                            Section::make('Brand & Interaction Colors')
+                                ->description('Shared in both modes: actions, active navigation, focus, promotional highlights, and offer surfaces.')
+                                ->schema([
+                                    Select::make('theme_palette_preset')
+                                        ->label('Palette preset')
+                                        ->options(StorefrontSetting::themePalettePresetOptions())
+                                        ->default('custom')
+                                        ->required()
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                            foreach (StorefrontSetting::themePalettePresetFields($state) as $field => $color) {
+                                                $set($field, $color);
+                                            }
+                                        })
+                                        ->helperText('Start with an accessible professional palette, then fine-tune individual roles.'),
+                                    Select::make('theme_mode')
+                                        ->label('Default visitor mode')
+                                        ->options(StorefrontSetting::THEME_MODES)
+                                        ->default('system')
+                                        ->required()
+                                        ->helperText('Visitors can still switch mode; their choice is remembered.'),
+                                    ColorPicker::make('theme_color')
+                                        ->label('Primary — actions & active states')
+                                        ->default('#0F766E')
+                                        ->required(),
+                                    Select::make('theme_foreground_mode')
+                                        ->label('Text placed on primary')
+                                        ->options(StorefrontSetting::THEME_FOREGROUND_MODES)
+                                        ->default('auto')
+                                        ->required()
+                                        ->helperText('Auto calculates black or white for accessible contrast.'),
+                                    ColorPicker::make('theme_secondary_color')
+                                        ->label('Secondary — supporting surfaces')
+                                        ->default('#0F172A')
+                                        ->required(),
+                                    ColorPicker::make('theme_accent_color')
+                                        ->label('Accent — focus & promotion')
+                                        ->default('#F59E0B')
+                                        ->required(),
+                                ])
+                                ->columns(2)
+                                ->columnSpanFull(),
+                            Section::make('Light Mode')
+                                ->description('Colors used when the storefront is in light mode. Keep primary text high contrast and muted text readable.')
+                                ->schema([
+                                    ColorPicker::make('theme_background_color')
+                                        ->label('Page canvas')
+                                        ->helperText('Behind every section and card.')
+                                        ->default('#FFFFFF')
+                                        ->required(),
+                                    ColorPicker::make('theme_surface_color')
+                                        ->label('Cards & controls')
+                                        ->helperText('Cards, dropdowns, headers, and form surfaces.')
+                                        ->default('#FFFFFF')
+                                        ->required(),
+                                    ColorPicker::make('theme_text_color')
+                                        ->label('Primary text')
+                                        ->helperText('Headings, prices, labels, and important copy.')
+                                        ->default('#111827')
+                                        ->rule(fn (Get $get): Closure => self::contrastRule($get, 'theme_surface_color', 4.5, 'light cards and controls'))
+                                        ->required(),
+                                    ColorPicker::make('theme_muted_text_color')
+                                        ->label('Secondary text')
+                                        ->helperText('Descriptions, metadata, hints, and inactive navigation.')
+                                        ->default('#6B7280')
+                                        ->rule(fn (Get $get): Closure => self::contrastRule($get, 'theme_surface_color', 3, 'light cards and controls'))
+                                        ->required(),
+                                    ColorPicker::make('theme_border_color')
+                                        ->label('Borders & dividers')
+                                        ->helperText('Card outlines, fields, separators, and table rules.')
+                                        ->default('#E5E7EB')
+                                        ->required(),
+                                ])
+                                ->columns(2),
+                            Section::make('Dark Mode')
+                                ->description('Independent dark-mode surfaces. Avoid pure black cards so hierarchy and borders remain visible.')
+                                ->schema([
+                                    ColorPicker::make('theme_dark_background_color')
+                                        ->label('Page canvas')
+                                        ->helperText('The darkest storefront background layer.')
+                                        ->default('#030712')
+                                        ->required(),
+                                    ColorPicker::make('theme_dark_surface_color')
+                                        ->label('Cards & controls')
+                                        ->helperText('Raised cards, dropdowns, fields, and navigation surfaces.')
+                                        ->default('#111827')
+                                        ->required(),
+                                    ColorPicker::make('theme_dark_text_color')
+                                        ->label('Primary text')
+                                        ->helperText('Headings, prices, labels, and important copy.')
+                                        ->default('#F3F4F6')
+                                        ->rule(fn (Get $get): Closure => self::contrastRule($get, 'theme_dark_surface_color', 4.5, 'dark cards and controls'))
+                                        ->required(),
+                                    ColorPicker::make('theme_dark_muted_text_color')
+                                        ->label('Secondary text')
+                                        ->helperText('Descriptions, metadata, hints, and inactive navigation.')
+                                        ->default('#9CA3AF')
+                                        ->rule(fn (Get $get): Closure => self::contrastRule($get, 'theme_dark_surface_color', 3, 'dark cards and controls'))
+                                        ->required(),
+                                    ColorPicker::make('theme_dark_border_color')
+                                        ->label('Borders & dividers')
+                                        ->helperText('Visible separation without high-contrast glare.')
+                                        ->default('#374151')
+                                        ->required(),
+                                ])
+                                ->columns(2),
+                        ]),
+                ])
+                ->collapsible(),
+
+            Section::make('Storefront Typography')
+                ->columnSpanFull()
+                ->description('Configure a readable type hierarchy. Presets use approved font stacks, 16px accessible defaults, balanced wrapping, and reliable fallbacks.')
+                ->schema([
+                    Grid::make(['default' => 1, 'lg' => 2])
+                        ->schema([
+                            Section::make('Font Pairing')
+                                ->description('Choose a preset or pair heading and body fonts independently. Google Fonts load with display swap.')
+                                ->schema([
+                                    Select::make('typography_preset')
+                                        ->label('Typography preset')
+                                        ->options(StorefrontSetting::typographyPresetOptions())
+                                        ->default('system')
+                                        ->required()
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                            foreach (StorefrontSetting::typographyPresetFields($state) as $field => $value) {
+                                                $set($field, $value);
+                                            }
+                                        })
+                                        ->helperText('Includes system, modern, commerce, Bangla-optimized, and editorial pairings.'),
+                                    Select::make('typography_heading_font')
+                                        ->label('Heading font')
+                                        ->options(StorefrontSetting::fontOptions())
+                                        ->default('system')
+                                        ->required(),
+                                    Select::make('typography_body_font')
+                                        ->label('Body font')
+                                        ->options(StorefrontSetting::fontOptions())
+                                        ->default('system')
+                                        ->required(),
+                                ])
+                                ->columns(2),
+                            Section::make('Reading & Hierarchy')
+                                ->description('Controls readability, visual hierarchy, line length, and spacing without editing templates.')
+                                ->schema([
+                                    Select::make('typography_base_size')
+                                        ->label('Base font size')
+                                        ->options([
+                                            14 => '14 px — compact',
+                                            15 => '15 px — dense',
+                                            16 => '16 px — recommended',
+                                            17 => '17 px — large',
+                                            18 => '18 px — extra large',
+                                        ])
+                                        ->default(16)
+                                        ->required(),
+                                    Select::make('typography_line_height')
+                                        ->label('Reading line height')
+                                        ->options(StorefrontSetting::TYPOGRAPHY_LINE_HEIGHTS)
+                                        ->default('normal')
+                                        ->required(),
+                                    Select::make('typography_content_width')
+                                        ->label('Long-form line length')
+                                        ->options(StorefrontSetting::TYPOGRAPHY_CONTENT_WIDTHS)
+                                        ->default('comfortable')
+                                        ->required(),
+                                    Select::make('typography_heading_weight')
+                                        ->label('Heading weight')
+                                        ->options([500 => 'Medium 500', 600 => 'Semibold 600', 700 => 'Bold 700', 800 => 'Extra bold 800'])
+                                        ->default(700)
+                                        ->required(),
+                                    Select::make('typography_heading_tracking')
+                                        ->label('Heading letter spacing')
+                                        ->options(StorefrontSetting::TYPOGRAPHY_HEADING_TRACKING)
+                                        ->default('tight')
+                                        ->required(),
+                                    Select::make('typography_scale')
+                                        ->label('Heading scale')
+                                        ->options(StorefrontSetting::TYPOGRAPHY_SCALES)
+                                        ->default('balanced')
+                                        ->required(),
+                                    Select::make('typography_body_weight')
+                                        ->label('Body weight')
+                                        ->options([400 => 'Regular 400', 500 => 'Medium 500', 600 => 'Semibold 600'])
+                                        ->default(400)
+                                        ->required(),
+                                    Select::make('typography_body_tracking')
+                                        ->label('Body letter spacing')
+                                        ->options(StorefrontSetting::TYPOGRAPHY_BODY_TRACKING)
+                                        ->default('normal')
+                                        ->required(),
+                                ])
+                                ->columns(2),
+                        ]),
+                ])
+                ->collapsible(),
+
+            Section::make('Modern Appearance')
+                ->columnSpanFull()
+                ->description('Tune storefront width, responsive gutters, corner shape, card depth, and motion. Reduced-motion preferences always override animation settings.')
+                ->schema([
+                    Select::make('appearance_preset')
+                        ->label('Appearance preset')
+                        ->options(StorefrontSetting::appearancePresetOptions())
+                        ->default('modern')
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, ?string $state): void {
+                            foreach (StorefrontSetting::appearancePresetFields($state) as $field => $value) {
+                                $set($field, $value);
+                            }
+                        })
+                        ->helperText('Apply a coherent modern, minimal, premium, or dense marketplace foundation.'),
+                    Select::make('appearance_container_width')
+                        ->label('Content width')
+                        ->options(StorefrontSetting::APPEARANCE_CONTAINER_WIDTHS)
+                        ->default('wide')
+                        ->required(),
+                    Select::make('appearance_page_gutter')
+                        ->label('Responsive page gutter')
+                        ->options(StorefrontSetting::APPEARANCE_PAGE_GUTTERS)
+                        ->default('comfortable')
+                        ->required(),
+                    Select::make('appearance_corner_radius')
+                        ->label('Corner style')
+                        ->options(StorefrontSetting::APPEARANCE_CORNER_RADII)
+                        ->default('soft')
+                        ->required(),
+                    Select::make('appearance_shadow')
+                        ->label('Card depth')
+                        ->options(StorefrontSetting::APPEARANCE_SHADOWS)
+                        ->default('subtle')
+                        ->required(),
+                    Select::make('appearance_card_hover')
+                        ->label('Card hover feedback')
+                        ->options(StorefrontSetting::APPEARANCE_CARD_HOVERS)
+                        ->default('subtle')
+                        ->required(),
+                    Select::make('appearance_motion')
+                        ->label('Motion speed')
+                        ->options(StorefrontSetting::APPEARANCE_MOTION)
+                        ->default('standard')
+                        ->required(),
+                ])
+                ->columns(3)
                 ->collapsible(),
 
             Section::make('Homepage Content')
@@ -147,6 +493,7 @@ class StorefrontSettingResource extends Resource
                         ->placeholder('Start shopping'),
                 ])
                 ->columns(2)
+                ->visible(fn (Get $get): bool => ($get('storefront_theme') ?: StorefrontThemeRegistry::BUILT_IN) === StorefrontThemeRegistry::BUILT_IN)
                 ->collapsible(),
 
             Section::make('Trust Strip')
@@ -167,6 +514,7 @@ class StorefrontSettingResource extends Resource
                         ->placeholder('Cash on delivery available'),
                 ])
                 ->columns(3)
+                ->visible(fn (Get $get): bool => ($get('storefront_theme') ?: StorefrontThemeRegistry::BUILT_IN) === StorefrontThemeRegistry::BUILT_IN)
                 ->collapsible(),
 
             Section::make('Offer Countdown')
@@ -187,6 +535,7 @@ class StorefrontSettingResource extends Resource
                         ->helperText('The banner disappears automatically once this time passes.'),
                 ])
                 ->columns(3)
+                ->visible(fn (Get $get): bool => ($get('storefront_theme') ?: StorefrontThemeRegistry::BUILT_IN) === StorefrontThemeRegistry::BUILT_IN)
                 ->collapsible(),
 
             Section::make('Domain and Launch Readiness')
@@ -299,16 +648,43 @@ class StorefrontSettingResource extends Resource
                     Toggle::make('cod_enabled')
                         ->label('Enable Cash on Delivery')
                         ->default(true),
-                    TextInput::make('delivery_charge_inside')
-                        ->label('Delivery charge (inside Dhaka)')
+                    TextInput::make('delivery_first_kg_inside')
+                        ->label('First 1 kg — inside Dhaka')
                         ->numeric()
                         ->prefix('BDT')
-                        ->placeholder('60'),
-                    TextInput::make('delivery_charge_outside')
-                        ->label('Delivery charge (outside Dhaka)')
+                        ->default(70)
+                        ->minValue(0)
+                        ->required(),
+                    TextInput::make('delivery_first_kg_outside')
+                        ->label('First 1 kg — outside Dhaka')
                         ->numeric()
                         ->prefix('BDT')
-                        ->placeholder('120'),
+                        ->default(110)
+                        ->minValue(0)
+                        ->required(),
+                    TextInput::make('delivery_additional_per_kg')
+                        ->label('Each additional started kg')
+                        ->numeric()
+                        ->prefix('BDT')
+                        ->default(20)
+                        ->minValue(0)
+                        ->required()
+                        ->helperText('The total product weight is rounded up to the next whole kilogram.'),
+                    Textarea::make('inside_dhaka_keywords')
+                        ->label('Inside-Dhaka address keywords')
+                        ->rows(4)
+                        ->helperText('One keyword per line or comma-separated. Checkout detects the area from the delivery address. Leave empty to use the built-in Dhaka locality list.')
+                        ->columnSpanFull(),
+                    Toggle::make('new_customer_delivery_advance_enabled')
+                        ->label('Require new-customer delivery advance')
+                        ->default(true)
+                        ->helperText('A new customer/order is created only after the online gateway verifies this payment.'),
+                    Textarea::make('new_customer_advance_message')
+                        ->label('New-customer payment message')
+                        ->rows(5)
+                        ->maxLength(2000)
+                        ->placeholder(StorefrontSetting::DEFAULT_NEW_CUSTOMER_ADVANCE_MESSAGE)
+                        ->columnSpanFull(),
                     TextInput::make('manual_bkash_number')
                         ->label('bKash Send Money number')
                         ->maxLength(20)
@@ -334,7 +710,7 @@ class StorefrontSettingResource extends Resource
 
             Section::make('Online Payments (ZiniPay)')
                 ->columnSpanFull()
-                ->description('Used to collect advance payments for pre-order items. COD stays the default for in-stock items.')
+                ->description('Used for verified new-customer delivery advances and pre-order advances. Product balances can remain Cash on Delivery.')
                 ->schema([
                     Toggle::make('online_payment_enabled')
                         ->label('Enable online payments')
@@ -356,9 +732,42 @@ class StorefrontSettingResource extends Resource
                 ->collapsible()
                 ->collapsed(),
 
-            Section::make('Abandoned Cart Reminders')
+            Section::make('Thank-you & Complaint Integration')
                 ->columnSpanFull()
-                ->description('Automatic SMS/WhatsApp reminders for carts left behind after a checkout attempt. Runs hourly via the scheduler.')
+                ->description('Company-specific WhatsApp CTA and Telegram destination for customer complaints.')
+                ->schema([
+                    TextInput::make('whatsapp_group_url')
+                        ->label('WhatsApp group invite URL')
+                        ->url()
+                        ->maxLength(500)
+                        ->placeholder(StorefrontSetting::DEFAULT_WHATSAPP_GROUP_URL),
+                    Textarea::make('whatsapp_group_message')
+                        ->label('WhatsApp group CTA message')
+                        ->rows(3)
+                        ->maxLength(1000)
+                        ->placeholder(StorefrontSetting::DEFAULT_WHATSAPP_GROUP_MESSAGE)
+                        ->columnSpanFull(),
+                    Toggle::make('complaint_telegram_enabled')
+                        ->label('Send complaints to Telegram')
+                        ->default(false),
+                    TextInput::make('telegram_credentials.chat_id')
+                        ->label('Telegram chat ID')
+                        ->maxLength(100)
+                        ->helperText('Use the company-specific group, channel, or account chat ID.'),
+                    TextInput::make('telegram_credentials.bot_token')
+                        ->label('Telegram bot token')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255)
+                        ->helperText('Stored encrypted. Add the bot to the selected company chat.'),
+                ])
+                ->columns(2)
+                ->collapsible()
+                ->collapsed(),
+
+            Section::make('Customer Notifications & Reminders')
+                ->columnSpanFull()
+                ->description('Company-specific SMS credentials are shared by customer login OTP, password recovery, and abandoned-cart reminders. WhatsApp reminders run hourly via the scheduler.')
                 ->schema([
                     Toggle::make('abandoned_cart_reminders_enabled')
                         ->label('Enable reminders')
@@ -373,7 +782,7 @@ class StorefrontSettingResource extends Resource
                         ->label('SMS gateway URL template')
                         ->maxLength(500)
                         ->placeholder('http://bulksmsbd.net/api/smsapi?api_key={api_key}&type=text&number={phone}&senderid={sender_id}&message={message}')
-                        ->helperText('Use {api_key}, {sender_id}, {phone}, {message} placeholders. Works with any GET-based SMS gateway.')
+                        ->helperText('Used for login OTP, password reset, and cart reminders. Use {api_key}, {sender_id}, {phone}, {message} placeholders.')
                         ->columnSpanFull(),
                     TextInput::make('notification_credentials.sms_api_key')
                         ->label('SMS API key')
@@ -563,6 +972,16 @@ class StorefrontSettingResource extends Resource
                     ->label('Published')
                     ->boolean()
                     ->sortable(),
+                TextColumn::make('storefront_theme')
+                    ->label('Theme')
+                    ->formatStateUsing(fn (?string $state): string => StorefrontThemeRegistry::themeOptions()[StorefrontThemeRegistry::normalizeTheme($state)])
+                    ->badge()
+                    ->sortable(),
+                TextColumn::make('homepage_template')
+                    ->label('Homepage')
+                    ->formatStateUsing(fn (?string $state, StorefrontSetting $record): string => StorefrontThemeRegistry::templateOptions($record->storefrontTheme())[$record->homepageTemplate()])
+                    ->badge()
+                    ->toggleable(),
                 TextColumn::make('launch_readiness')
                     ->label('Launch Readiness')
                     ->state(fn (StorefrontSetting $record): string => self::readinessSummary($record))
@@ -736,6 +1155,17 @@ class StorefrontSettingResource extends Resource
                         ->send();
                 }
             });
+    }
+
+    protected static function contrastRule(Get $get, string $backgroundField, float $minimum, string $backgroundLabel): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($get, $backgroundField, $minimum, $backgroundLabel): void {
+            $ratio = StorefrontSetting::colorContrastRatio((string) $value, (string) $get($backgroundField));
+
+            if ($ratio < $minimum) {
+                $fail("Choose a color with at least {$minimum}:1 contrast against {$backgroundLabel}.");
+            }
+        };
     }
 
     public static function canViewAny(): bool

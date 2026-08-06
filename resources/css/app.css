@@ -19,8 +19,582 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
+body[data-storefront-theme='marketplace_pro'] {
+    background: color-mix(in srgb, var(--storefront-background) 96%, var(--storefront-secondary) 4%);
+}
+
+.dark body[data-storefront-theme='marketplace_pro'] {
+    background: var(--storefront-dark-background);
+}
+
+.marketplace-pro-home {
+    color: var(--storefront-text);
+}
+
+.dark .marketplace-pro-home {
+    color: var(--storefront-dark-text);
+}
+
+.marketplace-container,
+.marketplace-section {
+    width: min(100%, var(--storefront-content-width));
+    margin-inline: auto;
+    padding-inline: var(--storefront-page-gutter);
+}
+
+.marketplace-section {
+    margin-top: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+.marketplace-announcement {
+    background: color-mix(in srgb, var(--storefront-secondary) 82%, #000 18%);
+    color: var(--storefront-secondary-contrast);
+}
+
+.marketplace-hero-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.marketplace-hero-card {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: var(--radius-2xl);
+    background: var(--storefront-secondary);
+}
+
+.marketplace-hero-card h1,
+.marketplace-hero-card p,
+.marketplace-dense-banner p {
+    overflow-wrap: anywhere;
+}
+
+.marketplace-promo-card > div:first-child {
+    min-width: 0;
+}
+
+.marketplace-promo-card,
+.marketplace-info-card {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-radius: var(--radius-xl);
+    background: var(--storefront-surface);
+    padding: 1.25rem;
+    box-shadow: var(--storefront-card-shadow);
+}
+
+.dark .marketplace-promo-card,
+.dark .marketplace-info-card {
+    background: var(--storefront-dark-surface);
+    box-shadow: var(--storefront-card-shadow-dark);
+}
+
+.marketplace-badge {
+    display: inline-flex;
+    width: fit-content;
+    border-radius: 999px;
+    background: var(--storefront-accent);
+    padding: 0.35rem 0.75rem;
+    color: var(--storefront-accent-contrast);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+}
+
+.marketplace-badge-light {
+    background: rgb(255 255 255 / 0.16);
+    color: white;
+}
+
+.marketplace-button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    padding: 0.65rem 1.1rem;
+    font-size: 0.875rem;
+    font-weight: 750;
+    line-height: 1.25;
+    transition: transform var(--storefront-motion-duration), opacity var(--storefront-motion-duration), box-shadow var(--storefront-motion-duration);
+}
+
+.marketplace-button:hover {
+    transform: translateY(-1px);
+}
+
+.marketplace-button:focus-visible,
+.marketplace-pro-home a:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--storefront-brand) 45%, transparent);
+    outline-offset: 3px;
+}
+
+.marketplace-button-accent {
+    background: var(--storefront-accent);
+    color: var(--storefront-accent-contrast);
+}
+
+.marketplace-button-dark {
+    background: var(--storefront-secondary);
+    color: var(--storefront-secondary-contrast);
+}
+
+.marketplace-button-ghost {
+    border: 1px solid rgb(255 255 255 / 0.45);
+    color: white;
+}
+
+.marketplace-campaign {
+    background: linear-gradient(115deg, var(--storefront-secondary) 0 58%, var(--storefront-accent) 58% 100%);
+}
+
+.marketplace-stat {
+    border-radius: var(--radius-lg);
+    background: rgb(255 255 255 / 0.14);
+    padding: 0.75rem 0.5rem;
+    color: white;
+}
+
+.marketplace-stat strong,
+.marketplace-stat span {
+    display: block;
+}
+
+.marketplace-stat strong {
+    font-family: var(--storefront-heading-font);
+    font-size: clamp(0.9rem, 2.4vw, 1.2rem);
+}
+
+.marketplace-stat span {
+    margin-top: 0.2rem;
+    color: rgb(255 255 255 / 0.75);
+    font-size: 0.65rem;
+}
+
+.marketplace-trust-grid {
+    display: grid;
+    gap: 1rem;
+    border-radius: var(--radius-xl);
+    background: var(--storefront-surface);
+    padding: 1.1rem;
+    box-shadow: var(--storefront-card-shadow);
+}
+
+.dark .marketplace-trust-grid {
+    background: var(--storefront-dark-surface);
+    box-shadow: var(--storefront-card-shadow-dark);
+}
+
+.marketplace-trust-icon {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--storefront-brand) 13%, transparent);
+    color: var(--storefront-brand);
+}
+
+.marketplace-trust-icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.marketplace-section-heading {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.marketplace-section-heading h2 {
+    font-family: var(--storefront-heading-font);
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    font-weight: 800;
+    letter-spacing: var(--storefront-heading-tracking);
+}
+
+.marketplace-section-heading > a {
+    flex: 0 0 auto;
+    color: var(--storefront-brand);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.marketplace-category-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.marketplace-category-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.65rem;
+    border-radius: var(--radius-xl);
+    background: var(--storefront-surface);
+    padding: 1rem 0.75rem;
+    text-align: center;
+    box-shadow: var(--storefront-card-shadow);
+    transition: transform var(--storefront-motion-duration), box-shadow var(--storefront-motion-duration);
+}
+
+.dark .marketplace-category-card {
+    background: var(--storefront-dark-surface);
+    box-shadow: var(--storefront-card-shadow-dark);
+}
+
+.marketplace-category-card:hover {
+    transform: translateY(-3px);
+}
+
+.marketplace-category-card strong {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.78rem;
+}
+
+.marketplace-category-media {
+    display: grid;
+    width: 4.5rem;
+    height: 4.5rem;
+    overflow: hidden;
+    place-items: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--storefront-brand) 10%, var(--storefront-surface));
+    color: var(--storefront-brand);
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.marketplace-category-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.marketplace-product-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.marketplace-product-grid article {
+    border-color: transparent;
+    border-radius: var(--radius-xl);
+    background: var(--storefront-surface);
+    box-shadow: none;
+}
+
+.dark .marketplace-product-grid article {
+    background: var(--storefront-dark-surface);
+}
+
+.marketplace-product-grid article:hover {
+    border-color: transparent;
+    box-shadow: var(--storefront-card-shadow);
+}
+
+.dark .marketplace-product-grid article:hover {
+    box-shadow: var(--storefront-card-shadow-dark);
+}
+
+.marketplace-deals-surface {
+    width: 100%;
+    max-width: none;
+    padding-block: clamp(1.25rem, 3vw, 2rem);
+    padding-inline: max(var(--storefront-page-gutter), calc((100% - var(--storefront-content-width)) / 2 + var(--storefront-page-gutter)));
+    background: color-mix(in srgb, var(--storefront-accent) 12%, var(--storefront-background));
+}
+
+.dark .marketplace-deals-surface {
+    background: color-mix(in srgb, var(--storefront-accent) 10%, var(--storefront-dark-background));
+}
+
+.marketplace-business-card,
+.marketplace-business-strip,
+.marketplace-dense-banner {
+    border-radius: var(--radius-xl);
+    background: var(--storefront-secondary);
+    color: var(--storefront-secondary-contrast);
+}
+
+.marketplace-business-card {
+    display: flex;
+    min-height: 100%;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.5rem;
+}
+
+.marketplace-business-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.5rem;
+}
+
+.marketplace-dense-shell {
+    margin-top: 0;
+}
+
+.marketplace-sidebar {
+    min-width: 0;
+    border-bottom: 1px solid var(--storefront-border);
+    background: var(--storefront-surface);
+    padding-block: 1rem;
+}
+
+.dark .marketplace-sidebar {
+    border-color: var(--storefront-dark-border);
+    background: var(--storefront-dark-surface);
+}
+
+.marketplace-sidebar-link {
+    display: flex;
+    min-height: 2.5rem;
+    flex: 0 0 auto;
+    align-items: center;
+    border-radius: var(--radius-md);
+    padding: 0.55rem 0.75rem;
+    color: var(--storefront-muted-text);
+    font-size: 0.82rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.dark .marketplace-sidebar-link {
+    color: var(--storefront-dark-muted-text);
+}
+
+.marketplace-sidebar-link:hover {
+    background: color-mix(in srgb, var(--storefront-brand) 10%, transparent);
+    color: var(--storefront-brand);
+}
+
+.marketplace-dense-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+    .marketplace-trust-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 1.25rem 1.5rem;
+    }
+
+    .marketplace-category-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .marketplace-product-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .marketplace-hero-grid {
+        grid-template-columns: minmax(0, 2fr) minmax(17rem, 1fr);
+    }
+
+    .marketplace-trust-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .marketplace-category-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .marketplace-product-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .marketplace-dense-shell-with-sidebar {
+        display: grid;
+        grid-template-columns: 14rem minmax(0, 1fr);
+    }
+
+    .marketplace-sidebar {
+        border-right: 1px solid var(--storefront-border);
+        border-bottom: 0;
+        padding: 1.5rem 1rem 1.5rem 0;
+    }
+
+    .dark .marketplace-sidebar {
+        border-right-color: var(--storefront-dark-border);
+    }
+
+    .marketplace-product-grid-dense {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+}
+
+@media (min-width: 1280px) {
+    .marketplace-product-grid-dense {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .marketplace-button,
+    .marketplace-category-card {
+        transition: none;
+    }
+
+    .marketplace-button:hover,
+    .marketplace-category-card:hover {
+        transform: none;
+    }
+}
+
 [x-cloak] {
     display: none !important;
+}
+
+.storefront-shell {
+    --storefront-content-width: 92.5rem;
+    --storefront-page-gutter: clamp(1rem, 2vw, 2rem);
+    --storefront-section-space: clamp(1.5rem, 3vw, 2.5rem);
+    background-color: var(--storefront-background);
+    color: var(--storefront-text);
+    font-family: var(--storefront-body-font);
+    font-size: var(--storefront-base-size);
+    font-weight: var(--storefront-body-weight);
+    line-height: var(--storefront-line-height);
+    letter-spacing: var(--storefront-body-tracking);
+}
+
+.dark .storefront-shell {
+    background-color: var(--storefront-dark-background);
+    color: var(--storefront-dark-text);
+}
+
+.storefront-shell .storefront-header {
+    background-color: var(--storefront-surface);
+}
+
+.storefront-shell .storefront-footer {
+    background-color: color-mix(in srgb, var(--storefront-background) 88%, var(--storefront-border));
+}
+
+.storefront-shell .storefront-mobile-nav {
+    background-color: color-mix(in srgb, var(--storefront-surface) 95%, transparent);
+}
+
+.dark .storefront-shell .storefront-header {
+    background-color: var(--storefront-dark-background);
+}
+
+.dark .storefront-shell .storefront-footer {
+    background-color: color-mix(in srgb, var(--storefront-dark-background) 94%, var(--storefront-dark-surface));
+}
+
+.dark .storefront-shell .storefront-mobile-nav {
+    background-color: color-mix(in srgb, var(--storefront-dark-background) 95%, transparent);
+}
+
+.storefront-shell :where(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--storefront-heading-font);
+    font-weight: var(--storefront-heading-weight);
+    letter-spacing: var(--storefront-heading-tracking);
+    text-wrap: balance;
+}
+
+.storefront-shell .max-w-7xl {
+    max-width: var(--storefront-content-width);
+}
+
+.storefront-shell [class~='max-w-7xl'][class~='px-4'] {
+    padding-inline: var(--storefront-page-gutter);
+}
+
+.storefront-shell main h1:not(.sr-only) {
+    font-size: clamp(1.75rem, 2.2vw, 2rem);
+    font-weight: var(--storefront-heading-weight);
+    line-height: 1.18;
+    letter-spacing: var(--storefront-heading-tracking);
+}
+
+.storefront-shell main h2 {
+    line-height: 1.24;
+    letter-spacing: var(--storefront-heading-tracking);
+}
+
+.storefront-shell [data-product-page] h1 {
+    font-size: clamp(1.5rem, 2vw, 1.75rem);
+    font-weight: var(--storefront-heading-weight);
+    line-height: 1.28;
+    letter-spacing: var(--storefront-heading-tracking);
+}
+
+.storefront-shell main :where(p, li, dd, dt) {
+    line-height: var(--storefront-line-height);
+}
+
+.storefront-shell main :where(p, li) {
+    text-wrap: pretty;
+}
+
+.storefront-shell[data-typography-scale='compact'] main h1:not(.sr-only) {
+    font-size: clamp(1.5rem, 2vw, 1.75rem);
+}
+
+.storefront-shell[data-typography-scale='compact'] [data-product-page] h1 {
+    font-size: clamp(1.375rem, 1.8vw, 1.625rem);
+}
+
+.storefront-shell[data-typography-scale='expressive'] main h1:not(.sr-only) {
+    font-size: clamp(2rem, 3vw, 2.75rem);
+}
+
+.storefront-shell[data-typography-scale='expressive'] [data-product-page] h1 {
+    font-size: clamp(1.75rem, 2.5vw, 2.25rem);
+}
+
+.storefront-shell :where(input, select, textarea, button) {
+    font: inherit;
+}
+
+.storefront-shell .storefront-page-copy {
+    max-width: var(--storefront-content-measure);
+    color: var(--storefront-muted-text);
+    font-size: 0.9375rem;
+    line-height: 1.55;
+}
+
+.dark .storefront-shell .storefront-page-copy {
+    color: var(--storefront-dark-muted-text);
+}
+
+@media (max-width: 639px) {
+    .storefront-shell {
+        font-size: max(13px, calc(var(--storefront-base-size) - 1px));
+    }
+
+    .storefront-shell main h1:not(.sr-only) {
+        font-size: 1.625rem;
+    }
 }
 
 /*
@@ -29,11 +603,11 @@
  * interaction styles.
  */
 .storefront-shell :where(a, button, summary, select, input, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
-    outline: 2px solid rgb(37 99 235);
+    outline: 2px solid var(--storefront-accent);
     outline-offset: 3px;
 }
 .dark .storefront-shell :where(a, button, summary, select, input, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
-    outline-color: rgb(147 197 253);
+    outline-color: var(--storefront-accent);
 }
 .storefront-shell :where(a, button, summary, select, [role='button']) {
     touch-action: manipulation;
@@ -43,19 +617,162 @@
     -webkit-tap-highlight-color: rgb(255 255 255 / 0.16);
 }
 
+.storefront-shell [class~='transition'],
+.storefront-shell [class~='transition-colors'],
+.storefront-shell [class~='transition-opacity'],
+.storefront-shell [class~='transition-transform'] {
+    transition-duration: var(--storefront-motion-duration);
+}
+
+.storefront-shell main article[class~='border'],
+.storefront-shell main [class~='bg-white'][class~='border'][class*='rounded-'] {
+    box-shadow: var(--storefront-card-shadow);
+}
+
+.dark .storefront-shell main article[class~='border'],
+.dark .storefront-shell main [class~='bg-white'][class~='border'][class*='rounded-'] {
+    box-shadow: var(--storefront-card-shadow-dark);
+}
+
+@media (hover: hover) {
+    .storefront-shell[data-card-hover='none'] main article[class~='transition']:hover,
+    .storefront-shell[data-card-hover='none'] main a[class~='hover:shadow-md']:hover {
+        transform: none;
+    }
+
+    .storefront-shell[data-card-hover='subtle'] main article[class~='transition']:hover,
+    .storefront-shell[data-card-hover='subtle'] main a[class~='hover:shadow-md']:hover {
+        transform: translateY(-1px);
+    }
+
+    .storefront-shell[data-card-hover='lift'] main article[class~='transition']:hover,
+    .storefront-shell[data-card-hover='lift'] main a[class~='hover:shadow-md']:hover {
+        transform: translateY(-2px);
+    }
+}
+
+.storefront-shell[data-motion='none'] *,
+.storefront-shell[data-motion='none'] *::before,
+.storefront-shell[data-motion='none'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .storefront-shell *,
+    .storefront-shell *::before,
+    .storefront-shell *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/*
+ * Semantic palette bridge. Existing storefront Blade templates keep concise
+ * Tailwind utilities while these scoped selectors make every neutral surface,
+ * text tone, and border respond to the merchant's light/dark palette.
+ */
+.storefront-shell [class~='bg-white'] {
+    background-color: var(--storefront-surface);
+}
+
+.storefront-shell [class~='bg-gray-50'] {
+    background-color: color-mix(in srgb, var(--storefront-background) 88%, var(--storefront-border));
+}
+
+.storefront-shell [class~='bg-gray-100'],
+.storefront-shell [class~='bg-gray-200'] {
+    background-color: color-mix(in srgb, var(--storefront-background) 76%, var(--storefront-border));
+}
+
+.storefront-shell [class~='text-gray-950'],
+.storefront-shell [class~='text-gray-900'],
+.storefront-shell [class~='text-gray-800'],
+.storefront-shell [class~='text-gray-700'] {
+    color: var(--storefront-text);
+}
+
+.storefront-shell [class~='text-gray-600'],
+.storefront-shell [class~='text-gray-500'],
+.storefront-shell [class~='text-gray-400'] {
+    color: var(--storefront-muted-text);
+}
+
+.storefront-shell [class~='border-gray-100'],
+.storefront-shell [class~='border-gray-200'],
+.storefront-shell [class~='border-gray-300'] {
+    border-color: var(--storefront-border);
+}
+
+.dark .storefront-shell [class~='dark:bg-gray-950'] {
+    background-color: var(--storefront-dark-background);
+}
+
+.dark .storefront-shell [class~='dark:bg-gray-900'] {
+    background-color: var(--storefront-dark-surface);
+}
+
+.dark .storefront-shell [class~='dark:bg-gray-800'] {
+    background-color: color-mix(in srgb, var(--storefront-dark-surface) 78%, var(--storefront-dark-border));
+}
+
+.dark .storefront-shell [class~='dark:bg-white/5'],
+.dark .storefront-shell [class~='dark:bg-white/10'] {
+    background-color: color-mix(in srgb, var(--storefront-dark-surface) 88%, var(--storefront-dark-text));
+}
+
+.dark .storefront-shell [class~='dark:bg-white/[0.02]'] {
+    background-color: color-mix(in srgb, var(--storefront-dark-background) 96%, var(--storefront-dark-text));
+}
+
+.dark .storefront-shell [class~='dark:text-white'],
+.dark .storefront-shell [class~='dark:text-gray-100'],
+.dark .storefront-shell [class~='dark:text-gray-200'] {
+    color: var(--storefront-dark-text);
+}
+
+.dark .storefront-shell [class~='dark:text-gray-300'],
+.dark .storefront-shell [class~='dark:text-gray-400'],
+.dark .storefront-shell [class~='dark:text-gray-500'] {
+    color: var(--storefront-dark-muted-text);
+}
+
+.dark .storefront-shell [class~='dark:border-gray-700'],
+.dark .storefront-shell [class~='dark:border-gray-800'],
+.dark .storefront-shell [class~='dark:border-white/10'],
+.dark .storefront-shell [class~='dark:border-white/15'] {
+    border-color: var(--storefront-dark-border);
+}
+
 /*
  * Merchant-selected brand colours can be very light. Automatically use the
  * WCAG contrast foreground calculated by storefront/layout.blade.php whenever
  * white text is placed directly on that colour.
  */
 .storefront-shell [class~='bg-[var(--storefront-brand)]'][class~='text-white'],
+.storefront-shell [class~='bg-[var(--storefront-brand)]/90'][class~='text-white'],
 .storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white'],
-.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/70'],
-.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/80'],
-.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/85'],
-.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/90'],
 .storefront-shell [class~='hover:bg-[var(--storefront-brand)]'][class~='hover:text-white']:hover {
     color: var(--storefront-brand-contrast);
+}
+
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/70'] {
+    color: color-mix(in srgb, var(--storefront-brand-contrast) 70%, transparent);
+}
+
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/80'] {
+    color: color-mix(in srgb, var(--storefront-brand-contrast) 80%, transparent);
+}
+
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/85'] {
+    color: color-mix(in srgb, var(--storefront-brand-contrast) 85%, transparent);
+}
+
+.storefront-shell [class~='bg-[var(--storefront-brand)]'] [class~='text-white/90'] {
+    color: color-mix(in srgb, var(--storefront-brand-contrast) 90%, transparent);
 }
 
 .storefront-catalog-grid > * {
@@ -85,18 +802,21 @@
  * inside RichEditor-produced HTML are styled directly here instead.
  */
 .storefront-richtext > * + * {
-    margin-top: 1rem;
+    margin-top: 0.75rem;
+}
+.storefront-richtext {
+    max-width: var(--storefront-content-measure);
 }
 .storefront-richtext h1,
 .storefront-richtext h2 {
-    margin-top: 2rem;
-    font-size: 1.5rem;
+    margin-top: 1.5rem;
+    font-size: 1.375rem;
     font-weight: 600;
     letter-spacing: -0.01em;
 }
 .storefront-richtext h3 {
-    margin-top: 1.5rem;
-    font-size: 1.25rem;
+    margin-top: 1.25rem;
+    font-size: 1.125rem;
     font-weight: 600;
 }
 .storefront-richtext ul {
@@ -122,10 +842,10 @@
     border-left: 3px solid var(--storefront-brand);
     padding-left: 1rem;
     font-style: italic;
-    color: rgb(107 114 128);
+    color: var(--storefront-muted-text);
 }
 .dark .storefront-richtext blockquote {
-    color: rgb(156 163 175);
+    color: var(--storefront-dark-muted-text);
 }
 .storefront-richtext table {
     width: 100%;
@@ -133,10 +853,10 @@
 }
 .storefront-richtext td,
 .storefront-richtext th {
-    border: 1px solid rgb(229 231 235);
+    border: 1px solid var(--storefront-border);
     padding: 0.5rem 0.75rem;
 }
 .dark .storefront-richtext td,
 .dark .storefront-richtext th {
-    border-color: rgb(255 255 255 / 0.1);
+    border-color: var(--storefront-dark-border);
 }

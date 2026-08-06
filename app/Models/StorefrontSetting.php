@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -10,15 +11,250 @@ class StorefrontSetting extends Model
 {
     use BelongsToCompany;
 
+    public const DEFAULT_NEW_CUSTOMER_ADVANCE_MESSAGE = 'ZamZam International চায় কাস্টমারের সাথে একটি সুসম্পর্ক গড়ে উঠুক। পার্সেল নিয়ে কোনো ভুল বোঝাবুঝি এড়াতে নতুন কাস্টমারের অর্ডার শুধু ডেলিভারি চার্জ অগ্রিম পরিশোধের পর নিশ্চিত করা হয়। ভয় পাওয়ার কিছু নেই—আপনার পণ্যের ওজন অনুযায়ী শুধু ডেলিভারি চার্জ অগ্রিম দিতে হবে। পণ্যের বাকি সম্পূর্ণ টাকা হাতে পেয়ে যাচাই করে ডেলিভারি ম্যানকে পরিশোধ করবেন।';
+
+    public const DEFAULT_WHATSAPP_GROUP_URL = 'https://chat.whatsapp.com/ImegB2Visv9BMcI0u5QVUC';
+
+    public const DEFAULT_WHATSAPP_GROUP_MESSAGE = 'ZamZam International-এর প্রোডাক্ট সম্পর্কিত সকল আপডেট এই গ্রুপে পাবেন ইনশাআল্লাহ। জয়েন হয়ে থাকুন—নতুন প্রোডাক্ট ও স্টক আপডেট এখানে জানানো হবে।';
+
     public const THEME_MODES = [
         'system' => 'Match visitor system setting',
         'light' => 'Light',
         'dark' => 'Dark',
     ];
 
+    public const THEME_FOREGROUND_MODES = [
+        'auto' => 'Auto contrast (recommended)',
+        'light' => 'Light text',
+        'dark' => 'Dark text',
+    ];
+
+    public const THEME_PALETTE_PRESETS = [
+        'emerald' => [
+            'label' => 'Emerald Commerce',
+            'theme_color' => '#059669',
+            'theme_secondary_color' => '#0F766E',
+            'theme_accent_color' => '#EA580C',
+            'theme_background_color' => '#F8FAFC',
+            'theme_surface_color' => '#FFFFFF',
+            'theme_text_color' => '#0F172A',
+            'theme_muted_text_color' => '#64748B',
+            'theme_border_color' => '#E2E8F0',
+            'theme_dark_background_color' => '#020617',
+            'theme_dark_surface_color' => '#0F172A',
+            'theme_dark_text_color' => '#F8FAFC',
+            'theme_dark_muted_text_color' => '#94A3B8',
+            'theme_dark_border_color' => '#334155',
+        ],
+        'ocean' => [
+            'label' => 'Ocean Blue',
+            'theme_color' => '#0369A1',
+            'theme_secondary_color' => '#0C4A6E',
+            'theme_accent_color' => '#D97706',
+            'theme_background_color' => '#F8FAFC',
+            'theme_surface_color' => '#FFFFFF',
+            'theme_text_color' => '#0F172A',
+            'theme_muted_text_color' => '#64748B',
+            'theme_border_color' => '#CBD5E1',
+            'theme_dark_background_color' => '#020617',
+            'theme_dark_surface_color' => '#0F172A',
+            'theme_dark_text_color' => '#F8FAFC',
+            'theme_dark_muted_text_color' => '#94A3B8',
+            'theme_dark_border_color' => '#334155',
+        ],
+        'royal' => [
+            'label' => 'Royal Indigo',
+            'theme_color' => '#4F46E5',
+            'theme_secondary_color' => '#312E81',
+            'theme_accent_color' => '#DB2777',
+            'theme_background_color' => '#F8FAFC',
+            'theme_surface_color' => '#FFFFFF',
+            'theme_text_color' => '#111827',
+            'theme_muted_text_color' => '#6B7280',
+            'theme_border_color' => '#E5E7EB',
+            'theme_dark_background_color' => '#030712',
+            'theme_dark_surface_color' => '#111827',
+            'theme_dark_text_color' => '#F9FAFB',
+            'theme_dark_muted_text_color' => '#9CA3AF',
+            'theme_dark_border_color' => '#374151',
+        ],
+        'luxury' => [
+            'label' => 'Premium Black & Gold',
+            'theme_color' => '#1C1917',
+            'theme_secondary_color' => '#44403C',
+            'theme_accent_color' => '#A16207',
+            'theme_background_color' => '#FAFAF9',
+            'theme_surface_color' => '#FFFFFF',
+            'theme_text_color' => '#0C0A09',
+            'theme_muted_text_color' => '#78716C',
+            'theme_border_color' => '#D6D3D1',
+            'theme_dark_background_color' => '#0C0A09',
+            'theme_dark_surface_color' => '#1C1917',
+            'theme_dark_text_color' => '#FAFAF9',
+            'theme_dark_muted_text_color' => '#A8A29E',
+            'theme_dark_border_color' => '#44403C',
+        ],
+        'rose' => [
+            'label' => 'Modern Rose',
+            'theme_color' => '#BE123C',
+            'theme_secondary_color' => '#881337',
+            'theme_accent_color' => '#7C3AED',
+            'theme_background_color' => '#FFF7F8',
+            'theme_surface_color' => '#FFFFFF',
+            'theme_text_color' => '#1F1720',
+            'theme_muted_text_color' => '#71636D',
+            'theme_border_color' => '#F1D5DC',
+            'theme_dark_background_color' => '#10080C',
+            'theme_dark_surface_color' => '#211116',
+            'theme_dark_text_color' => '#FFF7F8',
+            'theme_dark_muted_text_color' => '#C4A9B2',
+            'theme_dark_border_color' => '#57303C',
+        ],
+    ];
+
+    public const FONT_OPTIONS = [
+        'system' => ['label' => 'System UI', 'family' => "Arial, 'Helvetica Neue', Helvetica, sans-serif", 'query' => null],
+        'inter' => ['label' => 'Inter', 'family' => "'Inter', Arial, sans-serif", 'query' => 'Inter:wght@400;500;600;700;800'],
+        'rubik' => ['label' => 'Rubik', 'family' => "'Rubik', Arial, sans-serif", 'query' => 'Rubik:wght@400;500;600;700;800'],
+        'nunito_sans' => ['label' => 'Nunito Sans', 'family' => "'Nunito Sans', Arial, sans-serif", 'query' => 'Nunito+Sans:wght@400;500;600;700;800'],
+        'hind_siliguri' => ['label' => 'Hind Siliguri', 'family' => "'Hind Siliguri', Arial, sans-serif", 'query' => 'Hind+Siliguri:wght@400;500;600;700'],
+        'noto_bengali' => ['label' => 'Noto Sans Bengali', 'family' => "'Noto Sans Bengali', Arial, sans-serif", 'query' => 'Noto+Sans+Bengali:wght@400;500;600;700;800'],
+        'playfair' => ['label' => 'Playfair Display', 'family' => "'Playfair Display', Georgia, serif", 'query' => 'Playfair+Display:wght@500;600;700;800'],
+    ];
+
+    public const TYPOGRAPHY_PRESETS = [
+        'system' => ['label' => 'System Commerce', 'typography_heading_font' => 'system', 'typography_body_font' => 'system', 'typography_base_size' => 16, 'typography_heading_weight' => 700, 'typography_body_weight' => 400, 'typography_scale' => 'balanced', 'typography_line_height' => 'normal', 'typography_heading_tracking' => 'tight', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'comfortable'],
+        'modern' => ['label' => 'Modern Inter', 'typography_heading_font' => 'inter', 'typography_body_font' => 'inter', 'typography_base_size' => 16, 'typography_heading_weight' => 700, 'typography_body_weight' => 400, 'typography_scale' => 'balanced', 'typography_line_height' => 'normal', 'typography_heading_tracking' => 'tight', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'comfortable'],
+        'commerce' => ['label' => 'E-commerce Clean', 'typography_heading_font' => 'rubik', 'typography_body_font' => 'nunito_sans', 'typography_base_size' => 16, 'typography_heading_weight' => 700, 'typography_body_weight' => 400, 'typography_scale' => 'balanced', 'typography_line_height' => 'relaxed', 'typography_heading_tracking' => 'tight', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'comfortable'],
+        'bengali' => ['label' => 'Bangla Optimized', 'typography_heading_font' => 'hind_siliguri', 'typography_body_font' => 'noto_bengali', 'typography_base_size' => 16, 'typography_heading_weight' => 700, 'typography_body_weight' => 400, 'typography_scale' => 'balanced', 'typography_line_height' => 'relaxed', 'typography_heading_tracking' => 'normal', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'comfortable'],
+        'editorial' => ['label' => 'Editorial Premium', 'typography_heading_font' => 'playfair', 'typography_body_font' => 'inter', 'typography_base_size' => 16, 'typography_heading_weight' => 700, 'typography_body_weight' => 400, 'typography_scale' => 'expressive', 'typography_line_height' => 'relaxed', 'typography_heading_tracking' => 'normal', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'narrow'],
+    ];
+
+    public const TYPOGRAPHY_SCALES = [
+        'compact' => 'Compact',
+        'balanced' => 'Balanced',
+        'expressive' => 'Expressive',
+    ];
+
+    public const TYPOGRAPHY_LINE_HEIGHTS = [
+        'tight' => 'Tight',
+        'normal' => 'Normal',
+        'relaxed' => 'Relaxed',
+    ];
+
+    public const TYPOGRAPHY_HEADING_TRACKING = [
+        'tight' => 'Tight — modern',
+        'normal' => 'Normal',
+        'wide' => 'Wide — editorial',
+    ];
+
+    public const TYPOGRAPHY_BODY_TRACKING = [
+        'compact' => 'Compact',
+        'normal' => 'Normal',
+        'relaxed' => 'Relaxed',
+    ];
+
+    public const TYPOGRAPHY_CONTENT_WIDTHS = [
+        'narrow' => 'Narrow — 62 characters',
+        'comfortable' => 'Comfortable — 70 characters',
+        'wide' => 'Wide — 78 characters',
+    ];
+
+    public const APPEARANCE_PRESETS = [
+        'modern' => ['label' => 'Modern Commerce', 'appearance_container_width' => 'wide', 'appearance_page_gutter' => 'comfortable', 'appearance_corner_radius' => 'soft', 'appearance_shadow' => 'subtle', 'appearance_motion' => 'standard', 'appearance_card_hover' => 'subtle'],
+        'minimal' => ['label' => 'Clean Minimal', 'appearance_container_width' => 'standard', 'appearance_page_gutter' => 'comfortable', 'appearance_corner_radius' => 'sharp', 'appearance_shadow' => 'none', 'appearance_motion' => 'subtle', 'appearance_card_hover' => 'none'],
+        'premium' => ['label' => 'Premium Soft UI', 'appearance_container_width' => 'standard', 'appearance_page_gutter' => 'spacious', 'appearance_corner_radius' => 'rounded', 'appearance_shadow' => 'elevated', 'appearance_motion' => 'standard', 'appearance_card_hover' => 'lift'],
+        'dense' => ['label' => 'Dense Marketplace', 'appearance_container_width' => 'wide', 'appearance_page_gutter' => 'compact', 'appearance_corner_radius' => 'soft', 'appearance_shadow' => 'subtle', 'appearance_motion' => 'subtle', 'appearance_card_hover' => 'subtle'],
+    ];
+
+    public const APPEARANCE_CONTAINER_WIDTHS = [
+        'focused' => 'Focused — 72 rem',
+        'standard' => 'Standard — 80 rem',
+        'wide' => 'Wide marketplace — 92.5 rem',
+        'fluid' => 'Fluid — 100%',
+    ];
+
+    public const APPEARANCE_PAGE_GUTTERS = [
+        'compact' => 'Compact',
+        'comfortable' => 'Comfortable',
+        'spacious' => 'Spacious',
+    ];
+
+    public const APPEARANCE_CORNER_RADII = [
+        'sharp' => 'Sharp',
+        'soft' => 'Soft',
+        'rounded' => 'Rounded',
+    ];
+
+    public const APPEARANCE_SHADOWS = [
+        'none' => 'Flat / no shadow',
+        'subtle' => 'Subtle depth',
+        'elevated' => 'Elevated cards',
+    ];
+
+    public const APPEARANCE_MOTION = [
+        'none' => 'No motion',
+        'subtle' => 'Subtle — 150 ms',
+        'standard' => 'Standard — 220 ms',
+    ];
+
+    public const APPEARANCE_CARD_HOVERS = [
+        'none' => 'None',
+        'subtle' => 'Subtle emphasis',
+        'lift' => 'Premium lift',
+    ];
+
     protected $fillable = [
         'company_id',
+        'storefront_theme',
+        'homepage_template',
+        'marketplace_announcement_enabled',
+        'marketplace_announcement_text',
+        'marketplace_quote_enabled',
+        'marketplace_business_accounts_enabled',
+        'marketplace_trust_strip_enabled',
+        'marketplace_deals_enabled',
+        'marketplace_categories_enabled',
+        'marketplace_bulk_pricing_enabled',
+        'marketplace_sidebar_enabled',
+        'marketplace_product_limit',
+        'marketplace_campaign_badge',
+        'marketplace_campaign_heading',
+        'marketplace_campaign_subheading',
+        'marketplace_campaign_cta_label',
         'theme_color',
+        'theme_foreground_mode',
+        'theme_palette_preset',
+        'theme_secondary_color',
+        'theme_accent_color',
+        'theme_background_color',
+        'theme_surface_color',
+        'theme_text_color',
+        'theme_muted_text_color',
+        'theme_border_color',
+        'theme_dark_background_color',
+        'theme_dark_surface_color',
+        'theme_dark_text_color',
+        'theme_dark_muted_text_color',
+        'theme_dark_border_color',
+        'typography_preset',
+        'typography_heading_font',
+        'typography_body_font',
+        'typography_base_size',
+        'typography_heading_weight',
+        'typography_body_weight',
+        'typography_scale',
+        'typography_line_height',
+        'typography_heading_tracking',
+        'typography_body_tracking',
+        'typography_content_width',
+        'appearance_preset',
+        'appearance_container_width',
+        'appearance_page_gutter',
+        'appearance_corner_radius',
+        'appearance_shadow',
+        'appearance_motion',
+        'appearance_card_hover',
         'logo',
         'logo_dark',
         'customer_accounts_enabled',
@@ -41,6 +277,16 @@ class StorefrontSetting extends Model
         'cod_enabled',
         'delivery_charge_inside',
         'delivery_charge_outside',
+        'delivery_first_kg_inside',
+        'delivery_first_kg_outside',
+        'delivery_additional_per_kg',
+        'inside_dhaka_keywords',
+        'new_customer_delivery_advance_enabled',
+        'new_customer_advance_message',
+        'whatsapp_group_url',
+        'whatsapp_group_message',
+        'complaint_telegram_enabled',
+        'telegram_credentials',
         'manual_bkash_number',
         'manual_bkash_instructions',
         'manual_nagad_number',
@@ -60,6 +306,15 @@ class StorefrontSetting extends Model
     protected $casts = [
         'is_published' => 'boolean',
         'customer_accounts_enabled' => 'boolean',
+        'marketplace_announcement_enabled' => 'boolean',
+        'marketplace_quote_enabled' => 'boolean',
+        'marketplace_business_accounts_enabled' => 'boolean',
+        'marketplace_trust_strip_enabled' => 'boolean',
+        'marketplace_deals_enabled' => 'boolean',
+        'marketplace_categories_enabled' => 'boolean',
+        'marketplace_bulk_pricing_enabled' => 'boolean',
+        'marketplace_sidebar_enabled' => 'boolean',
+        'marketplace_product_limit' => 'integer',
         'offer_discount_percent' => 'integer',
         'offer_ends_at' => 'datetime',
         'woocommerce_credentials' => 'encrypted:array',
@@ -68,21 +323,76 @@ class StorefrontSetting extends Model
         'cod_enabled' => 'boolean',
         'delivery_charge_inside' => 'decimal:2',
         'delivery_charge_outside' => 'decimal:2',
+        'delivery_first_kg_inside' => 'decimal:2',
+        'delivery_first_kg_outside' => 'decimal:2',
+        'delivery_additional_per_kg' => 'decimal:2',
+        'new_customer_delivery_advance_enabled' => 'boolean',
+        'complaint_telegram_enabled' => 'boolean',
+        'telegram_credentials' => 'encrypted:array',
         'abandoned_cart_reminders_enabled' => 'boolean',
         'abandoned_cart_delay_hours' => 'integer',
         'notification_credentials' => 'encrypted:array',
         'header_menu' => 'array',
         'footer_menu' => 'array',
+        'typography_base_size' => 'integer',
+        'typography_heading_weight' => 'integer',
+        'typography_body_weight' => 'integer',
     ];
+
+    public function customerAdvanceMessage(): string
+    {
+        return trim((string) $this->new_customer_advance_message) ?: self::DEFAULT_NEW_CUSTOMER_ADVANCE_MESSAGE;
+    }
+
+    public function whatsappGroupUrl(): string
+    {
+        return trim((string) $this->whatsapp_group_url) ?: self::DEFAULT_WHATSAPP_GROUP_URL;
+    }
+
+    public function whatsappGroupMessage(): string
+    {
+        return trim((string) $this->whatsapp_group_message) ?: self::DEFAULT_WHATSAPP_GROUP_MESSAGE;
+    }
 
     protected static function booted(): void
     {
         static::creating(function (StorefrontSetting $setting): void {
+            $setting->storefront_theme ??= StorefrontThemeRegistry::BUILT_IN;
+            $setting->homepage_template ??= StorefrontThemeRegistry::BUILT_IN_DEFAULT;
             $setting->theme_color ??= '#0F766E';
+            $setting->theme_foreground_mode ??= 'auto';
+            $setting->theme_palette_preset ??= 'custom';
+            $setting->typography_preset ??= 'system';
+            $setting->typography_heading_font ??= 'system';
+            $setting->typography_body_font ??= 'system';
+            $setting->typography_base_size ??= 16;
+            $setting->typography_heading_weight ??= 700;
+            $setting->typography_body_weight ??= 400;
+            $setting->typography_scale ??= 'balanced';
+            $setting->typography_line_height ??= 'normal';
+            $setting->typography_heading_tracking ??= 'tight';
+            $setting->typography_body_tracking ??= 'normal';
+            $setting->typography_content_width ??= 'comfortable';
+            $setting->appearance_preset ??= 'modern';
+            $setting->appearance_container_width ??= 'wide';
+            $setting->appearance_page_gutter ??= 'comfortable';
+            $setting->appearance_corner_radius ??= 'soft';
+            $setting->appearance_shadow ??= 'subtle';
+            $setting->appearance_motion ??= 'standard';
+            $setting->appearance_card_hover ??= 'subtle';
             $setting->is_published ??= false;
             $setting->customer_accounts_enabled ??= true;
             $setting->theme_mode ??= 'system';
             $setting->cod_enabled ??= true;
+            $setting->marketplace_announcement_enabled ??= true;
+            $setting->marketplace_quote_enabled ??= true;
+            $setting->marketplace_business_accounts_enabled ??= true;
+            $setting->marketplace_trust_strip_enabled ??= true;
+            $setting->marketplace_deals_enabled ??= true;
+            $setting->marketplace_categories_enabled ??= true;
+            $setting->marketplace_bulk_pricing_enabled ??= true;
+            $setting->marketplace_sidebar_enabled ??= true;
+            $setting->marketplace_product_limit ??= 10;
         });
 
         static::saved(fn (StorefrontSetting $setting) => Cache::forget("storefront-home:{$setting->company_id}"));
@@ -92,5 +402,305 @@ class StorefrontSetting extends Model
     public function hasActiveOffer(): bool
     {
         return filled($this->offer_title) && $this->offer_ends_at && $this->offer_ends_at->isFuture();
+    }
+
+    public function storefrontTheme(): string
+    {
+        return StorefrontThemeRegistry::normalizeTheme($this->storefront_theme);
+    }
+
+    public function homepageTemplate(): string
+    {
+        return StorefrontThemeRegistry::normalizeTemplate($this->storefrontTheme(), $this->homepage_template);
+    }
+
+    public function homepageView(): string
+    {
+        return StorefrontThemeRegistry::homeView($this->storefrontTheme(), $this->homepageTemplate());
+    }
+
+    public function marketplaceProductLimit(): int
+    {
+        return max(5, min(20, (int) ($this->marketplace_product_limit ?: 10)));
+    }
+
+    public function normalizedThemeColor(): string
+    {
+        return $this->normalizedColor('theme_color', '#0F766E');
+    }
+
+    public function themeForegroundColor(): string
+    {
+        if ($this->theme_foreground_mode === 'light') {
+            return '#FFFFFF';
+        }
+
+        if ($this->theme_foreground_mode === 'dark') {
+            return '#000000';
+        }
+
+        return $this->contrastColor($this->normalizedThemeColor());
+    }
+
+    public static function colorContrastRatio(string $foreground, string $background): float
+    {
+        if (! preg_match('/^#[0-9a-f]{6}$/i', $foreground) || ! preg_match('/^#[0-9a-f]{6}$/i', $background)) {
+            return 0;
+        }
+
+        $foregroundLuminance = self::relativeLuminance($foreground);
+        $backgroundLuminance = self::relativeLuminance($background);
+        $lighter = max($foregroundLuminance, $backgroundLuminance);
+        $darker = min($foregroundLuminance, $backgroundLuminance);
+
+        return ($lighter + 0.05) / ($darker + 0.05);
+    }
+
+    public static function themePalettePresetOptions(): array
+    {
+        return ['custom' => 'Custom palette'] + collect(self::THEME_PALETTE_PRESETS)
+            ->mapWithKeys(fn (array $preset, string $key): array => [$key => $preset['label']])
+            ->all();
+    }
+
+    public static function themePalettePresetFields(?string $preset): array
+    {
+        return collect(self::THEME_PALETTE_PRESETS[$preset] ?? [])->except('label')->all();
+    }
+
+    public static function fontOptions(): array
+    {
+        return collect(self::FONT_OPTIONS)
+            ->mapWithKeys(fn (array $font, string $key): array => [$key => $font['label']])
+            ->all();
+    }
+
+    public static function typographyPresetOptions(): array
+    {
+        return ['custom' => 'Custom typography'] + collect(self::TYPOGRAPHY_PRESETS)
+            ->mapWithKeys(fn (array $preset, string $key): array => [$key => $preset['label']])
+            ->all();
+    }
+
+    public static function typographyPresetFields(?string $preset): array
+    {
+        return collect(self::TYPOGRAPHY_PRESETS[$preset] ?? [])->except('label')->all();
+    }
+
+    public static function appearancePresetOptions(): array
+    {
+        return ['custom' => 'Custom appearance'] + collect(self::APPEARANCE_PRESETS)
+            ->mapWithKeys(fn (array $preset, string $key): array => [$key => $preset['label']])
+            ->all();
+    }
+
+    public static function appearancePresetFields(?string $preset): array
+    {
+        return collect(self::APPEARANCE_PRESETS[$preset] ?? [])->except('label')->all();
+    }
+
+    public function themePalette(): array
+    {
+        $primary = $this->normalizedThemeColor();
+        $secondary = $this->normalizedColor('theme_secondary_color', '#0F172A');
+        $accent = $this->normalizedColor('theme_accent_color', '#F59E0B');
+
+        return [
+            'primary' => $primary,
+            'primary_contrast' => $this->themeForegroundColor(),
+            'secondary' => $secondary,
+            'secondary_contrast' => $this->contrastColor($secondary),
+            'accent' => $accent,
+            'accent_contrast' => $this->contrastColor($accent),
+            'background' => $this->normalizedColor('theme_background_color', '#FFFFFF'),
+            'surface' => $this->normalizedColor('theme_surface_color', '#FFFFFF'),
+            'text' => $this->normalizedColor('theme_text_color', '#111827'),
+            'muted_text' => $this->normalizedColor('theme_muted_text_color', '#6B7280'),
+            'border' => $this->normalizedColor('theme_border_color', '#E5E7EB'),
+            'dark_background' => $this->normalizedColor('theme_dark_background_color', '#030712'),
+            'dark_surface' => $this->normalizedColor('theme_dark_surface_color', '#111827'),
+            'dark_text' => $this->normalizedColor('theme_dark_text_color', '#F3F4F6'),
+            'dark_muted_text' => $this->normalizedColor('theme_dark_muted_text_color', '#9CA3AF'),
+            'dark_border' => $this->normalizedColor('theme_dark_border_color', '#374151'),
+        ];
+    }
+
+    public function headingFontFamily(): string
+    {
+        return self::FONT_OPTIONS[$this->typography_heading_font]['family'] ?? self::FONT_OPTIONS['system']['family'];
+    }
+
+    public function bodyFontFamily(): string
+    {
+        return self::FONT_OPTIONS[$this->typography_body_font]['family'] ?? self::FONT_OPTIONS['system']['family'];
+    }
+
+    public function googleFontsUrl(): ?string
+    {
+        $queries = collect([$this->typography_heading_font, $this->typography_body_font])
+            ->filter(fn ($font): bool => isset(self::FONT_OPTIONS[$font]))
+            ->map(fn ($font): ?string => self::FONT_OPTIONS[$font]['query'])
+            ->filter()
+            ->unique()
+            ->values();
+
+        return $queries->isEmpty()
+            ? null
+            : 'https://fonts.googleapis.com/css2?'.$queries->map(fn (string $query): string => 'family='.$query)->implode('&').'&display=swap';
+    }
+
+    public function typographyBaseSize(): int
+    {
+        return max(14, min(18, (int) ($this->typography_base_size ?: 16)));
+    }
+
+    public function typographyHeadingWeight(): int
+    {
+        return in_array((int) $this->typography_heading_weight, [500, 600, 700, 800], true)
+            ? (int) $this->typography_heading_weight
+            : 700;
+    }
+
+    public function typographyBodyWeight(): int
+    {
+        return in_array((int) $this->typography_body_weight, [400, 500, 600], true)
+            ? (int) $this->typography_body_weight
+            : 400;
+    }
+
+    public function typographyLineHeight(): float
+    {
+        return match ($this->typography_line_height) {
+            'tight' => 1.4,
+            'relaxed' => 1.65,
+            default => 1.5,
+        };
+    }
+
+    public function typographyScale(): string
+    {
+        return array_key_exists((string) $this->typography_scale, self::TYPOGRAPHY_SCALES)
+            ? (string) $this->typography_scale
+            : 'balanced';
+    }
+
+    public function typographyHeadingTracking(): string
+    {
+        return match ($this->typography_heading_tracking) {
+            'normal' => '0em',
+            'wide' => '0.015em',
+            default => '-0.025em',
+        };
+    }
+
+    public function typographyBodyTracking(): string
+    {
+        return match ($this->typography_body_tracking) {
+            'compact' => '-0.005em',
+            'relaxed' => '0.01em',
+            default => '0em',
+        };
+    }
+
+    public function typographyContentWidth(): string
+    {
+        return match ($this->typography_content_width) {
+            'narrow' => '62ch',
+            'wide' => '78ch',
+            default => '70ch',
+        };
+    }
+
+    public function appearanceContainerWidth(): string
+    {
+        return match ($this->appearance_container_width) {
+            'focused' => '72rem',
+            'standard' => '80rem',
+            'fluid' => '100%',
+            default => '92.5rem',
+        };
+    }
+
+    public function appearancePageGutter(): string
+    {
+        return match ($this->appearance_page_gutter) {
+            'compact' => 'clamp(0.75rem, 1.5vw, 1.25rem)',
+            'spacious' => 'clamp(1.25rem, 3vw, 3rem)',
+            default => 'clamp(1rem, 2vw, 2rem)',
+        };
+    }
+
+    public function appearanceCornerRadii(): array
+    {
+        return match ($this->appearance_corner_radius) {
+            'sharp' => ['sm' => '0.125rem', 'md' => '0.25rem', 'lg' => '0.375rem', 'xl' => '0.5rem', '2xl' => '0.75rem'],
+            'rounded' => ['sm' => '0.5rem', 'md' => '0.75rem', 'lg' => '1rem', 'xl' => '1.25rem', '2xl' => '1.5rem'],
+            default => ['sm' => '0.25rem', 'md' => '0.375rem', 'lg' => '0.5rem', 'xl' => '0.75rem', '2xl' => '1rem'],
+        };
+    }
+
+    public function appearanceCardShadow(bool $dark = false): string
+    {
+        if ($this->appearance_shadow === 'none') {
+            return 'none';
+        }
+
+        if ($this->appearance_shadow === 'elevated') {
+            return $dark
+                ? '0 18px 40px -18px rgb(0 0 0 / 0.65)'
+                : '0 18px 40px -20px rgb(15 23 42 / 0.28)';
+        }
+
+        return $dark
+            ? '0 10px 28px -20px rgb(0 0 0 / 0.7)'
+            : '0 10px 28px -22px rgb(15 23 42 / 0.24)';
+    }
+
+    public function appearanceMotionDuration(): string
+    {
+        return match ($this->appearance_motion) {
+            'none' => '0ms',
+            'subtle' => '150ms',
+            default => '220ms',
+        };
+    }
+
+    public function appearanceCardHover(): string
+    {
+        return array_key_exists((string) $this->appearance_card_hover, self::APPEARANCE_CARD_HOVERS)
+            ? (string) $this->appearance_card_hover
+            : 'subtle';
+    }
+
+    protected function normalizedColor(string $attribute, string $fallback): string
+    {
+        $color = $this->getAttribute($attribute);
+
+        return is_string($color) && preg_match('/^#[0-9a-f]{6}$/i', $color)
+            ? strtoupper($color)
+            : $fallback;
+    }
+
+    protected function contrastColor(string $color): string
+    {
+        return self::relativeLuminance($color) > 0.179 ? '#000000' : '#FFFFFF';
+    }
+
+    protected static function relativeLuminance(string $color): float
+    {
+        $channels = [
+            hexdec(substr($color, 1, 2)),
+            hexdec(substr($color, 3, 2)),
+            hexdec(substr($color, 5, 2)),
+        ];
+        $toLinearColor = static function (int $channel): float {
+            $value = $channel / 255;
+
+            return $value <= 0.04045 ? $value / 12.92 : (($value + 0.055) / 1.055) ** 2.4;
+        };
+
+        return (0.2126 * $toLinearColor($channels[0]))
+            + (0.7152 * $toLinearColor($channels[1]))
+            + (0.0722 * $toLinearColor($channels[2]));
     }
 }

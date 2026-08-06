@@ -21,10 +21,12 @@ use App\Http\Controllers\InstallController;
 use App\Http\Controllers\MetaWebhookController;
 use App\Http\Controllers\QuotationPublicController;
 use App\Http\Controllers\Storefront\AccountAuthController as StorefrontAccountAuthController;
+use App\Http\Controllers\Storefront\AccountController as StorefrontAccountController;
 use App\Http\Controllers\Storefront\AccountOrdersController as StorefrontAccountOrdersController;
 use App\Http\Controllers\Storefront\AccountProfileController as StorefrontAccountProfileController;
 use App\Http\Controllers\Storefront\CartController as StorefrontCartController;
 use App\Http\Controllers\Storefront\CheckoutController as StorefrontCheckoutController;
+use App\Http\Controllers\Storefront\ComplaintController as StorefrontComplaintController;
 use App\Http\Controllers\Storefront\ContactController as StorefrontContactController;
 use App\Http\Controllers\Storefront\HomeController as StorefrontHomeController;
 use App\Http\Controllers\Storefront\OrderTrackController as StorefrontOrderTrackController;
@@ -104,6 +106,16 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
     Route::get('/checkout/success/{order}', [StorefrontCheckoutController::class, 'successPreview'])
         ->name('storefront.preview.checkout.success');
 
+    Route::get('/checkout/payment/{payment}/return', [StorefrontCheckoutController::class, 'paymentReturnPreview'])
+        ->name('storefront.preview.checkout.payment-return');
+
+    Route::get('/complaints', [StorefrontComplaintController::class, 'showPreview'])
+        ->name('storefront.preview.complaints.show');
+
+    Route::post('/complaints', [StorefrontComplaintController::class, 'storePreview'])
+        ->middleware('throttle:5,1')
+        ->name('storefront.preview.complaints.store');
+
     Route::get('/track', [StorefrontOrderTrackController::class, 'indexPreview'])
         ->name('storefront.preview.track.index');
 
@@ -115,6 +127,47 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
 
     Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorderPreview'])
         ->name('storefront.preview.account.reorder');
+
+    Route::get('/account', [StorefrontAccountController::class, 'indexPreview'])
+        ->name('storefront.preview.account.index');
+    Route::get('/account/activity', [StorefrontAccountController::class, 'activityPreview'])
+        ->name('storefront.preview.account.activity');
+    Route::get('/account/login', [StorefrontAccountAuthController::class, 'showLoginPreview'])
+        ->name('storefront.preview.account.login');
+    Route::post('/account/login', [StorefrontAccountAuthController::class, 'loginPreview'])
+        ->name('storefront.preview.account.login.store');
+    Route::get('/account/otp', [StorefrontAccountAuthController::class, 'showOtpPreview'])
+        ->middleware('throttle:10,1')
+        ->name('storefront.preview.account.otp');
+    Route::post('/account/otp', [StorefrontAccountAuthController::class, 'sendOtpPreview'])
+        ->middleware('throttle:5,1')
+        ->name('storefront.preview.account.otp.send');
+    Route::get('/account/otp/verify', [StorefrontAccountAuthController::class, 'showOtpVerifyPreview'])
+        ->middleware('throttle:10,1')
+        ->name('storefront.preview.account.otp.verify');
+    Route::post('/account/otp/verify', [StorefrontAccountAuthController::class, 'verifyOtpPreview'])
+        ->middleware('throttle:10,1')
+        ->name('storefront.preview.account.otp.verify.store');
+    Route::get('/account/register', [StorefrontAccountAuthController::class, 'showRegisterPreview'])
+        ->name('storefront.preview.account.register');
+    Route::post('/account/register', [StorefrontAccountAuthController::class, 'registerPreview'])
+        ->name('storefront.preview.account.register.store');
+    Route::get('/account/forgot-password', [StorefrontAccountAuthController::class, 'showForgotPasswordPreview'])
+        ->name('storefront.preview.account.forgot-password');
+    Route::post('/account/forgot-password', [StorefrontAccountAuthController::class, 'forgotPasswordPreview'])
+        ->name('storefront.preview.account.forgot-password.store');
+    Route::get('/account/reset-password', [StorefrontAccountAuthController::class, 'showResetPasswordPreview'])
+        ->name('storefront.preview.account.reset-password');
+    Route::post('/account/reset-password', [StorefrontAccountAuthController::class, 'resetPasswordPreview'])
+        ->name('storefront.preview.account.reset-password.store');
+    Route::post('/account/logout', [StorefrontAccountAuthController::class, 'logoutPreview'])
+        ->name('storefront.preview.account.logout');
+    Route::get('/account/profile', [StorefrontAccountProfileController::class, 'showPreview'])
+        ->name('storefront.preview.account.profile');
+    Route::patch('/account/profile', [StorefrontAccountProfileController::class, 'updatePreview'])
+        ->name('storefront.preview.account.profile.update');
+    Route::put('/account/password', [StorefrontAccountProfileController::class, 'updatePasswordPreview'])
+        ->name('storefront.preview.account.password.update');
 
     Route::get('/reseller', [ResellerController::class, 'showPreview'])
         ->name('storefront.preview.reseller.show');
@@ -160,6 +213,16 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::get('/checkout/success/{order}', [StorefrontCheckoutController::class, 'success'])
         ->name('storefront.checkout.success');
 
+    Route::get('/checkout/payment/{payment}/return', [StorefrontCheckoutController::class, 'paymentReturn'])
+        ->name('storefront.checkout.payment-return');
+
+    Route::get('/complaints', [StorefrontComplaintController::class, 'show'])
+        ->name('storefront.complaints.show');
+
+    Route::post('/complaints', [StorefrontComplaintController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('storefront.complaints.store');
+
     Route::get('/track', [StorefrontOrderTrackController::class, 'index'])
         ->name('storefront.track.index');
 
@@ -177,6 +240,12 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
             ->name('storefront.account.login');
         Route::post('/account/login', [StorefrontAccountAuthController::class, 'login'])
             ->name('storefront.account.login.store');
+        Route::get('/account/otp', [StorefrontAccountAuthController::class, 'showOtp'])
+            ->name('storefront.account.otp');
+        Route::get('/account/otp/verify', [StorefrontAccountAuthController::class, 'showOtpVerify'])
+            ->name('storefront.account.otp.verify');
+        Route::post('/account/otp/verify', [StorefrontAccountAuthController::class, 'verifyOtp'])
+            ->name('storefront.account.otp.verify.store');
         Route::get('/account/register', [StorefrontAccountAuthController::class, 'showRegister'])
             ->name('storefront.account.register');
         Route::post('/account/register', [StorefrontAccountAuthController::class, 'register'])
@@ -192,10 +261,17 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
             ->name('storefront.account.forgot-password');
         Route::post('/account/forgot-password', [StorefrontAccountAuthController::class, 'forgotPassword'])
             ->name('storefront.account.forgot-password.store');
+        Route::post('/account/otp', [StorefrontAccountAuthController::class, 'sendOtp'])
+            ->name('storefront.account.otp.send');
     });
 
     Route::post('/account/logout', [StorefrontAccountAuthController::class, 'logout'])
         ->name('storefront.account.logout');
+
+    Route::get('/account', [StorefrontAccountController::class, 'index'])
+        ->name('storefront.account.index');
+    Route::get('/account/activity', [StorefrontAccountController::class, 'activity'])
+        ->name('storefront.account.activity');
 
     Route::get('/account/profile', [StorefrontAccountProfileController::class, 'show'])
         ->name('storefront.account.profile');

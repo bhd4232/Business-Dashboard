@@ -379,12 +379,12 @@ class StorefrontFoundationTest extends TestCase
             'status' => 'draft',
             'source' => Order::SOURCE_STOREFRONT,
             'subtotal' => 1900,
-            'total_amount' => 1900,
-            'due_amount' => 1900,
+            'total_amount' => 1970,
+            'due_amount' => 1970,
         ]);
         $summary = app(ReportService::class)->dashboardSummary();
         $this->assertSame(1, $summary['storefront_pending_orders']);
-        $this->assertSame(1900.0, (float) $summary['storefront_pending_amount']);
+        $this->assertSame(1970.0, (float) $summary['storefront_pending_amount']);
         $this->assertSame(0.0, (float) $summary['sales_today']);
 
         $this->assertDatabaseHas('order_items', [
@@ -479,7 +479,7 @@ class StorefrontFoundationTest extends TestCase
             'company_id' => $company->getKey(),
             'customer_name' => 'Preview Buyer',
             'source' => Order::SOURCE_STOREFRONT,
-            'total_amount' => 900,
+            'total_amount' => 970,
         ]);
     }
 
@@ -917,6 +917,7 @@ class StorefrontFoundationTest extends TestCase
             'whatsapp_number' => '+8801700000000',
             'meta_title' => $name,
             'is_published' => true,
+            'new_customer_delivery_advance_enabled' => false,
         ]);
 
         return $company;

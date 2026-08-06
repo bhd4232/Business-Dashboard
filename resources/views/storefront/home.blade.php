@@ -37,21 +37,25 @@
                 slides: {{ $slides->count() }},
                 active: 0,
                 timer: null,
+                paused: false,
+                reduced: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
                 start() {
-                    if (this.slides < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+                    if (this.slides < 2 || this.reduced || this.paused) { return; }
+                    this.stop();
                     this.timer = setInterval(() => { this.active = (this.active + 1) % this.slides; }, 5000);
+                },
+                stop() {
+                    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+                },
+                toggle() {
+                    this.paused = ! this.paused;
+                    this.paused ? this.stop() : this.start();
                 },
                 go(index) { this.active = (index + this.slides) % this.slides; }
             }"
             x-init="start()"
         >
-            @php
-                // Slides with a dedicated portrait mobile image get a taller
-                // mobile stage so the image shows uncropped, WhatsApp-status
-                // style; slides without one keep the wide crop.
-                $mobileTall = $slides->contains(fn ($slide) => filled($slide->image_mobile));
-            @endphp
-            <div class="relative w-full {{ $mobileTall ? 'aspect-[3/4]' : 'aspect-[16/9]' }} sm:aspect-[21/9]">
+            <div class="grid w-full place-items-center bg-gray-100 dark:bg-gray-950">
                 @foreach ($slides as $index => $slide)
                     <div
                         x-show="active === {{ $index }}"
@@ -59,19 +63,19 @@
                         x-transition:enter-start="opacity-0"
                         x-transition:enter-end="opacity-100"
                         x-cloak
-                        class="absolute inset-0"
+                        class="relative col-start-1 row-start-1 w-full"
                     >
                         @php
                             $slideHref = $slideLink($slide);
-                            $slideTag = $slideHref ? 'a' : 'div';
+                            $slideTag = $slideHref && ! $slide->cta_label ? 'a' : 'div';
                         @endphp
-                        <{{ $slideTag }} @if ($slideHref) href="{{ $slideHref }}" @endif class="absolute inset-0 block">
-                            <picture>
+                        <{{ $slideTag }} @if ($slideHref) href="{{ $slideHref }}" @endif class="block w-full">
+                            <picture class="flex w-full justify-center">
                                 @if ($slide->image_mobile)
                                     <source media="(max-width: 639px)" srcset="{{ \App\Support\CompanyMedia::publicUrl($slide->image_mobile, $company) }}">
                                 @endif
                                 <img
-                                    class="h-full w-full object-cover"
+                                    class="block h-auto max-h-[58svh] w-auto max-w-full object-contain sm:max-h-none sm:w-full"
                                     src="{{ \App\Support\CompanyMedia::publicUrl($slide->image, $company) }}"
                                     alt="{{ $slide->heading ?: $company->name }}"
                                     width="1920"
@@ -91,7 +95,7 @@
                                             <p class="mt-2 text-sm text-white/90 sm:text-base">{{ $slide->subheading }}</p>
                                         @endif
                                         @if ($slide->cta_label)
-                                            <a class="mt-5 inline-flex items-center rounded-lg bg-white px-5 py-2.5 text-sm font-medium text-gray-950 transition hover:bg-white/90" href="{{ $slide->cta_url ?: (isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index')) }}">
+                                            <a class="mt-5 inline-flex min-h-11 items-center rounded-lg bg-white px-5 text-sm font-medium text-gray-950 transition hover:bg-white/90" href="{{ $slideHref ?: (isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index')) }}">
                                                 {{ $slide->cta_label }}
                                             </a>
                                         @endif
@@ -105,27 +109,41 @@
 
             @if ($slides->count() > 1)
                 <div class="absolute inset-x-0 bottom-1 flex justify-center sm:bottom-2">
-                    @foreach ($slides as $index => $slide)
+                    <div class="flex items-center rounded-full bg-black/25 p-1 backdrop-blur-sm">
+                        @foreach ($slides as $index => $slide)
+                            <button
+                                type="button"
+                                @click="go({{ $index }})"
+                                class="grid h-11 w-11 place-items-center rounded-full"
+                                aria-label="Go to slide {{ $index + 1 }}"
+                                :aria-pressed="(active === {{ $index }}).toString()"
+                            >
+                                <span
+                                    :class="active === {{ $index }} ? 'w-6 bg-white' : 'w-2 bg-white/50'"
+                                    class="h-2 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none"
+                                    aria-hidden="true"
+                                ></span>
+                            </button>
+                        @endforeach
                         <button
                             type="button"
-                            @click="go({{ $index }})"
-                            class="grid h-11 w-11 place-items-center rounded-full"
-                            aria-label="Go to slide {{ $index + 1 }}"
-                            :aria-pressed="(active === {{ $index }}).toString()"
+                            x-show="! reduced"
+                            x-cloak
+                            @click="toggle()"
+                            class="grid h-11 w-11 place-items-center rounded-full text-white transition hover:bg-white/15"
+                            :aria-label="paused ? 'Play slides' : 'Pause slides'"
+                            :aria-pressed="paused.toString()"
                         >
-                            <span
-                                :class="active === {{ $index }} ? 'w-6 bg-white' : 'w-2 bg-white/50'"
-                                class="h-2 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none"
-                                aria-hidden="true"
-                            ></span>
+                            <svg x-show="! paused" class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M6.75 5.25a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z"/></svg>
+                            <svg x-show="paused" x-cloak class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M8.25 5.35v13.3c0 .92 1.02 1.47 1.79.97l10.23-6.65a1.15 1.15 0 0 0 0-1.94L10.04 4.38a1.15 1.15 0 0 0-1.79.97Z"/></svg>
                         </button>
-                    @endforeach
+                    </div>
                 </div>
             @endif
         </section>
     @else
         <section class="border-b border-gray-200 dark:border-white/10">
-            <div class="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8 lg:py-20">
+            <div class="mx-auto grid w-full max-w-7xl gap-7 px-4 py-10 sm:px-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-6 lg:py-12">
                 <div>
                     <p class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">
                         <span class="h-1.5 w-1.5 rounded-full bg-[var(--storefront-brand)]"></span>
@@ -134,10 +152,10 @@
                     <h1 class="mt-4 max-w-xl text-balance text-4xl font-semibold tracking-tight text-gray-950 sm:text-5xl lg:text-6xl dark:text-white">
                         {{ $heroHeading }}
                     </h1>
-                    <p class="mt-5 max-w-lg text-lg leading-8 text-gray-600 dark:text-gray-300">
+                    <p class="storefront-page-copy mt-3">
                         {{ $heroSubheading }}
                     </p>
-                    <div class="mt-8 flex flex-wrap gap-3">
+                    <div class="mt-5 flex flex-wrap gap-3">
                         <a class="inline-flex items-center rounded-lg bg-[var(--storefront-brand)] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">
                             {{ $heroCta }}
                         </a>
@@ -149,7 +167,7 @@
                     </div>
                 </div>
 
-                <div class="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5">
+                <div class="overflow-hidden rounded-lg border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-gray-900">
                     @if ($heroProduct?->image)
                         <img class="aspect-[4/3] w-full object-cover" src="{{ \App\Support\CompanyMedia::publicUrl($heroProduct->image, $company) }}" alt="{{ $heroProduct->name }}" width="1200" height="900" fetchpriority="high">
                     @else
@@ -164,19 +182,23 @@
 
     @if ($categories->isNotEmpty())
         <section id="collections" class="border-b border-gray-200 dark:border-white/10" x-reveal>
-            <div class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+            <div class="mx-auto w-full max-w-7xl px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
                 <div class="mb-4 flex items-end justify-between gap-5">
                     <h2 class="text-base font-semibold tracking-tight sm:text-xl">Top categories</h2>
-                    <a class="text-xs font-medium text-gray-500 hover:text-gray-950 sm:text-sm dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">See all</a>
+                    <a class="inline-flex min-h-11 items-center text-xs font-medium text-gray-500 hover:text-gray-950 sm:text-sm dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">See all</a>
                 </div>
-                <div class="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:gap-6 sm:px-0 lg:justify-between">
+                <div class="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 pt-2 sm:mx-0 sm:gap-6 sm:px-0 lg:justify-between">
                     @foreach ($categories as $category)
                         <a class="group flex w-20 shrink-0 snap-start flex-col items-center gap-2 sm:w-24" href="{{ isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $category->slug]) : route('storefront.categories.show', $category->slug) }}">
                             <div class="h-16 w-16 overflow-hidden rounded-full border border-gray-200 bg-gray-100 ring-[var(--storefront-brand)] transition group-hover:ring-2 sm:h-20 sm:w-20 dark:border-white/10 dark:bg-white/10">
                                 @if ($category->image)
                                     <img class="h-full w-full object-cover transition duration-300 group-hover:scale-105" src="{{ \App\Support\CompanyMedia::publicUrl($category->image, $company) }}" alt="{{ $category->name }}" width="160" height="160" loading="lazy" decoding="async">
+                                @elseif ($category->icon)
+                                    <div class="grid h-full w-full place-items-center text-[var(--storefront-brand)] transition group-hover:scale-105">
+                                        @include('storefront.partials.category-icon', ['icon' => $category->icon, 'iconClass' => 'h-7 w-7 sm:h-8 sm:w-8'])
+                                    </div>
                                 @else
-                                    <div class="grid h-full w-full place-items-center text-xl font-semibold text-gray-700 transition group-hover:text-[var(--storefront-brand)] dark:text-gray-200">
+                                    <div class="grid h-full w-full place-items-center text-xl font-semibold text-gray-700 transition group-hover:text-[var(--storefront-brand)] dark:text-gray-200" data-category-initial="{{ mb_substr($category->name, 0, 1) }}">
                                         {{ mb_substr($category->name, 0, 1) }}
                                     </div>
                                 @endif
@@ -191,7 +213,7 @@
 
     @if ($setting->hasActiveOffer())
         <section
-            class="border-b border-gray-200 bg-gray-950 text-white dark:border-white/10"
+            class="border-b border-gray-200 bg-[var(--storefront-secondary)] text-[var(--storefront-secondary-contrast)] dark:border-white/10"
             x-data="{
                 endsAt: new Date('{{ $setting->offer_ends_at->toIso8601String() }}').getTime(),
                 remaining: { d: 0, h: 0, m: 0, s: 0 },
@@ -207,11 +229,11 @@
             }"
             x-init="tick(); setInterval(() => tick(), 1000)"
         >
-            <div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-center gap-3 px-4 py-3 text-sm sm:justify-between sm:px-6 lg:px-8">
+            <div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-center gap-3 px-4 py-2.5 text-sm sm:justify-between sm:px-5 lg:px-6">
                 <div class="font-semibold">
                     {{ $setting->offer_title }}
                     @if ($setting->offer_discount_percent)
-                        <span class="text-[var(--storefront-brand)]">— up to {{ $setting->offer_discount_percent }}% off</span>
+                        <span class="text-[var(--storefront-accent)]">— up to {{ $setting->offer_discount_percent }}% off</span>
                     @endif
                 </div>
                 <div class="flex items-center gap-1.5 font-mono text-xs" aria-label="Offer ends in">
@@ -253,9 +275,9 @@
             ])->filter(fn (array $item) => filled($item['text']));
         @endphp
         <section class="border-b border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/[0.02]">
-            <div class="mx-auto grid w-full max-w-7xl grid-cols-3 gap-3 px-4 py-6 sm:gap-4 sm:px-6 sm:py-8 lg:px-8">
+            <div class="mx-auto grid w-full max-w-7xl grid-cols-3 gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5 lg:px-6">
                 @foreach ($trustItems as $item)
-                    <div class="flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white px-3 py-5 text-center shadow-sm sm:flex-row sm:gap-4 sm:px-5 sm:text-left dark:border-white/10 dark:bg-white/5">
+                    <div class="flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-4 text-center sm:flex-row sm:gap-4 sm:px-5 sm:text-left dark:border-white/10 dark:bg-gray-900">
                         <div class="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br {{ $item['gradient'] }} shadow-lg {{ $item['glow'] }} sm:h-14 sm:w-14">
                             <span class="pointer-events-none absolute inset-x-1.5 top-1 h-1/3 rounded-full bg-white/40 blur-[3px]"></span>
                             <svg class="relative h-6 w-6 text-white drop-shadow sm:h-7 sm:w-7" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -269,13 +291,13 @@
         </section>
     @endif
 
-    <section class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8" x-reveal>
-        <div class="mb-8 flex items-end justify-between gap-5">
+    <section class="mx-auto w-full max-w-7xl px-4 py-7 sm:px-5 sm:py-8 lg:px-6" x-reveal>
+        <div class="mb-5 flex items-end justify-between gap-5">
             <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Featured products</h2>
-            <a class="text-sm font-medium text-gray-500 hover:text-gray-950 dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">View all</a>
+            <a class="inline-flex min-h-11 items-center text-sm font-medium text-gray-500 hover:text-gray-950 dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">View all</a>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+        <div class="storefront-catalog-grid grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
             @forelse ($products->take(8) as $product)
                 @include('storefront.partials.product-card', ['product' => $product])
             @empty
@@ -287,15 +309,15 @@
     </section>
 
     @foreach ($carousels ?? [] as $carousel)
-        <section class="mx-auto w-full max-w-7xl px-4 pb-14 sm:px-6 lg:px-8" x-reveal>
-            <div class="mb-8 flex items-end justify-between gap-5">
+        <section class="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-5 lg:px-6" x-reveal>
+            <div class="mb-5 flex items-end justify-between gap-5">
                 <div>
                     <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">{{ $carousel->title }}</h2>
                     @if ($carousel->subtitle)
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $carousel->subtitle }}</p>
                     @endif
                 </div>
-                <a class="hidden text-sm font-medium text-gray-500 hover:text-gray-950 sm:inline dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">View all</a>
+                <a class="hidden min-h-11 items-center text-sm font-medium text-gray-500 hover:text-gray-950 sm:inline-flex dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">View all</a>
             </div>
             <div class="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
                 <div class="flex snap-x snap-mandatory gap-5">
@@ -310,12 +332,12 @@
     @endforeach
 
     @if ($products->count() > 8)
-        <section class="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:px-8" x-reveal>
+        <section class="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-5 lg:px-6" x-reveal>
             <div class="mb-6 flex items-end justify-between gap-5">
                 <h2 class="text-xl font-semibold tracking-tight sm:text-3xl">Explore more products</h2>
-                <a class="text-sm font-medium text-gray-500 hover:text-gray-950 dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">View all</a>
+                <a class="inline-flex min-h-11 items-center text-sm font-medium text-gray-500 hover:text-gray-950 dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">View all</a>
             </div>
-            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-5">
+            <div class="storefront-catalog-grid grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-5">
                 @foreach ($products->skip(8) as $product)
                     @include('storefront.partials.product-card', ['product' => $product])
                 @endforeach
@@ -324,12 +346,12 @@
     @endif
 
     <section class="border-t border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/[0.02]">
-        <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-            <h2 class="mb-6 text-center text-xl font-semibold tracking-tight sm:mb-8 sm:text-2xl">How to order</h2>
+        <div class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-5 sm:py-9 lg:px-6">
+            <h2 class="mb-5 text-center text-xl font-semibold tracking-tight sm:text-2xl">How to order</h2>
             <style>
                 /* Each step "activates" in turn on an 8s loop (2s per step).
                    All animations start paused; .steps-live (added on scroll into view) runs them. */
-                .order-steps .step-card { animation: stepActive 8s ease-in-out infinite paused; }
+                .order-steps .step-card { animation: stepActive 8s ease-in-out 1 paused; }
                 .order-steps .step-card:nth-child(1), .order-steps .step-card:nth-child(1) .step-badge, .order-steps .step-card:nth-child(1) .step-halo { animation-delay: 0s; }
                 .order-steps .step-card:nth-child(2), .order-steps .step-card:nth-child(2) .step-badge, .order-steps .step-card:nth-child(2) .step-halo { animation-delay: 2s; }
                 .order-steps .step-card:nth-child(3), .order-steps .step-card:nth-child(3) .step-badge, .order-steps .step-card:nth-child(3) .step-halo { animation-delay: 4s; }
@@ -339,12 +361,12 @@
                     8%, 17% { transform: translateY(-6px) scale(1.03); box-shadow: 0 18px 30px -12px rgb(0 0 0 / 0.25); }
                 }
                 /* Badge pulse + halo ring, synced with the card. */
-                .order-steps .step-card .step-badge { animation: badgePulse 8s ease-in-out infinite paused; }
+                .order-steps .step-card .step-badge { animation: badgePulse 8s ease-in-out 1 paused; }
                 @keyframes badgePulse {
                     0%, 25%, 100% { transform: scale(1) rotate(0deg); }
                     8%, 17% { transform: scale(1.12) rotate(-4deg); }
                 }
-                .order-steps .step-card .step-halo { animation: haloPing 8s ease-out infinite paused; opacity: 0; }
+                .order-steps .step-card .step-halo { animation: haloPing 8s ease-out 1 paused; opacity: 0; }
                 @keyframes haloPing {
                     0%, 5% { transform: scale(.8); opacity: 0; }
                     9% { opacity: .55; }
@@ -352,14 +374,14 @@
                     100% { opacity: 0; }
                 }
                 /* Progress track between the badges (sm+): fill grows step to step, a glowing dot travels along it. */
-                .order-steps .step-track-fill { animation: trackFill 8s linear infinite paused; transform-origin: left; }
+                .order-steps .step-track-fill { animation: trackFill 8s linear 1 paused; transform-origin: left; }
                 @keyframes trackFill {
                     0% { transform: scaleX(0); }
                     82% { transform: scaleX(1); }
                     92% { transform: scaleX(1); opacity: 1; }
                     100% { transform: scaleX(1); opacity: 0; }
                 }
-                .order-steps .step-runner { animation: runnerMove 8s linear infinite paused; }
+                .order-steps .step-runner { animation: runnerMove 8s linear 1 paused; }
                 @keyframes runnerMove {
                     0% { left: 0%; opacity: 0; }
                     4% { opacity: 1; }
@@ -412,7 +434,7 @@
                             'm21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9',
                         ],
                     ] as [$stepTitle, $stepDescription, $stepGradient, $stepGlow, $stepHalo, $stepIcon])
-                        <div class="step-card relative flex flex-col items-center gap-3 rounded-2xl border border-gray-200/80 bg-white px-3 py-6 text-center shadow-sm will-change-transform dark:border-white/10 dark:bg-white/5">
+                        <div class="step-card relative flex flex-col items-center gap-3 rounded-lg border border-gray-200 bg-white px-3 py-5 text-center will-change-transform dark:border-gray-800 dark:bg-gray-900">
                             <div class="relative shrink-0">
                                 <span class="step-halo pointer-events-none absolute inset-0 rounded-2xl {{ $stepHalo }}"></span>
                                 <div class="step-badge relative grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br {{ $stepGradient }} shadow-lg {{ $stepGlow }} sm:h-16 sm:w-16">
@@ -446,7 +468,7 @@
     </section>
 
     <section class="bg-[var(--storefront-brand)]">
-        <div class="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 py-12 text-center sm:px-6 lg:px-8">
+        <div class="mx-auto flex w-full max-w-7xl flex-col items-center gap-3 px-4 py-8 text-center sm:px-5 lg:px-6">
             <h2 class="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Ready to order?</h2>
             <p class="max-w-md text-sm text-white/85">Browse the full catalog and get it delivered to your door.</p>
             <a class="inline-flex items-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-gray-950 transition hover:bg-white/90" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">

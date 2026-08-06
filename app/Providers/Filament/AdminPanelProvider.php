@@ -46,6 +46,9 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->profile(isSimple: false)
             ->spa()
+            ->sidebarCollapsibleOnDesktop()
+            ->sidebarWidth('18rem')
+            ->collapsedSidebarWidth('4.5rem')
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->databaseNotifications(isLazy: false)
             ->databaseNotificationsPolling('15s')
@@ -341,6 +344,10 @@ class AdminPanelProvider extends PanelProvider
                         })();
                     </script>
                 HTML),
+            )
+            ->renderHook(
+                PanelsRenderHook::SCRIPTS_AFTER,
+                fn (): HtmlString => new HtmlString(view('filament.partials.category-icon-search')->render()),
             )
             ->renderHook(
                 PanelsRenderHook::BODY_END,

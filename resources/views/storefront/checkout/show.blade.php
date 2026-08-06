@@ -2,8 +2,10 @@
 
 @section('content')
     @php
-        $insideCharge = (float) ($setting->delivery_charge_inside ?? 0);
-        $outsideCharge = (float) ($setting->delivery_charge_outside ?? 0);
+        $insideCharge = (float) $insideQuote['fee'];
+        $outsideCharge = (float) $outsideQuote['fee'];
+        $actualWeight = (float) $insideQuote['weight'];
+        $billedWeight = (int) $insideQuote['billed_weight'];
         $codEnabled = $setting->cod_enabled ?? true;
         $hasBkash = filled($setting->manual_bkash_number);
         $hasNagad = filled($setting->manual_nagad_number);
@@ -12,8 +14,6 @@
             $hasBkash ? 'manual_bkash' : null,
             $hasNagad ? 'manual_nagad' : null,
         ]));
-        $oldDeliveryArea = old('delivery_area', 'inside');
-        $defaultDeliveryArea = in_array($oldDeliveryArea, ['inside', 'outside'], true) ? $oldDeliveryArea : 'inside';
         $oldPaymentMethod = old('payment_method');
         $defaultPaymentMethod = in_array($oldPaymentMethod, $availablePaymentMethods, true)
             ? $oldPaymentMethod
@@ -31,27 +31,35 @@
     @endphp
 
     <section class="border-b border-gray-200 dark:border-white/10">
-        <div class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-5 lg:px-6">
             <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Delivery details</h1>
-            <p class="mt-3 max-w-2xl text-base text-gray-600 dark:text-gray-300">
+            <p class="storefront-page-copy mt-2">
                 Submit your storefront order. The ERP team will review and confirm it before stock is deducted.
             </p>
         </div>
     </section>
 
     <section
-        class="mx-auto grid w-full max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_360px] lg:px-8"
+        class="mx-auto grid w-full max-w-7xl gap-5 px-4 py-6 sm:px-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-6"
         x-data="{
-            area: {{ Illuminate\Support\Js::from($defaultDeliveryArea) }},
+            address: {{ Illuminate\Support\Js::from(old('address', $loggedInCustomer->address ?? '')) }},
+            insideDhakaKeywords: {{ Illuminate\Support\Js::from($insideDhakaKeywords) }},
+            outsideDhakaMarkers: {{ Illuminate\Support\Js::from($outsideDhakaMarkers) }},
             method: {{ Illuminate\Support\Js::from($defaultPaymentMethod) }},
             subtotal: {{ $subtotal }},
             insideCharge: {{ $insideCharge }},
             outsideCharge: {{ $outsideCharge }},
-            get deliveryCharge() { return this.area === 'inside' ? this.insideCharge : this.outsideCharge; },
+            get area() {
+                const normalized = this.address.trim().toLocaleLowerCase();
+                if (! normalized) return null;
+                if (this.outsideDhakaMarkers.some((marker) => normalized.includes(String(marker).toLocaleLowerCase()))) return 'outside';
+                return this.insideDhakaKeywords.some((keyword) => normalized.includes(String(keyword).toLocaleLowerCase())) ? 'inside' : 'outside';
+            },
+            get deliveryCharge() { return this.area === null ? 0 : (this.area === 'inside' ? this.insideCharge : this.outsideCharge); },
             get total() { return this.subtotal + this.deliveryCharge; }
         }"
     >
-        <form id="checkout-form" class="rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/5" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.checkout.store', $previewSlug) : route('storefront.checkout.store') }}" @if ($errors->any()) aria-describedby="checkout-errors" @endif>
+        <form id="checkout-form" class="rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.checkout.store', $previewSlug) : route('storefront.checkout.store') }}" @if ($errors->any()) aria-describedby="checkout-errors" @endif>
             @csrf
 
             @if ($errors->any())
@@ -68,48 +76,49 @@
             <div class="grid gap-5 sm:grid-cols-2">
                 <label class="block">
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Full name</span>
-                    <input id="checkout-name" class="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-950 outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" name="name" autocomplete="name" value="{{ old('name', $loggedInCustomer->name ?? '') }}" required @error('name') aria-invalid="true" aria-describedby="checkout-name-error" @enderror>
+                    <input id="checkout-name" class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-950 outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" name="name" autocomplete="name" value="{{ old('name', $loggedInCustomer->name ?? '') }}" required @error('name') aria-invalid="true" aria-describedby="checkout-name-error" @enderror>
                     @error('name') <span id="checkout-name-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
                 </label>
 
                 <label class="block">
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Phone number</span>
-                    <input id="checkout-phone" class="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-950 outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" type="tel" inputmode="tel" name="phone" autocomplete="tel" value="{{ old('phone', $loggedInCustomer->phone ?? '') }}" required @error('phone') aria-invalid="true" aria-describedby="checkout-phone-error" @enderror>
+                    <input id="checkout-phone" class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-950 outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" type="tel" inputmode="tel" name="phone" autocomplete="tel" value="{{ old('phone', $loggedInCustomer->phone ?? '') }}" required @error('phone') aria-invalid="true" aria-describedby="checkout-phone-error" @enderror>
                     @error('phone') <span id="checkout-phone-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
                 </label>
 
                 <label class="block sm:col-span-2">
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Email address <span class="text-gray-400">(optional)</span></span>
-                    <input id="checkout-email" class="mt-2 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-950 outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" type="email" name="email" autocomplete="email" spellcheck="false" value="{{ old('email', $loggedInCustomer->email ?? '') }}" @error('email') aria-invalid="true" aria-describedby="checkout-email-error" @enderror>
+                    <input id="checkout-email" class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-950 outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" type="email" name="email" autocomplete="email" spellcheck="false" value="{{ old('email', $loggedInCustomer->email ?? '') }}" @error('email') aria-invalid="true" aria-describedby="checkout-email-error" @enderror>
                     @error('email') <span id="checkout-email-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
                 </label>
 
                 <label class="block sm:col-span-2">
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Delivery address</span>
-                    <textarea id="checkout-address" class="mt-2 min-h-28 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-950 outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" name="address" autocomplete="street-address" required @error('address') aria-invalid="true" aria-describedby="checkout-address-error" @enderror>{{ old('address', $loggedInCustomer->address ?? '') }}</textarea>
+                    <textarea id="checkout-address" class="mt-2 min-h-28 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-950 outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" name="address" autocomplete="street-address" required x-model.debounce.300ms="address" @error('address') aria-invalid="true" aria-describedby="checkout-address-error" @enderror>{{ old('address', $loggedInCustomer->address ?? '') }}</textarea>
                     @error('address') <span id="checkout-address-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
+                    <span class="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400" aria-live="polite">
+                        <svg class="h-4 w-4 shrink-0 text-[var(--storefront-brand)]" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21s6-4.35 6-11a6 6 0 1 0-12 0c0 6.65 6 11 6 11Z"/><circle cx="12" cy="10" r="2"/></svg>
+                        <span x-show="area === null">Enter the full address to calculate delivery automatically.</span>
+                        <span x-show="area !== null" x-cloak>Detected delivery area: <strong x-text="area === 'inside' ? 'Inside Dhaka' : 'Outside Dhaka'"></strong></span>
+                    </span>
                 </label>
 
-                <fieldset id="checkout-delivery-area" class="block sm:col-span-2" @error('delivery_area') aria-invalid="true" aria-describedby="checkout-delivery-area-error" @enderror>
-                    <legend class="text-sm font-medium text-gray-700 dark:text-gray-200">Delivery area</legend>
-                    <div class="mt-2 grid grid-cols-2 gap-3">
-                        <label class="flex cursor-pointer items-center justify-between rounded-lg border px-4 py-3 text-sm transition" :class="area === 'inside' ? 'border-[var(--storefront-brand)] ring-1 ring-[var(--storefront-brand)]' : 'border-gray-300 dark:border-white/15'">
-                            <span>
-                                <span class="block font-medium text-gray-900 dark:text-white">Inside Dhaka</span>
-                                <span class="block text-xs text-gray-500 dark:text-gray-400">BDT {{ number_format($insideCharge, 2) }}</span>
-                            </span>
-                            <input id="delivery-area-inside" type="radio" name="delivery_area" value="inside" x-model="area" class="h-4 w-4" required @checked($defaultDeliveryArea === 'inside')>
-                        </label>
-                        <label class="flex cursor-pointer items-center justify-between rounded-lg border px-4 py-3 text-sm transition" :class="area === 'outside' ? 'border-[var(--storefront-brand)] ring-1 ring-[var(--storefront-brand)]' : 'border-gray-300 dark:border-white/15'">
-                            <span>
-                                <span class="block font-medium text-gray-900 dark:text-white">Outside Dhaka</span>
-                                <span class="block text-xs text-gray-500 dark:text-gray-400">BDT {{ number_format($outsideCharge, 2) }}</span>
-                            </span>
-                            <input id="delivery-area-outside" type="radio" name="delivery_area" value="outside" x-model="area" class="h-4 w-4" required @checked($defaultDeliveryArea === 'outside')>
-                        </label>
+                @if ($setting->new_customer_delivery_advance_enabled ?? true)
+                    <div class="rounded-xl border border-[var(--storefront-brand)]/30 bg-[var(--storefront-brand)]/5 p-4 sm:col-span-2" role="note">
+                        <div class="flex gap-3">
+                            <svg class="mt-0.5 h-5 w-5 shrink-0 text-[var(--storefront-brand)]" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+                            <div>
+                                <h2 class="text-sm font-semibold text-gray-950 dark:text-white">New customer delivery advance</h2>
+                                <p class="mt-1 whitespace-pre-line text-sm leading-6 text-gray-600 dark:text-gray-300">{{ $setting->customerAdvanceMessage() }}</p>
+                                @if ($onlinePaymentAvailable ?? false)
+                                    <p class="mt-2 text-xs font-medium text-[var(--storefront-brand)]">If this phone number is not in our customer list, the secure payment page will collect only the calculated delivery charge before the order is created.</p>
+                                @else
+                                    <p class="mt-2 text-xs font-medium text-red-600 dark:text-red-400">Online delivery-charge payment is temporarily unavailable. Existing customers can still use the payment methods below.</p>
+                                @endif
+                            </div>
+                        </div>
                     </div>
-                    @error('delivery_area') <span id="checkout-delivery-area-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
-                </fieldset>
+                @endif
 
                 <fieldset
                     id="checkout-payment-method"
@@ -163,12 +172,12 @@
                                 <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                     <label class="block">
                                         <span class="text-xs font-medium text-gray-600 dark:text-gray-300" x-text="method === 'manual_bkash' ? 'Your bKash number' : 'Your Nagad number'">Your sender number</span>
-                                        <input id="checkout-sender-number" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" type="tel" inputmode="tel" name="sender_number" autocomplete="tel" value="{{ old('sender_number') }}" x-bind:required="method === 'manual_bkash' || method === 'manual_nagad'" @error('sender_number') aria-invalid="true" aria-describedby="checkout-sender-number-error" @enderror>
+                                        <input id="checkout-sender-number" class="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" type="tel" inputmode="tel" name="sender_number" autocomplete="tel" value="{{ old('sender_number') }}" x-bind:required="method === 'manual_bkash' || method === 'manual_nagad'" @error('sender_number') aria-invalid="true" aria-describedby="checkout-sender-number-error" @enderror>
                                         @error('sender_number') <span id="checkout-sender-number-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
                                     </label>
                                     <label class="block">
                                         <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Transaction ID</span>
-                                        <input id="checkout-transaction-id" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" name="trx_id" autocomplete="off" spellcheck="false" value="{{ old('trx_id') }}" x-bind:required="method === 'manual_bkash' || method === 'manual_nagad'" @error('trx_id') aria-invalid="true" aria-describedby="checkout-transaction-id-error" @enderror>
+                                        <input id="checkout-transaction-id" class="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" name="trx_id" autocomplete="off" spellcheck="false" value="{{ old('trx_id') }}" x-bind:required="method === 'manual_bkash' || method === 'manual_nagad'" @error('trx_id') aria-invalid="true" aria-describedby="checkout-transaction-id-error" @enderror>
                                         @error('trx_id') <span id="checkout-transaction-id-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
                                     </label>
                                 </div>
@@ -196,7 +205,7 @@
             </div>
         </form>
 
-        <aside class="h-fit rounded-xl border border-gray-200 bg-white p-6 lg:sticky lg:top-24 dark:border-white/10 dark:bg-white/5">
+        <aside class="h-fit rounded-lg border border-gray-200 bg-white p-5 lg:sticky lg:top-28 dark:border-gray-800 dark:bg-gray-900">
             <h2 class="text-lg font-semibold">Order summary</h2>
             <div class="mt-5 space-y-3">
                 @foreach ($items as $item)
@@ -212,8 +221,12 @@
                     <span>BDT {{ number_format($subtotal, 2) }}</span>
                 </div>
                 <div class="flex justify-between text-gray-600 dark:text-gray-300">
+                    <span>Parcel weight</span>
+                    <span>{{ number_format($actualWeight, 3) }} kg (charged as {{ $billedWeight }} kg)</span>
+                </div>
+                <div class="flex justify-between text-gray-600 dark:text-gray-300">
                     <span>Delivery charge</span>
-                    <span x-text="'BDT ' + deliveryCharge.toFixed(2)" aria-live="polite"></span>
+                    <span x-text="area === null ? 'Enter address' : 'BDT ' + deliveryCharge.toFixed(2)" aria-live="polite"></span>
                 </div>
                 <div class="flex justify-between border-t border-gray-200 pt-2 text-lg font-semibold text-gray-950 dark:border-white/10 dark:text-white">
                     <span>Total</span>
@@ -238,6 +251,13 @@
                 </div>
             @endif
 
+            @if ($setting->new_customer_delivery_advance_enabled ?? true)
+                <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs leading-5 text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+                    <span class="font-semibold text-gray-900 dark:text-white">Weight-based rate:</span>
+                    first 1 kg BDT {{ number_format((float) $insideQuote['first_kg'], 2) }} inside Dhaka / BDT {{ number_format((float) $outsideQuote['first_kg'], 2) }} outside Dhaka, then BDT {{ number_format((float) $insideQuote['additional_rate'], 2) }} per additional started kg.
+                </div>
+            @endif
+
             <button
                 class="mt-6 w-full rounded-lg bg-[var(--storefront-brand)] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 type="submit"
@@ -246,7 +266,7 @@
                 @disabled($checkoutBlocked)
                 @if ($checkoutBlocked) aria-disabled="true" aria-describedby="{{ $checkoutBlockDescription }}" @endif
             >
-                Place order
+                Place order / pay delivery charge
             </button>
         </aside>
     </section>
@@ -269,7 +289,7 @@
                 dirty = false;
                 if (submitButton) {
                     submitButton.disabled = true;
-                    submitButton.textContent = 'Placing order…';
+                    submitButton.textContent = 'Processing…';
                 }
             });
 

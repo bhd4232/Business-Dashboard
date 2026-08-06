@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\StorefrontCustomerActivity;
 use App\Services\CompanyContext;
 use App\Services\CustomerAccountService;
+use App\Services\StorefrontCustomerActivityService;
 use App\Services\StorefrontNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +21,99 @@ class AccountAuthController extends Controller
         protected CompanyContext $context,
         protected CustomerAccountService $accounts,
         protected StorefrontNotificationService $notifications,
+        protected StorefrontCustomerActivityService $activities,
     ) {}
+
+    public function showLoginPreview(Request $request, Company $company): View|RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->showLogin($request);
+    }
+
+    public function loginPreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->login($request);
+    }
+
+    public function showOtpPreview(Request $request, Company $company): View|RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->showOtp($request);
+    }
+
+    public function sendOtpPreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->sendOtp($request);
+    }
+
+    public function showOtpVerifyPreview(Request $request, Company $company): View|RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->showOtpVerify($request);
+    }
+
+    public function verifyOtpPreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->verifyOtp($request);
+    }
+
+    public function showRegisterPreview(Request $request, Company $company): View|RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->showRegister($request);
+    }
+
+    public function registerPreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->register($request);
+    }
+
+    public function showForgotPasswordPreview(Request $request, Company $company): View
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->showForgotPassword($request);
+    }
+
+    public function forgotPasswordPreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->forgotPassword($request);
+    }
+
+    public function showResetPasswordPreview(Request $request, Company $company): View
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->showResetPassword($request);
+    }
+
+    public function resetPasswordPreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->resetPassword($request);
+    }
+
+    public function logoutPreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->logout($request);
+    }
 
     public function showLogin(Request $request): View|RedirectResponse
     {
@@ -27,13 +121,14 @@ class AccountAuthController extends Controller
         abort_if(! $setting->customer_accounts_enabled, 404);
 
         if (Auth::guard('customer')->check()) {
-            return redirect()->route('storefront.account.profile');
+            return redirect()->to($this->accountRoute($request, 'profile'));
         }
 
         return view('storefront.account.login', [
             'company' => $company,
             'setting' => $setting,
             'activeTab' => 'login',
+            'previewSlug' => $this->previewSlug($request),
         ]);
     }
 
@@ -58,7 +153,124 @@ class AccountAuthController extends Controller
         Auth::guard('customer')->login($customer, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        return redirect()->route('storefront.account.profile')->with('storefront_status', "Welcome back, {$customer->name}.");
+        $this->activities->record(
+            $customer,
+            StorefrontCustomerActivity::TYPE_LOGIN,
+            'Signed in to your account',
+            'A successful sign-in was recorded.',
+        );
+
+        return redirect()->to($this->accountRoute($request, 'profile'))->with('storefront_status', "Welcome back, {$customer->name}.");
+    }
+
+    public function showOtp(Request $request): View|RedirectResponse
+    {
+        [$company, $setting] = $this->domainStorefront($request);
+        abort_if(! $setting->customer_accounts_enabled, 404);
+
+        if (Auth::guard('customer')->check()) {
+            return redirect()->to($this->accountRoute($request, 'profile'));
+        }
+
+        return view('storefront.account.otp-request', [
+            'company' => $company,
+            'setting' => $setting,
+            'smsAvailable' => $this->notifications->smsConfigured($setting),
+            'previewSlug' => $this->previewSlug($request),
+        ]);
+    }
+
+    public function sendOtp(Request $request): RedirectResponse
+    {
+        [$company, $setting] = $this->domainStorefront($request);
+        abort_if(! $setting->customer_accounts_enabled, 404);
+
+        $data = $request->validate([
+            'identifier' => ['required', 'string', 'max:255'],
+            'remember' => ['nullable', 'boolean'],
+        ]);
+        $identifier = trim($data['identifier']);
+        $isEmail = str_contains($identifier, '@');
+
+        if ($isEmail && ! filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            throw ValidationException::withMessages(['identifier' => 'Enter a valid email address.']);
+        }
+
+        if (! $isEmail && strlen(preg_replace('/\D+/', '', $identifier) ?: '') < 10) {
+            throw ValidationException::withMessages(['identifier' => 'Enter a valid phone number.']);
+        }
+
+        if (! $isEmail && ! $this->notifications->smsConfigured($setting)) {
+            throw ValidationException::withMessages([
+                'identifier' => 'Phone OTP is not available right now. Use your email address or password to log in.',
+            ]);
+        }
+
+        $customer = $this->accounts->findRegisteredByIdentifier($identifier);
+
+        if ($customer) {
+            $this->accounts->sendLoginOtp($company, $setting, $customer, $identifier);
+        }
+
+        $request->session()->put($this->otpSessionKey($company), $identifier);
+        $request->session()->put($this->otpRememberSessionKey($company), $request->boolean('remember'));
+
+        return redirect()
+            ->to($this->accountRoute($request, 'otp.verify'))
+            ->with('storefront_status', 'If a matching account exists, a 6-digit login code has been sent.');
+    }
+
+    public function showOtpVerify(Request $request): View|RedirectResponse
+    {
+        [$company, $setting] = $this->domainStorefront($request);
+        abort_if(! $setting->customer_accounts_enabled, 404);
+
+        $identifier = $request->session()->get($this->otpSessionKey($company));
+
+        if (! is_string($identifier) || $identifier === '') {
+            return redirect()->to($this->accountRoute($request, 'otp'))
+                ->with('storefront_status', 'Enter your phone number or email to request a login code.');
+        }
+
+        return view('storefront.account.otp-verify', [
+            'company' => $company,
+            'setting' => $setting,
+            'maskedIdentifier' => $this->maskIdentifier($identifier),
+            'previewSlug' => $this->previewSlug($request),
+        ]);
+    }
+
+    public function verifyOtp(Request $request): RedirectResponse
+    {
+        [$company, $setting] = $this->domainStorefront($request);
+        abort_if(! $setting->customer_accounts_enabled, 404);
+
+        $data = $request->validate([
+            'code' => ['required', 'digits:6'],
+        ]);
+        $identifier = $request->session()->get($this->otpSessionKey($company));
+        $customer = is_string($identifier) ? $this->accounts->findRegisteredByIdentifier($identifier) : null;
+
+        if (! $customer || ! $this->accounts->verifyLoginOtp($customer, $data['code'])) {
+            throw ValidationException::withMessages([
+                'code' => 'That code is invalid or has expired. Request a new code and try again.',
+            ]);
+        }
+
+        $remember = (bool) $request->session()->pull($this->otpRememberSessionKey($company), false);
+        $request->session()->forget($this->otpSessionKey($company));
+        Auth::guard('customer')->login($customer, $remember);
+        $request->session()->regenerate();
+
+        $this->activities->record(
+            $customer,
+            StorefrontCustomerActivity::TYPE_LOGIN,
+            'Signed in with OTP',
+            'A successful one-time-code sign-in was recorded.',
+            ['channel' => str_contains((string) $identifier, '@') ? 'email' : 'sms'],
+        );
+
+        return redirect()->to($this->accountRoute($request, 'profile'))->with('storefront_status', "Welcome back, {$customer->name}.");
     }
 
     public function showRegister(Request $request): View|RedirectResponse
@@ -67,13 +279,14 @@ class AccountAuthController extends Controller
         abort_if(! $setting->customer_accounts_enabled, 404);
 
         if (Auth::guard('customer')->check()) {
-            return redirect()->route('storefront.account.profile');
+            return redirect()->to($this->accountRoute($request, 'profile'));
         }
 
         return view('storefront.account.login', [
             'company' => $company,
             'setting' => $setting,
             'activeTab' => 'register',
+            'previewSlug' => $this->previewSlug($request),
         ]);
     }
 
@@ -95,7 +308,14 @@ class AccountAuthController extends Controller
         Auth::guard('customer')->login($customer);
         $request->session()->regenerate();
 
-        return redirect()->route('storefront.account.profile')->with('storefront_status', "Welcome, {$customer->name}! Your account has been created.");
+        $this->activities->record(
+            $customer,
+            StorefrontCustomerActivity::TYPE_ACCOUNT_CREATED,
+            'Account created',
+            "Your {$customer->company->name} customer account is ready.",
+        );
+
+        return redirect()->to($this->accountRoute($request, 'profile'))->with('storefront_status', "Welcome, {$customer->name}! Your account has been created.");
     }
 
     public function logout(Request $request): RedirectResponse
@@ -106,7 +326,11 @@ class AccountAuthController extends Controller
         // would also wipe the guest's cart, which is stored in session.
         $request->session()->regenerateToken();
 
-        return redirect()->route('marketing.home')->with('storefront_status', 'You have been logged out.');
+        $homeUrl = $this->previewSlug($request)
+            ? route('storefront.preview.show', $this->previewSlug($request))
+            : route('marketing.home');
+
+        return redirect()->to($homeUrl)->with('storefront_status', 'You have been logged out.');
     }
 
     public function showForgotPassword(Request $request): View
@@ -118,6 +342,7 @@ class AccountAuthController extends Controller
             'company' => $company,
             'setting' => $setting,
             'smsAvailable' => $this->notifications->smsConfigured($setting),
+            'previewSlug' => $this->previewSlug($request),
         ]);
     }
 
@@ -143,7 +368,7 @@ class AccountAuthController extends Controller
         // Same message whether or not a match was found, so a phone number
         // can't be used to probe which numbers have accounts.
         return redirect()
-            ->route('storefront.account.reset-password', ['phone' => $data['phone']])
+            ->to($this->accountRoute($request, 'reset-password', ['phone' => $data['phone']]))
             ->with('storefront_status', 'If an account exists for that phone number, a reset code has been sent by SMS.');
     }
 
@@ -156,6 +381,7 @@ class AccountAuthController extends Controller
             'company' => $company,
             'setting' => $setting,
             'phone' => (string) $request->query('phone', ''),
+            'previewSlug' => $this->previewSlug($request),
         ]);
     }
 
@@ -182,7 +408,59 @@ class AccountAuthController extends Controller
         Auth::guard('customer')->login($customer);
         $request->session()->regenerate();
 
-        return redirect()->route('storefront.account.profile')->with('storefront_status', 'Your password has been reset.');
+        $this->activities->record(
+            $customer,
+            StorefrontCustomerActivity::TYPE_PASSWORD_RESET,
+            'Password reset',
+            'Your account password was reset successfully.',
+        );
+
+        return redirect()->to($this->accountRoute($request, 'profile'))->with('storefront_status', 'Your password has been reset.');
+    }
+
+    protected function preparePreview(Request $request, Company $company): void
+    {
+        abort_unless($company->storefrontSetting?->is_published, 404);
+
+        $request->attributes->set('storefront_company', $company);
+        $request->attributes->set('storefront_preview_slug', $company->slug);
+    }
+
+    protected function previewSlug(Request $request): ?string
+    {
+        return $request->attributes->get('storefront_preview_slug');
+    }
+
+    protected function accountRoute(Request $request, string $name, array $parameters = []): string
+    {
+        if ($previewSlug = $this->previewSlug($request)) {
+            return route('storefront.preview.account.'.$name, ['company' => $previewSlug, ...$parameters]);
+        }
+
+        return route('storefront.account.'.$name, $parameters);
+    }
+
+    protected function otpSessionKey(Company $company): string
+    {
+        return 'storefront_login_otp_identifier_'.$company->getKey();
+    }
+
+    protected function otpRememberSessionKey(Company $company): string
+    {
+        return 'storefront_login_otp_remember_'.$company->getKey();
+    }
+
+    protected function maskIdentifier(string $identifier): string
+    {
+        if (str_contains($identifier, '@')) {
+            [$local, $domain] = explode('@', $identifier, 2);
+
+            return mb_substr($local, 0, 1).str_repeat('•', max(3, mb_strlen($local) - 1)).'@'.$domain;
+        }
+
+        $digits = preg_replace('/\D+/', '', $identifier) ?: $identifier;
+
+        return str_repeat('•', max(0, mb_strlen($digits) - 4)).mb_substr($digits, -4);
     }
 
     protected function domainStorefront(Request $request): array

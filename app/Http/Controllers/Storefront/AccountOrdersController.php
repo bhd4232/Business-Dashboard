@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Storefront;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Storefront\Concerns\MatchesCustomerPhone;
 use App\Models\Company;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\StorefrontCustomerActivity;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
+use App\Services\StorefrontCustomerActivityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -20,7 +23,11 @@ class AccountOrdersController extends Controller
 {
     use MatchesCustomerPhone;
 
-    public function __construct(protected CompanyContext $context, protected StorefrontCart $cart) {}
+    public function __construct(
+        protected CompanyContext $context,
+        protected StorefrontCart $cart,
+        protected StorefrontCustomerActivityService $activities,
+    ) {}
 
     public function index(Request $request): View|RedirectResponse
     {
@@ -32,6 +39,27 @@ class AccountOrdersController extends Controller
     public function indexPreview(Request $request, Company $company): View
     {
         $setting = $this->previewStorefront($company);
+
+        if ($setting->customer_accounts_enabled && ($customer = Auth::guard('customer')->user()) instanceof Customer) {
+            $orders = Order::query()
+                ->with(['customer', 'items.product'])
+                ->where('company_id', $company->getKey())
+                ->where('source', Order::SOURCE_STOREFRONT)
+                ->where('customer_id', $customer->getKey())
+                ->latest('order_date')
+                ->latest('id')
+                ->get();
+
+            return view('storefront.account.orders', [
+                'company' => $company,
+                'setting' => $setting,
+                'customer' => $customer,
+                'previewSlug' => $company->slug,
+                'phone' => null,
+                'orders' => $orders,
+                'hasSearched' => true,
+            ]);
+        }
 
         return $this->ordersView($request, $company, $setting, $company->slug);
     }
@@ -64,7 +92,17 @@ class AccountOrdersController extends Controller
 
         abort_unless($order, 404);
 
-        $this->addOrderItemsToCart($company, $order);
+        $added = $this->addOrderItemsToCart($company, $order);
+
+        if ($added > 0 && $customer instanceof Customer) {
+            $this->activities->record(
+                $customer,
+                StorefrontCustomerActivity::TYPE_ORDER_REORDERED,
+                'Items added from a previous order',
+                "Available items from order {$order->order_number} were added to your cart.",
+                ['order_number' => $order->order_number, 'items_added' => $added],
+            );
+        }
 
         return redirect()->route('storefront.cart.show');
     }
@@ -72,6 +110,32 @@ class AccountOrdersController extends Controller
     public function reorderPreview(Request $request, Company $company, string $orderNo): RedirectResponse
     {
         $this->previewStorefront($company);
+
+        if (($customer = Auth::guard('customer')->user()) instanceof Customer) {
+            $order = Order::query()
+                ->with(['items.product'])
+                ->where('company_id', $company->getKey())
+                ->where('source', Order::SOURCE_STOREFRONT)
+                ->where('customer_id', $customer->getKey())
+                ->where('order_number', trim($orderNo))
+                ->first();
+
+            abort_unless($order, 404);
+
+            $added = $this->addOrderItemsToCart($company, $order);
+
+            if ($added > 0) {
+                $this->activities->record(
+                    $customer,
+                    StorefrontCustomerActivity::TYPE_ORDER_REORDERED,
+                    'Items added from a previous order',
+                    "Available items from order {$order->order_number} were added to your cart.",
+                    ['order_number' => $order->order_number, 'items_added' => $added],
+                );
+            }
+
+            return redirect()->route('storefront.preview.cart.show', $company->slug);
+        }
 
         $phone = trim((string) $request->string('phone'));
 
@@ -87,7 +151,7 @@ class AccountOrdersController extends Controller
         return redirect()->route('storefront.preview.cart.show', $company->slug);
     }
 
-    protected function addOrderItemsToCart(Company $company, Order $order): void
+    protected function addOrderItemsToCart(Company $company, Order $order): int
     {
         $added = 0;
 
@@ -113,6 +177,8 @@ class AccountOrdersController extends Controller
         session()->flash('storefront_status', $added > 0
             ? "Added {$added} ".str('item')->plural($added)." from order {$order->order_number} to your cart."
             : 'None of the items from that order are currently available.');
+
+        return $added;
     }
 
     protected function ordersView(
@@ -148,6 +214,7 @@ class AccountOrdersController extends Controller
             return view('storefront.account.orders', [
                 'company' => $company,
                 'setting' => $setting,
+                'customer' => $customer,
                 'previewSlug' => $previewSlug,
                 'phone' => null,
                 'orders' => $orders,

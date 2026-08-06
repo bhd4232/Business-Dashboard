@@ -36,7 +36,15 @@ class StorefrontPaymentResource extends Resource
                 TextColumn::make('order.order_number')
                     ->label('Order')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->placeholder('Awaiting verified payment'),
+                TextColumn::make('purpose')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY => 'New customer delivery',
+                        StorefrontPayment::PURPOSE_PREORDER_ADVANCE => 'Pre-order advance',
+                        default => 'Order payment',
+                    }),
                 TextColumn::make('gateway')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => match ($state) {

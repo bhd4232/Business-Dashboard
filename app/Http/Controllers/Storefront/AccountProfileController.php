@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Storefront;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Customer;
+use App\Models\StorefrontCustomerActivity;
 use App\Services\CompanyContext;
 use App\Services\CustomerAccountService;
+use App\Services\StorefrontCustomerActivityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +18,32 @@ use Illuminate\View\View;
 
 class AccountProfileController extends Controller
 {
-    public function __construct(protected CompanyContext $context, protected CustomerAccountService $accounts) {}
+    public function __construct(
+        protected CompanyContext $context,
+        protected CustomerAccountService $accounts,
+        protected StorefrontCustomerActivityService $activities,
+    ) {}
+
+    public function showPreview(Request $request, Company $company): View|RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->show($request);
+    }
+
+    public function updatePreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->update($request);
+    }
+
+    public function updatePasswordPreview(Request $request, Company $company): RedirectResponse
+    {
+        $this->preparePreview($request, $company);
+
+        return $this->updatePassword($request);
+    }
 
     public function show(Request $request): View|RedirectResponse
     {
@@ -24,13 +51,14 @@ class AccountProfileController extends Controller
         $customer = Auth::guard('customer')->user();
 
         if (! $customer) {
-            return redirect()->route('storefront.account.login');
+            return redirect()->to($this->accountRoute($request, 'login'));
         }
 
         return view('storefront.account.profile', [
             'company' => $company,
             'setting' => $setting,
             'customer' => $customer,
+            'previewSlug' => $this->previewSlug($request),
         ]);
     }
 
@@ -49,9 +77,25 @@ class AccountProfileController extends Controller
             throw ValidationException::withMessages(['email' => 'That email address is already in use by another account.']);
         }
 
+        $changedFields = collect($data)
+            ->filter(fn ($value, string $field): bool => $customer->getAttribute($field) !== $value)
+            ->keys()
+            ->values()
+            ->all();
+
         $customer->update($data);
 
-        return redirect()->route('storefront.account.profile')->with('storefront_status', 'Your profile has been updated.');
+        if ($changedFields !== []) {
+            $this->activities->record(
+                $customer,
+                StorefrontCustomerActivity::TYPE_PROFILE_UPDATED,
+                'Profile updated',
+                'Your customer information was updated.',
+                ['fields' => $changedFields],
+            );
+        }
+
+        return redirect()->to($this->accountRoute($request, 'profile'))->with('storefront_status', 'Your profile has been updated.');
     }
 
     public function updatePassword(Request $request): RedirectResponse
@@ -70,7 +114,14 @@ class AccountProfileController extends Controller
 
         $this->accounts->updatePassword($customer, $data['password']);
 
-        return redirect()->route('storefront.account.profile')->with('storefront_status', 'Your password has been changed.');
+        $this->activities->record(
+            $customer,
+            StorefrontCustomerActivity::TYPE_PASSWORD_CHANGED,
+            'Password changed',
+            'Your account password was changed successfully.',
+        );
+
+        return redirect()->to($this->accountRoute($request, 'profile'))->with('storefront_status', 'Your password has been changed.');
     }
 
     protected function requireCustomer(): Customer
@@ -79,6 +130,28 @@ class AccountProfileController extends Controller
         abort_unless($customer instanceof Customer, 403);
 
         return $customer;
+    }
+
+    protected function preparePreview(Request $request, Company $company): void
+    {
+        abort_unless($company->storefrontSetting?->is_published, 404);
+
+        $request->attributes->set('storefront_company', $company);
+        $request->attributes->set('storefront_preview_slug', $company->slug);
+    }
+
+    protected function previewSlug(Request $request): ?string
+    {
+        return $request->attributes->get('storefront_preview_slug');
+    }
+
+    protected function accountRoute(Request $request, string $name): string
+    {
+        if ($previewSlug = $this->previewSlug($request)) {
+            return route('storefront.preview.account.'.$name, $previewSlug);
+        }
+
+        return route('storefront.account.'.$name);
     }
 
     protected function domainStorefront(Request $request): array

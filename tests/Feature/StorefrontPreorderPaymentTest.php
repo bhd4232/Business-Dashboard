@@ -267,6 +267,7 @@ class StorefrontPreorderPaymentTest extends TestCase
             'company_id' => $company->getKey(),
             'theme_color' => '#0F766E',
             'is_published' => true,
+            'new_customer_delivery_advance_enabled' => false,
             'online_payment_enabled' => $zinipay,
             'payment_credentials' => $zinipay ? ['zinipay_api_key' => 'test_key'] : null,
         ]);

@@ -8,8 +8,8 @@
         : 0;
 @endphp
 
-<article class="group overflow-hidden rounded-xl border border-gray-200 bg-white transition hover:border-gray-300 hover:shadow-md dark:border-white/10 dark:bg-white/5">
-    <div class="relative overflow-hidden bg-gray-100 dark:bg-white/5">
+<article class="group flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white transition hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
+    <div class="relative overflow-hidden bg-gray-100 dark:bg-gray-800">
         <a href="{{ $productUrl }}" class="block">
             @if ($product->image)
                 <img class="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" src="{{ \App\Support\CompanyMedia::publicUrl($product->image, $company) }}" alt="{{ $product->name }}" width="800" height="800" loading="lazy" decoding="async">
@@ -30,7 +30,7 @@
 
         @if ($product->has_variants)
             <a
-                class="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-full bg-white text-gray-900 shadow-md transition hover:bg-[var(--storefront-brand)] hover:text-white dark:bg-gray-900 dark:text-white"
+                class="absolute bottom-3 right-3 grid h-11 w-11 place-items-center rounded-full bg-white text-gray-900 shadow-md transition hover:bg-[var(--storefront-brand)] hover:text-white dark:bg-gray-900 dark:text-white"
                 href="{{ $productUrl }}"
                 title="Choose options"
                 aria-label="Choose options for {{ $product->name }}"
@@ -43,7 +43,7 @@
                 @csrf
                 <input type="hidden" name="quantity" value="{{ $product->effectiveMoq() }}">
                 <button
-                    class="grid h-10 w-10 place-items-center rounded-full bg-white text-gray-900 shadow-md transition hover:bg-[var(--storefront-brand)] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-900 dark:text-white"
+                    class="grid h-11 w-11 place-items-center rounded-full bg-white text-gray-900 shadow-md transition hover:bg-[var(--storefront-brand)] hover:text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-900 dark:text-white"
                     type="submit"
                     title="Quick add to cart"
                     aria-label="Add {{ $product->name }} to cart"
@@ -55,12 +55,12 @@
             </form>
         @endif
     </div>
-    <div class="p-4">
+    <div class="flex flex-1 flex-col p-4">
         <div class="text-xs font-medium text-gray-400">{{ $product->category?->name ?? 'Product' }}</div>
         <a href="{{ $productUrl }}">
             <h3 class="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-gray-900 dark:text-white">{{ $product->name }}</h3>
         </a>
-        <div class="mt-2 flex items-center justify-between gap-3">
+        <div class="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-1 pt-2">
             <div class="flex items-baseline gap-2">
                 <span class="text-base font-semibold text-gray-950 dark:text-white">BDT {{ number_format($sellingPrice, 2) }}</span>
                 @if ($discountPercent > 0)

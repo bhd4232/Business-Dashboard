@@ -22,7 +22,7 @@ class PreviewController extends Controller
         $company = $this->previewCompany($company);
         $setting = $this->previewSetting($company);
 
-        return view('storefront.home', [
+        return view($setting->homepageView(), [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $company->slug,

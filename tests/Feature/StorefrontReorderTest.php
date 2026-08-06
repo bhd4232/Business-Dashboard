@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\StorefrontCustomerActivity;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -66,6 +67,11 @@ class StorefrontReorderTest extends TestCase
         $this->get('http://reorder.example.test/account/orders')
             ->assertOk()
             ->assertSee('Reorder');
+
+        $this->assertDatabaseHas('storefront_customer_activities', [
+            'customer_id' => $customer->getKey(),
+            'type' => StorefrontCustomerActivity::TYPE_ORDER_REORDERED,
+        ]);
     }
 
     public function test_reorder_requires_the_owning_customer_and_same_company_storefront_order(): void

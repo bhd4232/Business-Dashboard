@@ -63,7 +63,7 @@
 
 @section('content')
     <section class="bg-gradient-to-br from-[var(--storefront-brand)] to-gray-950 dark:to-black">
-        <div class="mx-auto flex w-full max-w-4xl flex-col items-center gap-3 px-4 py-16 text-center sm:py-20">
+        <div class="mx-auto flex w-full max-w-4xl flex-col items-center gap-3 px-4 py-10 text-center sm:px-5 sm:py-12 lg:px-6">
             <p class="text-xs font-semibold uppercase tracking-wider text-white/70">{{ $company->name }}</p>
             <h1 class="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Connect with Us</h1>
             <p class="max-w-lg text-sm leading-6 text-white/80 sm:text-base">
@@ -73,11 +73,11 @@
     </section>
 
     @if ($cards->isNotEmpty())
-        <section class="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8">
-            <div class="-mt-20 grid grid-cols-1 gap-4 sm:-mt-24 sm:grid-cols-2 sm:gap-5 {{ $cardsGridClass }}">
+        <section class="mx-auto w-full max-w-7xl px-4 py-7 sm:px-5 sm:py-8 lg:px-6">
+            <div class="-mt-14 grid grid-cols-1 gap-4 sm:-mt-16 sm:grid-cols-2 sm:gap-5 {{ $cardsGridClass }}">
                 @foreach ($cards as $card)
                     <a
-                        class="flex flex-col gap-4 rounded-2xl border border-gray-200/80 bg-white p-6 text-left shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl dark:border-white/10 dark:bg-gray-900"
+                        class="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-gray-900"
                         href="{{ $card['href'] }}"
                         @if ($card['external'] ?? false) target="_blank" rel="noopener" @endif
                     >
@@ -100,11 +100,11 @@
 
     @if ($company->address)
         <section class="border-t border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/[0.02]">
-            <div class="mx-auto w-full max-w-4xl px-4 py-14 text-center sm:px-6">
+            <div class="mx-auto w-full max-w-4xl px-4 py-8 text-center sm:px-5 lg:px-6">
                 <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Our Location</h2>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Meet our friendly team at this location for personalized assistance.</p>
 
-                <div class="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-8 dark:border-white/10 dark:bg-gray-900">
+                <div class="mt-5 flex flex-col items-center gap-4 rounded-lg border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-gray-900">
                     <div class="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-rose-400 to-red-600 shadow-lg shadow-red-500/30">
                         <span class="pointer-events-none absolute inset-x-1.5 top-1 h-1/3 rounded-full bg-white/40 blur-[3px]"></span>
                         <svg class="relative h-6 w-6 text-white drop-shadow" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -122,11 +122,11 @@
     @endif
 
     @if ($faqs->isNotEmpty())
-        <section id="faq" class="scroll-mt-24 mx-auto w-full max-w-4xl px-4 py-14 sm:px-6">
+        <section id="faq" class="scroll-mt-24 mx-auto w-full max-w-4xl px-4 py-8 sm:px-5 lg:px-6">
             <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Frequently Asked Questions</h2>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Everything you need to know. Can&rsquo;t find the answer you&rsquo;re looking for?</p>
 
-            <div class="mt-8 divide-y divide-gray-200 rounded-2xl border border-gray-200 dark:divide-white/10 dark:border-white/10" x-data="{ open: 0 }">
+            <div class="mt-5 divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-white/10 dark:border-white/10" x-data="{ open: 0 }">
                 @foreach ($faqs as $index => $faq)
                     @php($faqDomId = 'faq-'.$faq->getKey())
                     <div>
@@ -154,7 +154,7 @@
 
     @if ($ctaHref)
         <section class="bg-[var(--storefront-brand)]">
-            <div class="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 py-12 text-center sm:px-6 lg:px-8">
+            <div class="mx-auto flex w-full max-w-7xl flex-col items-center gap-3 px-4 py-8 text-center sm:px-5 lg:px-6">
                 <h2 class="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Still Have Questions?</h2>
                 <p class="max-w-md text-sm text-white/85">Can&rsquo;t find the answer you&rsquo;re looking for? Please chat to our friendly team.</p>
                 <a class="inline-flex items-center rounded-lg bg-white px-6 py-3 text-sm font-semibold text-gray-950 transition hover:bg-white/90" href="{{ $ctaHref }}" target="_blank" rel="noopener">

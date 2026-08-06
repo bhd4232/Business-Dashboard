@@ -70,7 +70,7 @@ tests/Feature/MultiCompanyIsolationTest.php
 
 ### Filament Admin Navigation Clusters
 
-Business modules use Filament's native `Cluster` and nested `NavigationItem` patterns. Each module heading is a toggle rather than a destination: clicking it only expands or collapses the submenu, and a chevron identifies headings that contain child links. Every authorized child page remains a separate icon-bearing navigation link. The submenus behave as an accordion, so opening one module collapses the others; the active module is restored open after navigation. Main menu spacing is compact, with a small consistent gap between neighboring items. Child pages keep their own authorization rules, and every cluster root checks whether the user can access at least one child before redirecting.
+Business modules use Filament's native `Cluster` and nested `NavigationItem` patterns. Each module heading is a toggle rather than a destination: clicking it only expands or collapses the submenu, and a chevron identifies headings that contain child links. Every authorized child page remains a separate icon-bearing navigation link. The submenus behave as an accordion, so opening one module collapses the others; the active module is restored open after navigation. Main menu spacing is compact, with a small consistent gap between neighboring items. On desktop the sidebar rests in Filament's icon-only collapsed state, expands on hover or keyboard focus, and collapses again when the pointer/focus leaves; touch/mobile navigation keeps Filament's normal drawer behavior. Child pages keep their own authorization rules, and every cluster root checks whether the user can access at least one child before redirecting.
 
 Canonical module routes and selectors:
 
@@ -81,11 +81,11 @@ Canonical module routes and selectors:
 | Finance | `/admin/finance` | Vouchers, Accounts, Expenses |
 | Sales | `/admin/sales` | Customers, Orders, Customer Payments |
 | Purchasing | `/admin/purchasing` | Suppliers, Purchases, Supplier Payments |
-| Inventory | `/admin/inventory` | Products, Stock Movements, Categories |
+| Inventory | `/admin/inventory` | Products, Categories, Stock Movement |
 | Reports | `/admin/reports` | Reports |
 | Settings | `/admin/settings` | Users, Product Setup, Audit Logs, Backups, Cloud Storage Settings, Release Notes |
 
-`Site` is the admin-facing display name for the storefront module. This is a presentation-only change: the canonical `/admin/storefront` route and existing `Storefront*` PHP classes, resources, models, tables, and public-domain terminology remain unchanged.
+`Site` is the admin-facing display name for the storefront module. Inventory keeps its canonical `/admin/inventory` route and exposes Products, Categories, and Stock Movement as direct submenu destinations. This is a presentation-only hierarchy: existing PHP classes, resources, models, tables, and public-domain terminology remain unchanged.
 
 Courier, Customer Success, and Company Management follow the same cluster pattern. Hidden support resources remain hidden: Shipment and Container stay embedded in Purchases; Expense Categories and Transaction Ledgers remain routable support pages; User Roles remains reachable from Users. Fund Transfers are embedded on the Vouchers page, while the legacy Fund Source and standalone Fund Transfer resources do not register navigation or routes. Hidden pages must not create extra sidebar submenu entries.
 
@@ -455,7 +455,12 @@ Current behavior:
 - Draft storefront orders do not increase `Today Sales`; the dashboard shows them separately as `Storefront Pending` with pending order count and amount.
 - The Orders table and Order detail page display the order `Source` badge, and the Orders table can be filtered by `Admin` or `Storefront` source.
 - Checkout validates current cart stock and clears the cart after successful order creation.
+- New-customer delivery advance flow is enabled per company from **Site → Site Theme → Checkout & Delivery**. A phone number not found in that company's `customers` table does not create a Customer or Order before payment. The checkout stores an encrypted pending snapshot on `storefront_payments`, redirects to the active ZiniPay hosted gateway for the delivery charge only, and creates the Customer/Order atomically after server-side amount/status verification. Existing customers keep the configured COD/manual flow; the separate pre-order advance rule remains authoritative when a cart contains out-of-stock pre-order quantity.
+- Storefront delivery is weight based: `products.weight_kg × quantity` is summed, rounded up to a minimum/started whole kilogram, then charged using company-specific first-kg rates (default BDT 70 inside Dhaka, BDT 110 outside) plus the additional-kg rate (default BDT 20). `StorefrontDeliveryService` is the single calculator used by both the checkout display and persisted order.
+- Checkout payment returns use temporary-signed `/checkout/payment/{payment}/return` URLs. The return and ZiniPay webhook both call `StorefrontPaymentService`, so verification and order creation are idempotent; successful delivery advance is stored in `orders.paid_amount`, leaving only the product balance due on delivery.
 - Checkout success pages show the generated ERP order number and order summary. Production success URLs are temporary-signed for 24 hours; an unsigned URL is accepted only for the authenticated customer who owns that order. ZiniPay redirect/cancel URLs use the same signed success URL. Local admin preview remains unsigned.
+- Thank-you pages show customer/delivery data, item and payment breakdowns, a company-configurable WhatsApp group CTA, and a prefilled complaint link. Public complaints are accepted at `/complaints` (preview: `/storefront/{company}/complaints`) using an order ID, invoice/order number, or phone number. Records live in company-scoped `storefront_complaints`, receive a sequential `CMP-YYYYMMDD-####` reference, and are managed with Filament's default UI under **Site → Complaints**.
+- Each company's Site Theme record has its own encrypted Telegram bot token and chat ID. When complaint Telegram delivery is enabled, `TelegramComplaintService` sends the complaint to that company's configured chat and retains sent/failed diagnostics on the complaint; a Telegram failure never loses the database complaint.
 - Production checkout routes on custom domains:
   - `GET /checkout`
   - `POST /checkout`
@@ -465,6 +470,9 @@ Current behavior:
 - Tracking update markers and the `Latest` badge are styled in `resources/views/storefront/track/show.blade.php`; markers use 100px rounded corners and the latest badge uses compact 10px horizontal padding.
 - Tracking only exposes orders from the current storefront company and only when `source = storefront`; admin orders and other-company orders are never revealed. Public search requires both order number and checkout phone. A temporary-signed tracking link or an authenticated owning customer may open the same order without putting the phone number in the URL.
 - Production customer order history at `/account/orders` requires the company-scoped `customer` guard and shows only that customer's current-company storefront orders. Signed-out visitors are sent to account login; when customer accounts are disabled they are sent to manual order tracking. Phone-only history lookup is retained only on the local/authenticated admin preview route.
+- Customer account settings use one responsive account shell: mobile gets horizontally scrollable 44px-touch navigation and desktop gets a sticky sidebar. `/account` shows order metrics, recent orders, and recent account activity; `/account/profile`, `/account/orders`, and `/account/activity` share the same private navigation and opaque dark-mode card surfaces.
+- Customer activities persist in `storefront_customer_activities`, scoped by both company and customer. Registration, successful login, profile updates, password changes/resets, authenticated checkout, and successful reorder actions write customer-facing timeline events. Activity metadata may link an owned storefront order, but another customer or company cannot read it.
+- Deployments and existing demo databases must run the customer-activity migration (`php artisan migrate`, demo: `php artisan migrate --database=demo`). Account actions remain available if the table is temporarily absent during deployment; activity recording resumes after migration instead of failing registration with a 500 response.
 - B2B wholesale rules live on products: `products.moq` (nullable minimum order quantity) and `products.tier_prices` (nullable JSON list of `{min_qty, price}` rows), edited in the Product form's "Wholesale (B2B)" section. On the storefront, cart quantities are clamped up to the MOQ; quantity 0 still removes a normal line. Non-preorder stock remains the upper cap, while non-variant preorders can reach `StorefrontCart::PREORDER_STOCK_CEILING` (100,000) even at zero current stock. Non-variant cart lines use `Product::priceForQuantity()` — the deepest matching tier price, falling back to `selling_price`; variant lines keep their variant price. Covered by `tests/Feature/StorefrontB2bTest.php` and `tests/Feature/StorefrontPreorderPaymentTest.php`.
 - Customer balances remain staff-only and are not rendered in storefront order history.
 - Each order card has a `Reorder` button (`POST /account/orders/{orderNo}/reorder`, preview: `POST /storefront/{company-slug}/account/orders/{orderNo}/reorder`). Production requires the authenticated customer who owns the order; local preview retains phone verification. Reorder adds still-available products/variants with the same stock/preorder caps, skips discontinued items, and redirects to the cart with a status message. Covered by `tests/Feature/StorefrontReorderTest.php`.
@@ -475,9 +483,13 @@ Current behavior:
   - `GET /track`
   - `GET /track/{orderNo}`
 - Production customer account routes on custom domains:
+  - `GET /account`
   - `GET /account/orders`
+  - `GET /account/activity`
   - `POST /account/orders/{orderNo}/reorder`
   - `GET|POST /account/login`
+  - `GET|POST /account/otp`
+  - `GET|POST /account/otp/verify`
   - `GET|POST /account/register`
   - `GET|POST /account/forgot-password`
   - `GET|POST /account/reset-password`
@@ -494,26 +506,47 @@ Current behavior:
   - `GET /storefront/{company-slug}/track`
   - `GET /storefront/{company-slug}/track/{orderNo}`
 - Local preview customer account routes:
+  - `GET /storefront/{company-slug}/account`
+  - `GET|POST /storefront/{company-slug}/account/login`
+  - `GET|POST /storefront/{company-slug}/account/otp`
+  - `GET|POST /storefront/{company-slug}/account/otp/verify`
+  - `GET|POST /storefront/{company-slug}/account/register`
+  - `GET|POST /storefront/{company-slug}/account/forgot-password`
+  - `GET|POST /storefront/{company-slug}/account/reset-password`
+  - `GET|PATCH /storefront/{company-slug}/account/profile`
+  - `PUT /storefront/{company-slug}/account/password`
   - `GET /storefront/{company-slug}/account/orders`
+  - `GET /storefront/{company-slug}/account/activity`
+  - `POST /storefront/{company-slug}/account/logout`
 - Local preview storefront content routes:
   - `GET /storefront/{company-slug}/pages/{slug}`
 - Storefront UI should use Tailwind CSS 4 via Vite and should aim for a polished Shopify-style ecommerce look: image-first product cards, clean collection tiles, strong CTA buttons, responsive mobile layout, and dark/light compatibility.
 - Storefront layout includes SEO/Open Graph/Twitter metadata from storefront settings, compact mobile-safe header actions, footer WhatsApp contact, banner-image hero support, and explicit out-of-stock product states.
 - Dark mode is a real class-based toggle, not just `prefers-color-scheme`. `resources/css/app.css` declares `@custom-variant dark (&:where(.dark, .dark *));` (storefront only; Filament's own dark mode is unaffected). `resources/views/storefront/layout.blade.php` sets the `dark` class before paint from `localStorage.storefrontTheme`, falling back to the company's `storefront_settings.theme_mode` (`system`/`light`/`dark`) on first visit. The toggle exposes its current action and pressed state; quantity steppers and shell controls use plain JavaScript, while page-level disclosure/checkout state may use Alpine from `resources/js/app.js`.
 - Product listing supports `?sort=price_asc|price_desc` (default newest) and category quick-filter chips, handled in `StorefrontProductIndexController` and `PreviewController::products`.
-- Product detail pages show a breadcrumb, a sticky buy box with a quantity stepper, and a "You may also like" related-products rail (same category, excludes current product, limit 4), sourced from `StorefrontProductShowController` and `PreviewController::product`.
+- Product detail pages show a breadcrumb, a compact premium gallery capped at 480px on desktop, pointer-position hover zoom for fine-pointer devices, a sticky buy box with a quantity stepper, and a "You may also like" related-products rail (same category, excludes current product, limit 4), sourced from `StorefrontProductShowController` and `PreviewController::product`.
 - Variable product detail pages show available variants/options, variant images, per-option stock/price, and quantity inputs so customers can add multiple variants in one submit.
 - Homepage hero heading/subheading/CTA label are admin-editable via `storefront_settings.hero_heading`, `hero_subheading`, `hero_cta_label` (all nullable; blank falls back to the default "Shop the latest from {company}." copy in `home.blade.php`).
 - Public storefront copy should not expose implementation details such as unfinished roadmap steps; customer-facing text should describe direct ordering, review, confirmation, and tracking.
 - Header includes a hover mega menu ("Categories") listing the current company's active categories that have available products, plus an optional call button (`storefront_settings.phone_number`, `tel:` link) next to the WhatsApp button. Both are queried inline in `layout.blade.php`.
-- Homepage hero banner supports separate desktop and mobile images: `storefront_settings.banner_images` (existing, desktop/wide) and `storefront_settings.banner_image_mobile` (new, vertical/square), swapped via a `<picture>`/`<source media>` breakpoint at 640px in `home.blade.php`.
+- Homepage hero banner supports separate desktop and mobile images: `storefront_settings.banner_images` (existing, desktop/wide) and `storefront_settings.banner_image_mobile` (new, vertical/square), swapped via a `<picture>`/`<source media>` breakpoint at 640px in `home.blade.php`. The active slide keeps its intrinsic ratio and uses `object-contain`; mobile images are capped at `58svh`, while desktop images use `w-full h-auto` with no fixed-height stage. This keeps arbitrary desktop banner dimensions full-width and fully visible without cropping, with height adapting to the uploaded image ratio.
 - Homepage includes a static 4-step "how to order" explainer section (no backend data) between the hero and the category grid.
 - Footer includes a "Our other brands" cross-promotion section listing other active companies that have a published storefront and a domain set, linking to `https://{domain}`.
 - A fixed mobile bottom nav bar (Home/Category/Cart/Account, `sm:hidden`) is rendered in `layout.blade.php`; `<main>` gets `pb-16 sm:pb-0` and the footer gets `mb-16 sm:mb-0` so content does not sit under it on small screens.
 - Curated homepage product carousels are implemented through the `Product Carousels` Filament resource. Active carousels are company scoped, ordered by sort order, hidden when empty/inactive, and rendered on the storefront homepage.
 - Avoid broad inline CSS for storefront pages unless it is a small dynamic CSS variable such as company theme color.
 - The 2026-07-20 storefront hardening pass added: keyboard-visible focus styles, touch-safe targets, automatic readable foreground text on merchant brand backgrounds, an accessible mobile menu and theme state, `aria-current` navigation, FAQ and product-tab semantics, a two-column 390px catalog, intrinsic product/content image dimensions, mobile safe-area spacing, pending/double-submit states, and checkout error-summary focus. Key UI files are `resources/views/storefront/layout.blade.php`, `home.blade.php`, `products/index.blade.php`, `products/show.blade.php`, `partials/product-card.blade.php`, `cart/show.blade.php`, `checkout/show.blade.php`, and `resources/css/app.css`.
+- The 2026-08-01 mobile-responsive storefront pass standardizes primary controls at a minimum 44px touch target, makes category chips horizontally scrollable on narrow screens, keeps sort controls full-width and labeled on mobile, aligns product-card heights, compacts cart lines into an 80px thumbnail layout, stacks checkout delivery areas below 640px, and reduces mobile checkout padding. The homepage carousel now exposes a 44px Pause/Play control, avoids nested slide/CTA links, follows the resolved product CTA URL, and runs the decorative "How to order" sequence once instead of looping indefinitely. Verify at 375px, 768px, 1024px, and 1440px using the preview routes listed below, then run `npm run build` and the storefront feature tests.
+- The 2026-08-02 dense-commerce storefront pass introduces a storefront-only Arial/system type stack, a flexible 1480px maximum content canvas, 16/20/24px responsive page gutters, a 60px primary header plus 40px desktop navigation row, 26-32px page-title scale, 14-15px body copy, compact 24-32px section spacing, 8px structural card radii, and opaque dark-mode cards. These rules apply across home, catalog, product detail, cart, checkout, tracking, account, reseller, contact, and content pages through `resources/css/app.css` and the shared Blade layout. Product detail uses a maximum 460px gallery with pointer-position hover zoom while preserving the mobile purchase bar and 44px touch targets. Verify representative pages at 375px, 768px, 1024px, and 1440px, then run `npm run build`, `php artisan view:cache`, and storefront feature tests.
+- Storefront theme contrast is controlled from **Storefront → Settings → Theme Color Palette → Text on primary**. `Auto contrast` calculates a WCAG-oriented black/white foreground from `theme_color`; `Light text` and `Dark text` are explicit brand overrides. The persisted `storefront_settings.theme_foreground_mode` is resolved by `StorefrontSetting::themeForegroundColor()` and exposed as `--storefront-brand-contrast`, which covers solid theme buttons, badges, selected navigation, CTA sections, hover states, and the 90%-opacity pre-order badge. The same pass reduces profile-dropdown rows to 40px and compacts the account shell, sidebar, statistics, profile, order, and activity cards without changing their functionality.
+- The professional storefront design system is managed from **Storefront → Settings → Theme Color Palette**, **Storefront Typography**, and **Modern Appearance**. The palette form uses separate Filament sections for shared Brand & Interaction colors, Light Mode surfaces, and Dark Mode surfaces so each semantic role is immediately visible. Palette presets (`Emerald Commerce`, `Ocean Blue`, `Royal Indigo`, `Premium Black & Gold`, and `Modern Rose`) populate editable primary, secondary, accent, light/dark canvas, card surface, text, muted text, and border colors; primary foreground can remain automatic or be overridden. Typography presets provide system, Inter, commerce (Rubik/Nunito Sans), Bangla-optimized (Hind Siliguri/Noto Sans Bengali), and editorial pairings, plus independent heading/body fonts, an accessibility-oriented 16px default (14–18px selectable), weights, heading scale, 1.4–1.65 line height, heading/body tracking, and 62/70/78-character long-form measures. Modern Appearance presets configure content width, responsive gutters, corner radius, card depth, hover feedback, and 0/150/220ms motion. `StorefrontSetting` validates every stored option and emits safe CSS-ready values; `resources/views/storefront/layout.blade.php` exposes them as scoped tokens and `resources/css/app.css` applies them across storefront pages, cards, controls, responsive wrappers, rich content, transitions, and hover states. Global `prefers-reduced-motion` handling always suppresses storefront animation regardless of the merchant setting.
+- Product categories support an optional square image and any solid or outline Heroicon bundled with Filament. **Inventory → Categories** opens the company-scoped category list with view/edit actions, and the same media fields are available from category create/edit forms and the Product form's inline **Create category** action. Clicking **Category icon** opens a Filament modal containing the complete visual icon library with live search, scrolling, Enter-key filtering, one-click selection, selected-icon feedback, and a category-initial reset action. Search uses one delegated Filament panel script (`resources/views/filament/partials/category-icon-search.blade.php`) that directly toggles matching tile visibility on input/search/Enter events, avoiding component-scope coupling inside the modal and showing a native empty state when nothing matches. Category images are compressed to WebP and take priority over icons; the storefront falls back from image → selected icon → category initial in both Built-in Theme and Marketplace Pro. `App\Support\StorefrontCategoryIcons` derives and validates the catalog directly from Filament's `Heroicon` enum, maps the earlier curated icon keys for backward compatibility, and `resources/views/storefront/partials/category-icon.blade.php` renders the selected library icon. `database/migrations/2026_08_03_020000_expand_category_icon_length.php` expands the icon key column for the longest Filament names. Verify with `php artisan test tests/Feature/CategoryMediaTest.php tests/Feature/AdminNavigationClustersTest.php`, `php artisan view:cache`, and `npm.cmd run build`.
+- Storefront theme selection is managed from **Site → Site Theme**. The existing storefront is registered as **Built-in Theme** and remains the database/default fallback. **Marketplace Pro** is based on `ERP Frontend Design System/ইকমার্স স্টোরফ্রন্ট ডিজাইন/Storefront Home Concepts.dc.html` and provides three responsive homepage templates: **Hero-driven**, **Campaign-driven**, and **Compact & dense**. `App\Support\StorefrontThemeRegistry` is the source of truth for theme labels, template options, safe normalization, and homepage view resolution; `HomeController` and `PreviewController` render the selected registered view. Marketplace Pro has independent Filament controls for the announcement bar, quote actions, business-account callouts, trust strip, deals, categories, campaign bulk-pricing panel, compact category sidebar, product density, and campaign copy. Shared palette, typography, appearance, catalog, cart, checkout, tracking, and customer-account functionality continue to work across both themes. The Marketplace Pro Blade implementation is `resources/views/storefront/themes/marketplace-pro/home.blade.php`, scoped styling lives in `resources/css/app.css`, and selected values persist through `database/migrations/2026_08_03_000000_add_theme_selection_to_storefront_settings_table.php`. Verify with `php artisan test tests/Feature/StorefrontThemeTest.php tests/Feature/PhaseFourAdminPagesTest.php`, the storefront regression tests, `php artisan view:cache`, and `npm.cmd run build` on Windows.
+- In dark mode, each homepage "How to order" step uses an opaque `gray-900` card with a `gray-800` border so the animated progress track remains visually behind the cards instead of bleeding through their surfaces. Light-mode cards remain white.
+- The responsive storefront header keeps the logo/search/actions in the primary row and renders desktop navigation in a separate row from 1024px upward so menu items cannot overlap the logo. Below 1024px the hamburger opens the existing mobile menu; below 640px the duplicate header cart is hidden because Cart remains available in the fixed bottom navigation. An authenticated profile dropdown exposes Account Overview, Profile Settings, My Orders, Account Activity, tracking, reseller status, logout, and the light/dark switch with icons and current-page highlighting.
 - Variable-product cards never submit an incomplete quick-add request: they open the product option selector. On the detail page, desktop and mobile add buttons share the selected-variant quantity state. Checkout renders one shared manual-payment sender/transaction field pair, defaults to the first enabled payment method, and blocks submission only when no valid payment path exists or required preorder advance payment is unavailable.
+- Checkout no longer asks the customer to select a delivery area. `StorefrontDeliveryAreaResolver` detects inside/outside Dhaka from the submitted delivery address, and `CheckoutController` performs the authoritative server-side calculation before creating an order or delivery-advance payment. Unknown addresses default to outside Dhaka. The browser mirrors the result only for the live order-summary preview. Admins can override the built-in English/Bangla locality list from **Storefront → Settings → Checkout & Delivery → Inside-Dhaka address keywords**. Key files: `app/Services/StorefrontDeliveryAreaResolver.php`, `app/Http/Controllers/Storefront/CheckoutController.php`, and `resources/views/storefront/checkout/show.blade.php`.
+- Registered, active customer accounts support password-free login through a six-digit OTP sent to the submitted account email or phone. Email delivery uses Laravel's configured mailer; phone delivery uses the company-specific SMS URL template in **Storefront → Settings → Customer Notifications & Reminders**. Codes are hashed, single-use, expire after 10 minutes, allow five failed attempts, have a one-minute resend cooldown, and use generic responses for unknown accounts. OTP does not turn checkout-created CRM rows without a password into accounts. Key files: `app/Http/Controllers/Storefront/AccountAuthController.php`, `app/Services/CustomerAccountService.php`, `app/Mail/StorefrontLoginOtp.php`, and `resources/views/storefront/account/otp-*.blade.php`. Verify with `php artisan test tests/Feature/StorefrontCustomerAuthTest.php tests/Feature/StorefrontManualPaymentTest.php tests/Feature/StorefrontCustomerAdvanceAndComplaintTest.php`.
 - Pre-order: products with `is_preorder = true` can be ordered beyond current stock ("Pre-order now" button/badge replaces "Out of stock"). The per-product `preorder_advance_percent` (default 100) of any pre-order quantity beyond stock is payable online at checkout via ZiniPay hosted checkout; COD is never offered for pre-order quantities, and pre-order checkout is blocked with a validation error when ZiniPay is not configured. Payments live in `storefront_payments` (`StorefrontPayment`), created pending before redirect and completed only after server-side `/v1/payment/verify` confirmation (webhook `POST /webhooks/zinipay/{payment}`, CSRF-exempt, amount-matched). ZiniPay credentials: storefront settings "Online Payments (ZiniPay)" section (`online_payment_enabled` + encrypted `payment_credentials`).
 - Reseller applications: public `/reseller` page (preview: `/storefront/{company-slug}/reseller`) creates/updates a company-scoped Customer with `reseller_status = pending`, `business_name`, `reseller_note`. Admin approves from the Customer form's Reseller section; the Customers table shows a reseller badge. Approved customers keep their status if they re-apply. Wholesale price gating per reseller is intentionally deferred until a customer login/OTP system exists — tier prices are currently public.
 - Abandoned cart reminders: every cart change also upserts `storefront_cart_records` (keyed by a stable `storefront_cart_token` session UUID, not the session id); checkout attempts store the phone/name on the record, successful checkout marks it converted, emptying the cart deletes it. The hourly scheduled `storefront:send-abandoned-cart-reminders` command (see `bootstrap/app.php`) sends one SMS (generic GET gateway URL template with `{api_key}/{sender_id}/{phone}/{message}` placeholders — BulkSMSBD-compatible) and one Meta Cloud WhatsApp template message per stale active cart with a phone, then marks it reminded. Settings: "Abandoned Cart Reminders" section (toggle, delay hours, encrypted `notification_credentials`).
@@ -525,16 +558,27 @@ Important files:
 ```text
 app/Http/Middleware/ResolveCompanyFromDomain.php
 app/Http/Controllers/Storefront/
+app/Http/Controllers/Storefront/AccountController.php
 app/Http/Controllers/Storefront/AccountOrdersController.php
 app/Http/Controllers/Storefront/CartController.php
 app/Http/Controllers/Storefront/CheckoutController.php
+app/Http/Controllers/Storefront/ComplaintController.php
 app/Http/Controllers/Storefront/OrderTrackController.php
 app/Http/Controllers/Storefront/PageController.php
 app/Services/StorefrontCart.php
+app/Services/StorefrontDeliveryService.php
+app/Services/StorefrontPaymentService.php
+app/Services/StorefrontOrderPlacementService.php
+app/Services/TelegramComplaintService.php
+app/Models/StorefrontComplaint.php
+app/Services/StorefrontCustomerActivityService.php
+app/Models/StorefrontCustomerActivity.php
 app/Models/ProductCarousel.php
 app/Models/ProductVariant.php
 app/Models/StorefrontPage.php
 app/Models/StorefrontSetting.php
+app/Support/StorefrontCategoryIcons.php
+app/Support/StorefrontThemeRegistry.php
 app/Filament/Resources/ProductCarousels/
 app/Filament/Resources/StorefrontPages/
 app/Filament/Resources/StorefrontSettings/
@@ -543,6 +587,12 @@ app/Filament/Resources/StorefrontSettings/Pages/EditStorefrontSetting.php
 database/migrations/2026_06_25_000000_add_storefront_foundation_fields.php
 database/migrations/2026_06_25_001000_create_storefront_settings_table.php
 database/migrations/2026_06_28_001000_create_storefront_pages_table.php
+database/migrations/2026_08_02_000000_create_storefront_customer_activities_table.php
+database/migrations/2026_08_02_010000_add_theme_foreground_mode_to_storefront_settings_table.php
+database/migrations/2026_08_02_020000_add_theme_palette_and_typography_to_storefront_settings_table.php
+database/migrations/2026_08_02_030000_add_advanced_theme_controls_to_storefront_settings_table.php
+database/migrations/2026_08_03_000000_add_theme_selection_to_storefront_settings_table.php
+database/migrations/2026_08_03_010000_add_icon_to_categories_table.php
 database/migrations/2026_07_03_000000_add_hero_and_theme_fields_to_storefront_settings_table.php
 database/migrations/2026_07_03_010000_add_dual_banner_and_phone_to_storefront_settings_table.php
 database/migrations/2026_07_03_020000_create_product_carousels_tables.php
@@ -556,7 +606,9 @@ resources/views/storefront/checkout/
 resources/views/storefront/track/show.blade.php
 resources/views/storefront/layout.blade.php
 resources/views/storefront/home.blade.php
+resources/views/storefront/themes/marketplace-pro/home.blade.php
 resources/views/storefront/partials/product-card.blade.php
+resources/views/storefront/partials/category-icon.blade.php
 resources/views/storefront/products/index.blade.php
 resources/views/storefront/products/show.blade.php
 resources/views/storefront/cart/show.blade.php
@@ -566,6 +618,7 @@ app/Http/Controllers/Storefront/ProductShowController.php
 app/Http/Controllers/Storefront/PreviewController.php
 resources/css/app.css
 tests/Feature/StorefrontFoundationTest.php
+tests/Feature/StorefrontCustomerAuthTest.php
 tests/Feature/StorefrontManualPaymentTest.php
 tests/Feature/StorefrontMenuTest.php
 tests/Feature/StorefrontPreorderPaymentTest.php
@@ -577,6 +630,7 @@ Verification:
 ```bash
 php artisan demo:refresh
 php artisan test --filter=StorefrontFoundationTest
+php artisan test --filter=StorefrontCustomerAuthTest
 php artisan test --filter=PhaseFourAdminPagesTest
 php artisan test --filter=ProductCarouselTest
 php artisan test --filter=ProductVariantTest
@@ -1048,7 +1102,7 @@ Panel settings:
 - Login enabled
 - SPA mode enabled
 - Primary color: Amber
-- Sidebar collapsible on desktop
+- Sidebar collapses to icons on desktop and expands on hover/focus
 - Resources auto-discovered from `app/Filament/Resources`
 
 ## 5. Main Resources

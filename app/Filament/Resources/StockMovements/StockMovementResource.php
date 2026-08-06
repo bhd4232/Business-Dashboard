@@ -27,7 +27,9 @@ class StockMovementResource extends Resource
 
     protected static ?string $cluster = Inventory::class;
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
+
+    protected static ?string $navigationLabel = 'Stock Movement';
 
     protected static ?string $recordTitleAttribute = 'id';
 

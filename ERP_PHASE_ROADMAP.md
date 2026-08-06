@@ -474,7 +474,14 @@ Related planning documents:
 
 **Goal:** Allow customers to create carts, check out, place orders, and track order status.
 
-**Status:** Planned.
+**Status:** In progress.
+
+**Completed Foundations:**
+
+- Responsive guest and account checkout, company-scoped customer registration/password login, order history, reorder, and private tracking are implemented.
+- Registered active customers can log in with a hashed, single-use email or SMS OTP, with expiry, attempt limits, resend cooldown, and non-enumerating responses.
+- Delivery area is derived from the submitted address on the server; configurable Dhaka locality keywords feed weight-based inside/outside-Dhaka rates without a customer area selector.
+- New customers can be required to pay only the calculated weight-based delivery charge through the verified online-payment flow before the order is created.
 
 **Tasks:**
 
