@@ -2,6 +2,28 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-11 - Stack Upgrade Plan, Step 6: final verification + production deploy
+
+Reason:
+
+- `03_STACK_UPGRADE_PLAN.md` Step 6, the last step before pushing the Laravel 13/Livewire 4/Filament 5/PHP 8.4 stack to production. Owner used staging for several days ("staging এ প্রবলেম পাই নি") and then asked to proceed to production.
+
+What happened:
+
+- Confirmed scope: only the 6 commits already on `staging` (`fef119e0` PHP 8.4, `d2f6ca40`/`e19a459a` nginx template fixes, `b04fd428` Laravel 13/Filament 5/Livewire 4, `dd214102` Node 22 fix, `117ebc8f` storefront checkout/customer experience) go to `main`. A separately-committed OrderFlow v1.9.0 parity effort (`a6d07277` on `staging`, done by the owner directly outside this deploy) is explicitly **excluded from this production push** — the owner confirmed only the stack-upgrade line should ship now, since the OrderFlow work hasn't been through the same soak/verification cycle yet.
+- **Completed the CRITICAL, deploy-blocking production MySQL fix** (`03_STACK_UPGRADE_PLAN.md` Step 6, item 1): identified that the app's actual `DB_HOST` points at container `iom7u0wab3i2ucilif2kl1ms` (Coolify resource `mysql-database-iom7u0wab3i2ucilif2kl1ms`, databaseId 1) — a different, older resource than the "mysql-database" card shown by default in the Coolify UI, which is unused by production. Took a full `mysqldump` backup of the production database first (stored on the production host). Mounted `/etc/mysql/conf.d/native-password.cnf` (`[mysqld]\nmysql_native_password=ON`) via Coolify's Persistent Storage, restarted the database resource, then `ALTER USER 'mysql'@'%' IDENTIFIED WITH mysql_native_password` (same password, run as root since the app-level user lacks `CREATE USER`) + `FLUSH PRIVILEGES`. Verified via `information_schema.plugins` (plugin ACTIVE) and, more importantly, via the real production Laravel app container running `php artisan tinker --execute="DB::connection()->getPdo();"` — confirmed working, matching the identical fix already verified on staging.
+- Re-ran the full `php artisan test` suite on PHP 8.4.24 immediately before the production push: **608 passed, 3,547 assertions, zero failures.**
+- Added a `[2.0.0]` **Major Version Update** entry to `CHANGELOG.md` (per Step 6's instruction to categorize the final commit as a major bump) and bumped `.env.production.example`'s `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE` to match — the live Coolify production app's env vars still need the same update, done separately from this git push.
+- Built this release from `main` fast-forwarded to `117ebc8f`, plus this documentation commit cherry-picked on top — not a straight merge of `staging`'s tip, specifically to leave `a6d07277` (OrderFlow) off `main` for now.
+
+Verification:
+
+- Full test suite (above), production DB connection verified through the real app process (not the `mysql` CLI), production backup file confirmed non-empty and contains real `CREATE TABLE` statements before any change was made.
+
+Commit status:
+
+- Committed and pushed to `main` (v2.0.0) with the owner's explicit approval.
+
 ## 2026-08-01 - nixpacks.toml: bump NIXPACKS_NODE_VERSION 20 to 22
 
 Reason:

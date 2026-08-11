@@ -20,6 +20,21 @@ All notable production changes to Business Dashboard are documented here.
 
 - Login OTP values are stored hashed, expire after 10 minutes, allow at most five failed attempts, have a one-minute resend cooldown, and use non-enumerating responses for unknown accounts.
 
+## [2.0.0] - 2026-08-11
+
+**Release type:** Major Version Update
+
+Completes the Stack Upgrade Plan and clears every remaining Step 6 pre-production-deploy requirement: PHP raised to 8.4, Laravel to 13, Livewire to 4, and Filament to 5, plus the mandatory production MySQL authentication fix applied and verified ahead of this deploy. No user-facing behavior changes — this release is the infrastructure milestone that lets production run the same stack already verified on staging.
+
+### Technical Notes
+
+- `laravel/framework` 12.64.0 → **13.23.0** (with `laravel/tinker` 2.11.1 → 3.0.2 and `phpunit/phpunit` ^11.5 → ^12.0 as required companions); `filament/filament` and all `filament/*` sub-packages 4.12.5 → **5.7.5** with `livewire/livewire` 3.8.3 → **4.3.4** pulled in automatically. `composer.json`'s `"php"` constraint is `^8.4`. Full breaking-change review for both Laravel 13 and Livewire 4/Filament 5 found nothing this codebase needed to change beyond `AdminPanelProvider.php`'s CSRF middleware rename; `php artisan filament:upgrade` handled the rest mechanically.
+- `nixpacks.toml`'s `NIXPACKS_NODE_VERSION` raised `"20"` → `"22"` so Nixpacks' pinned nodejs package (20.18.1) no longer falls short of `vite:^7.3.5`'s `>=20.19.0` floor; confirmed on the following staging deploy by the Vite engine warning disappearing entirely.
+- Final full `php artisan test` on PHP 8.4.24, run immediately before this production push: **608 passed, 3,547 assertions, zero failures.** `npm run build` is clean with no console errors (confirmed via the staging deploy logs after the Node 22 fix).
+- **Production pre-deploy critical fix completed:** production MySQL 8.4 defaults new/altered users to `caching_sha2_password`, which Nixpacks' PHP 8.4 `mysqlnd` build cannot authenticate against (no compiled RSA/OpenSSL support). Applied the same fix already verified on staging directly to the production database resource (`mysql-database-iom7u0wab3i2ucilif2kl1ms`, the container actually referenced by the app's `DB_HOST`): mounted `/etc/mysql/conf.d/native-password.cnf` with `mysql_native_password=ON`, restarted the database resource, then `ALTER USER ... IDENTIFIED WITH mysql_native_password` on the production app's database user (password unchanged) and `FLUSH PRIVILEGES`. Verified via the real Laravel application (`DB::connection()->getPdo()` from inside the running production app container), not the native `mysql` CLI, per the Step 6 requirement.
+- Took a full production database backup (`mysqldump --no-tablespaces --single-transaction`) immediately before this deploy, stored on the production host.
+- Owner ran staging with this full stack for several days across storefront and admin usage with no runtime errors before approving this production push.
+
 ## [1.23.0] - 2026-08-03
 
 **Release type:** Minor Feature Update
