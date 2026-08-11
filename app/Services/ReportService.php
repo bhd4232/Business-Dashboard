@@ -233,7 +233,7 @@ class ReportService
 
         $sales = Order::query()
             ->selectRaw("{$orderPeriod} as period, sum(total_amount) as total")
-            ->whereIn('status', ['confirmed', 'completed'])
+            ->whereIn('status', Order::ACCOUNTED_STATUSES)
             ->whereDate('order_date', '>=', $start->toDateString())
             ->groupBy('period')
             ->pluck('total', 'period');
@@ -264,7 +264,7 @@ class ReportService
             ])
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('products', 'products.id', '=', 'order_items.product_id')
-            ->whereIn('orders.status', ['confirmed', 'completed'])
+            ->whereIn('orders.status', Order::ACCOUNTED_STATUSES)
             ->groupBy('products.id', 'products.name')
             ->orderByDesc('quantity')
             ->limit($limit)
@@ -281,7 +281,7 @@ class ReportService
             ])
             ->leftJoin('orders', function ($join): void {
                 $join->on('orders.customer_id', '=', 'customers.id')
-                    ->whereIn('orders.status', ['confirmed', 'completed']);
+                    ->whereIn('orders.status', Order::ACCOUNTED_STATUSES);
             })
             ->groupBy('customers.id', 'customers.name', 'customers.current_balance')
             ->orderByDesc('total_sales')
@@ -319,7 +319,7 @@ class ReportService
     protected function salesQuery(CarbonInterface $from, CarbonInterface $to): Builder
     {
         return Order::query()
-            ->whereIn('status', ['confirmed', 'completed'])
+            ->whereIn('status', Order::ACCOUNTED_STATUSES)
             ->whereDate('order_date', '>=', $from->toDateString())
             ->whereDate('order_date', '<=', $to->toDateString());
     }

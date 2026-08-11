@@ -223,6 +223,10 @@ Implemented behavior:
 - The `Courier` cluster uses concise page-only selector labels: `Providers`, `Bookings`, `Status Logs`, and `Webhook Logs`; full resource titles remain on their pages.
 - Delivery status is independent from the sales Order status.
 - Normalized delivery statuses are `not_booked`, `booking_pending`, `booked`, `picked_up`, `in_transit`, `delivered`, `partial_delivered`, `returned`, `cancelled`, and `failed`.
+- Order status is controlled after creation through the default Filament **Change status** action. Supported accounting statuses are `draft`, `confirmed`, `processing`, `completed`, `cancelled`, `returned`, and `refunded`; list rows, detail/edit pages, and a bulk action expose only legal next workflow stages.
+- The operational `shipping` and `delivered` stages map to the existing delivery status instead of duplicating courier state: Shipping sets order `processing` + delivery `in_transit`; Delivered sets order `completed` + delivery `delivered`. Incomplete checkouts remain `storefront_cart_records`, and recovered checkouts retain their recovery link/metadata rather than becoming sales statuses.
+- `confirmed`, `processing`, and `completed` reserve stock and count toward customer dues and sales reports. Cancelling, returning, or refunding releases the order's sale stock movement and removes its due/sales contribution. Cancellation, return, and refund transitions require a reason.
+- Every order/delivery status mutation that uses model events writes a company-scoped immutable `order_status_transitions` row with before/after states, source, actor, workflow stage, and optional reason. The Order resource exposes this through the read-only **Status History** relation manager. Courier adapter updates keep their separate courier status log.
 - Every manual or synchronized status change creates a courier status log.
 - Orders expose booking, Steadfast booking, delivered, returned, and status information actions.
 - Courier booking detail includes provider, invoice, recipient, COD amount, tracking data, and status history.
@@ -248,7 +252,9 @@ app/Models/CourierProvider.php
 app/Models/CourierBooking.php
 app/Models/CourierStatusLog.php
 app/Models/CourierWebhookLog.php
+app/Models/OrderStatusTransition.php
 app/Services/CourierService.php
+app/Services/OrderStatusWorkflowService.php
 app/Services/CourierManager.php
 app/Contracts/CourierProviderInterface.php
 app/Services/Couriers/
@@ -262,6 +268,7 @@ app/Filament/Resources/CourierBookings/
 app/Filament/Resources/CourierStatusLogs/
 app/Filament/Resources/CourierWebhookLogs/
 tests/Feature/CourierIntegrationTest.php
+tests/Feature/OrderStatusWorkflowTest.php
 ```
 
 ### Customer Success and Risk Score
@@ -269,7 +276,7 @@ tests/Feature/CourierIntegrationTest.php
 - The module uses explainable rules rather than machine learning. Every deduction is stored as a named factor.
 - Company-level profiles track courier totals plus delivered, returned, and cancelled ratios by customer phone.
 - Scores map to Low (`80-100`), Medium (`50-79`), and High (`0-49`) risk; an active global/company blacklist produces the separate Blacklisted level.
-- Checks run when an Order becomes confirmed/completed and again immediately before courier booking.
+- Checks run when an Order enters an accounted status (`confirmed`, `processing`, or `completed`) and again immediately before courier booking.
 - Global or company blacklist matches block courier booking pending owner review.
 - Terminal courier status changes create idempotent customer risk events and refresh the profile.
 - Risk badges appear in Customer and Order lists/details; booking forms show the current score before submission.
@@ -455,7 +462,10 @@ Current behavior:
 - Draft storefront orders do not increase `Today Sales`; the dashboard shows them separately as `Storefront Pending` with pending order count and amount.
 - The Orders table and Order detail page display the order `Source` badge, and the Orders table can be filtered by `Admin` or `Storefront` source.
 - Checkout validates current cart stock and clears the cart after successful order creation.
-- New-customer delivery advance flow is enabled per company from **Site → Site Theme → Checkout & Delivery**. A phone number not found in that company's `customers` table does not create a Customer or Order before payment. The checkout stores an encrypted pending snapshot on `storefront_payments`, redirects to the active ZiniPay hosted gateway for the delivery charge only, and creates the Customer/Order atomically after server-side amount/status verification. Existing customers keep the configured COD/manual flow; the separate pre-order advance rule remains authoritative when a cart contains out-of-stock pre-order quantity.
+- Checkout protection is company-configurable from **Site → Site Theme → Checkout Protection**. `off` preserves the legacy checkout, `observe` records policy signals without blocking, and `enforce` rejects a policy violation with a generic customer-facing message. The policy can require a valid Bangladesh mobile number, enforce global/company phone/email/IP blacklist entries, and limit recent non-cancelled storefront orders by phone, email, and IP over a configurable time window. Valid `+880`/`880`/local submissions are normalized to `01XXXXXXXXX` before customer matching. `StorefrontCheckoutPolicyService` is authoritative for both production and preview checkout paths.
+- Policy evaluations are written to company-scoped `storefront_checkout_attempts`. Raw identity values are not copied into this audit table: keyed hashes support rate-limit matching and masked phone/email/IP values support staff review. Outcomes progress through allowed/observed/blocked and, where applicable, pending-payment/accepted; accepted attempts link to the resulting ERP Order. The same record stores the courier success ratio (when a provider answered), required advance, and internal advance-reason keys. Staff with sales-view access get the read-only Filament default table at **Site → Checkout Attempts**. Blacklist reasons, courier scores, thresholds, and exact policy signals are never exposed to the customer.
+- Checkout advances now use one server-authoritative eligibility decision in `StorefrontPaymentEligibilityService`. It takes the maximum—not the sum—of applicable pre-order, new-customer delivery, and courier-risk requirements, capped at the checkout total, so one checkout is never double-charged. The customer and final Order are not created until ZiniPay verifies the exact expected amount; the encrypted `storefront_payments.checkout_data` snapshot is then consumed atomically, the advance is recorded in `orders.paid_amount`, and the full invoice total/due balance remains intact. Legacy `new_customer_delivery` payments remain finalizable for deployment compatibility, while new flows use `checkout_advance`.
+- Courier-history advance eligibility is opt-in per company at **Site → Site Theme → Checkout Protection**. Admins choose the minimum successful-delivery ratio, fixed or percentage advance, and whether a genuine zero-history response permits COD or requires the advance. `ExternalCourierFraudService` checks configured Pathao/Steadfast/RedX merchant accounts and reuses its 24-hour cache. A risk rule is applied only when at least one courier actually answers; missing credentials, timeouts, or all-provider failure are treated as `unavailable` and fail open. The storefront shows only the configurable generic advance notice.
 - Storefront delivery is weight based: `products.weight_kg × quantity` is summed, rounded up to a minimum/started whole kilogram, then charged using company-specific first-kg rates (default BDT 70 inside Dhaka, BDT 110 outside) plus the additional-kg rate (default BDT 20). `StorefrontDeliveryService` is the single calculator used by both the checkout display and persisted order.
 - Checkout payment returns use temporary-signed `/checkout/payment/{payment}/return` URLs. The return and ZiniPay webhook both call `StorefrontPaymentService`, so verification and order creation are idempotent; successful delivery advance is stored in `orders.paid_amount`, leaving only the product balance due on delivery.
 - Checkout success pages show the generated ERP order number and order summary. Production success URLs are temporary-signed for 24 hours; an unsigned URL is accepted only for the authenticated customer who owns that order. ZiniPay redirect/cancel URLs use the same signed success URL. Local admin preview remains unsigned.
@@ -479,6 +489,7 @@ Current behavior:
 - Published storefront pages are available from footer links and at `/pages/{slug}`. Unpublished pages and other-company pages return 404.
 - In local/testing, `/pages/{slug}` falls back to the first published storefront company so admins can preview content pages on `127.0.0.1`; local company-scoped preview still works at `/storefront/{company-slug}/pages/{slug}`.
 - Admin Order forms use two explicit labels: `Order Status` for invoice/stock/accounts/reporting workflow and `Delivery Status` for storefront tracking/courier progress; courier booking actions may update delivery status automatically.
+- Existing Order forms show those status fields read-only; staff use the controlled **Change status** action for workflow updates. Mixed selections can use the bulk action, which updates legal records and reports skipped incompatible transitions without partially changing them.
 - Production tracking routes on custom domains:
   - `GET /track`
   - `GET /track/{orderNo}`
@@ -547,11 +558,20 @@ Current behavior:
 - Variable-product cards never submit an incomplete quick-add request: they open the product option selector. On the detail page, desktop and mobile add buttons share the selected-variant quantity state. Checkout renders one shared manual-payment sender/transaction field pair, defaults to the first enabled payment method, and blocks submission only when no valid payment path exists or required preorder advance payment is unavailable.
 - Checkout no longer asks the customer to select a delivery area. `StorefrontDeliveryAreaResolver` detects inside/outside Dhaka from the submitted delivery address, and `CheckoutController` performs the authoritative server-side calculation before creating an order or delivery-advance payment. Unknown addresses default to outside Dhaka. The browser mirrors the result only for the live order-summary preview. Admins can override the built-in English/Bangla locality list from **Storefront → Settings → Checkout & Delivery → Inside-Dhaka address keywords**. Key files: `app/Services/StorefrontDeliveryAreaResolver.php`, `app/Http/Controllers/Storefront/CheckoutController.php`, and `resources/views/storefront/checkout/show.blade.php`.
 - Registered, active customer accounts support password-free login through a six-digit OTP sent to the submitted account email or phone. Email delivery uses Laravel's configured mailer; phone delivery uses the company-specific SMS URL template in **Storefront → Settings → Customer Notifications & Reminders**. Codes are hashed, single-use, expire after 10 minutes, allow five failed attempts, have a one-minute resend cooldown, and use generic responses for unknown accounts. OTP does not turn checkout-created CRM rows without a password into accounts. Key files: `app/Http/Controllers/Storefront/AccountAuthController.php`, `app/Services/CustomerAccountService.php`, `app/Mail/StorefrontLoginOtp.php`, and `resources/views/storefront/account/otp-*.blade.php`. Verify with `php artisan test tests/Feature/StorefrontCustomerAuthTest.php tests/Feature/StorefrontManualPaymentTest.php tests/Feature/StorefrontCustomerAdvanceAndComplaintTest.php`.
-- Pre-order: products with `is_preorder = true` can be ordered beyond current stock ("Pre-order now" button/badge replaces "Out of stock"). The per-product `preorder_advance_percent` (default 100) of any pre-order quantity beyond stock is payable online at checkout via ZiniPay hosted checkout; COD is never offered for pre-order quantities, and pre-order checkout is blocked with a validation error when ZiniPay is not configured. Payments live in `storefront_payments` (`StorefrontPayment`), created pending before redirect and completed only after server-side `/v1/payment/verify` confirmation (webhook `POST /webhooks/zinipay/{payment}`, CSRF-exempt, amount-matched). ZiniPay credentials: storefront settings "Online Payments (ZiniPay)" section (`online_payment_enabled` + encrypted `payment_credentials`).
+- Pre-order: products with `is_preorder = true` can be ordered beyond current stock ("Pre-order now" button/badge replaces "Out of stock"). The per-product `preorder_advance_percent` (default 100) of any pre-order quantity beyond stock feeds the unified checkout-advance decision; checkout is blocked when an advance is required but ZiniPay is not configured. No Customer or Order is created before exact server-side `/v1/payment/verify` confirmation (webhook `POST /webhooks/zinipay/{payment}`, CSRF-exempt, amount-matched). ZiniPay credentials: storefront settings "Online Payments (ZiniPay)" section (`online_payment_enabled` + encrypted `payment_credentials`).
 - Reseller applications: public `/reseller` page (preview: `/storefront/{company-slug}/reseller`) creates/updates a company-scoped Customer with `reseller_status = pending`, `business_name`, `reseller_note`. Admin approves from the Customer form's Reseller section; the Customers table shows a reseller badge. Approved customers keep their status if they re-apply. Wholesale price gating per reseller is intentionally deferred until a customer login/OTP system exists — tier prices are currently public.
-- Abandoned cart reminders: every cart change also upserts `storefront_cart_records` (keyed by a stable `storefront_cart_token` session UUID, not the session id); checkout attempts store the phone/name on the record, successful checkout marks it converted, emptying the cart deletes it. The hourly scheduled `storefront:send-abandoned-cart-reminders` command (see `bootstrap/app.php`) sends one SMS (generic GET gateway URL template with `{api_key}/{sender_id}/{phone}/{message}` placeholders — BulkSMSBD-compatible) and one Meta Cloud WhatsApp template message per stale active cart with a phone, then marks it reminded. Settings: "Abandoned Cart Reminders" section (toggle, delay hours, encrypted `notification_credentials`).
+- Incomplete checkout recovery extends the existing company-scoped `storefront_cart_records` lifecycle instead of creating draft ERP orders. When **Site → Site Theme → Customer Notifications & Reminders → Capture incomplete checkout details** is enabled, checkout entry records the cart subtotal/start time and a throttled same-origin endpoint debounces valid name/phone/email/address input; email and address use encrypted model casts. Raw card/payment credentials are never captured. The read-only default Filament resource at **Site → Incomplete Checkouts** provides status/contact/cart/recovered-order details, filters, and 30-day started/open/recovered/revenue stats.
+- The hourly `storefront:send-abandoned-cart-reminders` command sends one SMS and/or Meta Cloud WhatsApp template per stale active/checkout-started cart with a valid phone. SMS includes a company-domain recovery URL protected by a keyed HMAC token that is not stored in the database. Existing two-variable WhatsApp templates remain compatible; an optional approved three-variable recovery template receives customer name, store name, and the recovery URL. Opening a valid company-scoped link restores the original items, and successful checkout links the recovered ERP Order and revenue. Cart tokens rotate after conversion so a new cart cannot overwrite historical recovery analytics.
 - WooCommerce product import: `php artisan woocommerce:import-products {company-slug}` (optional `--no-images`) reads `woocommerce_base_url` + encrypted `woocommerce_credentials` (consumer key/secret) from that company's storefront settings, pages through `/wp-json/wc/v3/products?status=publish`, matches by SKU then slug (re-running updates rather than duplicates), maps regular/sale price, first category (created if missing), description, and optionally downloads the first image to the public disk. Imported products start with stock 0 — stock must enter through stock movements.
+- Meta commerce tracking is configured per company under **Site → Site Theme → Meta Pixel & Conversions API**. New/existing settings default to requiring an explicit storefront Meta-consent choice: the accessible consent panel stores a company-specific accept/decline cookie for 180 days, and neither browser Pixel nor CAPI customer context/delivery runs before acceptance. Domain-verification meta tags can still render independently. Local/admin preview routes never emit live tracking. Disabling the consent requirement is an admin/legal-policy decision, not an application default.
+- Browser tracking can select `PageView`, `ViewContent`, `AddToCart`, `InitiateCheckout`, `Purchase`, `ViewCart`, `RemoveFromCart`, `ViewCategory`, `ViewItemList`, `Search`, and `CompleteRegistration`. Admins may also define selector-based link/click, scroll-visibility, and elapsed-time custom events through native Filament controls; invalid selectors fail safely. One primary and multiple additional Pixel/Dataset IDs are supported. Optional advanced matching initializes each Pixel with SHA-256-hashed authenticated-customer email/phone/external ID and never embeds raw identifiers in the rendered page.
+- `Purchase` is sent server-side only after a storefront ERP Order exists, including orders created after verified checkout advance. Browser and server use deterministic `purchase-{company_id}-{order_id}` IDs for deduplication. Delivery timing is configurable as immediate, always after confirmation, or risk-aware: risk-aware orders with a known courier success ratio below the configured threshold wait until confirmation, while an unavailable ratio fails open to immediate delivery. The success page suppresses its browser Purchase when server delivery is intentionally delayed. `StorefrontMetaDispatchService` persists the consented matching context encrypted, associates any recovery cart, and clears the context after successful Purchase delivery; the scheduled retry command also expires remaining context after 30 days.
+- Optional status-based CAPI events emit `Recovered` from the incomplete-checkout recovery subsystem and `Confirmed`, `Processing`, `Shipping`, `Delivered`, `Completed`, `Cancelled`, `Returned`, and/or `Refunded` after the corresponding committed lifecycle transition. Transition events use `status-{stage}-{company_id}-{order_id}-{transition_id}`; recovery uses a cart-specific ID. These `system_generated` events deliberately exclude staff browser IP/user-agent/cookies. The jobs are fail-open: Meta failure cannot reject checkout, payment verification, recovery, or an order transition.
+- Meta CAPI credentials are separate from CRM channel tokens and encrypted in `storefront_settings.meta_tracking_credentials`; each configured Pixel can carry its own access token and test code. Email, normalized phone, and external customer ID are SHA-256 hashed before transmission. Company-scoped `storefront_meta_events` records one privacy-minimized delivery audit per Pixel/event with order, transition, or recovery-cart references. Under **Site → Meta Events**, authorized staff can inspect delivery and retry failed/pending rows with a native Filament action. `php artisan storefront:retry-meta-events` queues bounded retries (maximum five attempts, failures at least ten minutes old), runs every ten minutes, skips already-sent Pixel deliveries, and clears encrypted attribution contexts older than 30 days. Production therefore requires the Laravel scheduler and queue worker to be running.
 - Whenever storefront UI/routes/settings/cart/checkout are changed, update this guide with the affected files and verification steps.
+- Verify checkout protection with `php artisan test tests/Feature/StorefrontCheckoutPolicyTest.php tests/Feature/StorefrontManualPaymentTest.php tests/Feature/StorefrontCustomerAdvanceAndComplaintTest.php tests/Feature/CustomerRiskTest.php tests/Feature/MultiCompanyIsolationTest.php`.
+- Verify incomplete checkout recovery with `php artisan test tests/Feature/StorefrontIncompleteCheckoutRecoveryTest.php tests/Feature/StorefrontResellerAndAbandonedCartTest.php tests/Feature/StorefrontCustomerAdvanceAndComplaintTest.php`.
+- Verify Meta Pixel/CAPI tracking with `php artisan test tests/Feature/StorefrontMetaTrackingTest.php tests/Feature/StorefrontFoundationTest.php tests/Feature/StorefrontPreorderPaymentTest.php tests/Feature/StorefrontRiskPaymentEligibilityTest.php` and compile the storefront with `php artisan view:cache` plus `npm.cmd run build` on Windows.
 
 Important files:
 
@@ -569,6 +589,10 @@ app/Services/StorefrontCart.php
 app/Services/StorefrontDeliveryService.php
 app/Services/StorefrontPaymentService.php
 app/Services/StorefrontOrderPlacementService.php
+app/Services/StorefrontCheckoutPolicyService.php
+app/Services/StorefrontMetaDispatchService.php
+app/Services/StorefrontMetaConversionsService.php
+app/Services/StorefrontMetaTrackingService.php
 app/Services/TelegramComplaintService.php
 app/Models/StorefrontComplaint.php
 app/Services/StorefrontCustomerActivityService.php
@@ -577,14 +601,27 @@ app/Models/ProductCarousel.php
 app/Models/ProductVariant.php
 app/Models/StorefrontPage.php
 app/Models/StorefrontSetting.php
+app/Models/StorefrontCheckoutAttempt.php
+app/Models/StorefrontMetaAttribution.php
+app/Models/StorefrontMetaEvent.php
+app/Models/OrderStatusTransition.php
+app/Jobs/SendStorefrontMetaPurchaseJob.php
+app/Jobs/SendStorefrontMetaRecoveredJob.php
+app/Jobs/SendStorefrontMetaOrderStatusJob.php
+app/Jobs/RetryStorefrontMetaEventJob.php
+app/Console/Commands/RetryStorefrontMetaEvents.php
+resources/views/storefront/partials/meta-pixel.blade.php
+resources/views/storefront/partials/meta-consent.blade.php
 app/Support/StorefrontCategoryIcons.php
 app/Support/StorefrontThemeRegistry.php
 app/Filament/Resources/ProductCarousels/
 app/Filament/Resources/StorefrontPages/
 app/Filament/Resources/StorefrontSettings/
+app/Filament/Resources/StorefrontCheckoutAttempts/
 app/Filament/Resources/StorefrontSettings/Pages/CreateStorefrontSetting.php
 app/Filament/Resources/StorefrontSettings/Pages/EditStorefrontSetting.php
 database/migrations/2026_06_25_000000_add_storefront_foundation_fields.php
+database/migrations/2026_08_09_050000_add_storefront_meta_status_events.php
 database/migrations/2026_06_25_001000_create_storefront_settings_table.php
 database/migrations/2026_06_28_001000_create_storefront_pages_table.php
 database/migrations/2026_08_02_000000_create_storefront_customer_activities_table.php
@@ -592,6 +629,7 @@ database/migrations/2026_08_02_010000_add_theme_foreground_mode_to_storefront_se
 database/migrations/2026_08_02_020000_add_theme_palette_and_typography_to_storefront_settings_table.php
 database/migrations/2026_08_02_030000_add_advanced_theme_controls_to_storefront_settings_table.php
 database/migrations/2026_08_03_000000_add_theme_selection_to_storefront_settings_table.php
+database/migrations/2026_08_09_000000_add_storefront_checkout_protection.php
 database/migrations/2026_08_03_010000_add_icon_to_categories_table.php
 database/migrations/2026_07_03_000000_add_hero_and_theme_fields_to_storefront_settings_table.php
 database/migrations/2026_07_03_010000_add_dual_banner_and_phone_to_storefront_settings_table.php
@@ -1336,6 +1374,7 @@ Focused test commands:
 php artisan test --filter=StockMovementTest
 php artisan test --filter=PurchaseTest
 php artisan test --filter=SalesOrderTest
+php artisan test --filter=OrderStatusWorkflowTest
 php artisan test --filter=AccountsAndPaymentsTest
 php artisan test --filter=ReportsTest
 php artisan test --filter=PhaseSixPermissionsTest

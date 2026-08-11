@@ -108,7 +108,7 @@ The first version should focus on a stable customer-facing storefront, product c
 ### 3.2 Admin Panel
 
 - [ ] E-commerce dashboard with orders, revenue, pending payments, and low stock
-- [ ] Order management for new, processing, shipped, delivered, cancelled, returned, and refunded orders
+- [x] Controlled order management for new, processing, shipped, delivered, cancelled, returned, and refunded stages
 - [ ] Product featuring for homepage and campaign sections
 - [ ] Banner and slider management
 - [ ] Promotion, discount, and coupon management
@@ -119,7 +119,7 @@ The first version should focus on a stable customer-facing storefront, product c
 - [ ] Order automation rules
 - [ ] Activity log for orders, stock, payments, and refunds
 - [ ] Automatic invoice generation after order completion
-- [ ] Automatic stock deduction when order status reaches the configured stage
+- [x] Automatic stock reservation/deduction for accounted order statuses, with restoration on cancellation/return/refund
 - [ ] Return and refund management
 
 ### 3.3 Localization and Bangladesh-Specific Features
@@ -322,7 +322,7 @@ The product order page should show a clear cost breakdown when the product is im
 - [ ] Auto-generated XML sitemap
 - [ ] Structured data with JSON-LD for products
 - [ ] Google Analytics or similar analytics
-- [ ] Facebook Pixel or Meta conversion tracking
+- [x] Consent-gated Meta Pixel commerce/custom events, multi-Pixel advanced matching, domain verification, deduplicated risk-aware Purchase, recovery/status CAPI events, and retryable per-Pixel delivery audit
 - [ ] Laravel cache strategy
 - [ ] Redis cache where useful
 - [ ] CDN for public assets
@@ -376,6 +376,8 @@ The product order page should show a clear cost breakdown when the product is im
 - [ ] Email or SMS notifications
 - [x] Initial verified payment gateway integration
 - [x] Cash on delivery
+- [x] Privacy-minimized checkout protection audit, blacklist enforcement, and recent-order limits
+- [x] Unified pre-order/new-customer/courier-history advance eligibility with fail-open provider handling
 
 **Done Criteria:** Customers can place orders and track them from their account or by order number.
 
@@ -383,13 +385,13 @@ The product order page should show a clear cost breakdown when the product is im
 
 - [ ] E-commerce dashboard
 - [ ] Order management dashboard
-- [ ] Order status flow: pending, processing, shipped, delivered, cancelled, returned, refunded
+- [x] Controlled order status flow: pending/draft, processing, shipped, delivered, cancelled, returned, refunded
 - [ ] Banner management
 - [ ] Discount and coupon management
 - [ ] Shipping management
-- [ ] Payment verification
+- [x] Server-side payment amount/status verification before advance-gated order creation
 - [ ] PDF invoices
-- [ ] Admin audit trail
+- [ ] Admin audit trail (order status history completed; payment/refund/other action audit remains)
 
 **Done Criteria:** Admin users can manage the full order lifecycle from the ERP panel.
 
@@ -399,8 +401,9 @@ The product order page should show a clear cost breakdown when the product is im
 - [ ] Wishlist
 - [ ] Related products
 - [ ] Promotional campaigns
-- [x] Abandoned cart recovery (company storefront settings; WhatsApp templates can reuse the selected CRM Chat Channel)
+- [x] Incomplete checkout autosave and abandoned-cart recovery (encrypted contact snapshot, secure restore link, recovered-order/revenue analytics, and CRM Chat Channel-compatible WhatsApp templates)
 - [x] Channel-based CRM Inbox for WhatsApp/Messenger customer conversations and chat order links
+- [x] Company-scoped OrderFlow-equivalent Meta Pixel + Conversions API integration (consent, expanded commerce/custom events, multiple Pixels, advanced matching, domain verification, risk-aware Purchase, recovered/status events, retry/retention, and privacy-minimized delivery audit)
 - [ ] Analytics integration
 - [ ] Support ticket system
 - [ ] Return and refund workflow

@@ -19,7 +19,8 @@ use Illuminate\Support\Facades\Mail;
  *   {phone}, {message} placeholders (works with BulkSMSBD-style GET APIs)
  * - sms_api_key, sms_sender_id
  * - whatsapp_token, whatsapp_phone_number_id, whatsapp_template_name,
- *   whatsapp_template_language (default "bn")
+ *   whatsapp_recovery_template_name, whatsapp_template_language (default
+ *   "bn")
  */
 class StorefrontNotificationService
 {
@@ -68,10 +69,14 @@ class StorefrontNotificationService
         }
     }
 
-    public function sendWhatsAppTemplate(StorefrontSetting $setting, string $phone, array $bodyParameters = []): bool
-    {
+    public function sendWhatsAppTemplate(
+        StorefrontSetting $setting,
+        string $phone,
+        array $bodyParameters = [],
+        ?string $templateOverride = null,
+    ): bool {
         $credentials = $setting->notification_credentials ?? [];
-        $template = (string) ($credentials['whatsapp_template_name'] ?? '');
+        $template = trim((string) ($templateOverride ?: ($credentials['whatsapp_template_name'] ?? '')));
         $selectedChannelId = $credentials['whatsapp_channel_id'] ?? null;
         $channelQuery = ConversationChannel::withoutGlobalScopes()
             ->where('company_id', $setting->company_id)

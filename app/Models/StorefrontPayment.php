@@ -15,6 +15,8 @@ class StorefrontPayment extends Model
 
     public const PURPOSE_NEW_CUSTOMER_DELIVERY = 'new_customer_delivery';
 
+    public const PURPOSE_CHECKOUT_ADVANCE = 'checkout_advance';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_COMPLETED = 'completed';

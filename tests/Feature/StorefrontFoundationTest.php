@@ -368,7 +368,7 @@ class StorefrontFoundationTest extends TestCase
         $this->assertDatabaseHas('customers', [
             'company_id' => $company->getKey(),
             'name' => 'Storefront Buyer',
-            'phone' => '+8801700111222',
+            'phone' => '01700111222',
             'email' => 'buyer@example.test',
             'customer_source' => 'website',
         ]);

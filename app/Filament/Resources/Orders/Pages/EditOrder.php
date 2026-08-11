@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Orders\Pages;
 
 use App\Filament\Concerns\HasStickyHeaderFormActions;
+use App\Filament\Resources\Orders\Actions\ChangeOrderWorkflowAction;
 use App\Filament\Resources\Orders\OrderResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
@@ -18,6 +19,7 @@ class EditOrder extends EditRecord
     {
         return [
             $this->getStickySaveFormAction(),
+            ChangeOrderWorkflowAction::make(),
             ViewAction::make(),
             DeleteAction::make(),
         ];

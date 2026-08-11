@@ -28,7 +28,10 @@ class SendAbandonedCartReminders extends Command
 
             $carts = StorefrontCartRecord::withoutGlobalScopes()
                 ->where('company_id', $setting->company_id)
-                ->where('status', StorefrontCartRecord::STATUS_ACTIVE)
+                ->whereIn('status', [
+                    StorefrontCartRecord::STATUS_ACTIVE,
+                    StorefrontCartRecord::STATUS_CHECKOUT_STARTED,
+                ])
                 ->whereNotNull('phone')
                 ->whereNull('reminded_at')
                 ->where('updated_at', '<=', now()->subHours($delayHours))
@@ -36,18 +39,38 @@ class SendAbandonedCartReminders extends Command
 
             foreach ($carts as $cart) {
                 $companyName = $setting->company?->name ?? 'our store';
-                $message = "Hello".($cart->customer_name ? " {$cart->customer_name}" : '').", you left items in your cart at {$companyName}. Complete your order any time - your cart is saved.";
+                $recoveryUrl = $cart->recoveryUrl();
+                $message = 'Hello'.($cart->customer_name ? " {$cart->customer_name}" : '').", you left items in your cart at {$companyName}. Complete your order any time - your cart is saved."
+                    .($recoveryUrl ? " Restore it here: {$recoveryUrl}" : '');
 
                 $smsSent = $notifications->sendSms($setting, $cart->phone, $message);
-                $whatsAppSent = $notifications->sendWhatsAppTemplate($setting, $cart->phone, [
+                $recoveryTemplate = trim((string) data_get($setting->notification_credentials, 'whatsapp_recovery_template_name'));
+                $whatsAppParameters = [
                     $cart->customer_name ?: 'Customer',
                     $companyName,
-                ]);
+                ];
+
+                if ($recoveryTemplate !== '' && $recoveryUrl) {
+                    $whatsAppParameters[] = $recoveryUrl;
+                }
+
+                $whatsAppSent = $notifications->sendWhatsAppTemplate(
+                    $setting,
+                    $cart->phone,
+                    $whatsAppParameters,
+                    $recoveryTemplate !== '' && $recoveryUrl ? $recoveryTemplate : null,
+                );
 
                 if ($smsSent || $whatsAppSent) {
+                    $channels = array_values(array_filter([
+                        $smsSent ? 'sms' : null,
+                        $whatsAppSent ? 'whatsapp' : null,
+                    ]));
                     $cart->update([
                         'status' => StorefrontCartRecord::STATUS_REMINDED,
                         'reminded_at' => now(),
+                        'reminder_count' => $cart->reminder_count + 1,
+                        'last_reminder_channels' => $channels,
                     ]);
                     $sent++;
                 }

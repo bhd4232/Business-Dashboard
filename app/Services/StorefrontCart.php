@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Company;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StorefrontCartRecord;
@@ -73,11 +74,12 @@ class StorefrontCart
         $this->put($company, $items);
     }
 
-    public function clear(Company $company): void
+    public function clear(Company $company, ?Order $order = null): void
     {
+        $record = $this->cartRecord($company);
         $this->session->forget($this->key($company));
-
-        $this->cartRecord($company)?->update(['status' => StorefrontCartRecord::STATUS_CONVERTED]);
+        $record?->markConverted($order);
+        $this->session->forget('storefront_cart_token');
     }
 
     /**
@@ -86,10 +88,98 @@ class StorefrontCart
      */
     public function rememberContact(Company $company, string $phone, ?string $name = null): void
     {
-        $this->cartRecord($company)?->update([
-            'phone' => $phone,
-            'customer_name' => $name,
-        ]);
+        $this->rememberCheckout($company, ['phone' => $phone, 'name' => $name]);
+    }
+
+    public function startCheckout(Company $company, float $subtotal, array $contact = []): void
+    {
+        $record = $this->cartRecord($company);
+
+        if (! $record || $record->status === StorefrontCartRecord::STATUS_CONVERTED) {
+            return;
+        }
+
+        $updates = [
+            'subtotal' => max(0, $subtotal),
+            'checkout_started_at' => $record->checkout_started_at ?? now(),
+            'last_activity_at' => now(),
+        ];
+
+        if ($record->status === StorefrontCartRecord::STATUS_ACTIVE) {
+            $updates['status'] = StorefrontCartRecord::STATUS_CHECKOUT_STARTED;
+        }
+
+        $record->update($updates);
+        $this->rememberCheckout($company, $contact, $subtotal);
+    }
+
+    public function rememberCheckout(Company $company, array $data, ?float $subtotal = null): void
+    {
+        $record = $this->cartRecord($company);
+
+        if (! $record || $record->status === StorefrontCartRecord::STATUS_CONVERTED) {
+            return;
+        }
+
+        $updates = ['last_activity_at' => now()];
+        $name = trim((string) ($data['name'] ?? ''));
+        $phone = $this->normalizePhone((string) ($data['phone'] ?? ''));
+        $email = trim((string) ($data['email'] ?? ''));
+        $address = trim((string) ($data['address'] ?? ''));
+
+        if ($name !== '') {
+            $updates['customer_name'] = Str::limit($name, 255, '');
+        }
+
+        if ($phone !== null) {
+            $updates['phone'] = $phone;
+        }
+
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $updates['email'] = Str::lower(Str::limit($email, 255, ''));
+        }
+
+        if ($address !== '') {
+            $updates['address'] = Str::limit($address, 1000, '');
+        }
+
+        if ($subtotal !== null) {
+            $updates['subtotal'] = max(0, $subtotal);
+        }
+
+        $record->update($updates);
+    }
+
+    public function recordId(Company $company): ?int
+    {
+        return $this->cartRecord($company)?->getKey();
+    }
+
+    public function restore(Company $company, StorefrontCartRecord $record): void
+    {
+        abort_unless($record->company_id === $company->getKey() && $record->status !== StorefrontCartRecord::STATUS_CONVERTED, 404);
+
+        $items = collect($record->items)
+            ->filter(fn ($item): bool => is_array($item) && (int) ($item['product_id'] ?? 0) > 0 && (int) ($item['quantity'] ?? 0) > 0)
+            ->mapWithKeys(fn (array $item): array => [
+                ((int) $item['product_id']).':'.((int) ($item['variant_id'] ?? 0)) => [
+                    'product_id' => (int) $item['product_id'],
+                    'variant_id' => ! empty($item['variant_id']) ? (int) $item['variant_id'] : null,
+                    'quantity' => (int) $item['quantity'],
+                ],
+            ])
+            ->all();
+
+        abort_if($items === [], 404);
+
+        $this->session->put('storefront_cart_token', $record->session_id);
+        $this->session->put($this->key($company), $items);
+        $record->forceFill([
+            'status' => StorefrontCartRecord::STATUS_CHECKOUT_STARTED,
+            'checkout_started_at' => $record->checkout_started_at ?? now(),
+            'recovery_opened_at' => $record->recovery_opened_at ?? now(),
+            'last_activity_at' => now(),
+        ])->save();
     }
 
     protected function cartRecord(Company $company): ?StorefrontCartRecord
@@ -132,12 +222,19 @@ class StorefrontCart
             return;
         }
 
+        $record = $this->cartRecord($company);
+
+        if ($record?->status === StorefrontCartRecord::STATUS_CONVERTED) {
+            $this->session->forget('storefront_cart_token');
+        }
+
         StorefrontCartRecord::withoutGlobalScopes()->updateOrCreate(
             ['company_id' => $company->getKey(), 'session_id' => $this->cartToken()],
             [
                 'items' => array_values($items),
                 'status' => StorefrontCartRecord::STATUS_ACTIVE,
                 'reminded_at' => null,
+                'last_activity_at' => now(),
             ],
         );
     }
@@ -277,5 +374,18 @@ class StorefrontCart
     protected function key(Company $company): string
     {
         return 'storefront_cart.'.$company->getKey();
+    }
+
+    protected function normalizePhone(string $phone): ?string
+    {
+        $digits = preg_replace('/\D+/', '', $phone) ?? '';
+
+        if (str_starts_with($digits, '880')) {
+            $digits = '0'.substr($digits, 3);
+        } elseif (strlen($digits) === 10 && str_starts_with($digits, '1')) {
+            $digits = '0'.$digits;
+        }
+
+        return preg_match('/^01[3-9]\d{8}$/', $digits) === 1 ? $digits : null;
     }
 }

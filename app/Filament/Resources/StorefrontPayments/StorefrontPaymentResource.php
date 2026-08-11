@@ -41,6 +41,7 @@ class StorefrontPaymentResource extends Resource
                 TextColumn::make('purpose')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        StorefrontPayment::PURPOSE_CHECKOUT_ADVANCE => 'Checkout advance',
                         StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY => 'New customer delivery',
                         StorefrontPayment::PURPOSE_PREORDER_ADVANCE => 'Pre-order advance',
                         default => 'Order payment',
@@ -57,7 +58,7 @@ class StorefrontPaymentResource extends Resource
                     ->money('BDT')
                     ->sortable(),
                 TextColumn::make('payment_method')
-                    ->label('Sender number'),
+                    ->label('Method / sender'),
                 TextColumn::make('transaction_id')
                     ->label('Transaction ID')
                     ->searchable(),

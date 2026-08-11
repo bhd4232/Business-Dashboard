@@ -404,7 +404,7 @@ class VoucherResource extends Resource
     {
         return Order::query()
             ->with('customer')
-            ->whereIn('status', ['confirmed', 'completed'])
+            ->whereIn('status', Order::ACCOUNTED_STATUSES)
             ->latest('id')
             ->limit(10)
             ->get()
@@ -419,7 +419,7 @@ class VoucherResource extends Resource
     {
         return Order::query()
             ->with('customer')
-            ->whereIn('status', ['confirmed', 'completed'])
+            ->whereIn('status', Order::ACCOUNTED_STATUSES)
             ->where(function (Builder $query) use ($search): void {
                 $query
                     ->where('order_number', 'like', "%{$search}%")

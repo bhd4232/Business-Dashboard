@@ -103,6 +103,10 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
     Route::post('/checkout', [StorefrontCheckoutController::class, 'storePreview'])
         ->name('storefront.preview.checkout.store');
 
+    Route::post('/checkout/autosave', [StorefrontCheckoutController::class, 'autosavePreview'])
+        ->middleware('throttle:30,1')
+        ->name('storefront.preview.checkout.autosave');
+
     Route::get('/checkout/success/{order}', [StorefrontCheckoutController::class, 'successPreview'])
         ->name('storefront.preview.checkout.success');
 
@@ -204,11 +208,19 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::delete('/cart/items/{slug}', [StorefrontCartController::class, 'remove'])
         ->name('storefront.cart.remove');
 
+    Route::get('/cart/recover/{cart}/{token}', [StorefrontCartController::class, 'recover'])
+        ->middleware('throttle:20,1')
+        ->name('storefront.cart.recover');
+
     Route::get('/checkout', [StorefrontCheckoutController::class, 'show'])
         ->name('storefront.checkout.show');
 
     Route::post('/checkout', [StorefrontCheckoutController::class, 'store'])
         ->name('storefront.checkout.store');
+
+    Route::post('/checkout/autosave', [StorefrontCheckoutController::class, 'autosave'])
+        ->middleware('throttle:30,1')
+        ->name('storefront.checkout.autosave');
 
     Route::get('/checkout/success/{order}', [StorefrontCheckoutController::class, 'success'])
         ->name('storefront.checkout.success');

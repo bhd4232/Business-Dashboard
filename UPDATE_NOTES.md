@@ -2,6 +2,42 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-11 - OrderFlow v1.9.0 parity for the Laravel storefront
+
+Reason:
+
+- Port the application-relevant OrderFlow v1.9.0 capabilities from the reference-only WordPress plugin into the multi-company Laravel storefront without committing the reference package itself.
+
+What changed:
+
+- Added checkout protection, risk-aware payment eligibility, incomplete-checkout recovery, order-status workflow/audit, and the related Filament management resources using Filament's default UI patterns.
+- Added Meta Pixel and Conversions API tracking with consent controls, encrypted attribution, advanced matching, multiple Pixels, browser/custom events, Purchase timing based on courier risk, status-based events, event deduplication, retry/audit records, and recovered-order events.
+- Added `storefront:retry-meta-events`, scheduled every ten minutes, with capped retry attempts and per-company isolation.
+- Added the supporting migrations, models, services, queued jobs, storefront views/routes, feature tests, and updated `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, and `ECOMMERCE_PLAN.md`.
+- WordPress/WooCommerce-specific hooks were intentionally excluded because they do not apply to this Laravel application. `Refarence Only Not For Commit/orderflow-v1.9.0/` remains reference-only and is not part of the commit.
+
+Important changed files:
+
+- `app/Services/StorefrontMetaTrackingService.php`, `StorefrontMetaConversionsService.php`, `StorefrontMetaDispatchService.php` and the new Meta queue jobs.
+- `app/Services/StorefrontCheckoutPolicyService.php`, `StorefrontPaymentEligibilityService.php`, `OrderStatusWorkflowService.php`, and their controller/model integrations.
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`, `StorefrontMetaEvents/`, `StorefrontCheckoutAttempts/`, `StorefrontCartRecords/`, and Order resource extensions.
+- `database/migrations/2026_08_09_000000_add_storefront_checkout_protection.php` through `2026_08_11_000000_complete_storefront_meta_orderflow_parity.php`.
+- `resources/views/storefront/partials/meta-consent.blade.php`, `meta-pixel.blade.php`, and the related storefront pages.
+- `tests/Feature/StorefrontCheckoutPolicyTest.php`, `StorefrontRiskPaymentEligibilityTest.php`, `StorefrontIncompleteCheckoutRecoveryTest.php`, `OrderStatusWorkflowTest.php`, `StorefrontMetaTrackingTest.php`, and multi-company regression coverage.
+
+Verification:
+
+- Full test suite: **607 passed, 3,529 assertions**.
+- `vendor/bin/pint --test --dirty`: passed.
+- `php artisan view:cache`: passed.
+- `npm.cmd run build`: passed.
+- `php artisan migrate --pretend --no-interaction`: passed.
+- `php artisan schedule:list`: confirmed `storefront:retry-meta-events` runs every ten minutes.
+
+Commit status:
+
+- Approved by the owner for commit and push to `staging` on 2026-08-11.
+
 ## 2026-08-01 - nixpacks.toml: bump NIXPACKS_NODE_VERSION 20 to 22
 
 Reason:

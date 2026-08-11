@@ -200,7 +200,7 @@ class Customer extends Model implements AuthenticatableContract
     public function syncCurrentBalance(): void
     {
         $balance = (float) $this->opening_balance + (float) $this->orders()
-            ->whereIn('status', ['confirmed', 'completed'])
+            ->whereIn('status', Order::ACCOUNTED_STATUSES)
             ->sum('due_amount') - (float) $this->payments()->sum('amount');
 
         if ($this->current_balance != $balance) {

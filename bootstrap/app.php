@@ -6,6 +6,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Symfony\Component\HttpFoundation\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -21,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onOneServer();
         $schedule->command('storefront:send-abandoned-cart-reminders')
             ->hourly()
+            ->withoutOverlapping()
+            ->onOneServer();
+        $schedule->command('storefront:retry-meta-events')
+            ->everyTenMinutes()
             ->withoutOverlapping()
             ->onOneServer();
         $schedule->command('couriers:sync-statuses')
@@ -51,7 +56,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // otherwise CompanyScope cannot constrain implicit bindings and a
         // record from another company could resolve on admin routes.
         $middleware->prependToPriorityList(
-            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            before: SubstituteBindings::class,
             prepend: SetCurrentCompany::class,
         );
     })

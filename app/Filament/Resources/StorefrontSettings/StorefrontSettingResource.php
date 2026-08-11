@@ -16,6 +16,7 @@ use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
 use App\Services\CompanyContext;
+use App\Services\StorefrontMetaTrackingService;
 use App\Services\WooCommerceImportService;
 use App\Services\ZiniPayClient;
 use App\Support\CompanyMedia;
@@ -26,6 +27,7 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
@@ -708,9 +710,119 @@ class StorefrontSettingResource extends Resource
                 ->columns(2)
                 ->collapsible(),
 
+            Section::make('Checkout Protection')
+                ->columnSpanFull()
+                ->description('Validate Bangladesh phone numbers, enforce customer blacklists, and limit repeated storefront orders. Start with Observe only to review violations without blocking customers.')
+                ->schema([
+                    Select::make('checkout_policy_mode')
+                        ->label('Policy mode')
+                        ->options(StorefrontSetting::CHECKOUT_POLICY_MODES)
+                        ->default(StorefrontSetting::CHECKOUT_POLICY_OFF)
+                        ->required()
+                        ->live(),
+                    Toggle::make('checkout_validate_bd_phone')
+                        ->label('Require a valid Bangladesh mobile number')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('checkout_block_phone')
+                        ->label('Enforce phone blacklist')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('checkout_block_email')
+                        ->label('Enforce email blacklist')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('checkout_block_ip')
+                        ->label('Enforce IP blacklist')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('checkout_order_limit_enabled')
+                        ->label('Limit repeated orders')
+                        ->default(false)
+                        ->live()
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    TextInput::make('checkout_order_limit_count')
+                        ->label('Maximum recent orders')
+                        ->integer()
+                        ->default(1)
+                        ->minValue(1)
+                        ->maxValue(100)
+                        ->required()
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF && (bool) $get('checkout_order_limit_enabled')),
+                    TextInput::make('checkout_order_limit_hours')
+                        ->label('Order-limit window (hours)')
+                        ->integer()
+                        ->default(24)
+                        ->minValue(1)
+                        ->maxValue(168)
+                        ->required()
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF && (bool) $get('checkout_order_limit_enabled')),
+                    TextInput::make('checkout_policy_contact_phone')
+                        ->label('Checkout support phone')
+                        ->tel()
+                        ->maxLength(40)
+                        ->helperText('Shown in the generic blocked-checkout message; the exact policy violation remains private.')
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('risk_payment_enabled')
+                        ->label('Use courier history for advance eligibility')
+                        ->default(false)
+                        ->live()
+                        ->helperText('Checks configured Pathao, Steadfast, and RedX accounts at submit time. If every provider is unavailable, checkout continues without a risk advance.'),
+                    TextInput::make('risk_payment_success_ratio_threshold')
+                        ->label('Minimum successful-delivery ratio')
+                        ->integer()
+                        ->suffix('%')
+                        ->default(70)
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->required()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled')),
+                    Select::make('risk_payment_advance_type')
+                        ->label('Risk advance calculation')
+                        ->options(StorefrontSetting::RISK_ADVANCE_TYPES)
+                        ->default(StorefrontSetting::RISK_ADVANCE_FIXED)
+                        ->required()
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled')),
+                    TextInput::make('risk_payment_advance_amount')
+                        ->label('Fixed risk advance')
+                        ->numeric()
+                        ->prefix('BDT')
+                        ->default(100)
+                        ->minValue(0)
+                        ->required()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled') && $get('risk_payment_advance_type') === StorefrontSetting::RISK_ADVANCE_FIXED),
+                    TextInput::make('risk_payment_advance_percent')
+                        ->label('Risk advance percentage')
+                        ->integer()
+                        ->suffix('%')
+                        ->default(20)
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->required()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled') && $get('risk_payment_advance_type') === StorefrontSetting::RISK_ADVANCE_PERCENT),
+                    Select::make('risk_payment_zero_history_action')
+                        ->label('When couriers report no history')
+                        ->options(StorefrontSetting::RISK_ZERO_HISTORY_ACTIONS)
+                        ->default(StorefrontSetting::RISK_ZERO_HISTORY_ALLOW_COD)
+                        ->required()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled')),
+                    Textarea::make('risk_payment_customer_message')
+                        ->label('Customer-facing advance notice')
+                        ->rows(3)
+                        ->maxLength(1000)
+                        ->placeholder(StorefrontSetting::DEFAULT_RISK_PAYMENT_CUSTOMER_MESSAGE)
+                        ->helperText('Keep this generic; courier scores and internal thresholds are never shown to customers.')
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled')),
+                ])
+                ->columns(2)
+                ->collapsible()
+                ->collapsed(),
+
             Section::make('Online Payments (ZiniPay)')
                 ->columnSpanFull()
-                ->description('Used for verified new-customer delivery advances and pre-order advances. Product balances can remain Cash on Delivery.')
+                ->description('Used for unified checkout advances: pre-order, new-customer delivery, and optional courier-history eligibility. Product balances can remain Cash on Delivery.')
                 ->schema([
                     Toggle::make('online_payment_enabled')
                         ->label('Enable online payments')
@@ -772,6 +884,10 @@ class StorefrontSettingResource extends Resource
                     Toggle::make('abandoned_cart_reminders_enabled')
                         ->label('Enable reminders')
                         ->default(false),
+                    Toggle::make('checkout_autosave_enabled')
+                        ->label('Capture incomplete checkout details')
+                        ->default(false)
+                        ->helperText('Securely saves valid name, phone, email, and address fields while the customer types. Email and address are encrypted at rest.'),
                     TextInput::make('abandoned_cart_delay_hours')
                         ->label('Remind after (hours)')
                         ->integer()
@@ -829,6 +945,186 @@ class StorefrontSettingResource extends Resource
                         ->label('WhatsApp template language')
                         ->maxLength(10)
                         ->placeholder('bn'),
+                    TextInput::make('notification_credentials.whatsapp_recovery_template_name')
+                        ->label('WhatsApp recovery-link template')
+                        ->maxLength(100)
+                        ->helperText('Optional Meta-approved template with three body variables: customer name, store name, and recovery URL. When empty, the existing two-variable reminder template remains unchanged.'),
+                ])
+                ->columns(2)
+                ->collapsible()
+                ->collapsed(),
+
+            Section::make('Meta Pixel & Conversions API')
+                ->columnSpanFull()
+                ->description('Track the storefront funnel in the browser and send privacy-minimized Purchase and selected order lifecycle events from the server. Purchase uses one shared event ID for browser/server deduplication.')
+                ->schema([
+                    Toggle::make('meta_tracking_enabled')
+                        ->label('Enable Meta tracking')
+                        ->default(false)
+                        ->live(),
+                    Toggle::make('meta_consent_required')
+                        ->label('Require customer consent')
+                        ->default(true)
+                        ->live()
+                        ->helperText('Recommended. Pixel and server events remain off until the customer accepts Meta measurement cookies.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')),
+                    Textarea::make('meta_consent_message')
+                        ->label('Consent message')
+                        ->rows(2)
+                        ->maxLength(500)
+                        ->placeholder('We use Meta measurement cookies to understand storefront activity and improve advertising.')
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled') && (bool) $get('meta_consent_required')),
+                    TextInput::make('meta_pixel_id')
+                        ->label('Primary Pixel / Dataset ID')
+                        ->maxLength(32)
+                        ->regex('/^\d{5,32}$/')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')),
+                    Toggle::make('meta_browser_tracking_enabled')
+                        ->label('Browser Pixel events')
+                        ->default(true)
+                        ->live()
+                        ->helperText('Tracks only the selected storefront events after consent, when consent is required.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')),
+                    Toggle::make('meta_advanced_matching_enabled')
+                        ->label('Authenticated-customer advanced matching')
+                        ->default(false)
+                        ->helperText('Initializes the browser Pixel with SHA-256 hashed account identifiers for a logged-in customer. Raw account details are not written into the page.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled') && (bool) $get('meta_browser_tracking_enabled')),
+                    CheckboxList::make('meta_browser_events')
+                        ->label('Browser events to send')
+                        ->options(StorefrontMetaTrackingService::BROWSER_EVENTS)
+                        ->default(StorefrontMetaTrackingService::DEFAULT_BROWSER_EVENTS)
+                        ->columns(2)
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled') && (bool) $get('meta_browser_tracking_enabled')),
+                    Toggle::make('meta_custom_events_enabled')
+                        ->label('Custom behavioural events')
+                        ->default(false)
+                        ->live()
+                        ->helperText('Optional browser-only custom events. Use stable CSS selectors that exist on the storefront.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled') && (bool) $get('meta_browser_tracking_enabled')),
+                    Repeater::make('meta_custom_events')
+                        ->label('Link, click, visibility, and time events')
+                        ->schema([
+                            Select::make('type')
+                                ->options(StorefrontMetaTrackingService::CUSTOM_EVENT_TYPES)
+                                ->required()
+                                ->live(),
+                            TextInput::make('event_name')
+                                ->label('Meta custom event name')
+                                ->required()
+                                ->regex('/^[A-Za-z][A-Za-z0-9_]{0,39}$/')
+                                ->maxLength(40)
+                                ->placeholder('WhatsAppClick'),
+                            TextInput::make('selector')
+                                ->label('CSS selector')
+                                ->required()
+                                ->maxLength(200)
+                                ->placeholder('#whatsapp-button or .campaign-card'),
+                            TextInput::make('seconds')
+                                ->label('Seconds')
+                                ->numeric()
+                                ->integer()
+                                ->minValue(1)
+                                ->maxValue(3600)
+                                ->default(10)
+                                ->visible(fn (Get $get): bool => $get('type') === 'time'),
+                        ])
+                        ->columns(2)
+                        ->addActionLabel('Add custom event')
+                        ->reorderable()
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')
+                            && (bool) $get('meta_browser_tracking_enabled')
+                            && (bool) $get('meta_custom_events_enabled')),
+                    Toggle::make('meta_capi_enabled')
+                        ->label('Server-side events')
+                        ->default(false)
+                        ->live()
+                        ->helperText('Sends consented events through CAPI. Provider failure never blocks checkout or order operations.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')),
+                    Select::make('meta_purchase_timing')
+                        ->label('Purchase event timing')
+                        ->options(StorefrontMetaTrackingService::PURCHASE_TIMINGS)
+                        ->default('immediate')
+                        ->required()
+                        ->live()
+                        ->helperText('Delayed Purchase retains encrypted attribution only until successful server delivery.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled') && (bool) $get('meta_capi_enabled')),
+                    TextInput::make('meta_purchase_success_ratio_threshold')
+                        ->label('Trusted courier success ratio')
+                        ->numeric()
+                        ->integer()
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->suffix('%')
+                        ->default(70)
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')
+                            && (bool) $get('meta_capi_enabled')
+                            && $get('meta_purchase_timing') === 'risk_aware'),
+                    Toggle::make('meta_status_events_enabled')
+                        ->label('Order status events')
+                        ->default(false)
+                        ->live()
+                        ->helperText('Sends selected lifecycle changes as custom server events using hashed customer identifiers, never the admin browser session.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled') && (bool) $get('meta_capi_enabled')),
+                    CheckboxList::make('meta_status_events')
+                        ->label('Lifecycle events to send')
+                        ->options(StorefrontMetaTrackingService::STATUS_EVENTS)
+                        ->default(StorefrontMetaTrackingService::DEFAULT_STATUS_EVENTS)
+                        ->columns(2)
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')
+                            && (bool) $get('meta_capi_enabled')
+                            && (bool) $get('meta_status_events_enabled')),
+                    TextInput::make('meta_tracking_credentials.access_token')
+                        ->label('Conversions API access token')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(1000)
+                        ->helperText('Stored encrypted and kept separate from WhatsApp/Messenger channel tokens.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled') && (bool) $get('meta_capi_enabled')),
+                    TextInput::make('meta_tracking_credentials.test_event_code')
+                        ->label('Test event code')
+                        ->maxLength(100)
+                        ->helperText('Optional. Add an Events Manager test code while validating, then clear it for production traffic.')
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled') && (bool) $get('meta_capi_enabled')),
+                    Repeater::make('meta_tracking_credentials.additional_pixels')
+                        ->label('Additional Pixels / Datasets')
+                        ->schema([
+                            TextInput::make('pixel_id')
+                                ->label('Pixel / Dataset ID')
+                                ->required()
+                                ->regex('/^\d{5,32}$/')
+                                ->maxLength(32),
+                            TextInput::make('access_token')
+                                ->label('CAPI access token')
+                                ->password()
+                                ->revealable()
+                                ->maxLength(1000),
+                            TextInput::make('test_event_code')
+                                ->label('Test event code')
+                                ->maxLength(100),
+                        ])
+                        ->columns(3)
+                        ->addActionLabel('Add Pixel / Dataset')
+                        ->helperText('The complete list is encrypted with the primary CAPI credentials. A token is optional for browser-only delivery.')
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')),
+                    Repeater::make('meta_domain_verification_tags')
+                        ->label('Domain verification values')
+                        ->schema([
+                            TextInput::make('content')
+                                ->label('facebook-domain-verification content')
+                                ->required()
+                                ->regex('/^[A-Za-z0-9_-]{8,255}$/')
+                                ->maxLength(255),
+                        ])
+                        ->addActionLabel('Add verification value')
+                        ->helperText('Enter only the content value from Meta, not the full HTML meta tag.')
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('meta_tracking_enabled')),
                 ])
                 ->columns(2)
                 ->collapsible()

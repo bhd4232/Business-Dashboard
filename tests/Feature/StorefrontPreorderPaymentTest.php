@@ -84,7 +84,7 @@ class StorefrontPreorderPaymentTest extends TestCase
         );
     }
 
-    public function test_preorder_checkout_creates_payment_and_redirects_to_gateway(): void
+    public function test_preorder_checkout_creates_order_only_after_advance_is_verified(): void
     {
         $company = $this->createStore('pay.example.test', zinipay: true);
 
@@ -116,14 +116,11 @@ class StorefrontPreorderPaymentTest extends TestCase
         $response->assertRedirect('https://pay.zinipay.com/invoice/INV-12345');
 
         Http::assertSent(function ($request): bool {
-            $redirectUrl = (string) $request['redirect_url'];
-            $cancelUrl = (string) $request['cancel_url'];
-
             return str_contains($request->url(), '/v1/payment/create')
-                && $redirectUrl === $cancelUrl
-                && str_contains($redirectUrl, '/checkout/success/')
-                && str_contains($redirectUrl, 'expires=')
-                && str_contains($redirectUrl, 'signature=');
+                && str_contains((string) $request['redirect_url'], '/checkout/payment/')
+                && str_contains((string) $request['redirect_url'], '/return')
+                && str_contains((string) $request['redirect_url'], 'signature=')
+                && (string) $request['cancel_url'] === 'http://pay.example.test/checkout';
         });
 
         $payment = StorefrontPayment::withoutGlobalScopes()->first();
@@ -132,9 +129,28 @@ class StorefrontPreorderPaymentTest extends TestCase
         $this->assertSame('pending', $payment->status);
         $this->assertSame('INV-12345', $payment->invoice_id);
         $this->assertSame($company->getKey(), $payment->company_id);
+        $this->assertSame(StorefrontPayment::PURPOSE_CHECKOUT_ADVANCE, $payment->purpose);
+        $this->assertNull($payment->order_id);
+        $this->assertSame(0, Order::withoutGlobalScopes()->count());
 
-        $order = Order::withoutGlobalScopes()->find($payment->order_id);
+        Http::fake([
+            'api.zinipay.com/v1/payment/verify' => Http::response([
+                'amount' => 1000,
+                'invoice_id' => 'INV-12345',
+                'payment_method' => 'bkash',
+                'transaction_id' => 'PREORDER-TRX-1',
+                'status' => 'COMPLETED',
+            ]),
+        ]);
+
+        $this->postJson('http://pay.example.test/webhooks/zinipay/'.$payment->getKey(), [
+            'invoice_id' => 'INV-12345',
+        ])->assertOk();
+
+        $order = Order::withoutGlobalScopes()->sole();
         $this->assertSame(Order::SOURCE_STOREFRONT, $order->source);
+        $this->assertSame(1000.0, (float) $order->paid_amount);
+        $this->assertSame($order->getKey(), $payment->fresh()->order_id);
     }
 
     public function test_preorder_checkout_blocked_when_online_payment_unavailable(): void
@@ -166,7 +182,7 @@ class StorefrontPreorderPaymentTest extends TestCase
 
         $this->get('http://nopay.example.test/checkout')
             ->assertOk()
-            ->assertSee('Pre-order items require an online advance payment')
+            ->assertSee('This order requires a verified online advance')
             ->assertSee('id="checkout-payment-errors"', false);
 
         $this->assertSame(0, Order::withoutGlobalScopes()->count());

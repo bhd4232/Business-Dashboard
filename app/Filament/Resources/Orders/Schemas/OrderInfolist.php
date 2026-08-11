@@ -27,7 +27,15 @@ class OrderInfolist
                         TextEntry::make('source')
                             ->badge()
                             ->formatStateUsing(fn (?string $state): string => Order::SOURCES[$state ?? Order::SOURCE_ADMIN] ?? str($state)->headline()->toString()),
-                        TextEntry::make('status')->badge(),
+                        TextEntry::make('status')
+                            ->badge()
+                            ->formatStateUsing(fn (string $state): string => Order::STATUSES[$state] ?? str($state)->headline()->toString())
+                            ->color(fn (string $state): string => match ($state) {
+                                Order::STATUS_CONFIRMED, Order::STATUS_COMPLETED => 'success',
+                                Order::STATUS_PROCESSING => 'warning',
+                                Order::STATUS_CANCELLED, Order::STATUS_RETURNED => 'danger',
+                                default => 'gray',
+                            }),
                         TextEntry::make('delivery_status')
                             ->label('Delivery')
                             ->badge()

@@ -1,0 +1,116 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\CourierBooking;
+use App\Models\Order;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+
+class OrderStatusWorkflowService
+{
+    public function transition(
+        Order $order,
+        string $stage,
+        ?string $reason = null,
+        string $source = 'manual',
+        ?int $actorId = null,
+    ): Order {
+        if (! array_key_exists($stage, Order::WORKFLOW_STAGES)) {
+            throw ValidationException::withMessages([
+                'stage' => 'Select a valid order workflow stage.',
+            ]);
+        }
+
+        if (in_array($stage, Order::REASON_REQUIRED_STAGES, true) && blank($reason)) {
+            throw ValidationException::withMessages([
+                'reason' => 'A reason is required for cancelled, returned, and refunded orders.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($order, $stage, $reason, $source, $actorId): Order {
+            $current = Order::query()
+                ->whereKey($order->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $allowed = $current->allowedWorkflowStages();
+
+            if (! in_array($stage, $allowed, true)) {
+                throw ValidationException::withMessages([
+                    'stage' => sprintf(
+                        'The order cannot move from %s to %s.',
+                        Order::WORKFLOW_STAGES[$current->workflowStage()] ?? ucfirst($current->workflowStage()),
+                        Order::WORKFLOW_STAGES[$stage],
+                    ),
+                ]);
+            }
+
+            $attributes = $this->attributesForStage($current, $stage);
+            $current->statusTransitionStage = $stage;
+            $current->statusTransitionReason = filled($reason) ? trim((string) $reason) : null;
+            $current->statusTransitionSource = $source;
+            $current->statusTransitionActorId = $actorId ?? Auth::id();
+
+            try {
+                $this->syncLatestCourierBooking($current, $attributes, $reason, $stage);
+                $current->forceFill($attributes)->save();
+            } finally {
+                $current->clearStatusTransitionContext();
+            }
+
+            return $current->refresh();
+        });
+    }
+
+    protected function attributesForStage(Order $order, string $stage): array
+    {
+        return match ($stage) {
+            Order::STAGE_CONFIRMED => ['status' => Order::STATUS_CONFIRMED],
+            Order::STAGE_PROCESSING => ['status' => Order::STATUS_PROCESSING],
+            Order::STAGE_SHIPPING => [
+                'status' => Order::STATUS_PROCESSING,
+                'delivery_status' => CourierBooking::STATUS_IN_TRANSIT,
+            ],
+            Order::STAGE_DELIVERED => [
+                'status' => Order::STATUS_COMPLETED,
+                'delivery_status' => CourierBooking::STATUS_DELIVERED,
+            ],
+            Order::STAGE_COMPLETED => ['status' => Order::STATUS_COMPLETED],
+            Order::STAGE_CANCELLED => [
+                'status' => Order::STATUS_CANCELLED,
+                'delivery_status' => $order->delivery_status === CourierBooking::STATUS_NOT_BOOKED
+                    ? CourierBooking::STATUS_NOT_BOOKED
+                    : CourierBooking::STATUS_CANCELLED,
+            ],
+            Order::STAGE_RETURNED => [
+                'status' => Order::STATUS_RETURNED,
+                'delivery_status' => CourierBooking::STATUS_RETURNED,
+            ],
+            Order::STAGE_REFUNDED => ['status' => Order::STATUS_REFUNDED],
+        };
+    }
+
+    protected function syncLatestCourierBooking(Order $order, array $attributes, ?string $reason, string $stage): void
+    {
+        $deliveryStatus = $attributes['delivery_status'] ?? null;
+
+        if (! $deliveryStatus) {
+            return;
+        }
+
+        $booking = $order->latestCourierBooking()->first();
+
+        if (! $booking || $booking->status === $deliveryStatus) {
+            return;
+        }
+
+        app(CourierService::class)->updateStatus(
+            $booking,
+            $deliveryStatus,
+            filled($reason) ? $reason : 'Order workflow moved to '.Order::WORKFLOW_STAGES[$stage].'.',
+            syncOrder: false,
+        );
+    }
+}

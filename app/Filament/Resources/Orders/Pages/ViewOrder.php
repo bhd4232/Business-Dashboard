@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders\Pages;
 
+use App\Filament\Resources\Orders\Actions\ChangeOrderWorkflowAction;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
@@ -24,6 +25,7 @@ class ViewOrder extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            ChangeOrderWorkflowAction::make(),
             Action::make('bookCourier')
                 ->label('Book courier')
                 ->icon('heroicon-o-truck')

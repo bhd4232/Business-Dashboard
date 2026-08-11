@@ -46,6 +46,9 @@ use App\Models\SettlementPayout;
 use App\Models\Shipment;
 use App\Models\StockMovement;
 use App\Models\StorefrontCartRecord;
+use App\Models\StorefrontCheckoutAttempt;
+use App\Models\StorefrontMetaAttribution;
+use App\Models\StorefrontMetaEvent;
 use App\Models\StorefrontPage;
 use App\Models\StorefrontPayment;
 use App\Models\StorefrontSetting;
@@ -78,6 +81,8 @@ class MultiCompanyIsolationTest extends TestCase
             Container::class, Shipment::class, StorefrontPage::class, StorefrontSetting::class,
             ProductCarousel::class, StorefrontPayment::class,
             StorefrontCartRecord::class,
+            StorefrontCheckoutAttempt::class,
+            StorefrontMetaAttribution::class, StorefrontMetaEvent::class,
             FundSource::class, Voucher::class,
             VoucherAttachment::class, FundTransfer::class,
             StorefrontSlide::class,

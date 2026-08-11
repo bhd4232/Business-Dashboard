@@ -6,6 +6,8 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\StorefrontCartRecord;
+use App\Models\StorefrontCheckoutAttempt;
 use App\Models\StorefrontComplaint;
 use App\Models\StorefrontPayment;
 use App\Models\StorefrontSetting;
@@ -36,6 +38,8 @@ class StorefrontCustomerAdvanceAndComplaintTest extends TestCase
             'online_payment_enabled' => true,
             'payment_credentials' => ['zinipay_api_key' => 'test_key'],
             'new_customer_delivery_advance_enabled' => true,
+            'checkout_autosave_enabled' => true,
+            'checkout_policy_mode' => StorefrontSetting::CHECKOUT_POLICY_ENFORCE,
         ]);
         app(CompanyContext::class)->set($company);
         $product = $this->product('Five Kilo Item', 'FIVE-KG', 5);
@@ -59,8 +63,13 @@ class StorefrontCustomerAdvanceAndComplaintTest extends TestCase
         $this->assertSame(0, Customer::withoutGlobalScopes()->count());
         $payment = StorefrontPayment::withoutGlobalScopes()->sole();
         $this->assertSame(150.0, (float) $payment->amount);
-        $this->assertSame(StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY, $payment->purpose);
+        $this->assertSame(StorefrontPayment::PURPOSE_CHECKOUT_ADVANCE, $payment->purpose);
         $this->assertNull($payment->order_id);
+        $attempt = StorefrontCheckoutAttempt::withoutGlobalScopes()->sole();
+        $this->assertSame(StorefrontCheckoutAttempt::OUTCOME_PENDING_PAYMENT, $attempt->outcome);
+        $this->assertSame($attempt->getKey(), (int) $payment->checkout_data['checkout_attempt_id']);
+        $cartRecord = StorefrontCartRecord::withoutGlobalScopes()->sole();
+        $this->assertSame($cartRecord->getKey(), (int) $payment->checkout_data['cart_record_id']);
 
         Http::fake([
             'api.zinipay.com/v1/payment/verify' => Http::response([
@@ -81,6 +90,10 @@ class StorefrontCustomerAdvanceAndComplaintTest extends TestCase
         $this->assertSame(150.0, (float) $order->shipping_fee);
         $this->assertSame(150.0, (float) $order->paid_amount);
         $this->assertSame($order->getKey(), $payment->fresh()->order_id);
+        $this->assertSame(StorefrontCheckoutAttempt::OUTCOME_ACCEPTED, $attempt->fresh()->outcome);
+        $this->assertSame($order->getKey(), $attempt->fresh()->order_id);
+        $this->assertSame(StorefrontCartRecord::STATUS_CONVERTED, $cartRecord->fresh()->status);
+        $this->assertSame($order->getKey(), $cartRecord->fresh()->recovered_order_id);
     }
 
     public function test_outside_dhaka_rate_uses_first_kg_plus_each_additional_started_kg(): void

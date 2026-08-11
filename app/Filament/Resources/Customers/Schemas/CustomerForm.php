@@ -6,6 +6,8 @@ use App\Filament\Forms\Components\CustomerSourceSelect;
 use App\Filament\Forms\Components\CustomerTypeSelect;
 use App\Filament\Forms\Components\EmailInput;
 use App\Filament\Forms\Components\PhoneInput;
+use App\Models\Customer;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -44,9 +46,9 @@ class CustomerForm
                     ->columnSpanFull()
                     ->description('Storefront reseller applications land here as "Application pending". Approve to mark this customer as a wholesale reseller.')
                     ->schema([
-                        \Filament\Forms\Components\Select::make('reseller_status')
+                        Select::make('reseller_status')
                             ->label('Reseller status')
-                            ->options(\App\Models\Customer::RESELLER_STATUSES)
+                            ->options(Customer::RESELLER_STATUSES)
                             ->default('none')
                             ->required(),
                         TextInput::make('business_name')
@@ -75,7 +77,7 @@ class CustomerForm
                             ->default(0)
                             ->disabled()
                             ->dehydrated(false)
-                            ->helperText('Current balance is updated from confirmed and completed invoices.'),
+                            ->helperText('Current balance is updated from confirmed, processing, and completed invoices.'),
                     ])
                     ->columns(2),
 
