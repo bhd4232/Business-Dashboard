@@ -2,6 +2,25 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-11 - CI workflow: bump deploy.yml's PHP 8.2 to 8.4
+
+Reason:
+
+- The v2.0.0 production push (below) succeeded on Coolify, but GitHub Actions' `CI` workflow (`.github/workflows/deploy.yml`, triggers on push to `main`) failed at `composer install` — it was still pinned to PHP 8.2 via `shivammathur/setup-php`, which no longer satisfies `composer.json`'s `^8.4` requirement from the stack upgrade. Confirmed this doesn't affect Coolify's actual deploy (it listens to the push webhook directly, independent of CI status) — production was already live and healthy when this was caught.
+
+What happened:
+
+- `.github/workflows/deploy.yml`: `php-version: '8.2'` → `'8.4'`.
+- `03_STACK_UPGRADE_PLAN.md`: marked Step 6 complete with a verification summary.
+
+Verification:
+
+- Config-only change; will be confirmed by the next push to `main` showing a green CI run.
+
+Commit status:
+
+- Committed and pushed to `main` (v2.0.1) with the owner's approval.
+
 ## 2026-08-11 - Stack Upgrade Plan, Step 6: final verification + production deploy
 
 Reason:

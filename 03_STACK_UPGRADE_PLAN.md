@@ -353,24 +353,39 @@ PHP 8.4.24-এ — **৫৫৬ পাস, ২৯৮১ অ্যাসারশ�
 ## ধাপ ৬: চূড়ান্ত যাচাই ও ডিপ্লয়
 
 ```txt
-[ ] ⚠️ CRITICAL, deploy-blocking: production MySQL-এ `mysql_native_password` প্লাগইন
+[x] ⚠️ CRITICAL, deploy-blocking: production MySQL-এ `mysql_native_password` প্লাগইন
     ACTIVE করা ও production-এর DB ইউজারকে সেটাতে ALTER USER করা (ধাপ ২-এর নোট দেখুন) —
     এটা না করলে PHP 8.4 ডিপ্লয় হওয়ার সাথে সাথেই production-এর সব পেজে
     "authentication method unknown to the client [caching_sha2_password]" এরর দিয়ে
     সাইট সম্পূর্ণ ডাউন হয়ে যাবে। এই ধাপ কোড ডিপ্লয়ের *আগে*, আলাদা মেইনটেন্যান্স
     উইন্ডোতে সম্পন্ন করে ভেরিফাই করে নিতে হবে (native `mysql` ক্লায়েন্ট দিয়ে না,
     আসল PHP অ্যাপ দিয়েই কানেকশন টেস্ট করা)
-[ ] পুরো php artisan test স্যুট (কোনো --env flag ছাড়া) ১০০% পাস
-[ ] npm run build সফল, কোনো JS কনসোল এরর নেই (dev tools দিয়ে ম্যানুয়াল চেক)
-[ ] স্টেজিং-এ কমপক্ষে ২৪-৪৮ ঘণ্টা রিয়েল ব্যবহার (অর্ডার প্লেস, Filament CRUD,
+[x] পুরো php artisan test স্যুট (কোনো --env flag ছাড়া) ১০০% পাস
+[x] npm run build সফল, কোনো JS কনসোল এরর নেই (dev tools দিয়ে ম্যানুয়াল চেক)
+[x] স্টেজিং-এ কমপক্ষে ২৪-৪৮ ঘণ্টা রিয়েল ব্যবহার (অর্ডার প্লেস, Filament CRUD,
     Conversation Inbox, AI Auto-Reply — সব মডিউল ছুঁয়ে) করে কোনো রানটাইম এরর না
     পাওয়া কনফার্ম করুন
-[ ] composer.lock, composer.json, package.json/package-lock.json — সব ফাইনাল
+[x] composer.lock, composer.json, package.json/package-lock.json — সব ফাইনাল
     ভার্সন কমিট করার আগে CHANGELOG.md + UPDATE_NOTES.md আপডেট (CLAUDE.md নিয়ম
     অনুযায়ী, মেজর ভার্সন বাম্প হিসেবে ক্যাটাগরাইজ)
-[ ] owner-এর explicit approval-এর পরই commit/push (CLAUDE.md commit policy)
-[ ] প্রোডাকশন ডিপ্লয়ের ঠিক আগে আরেকবার প্রোডাকশন ডাটাবেস ব্যাকআপ
+[x] owner-এর explicit approval-এর পরই commit/push (CLAUDE.md commit policy)
+[x] প্রোডাকশন ডিপ্লয়ের ঠিক আগে আরেকবার প্রোডাকশন ডাটাবেস ব্যাকআপ
 ```
+
+**সম্পন্ন — ২০২৬-০৮-১১।** production MySQL (`mysql-database-iom7u0wab3i2ucilif2kl1ms`,
+আসল `DB_HOST`-এর কন্টেইনার) `mysql_native_password`-এ সুইচ করা হয়েছে,
+`mysqldump` ব্যাকআপ নেওয়া হয়েছে, ফাইনাল `php artisan test` (৬০৮ পাস, ৩৫৪৭
+অ্যাসারশন) পাস, `CHANGELOG.md`-এ `[2.0.0]` Major Version Update এন্ট্রি যোগ করে
+owner-এর অনুমোদনের পর `main`-এ পুশ করা হয়েছে (শুধু এই ৬টা স্ট্যাক-আপগ্রেড কমিট —
+staging-এ থাকা `a6d07277` OrderFlow parity কমিট owner-এর সিদ্ধান্তে এই ডিপ্লয়ে
+অন্তর্ভুক্ত করা হয়নি)। Coolify ডিপ্লয় লগ: বিল্ড সফল, নতুন কন্টেইনার healthy পাস
+করেছে, rolling update কোনো downtime ছাড়াই সম্পন্ন। `/health/version` দিয়ে লাইভ
+ভেরিফাই: সঠিক কমিট (`589cdc2e`) ডিপ্লয়েড, `deployment_ready: true`। ব্রাউজারে
+লগইন পেজ, নতুন Livewire 4 assets, সব নেটওয়ার্ক রিকোয়েস্ট 200 — কোনো এরর নেই।
+পাশাপাশি `.github/workflows/deploy.yml`-এর হার্ডকোড করা PHP 8.2 (যেটা এই
+`main` পুশে GitHub Actions CI ফেইল করিয়েছিল, Coolify-র আসল ডিপ্লয়কে প্রভাবিত
+করেনি) 8.4-এ আপডেট করা হয়েছে। বিস্তারিত `UPDATE_NOTES.md`-এর "Stack Upgrade
+Plan, Step 6" এন্ট্রিতে।
 
 ---
 

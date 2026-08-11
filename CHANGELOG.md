@@ -20,6 +20,16 @@ All notable production changes to Business Dashboard are documented here.
 
 - Login OTP values are stored hashed, expire after 10 minutes, allow at most five failed attempts, have a one-minute resend cooldown, and use non-enumerating responses for unknown accounts.
 
+## [2.0.1] - 2026-08-11
+
+**Release type:** Maintenance Update
+
+Fixes the CI workflow left stale by the v2.0.0 stack upgrade. No production code changes.
+
+### Technical Notes
+
+- `.github/workflows/deploy.yml`'s `shivammathur/setup-php` step was still pinned to PHP 8.2, which now fails Composer's platform check against `composer.json`'s `^8.4` requirement (`laravel/framework` 13.x itself needs `^8.3`, several `symfony/*` packages need `>=8.4.1`). This only affects the GitHub Actions CI check — it does not gate or affect Coolify's own deploy, which listens to the push webhook directly and already deployed v2.0.0 successfully before this was caught. Bumped to `8.4` to match.
+
 ## [2.0.0] - 2026-08-11
 
 **Release type:** Major Version Update
