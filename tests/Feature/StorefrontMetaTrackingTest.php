@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
+use App\Filament\Pages\MetaCapiSettings;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Customer;
@@ -235,14 +235,17 @@ class StorefrontMetaTrackingTest extends TestCase
             && ($request->data()['data'][0]['user_data']['fbp'] ?? null) === 'fb.1.1720000000.24681012');
     }
 
-    public function test_meta_delivery_audit_renders_in_the_read_only_filament_resource(): void
+    public function test_legacy_meta_events_page_redirects_to_consolidated_event_log(): void
     {
         $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
         $this->actingAs($user)
             ->get('/admin/storefront/storefront-meta-events')
+            ->assertRedirect(MetaCapiSettings::getUrl(['section' => 'event_log']));
+
+        $this->get(MetaCapiSettings::getUrl(['section' => 'event_log']))
             ->assertOk()
-            ->assertSee('Meta Events');
+            ->assertSee('Event Log &amp; Retries', false);
     }
 
     public function test_selected_order_status_event_is_sent_with_system_source_and_is_idempotent(): void
@@ -360,14 +363,15 @@ class StorefrontMetaTrackingTest extends TestCase
         $this->assertStringNotContainsString('never-log-status-token', $audit->error);
     }
 
-    public function test_status_event_controls_render_in_storefront_settings(): void
+    public function test_meta_capi_page_consolidates_settings_and_event_navigation(): void
     {
         [, , $setting] = $this->store('Status Settings Store', 'status-settings.example.test');
         $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
         $this->actingAs($user);
 
-        Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
+        $component = Livewire::test(MetaCapiSettings::class)
+            ->assertSet('activeSection', 'overview')
             ->assertFormFieldExists('meta_status_events_enabled')
             ->assertFormFieldExists('meta_status_events')
             ->assertFormFieldExists('meta_consent_required')
@@ -375,7 +379,111 @@ class StorefrontMetaTrackingTest extends TestCase
             ->assertFormFieldExists('meta_custom_events')
             ->assertFormFieldExists('meta_purchase_timing')
             ->assertFormFieldExists('meta_tracking_credentials.additional_pixels')
-            ->assertFormFieldExists('meta_domain_verification_tags');
+            ->assertFormFieldExists('meta_domain_verification_tags')
+            ->assertSee('Connection & Pixels')
+            ->assertSee('Consent & Matching')
+            ->assertSee('Event Log & Retries')
+            ->assertSee('zz-meta-capi-page', false)
+            ->assertSee('zz-meta-mobile-nav', false)
+            ->assertSee('Open Meta CAPI navigation')
+            ->assertSeeInOrder(['Open Meta CAPI navigation', 'Meta Pixel & Conversions API'])
+            ->assertSee('meta-capi-mobile-section-overview', false)
+            ->assertSee('x-on:click="close()"', false)
+            ->assertDontSee('overflow-x: auto;', false)
+            ->assertDontSee('font-size: 30px;', false)
+            ->assertDontSee('font-size: 25px;', false)
+            ->assertDontSee('font-size: 22px;', false)
+            ->assertSee('border-block-start: 1px solid var(--gray-200);', false)
+            ->assertSee('border-block-start-color: var(--gray-700);', false)
+            ->assertSee('.zz-meta-rail:hover .zz-meta-nav-panel', false)
+            ->assertSee('.zz-meta-rail:hover .zz-meta-nav-label', false)
+            ->assertSee('.zz-meta-rail:hover .zz-meta-nav-link.fi-btn', false)
+            ->assertSee('inline-size: 2.5rem;', false)
+            ->assertSee('inline-size: 100%;', false)
+            ->assertSee('display: none;', false)
+            ->assertSee('display: inline-flex;', false)
+            ->assertSee('padding-top: 10px;', false)
+            ->assertSee('position: sticky;', false)
+            ->assertSee('top: 4rem;', false)
+            ->assertSee('z-index: 20;', false)
+            ->assertSee('@media (max-width: 1023px)', false)
+            ->assertSee('@media (prefers-reduced-motion: reduce)', false)
+            ->assertSee('Master control and a quick readiness summary')
+            ->assertDontSee('Connect the primary Pixel/Dataset')
+            ->assertDontSee('Inspect privacy-minimized per-Pixel delivery attempts');
+
+        $component
+            ->call('selectSection', 'connection')
+            ->assertSet('activeSection', 'connection')
+            ->assertSee('Connect the primary Pixel/Dataset')
+            ->assertDontSee('Master control and a quick readiness summary')
+            ->assertFormFieldVisible('meta_pixel_id')
+            ->assertFormFieldVisible('meta_capi_enabled')
+            ->assertFormFieldVisible('meta_tracking_credentials.additional_pixels')
+            ->assertFormFieldVisible('meta_domain_verification_tags')
+            ->assertFormFieldHidden('meta_tracking_credentials.access_token')
+            ->assertSeeHtml('aria-current="page"')
+            ->assertSeeHtml('data-active="true"');
+
+        $component
+            ->fillForm(['meta_capi_enabled' => true])
+            ->assertFormFieldVisible('meta_tracking_credentials.access_token')
+            ->call('selectSection', 'consent')
+            ->assertSet('activeSection', 'consent')
+            ->assertFormFieldVisible('meta_consent_required')
+            ->call('selectSection', 'browser_events')
+            ->assertSet('activeSection', 'browser_events')
+            ->assertFormFieldVisible('meta_browser_tracking_enabled')
+            ->call('selectSection', 'purchase')
+            ->assertSet('activeSection', 'purchase')
+            ->assertFormFieldVisible('meta_purchase_timing')
+            ->call('selectSection', 'status_events')
+            ->assertSet('activeSection', 'status_events')
+            ->assertFormFieldVisible('meta_status_events_enabled')
+            ->call('selectSection', 'event_log')
+            ->assertSet('activeSection', 'event_log')
+            ->assertSee('Inspect privacy-minimized per-Pixel delivery attempts')
+            ->assertDontSee('Connect the primary Pixel/Dataset');
+    }
+
+    public function test_meta_capi_page_saves_company_scoped_settings(): void
+    {
+        [, , $setting] = $this->store('CAPI Settings Store', 'capi-settings.example.test');
+        $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+
+        $this->actingAs($user);
+
+        Livewire::test(MetaCapiSettings::class)
+            ->fillForm(['meta_tracking_enabled' => true])
+            ->call('selectSection', 'connection')
+            ->fillForm([
+                'meta_pixel_id' => '9988776655443322',
+                'meta_capi_enabled' => true,
+                'meta_tracking_credentials.access_token' => 'encrypted-capi-token',
+            ])
+            ->call('selectSection', 'consent')
+            ->fillForm([
+                'meta_consent_required' => true,
+            ])
+            ->call('selectSection', 'browser_events')
+            ->fillForm([
+                'meta_browser_tracking_enabled' => true,
+                'meta_browser_events' => ['PageView', 'Purchase'],
+            ])
+            ->call('selectSection', 'purchase')
+            ->fillForm([
+                'meta_purchase_timing' => 'confirmed',
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $setting->refresh();
+
+        $this->assertTrue($setting->meta_tracking_enabled);
+        $this->assertTrue($setting->meta_capi_enabled);
+        $this->assertSame('9988776655443322', $setting->meta_pixel_id);
+        $this->assertSame('encrypted-capi-token', $setting->meta_tracking_credentials['access_token']);
+        $this->assertSame('confirmed', $setting->meta_purchase_timing);
     }
 
     public function test_consent_blocks_tracking_until_granted_and_keeps_domain_verification_available(): void
