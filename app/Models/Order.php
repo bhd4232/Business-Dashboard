@@ -11,18 +11,95 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
 class Order extends Model
 {
     use BelongsToCompany, GeneratesSequentialNumber;
 
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_CONFIRMED = 'confirmed';
+
+    public const STATUS_PROCESSING = 'processing';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
+    public const STATUS_RETURNED = 'returned';
+
+    public const STATUS_REFUNDED = 'refunded';
+
     public const STATUSES = [
-        'draft' => 'Draft',
-        'confirmed' => 'Confirmed',
-        'completed' => 'Completed',
-        'cancelled' => 'Cancelled',
+        self::STATUS_DRAFT => 'Draft',
+        self::STATUS_CONFIRMED => 'Confirmed',
+        self::STATUS_PROCESSING => 'Processing',
+        self::STATUS_COMPLETED => 'Completed',
+        self::STATUS_CANCELLED => 'Cancelled',
+        self::STATUS_RETURNED => 'Returned',
+        self::STATUS_REFUNDED => 'Refunded',
     ];
+
+    /** Statuses that reserve stock and count towards sales/customer dues. */
+    public const ACCOUNTED_STATUSES = [
+        self::STATUS_CONFIRMED,
+        self::STATUS_PROCESSING,
+        self::STATUS_COMPLETED,
+    ];
+
+    public const STAGE_CONFIRMED = 'confirmed';
+
+    public const STAGE_PROCESSING = 'processing';
+
+    public const STAGE_SHIPPING = 'shipping';
+
+    public const STAGE_DELIVERED = 'delivered';
+
+    public const STAGE_COMPLETED = 'completed';
+
+    public const STAGE_CANCELLED = 'cancelled';
+
+    public const STAGE_RETURNED = 'returned';
+
+    public const STAGE_REFUNDED = 'refunded';
+
+    public const WORKFLOW_STAGES = [
+        self::STAGE_CONFIRMED => 'Confirmed',
+        self::STAGE_PROCESSING => 'Processing',
+        self::STAGE_SHIPPING => 'Shipping',
+        self::STAGE_DELIVERED => 'Delivered',
+        self::STAGE_COMPLETED => 'Completed',
+        self::STAGE_CANCELLED => 'Cancelled',
+        self::STAGE_RETURNED => 'Returned',
+        self::STAGE_REFUNDED => 'Refunded',
+    ];
+
+    public const REASON_REQUIRED_STAGES = [
+        self::STAGE_CANCELLED,
+        self::STAGE_RETURNED,
+        self::STAGE_REFUNDED,
+    ];
+
+    public const WORKFLOW_TRANSITIONS = [
+        self::STATUS_DRAFT => [self::STAGE_CONFIRMED, self::STAGE_CANCELLED],
+        self::STATUS_CONFIRMED => [self::STAGE_PROCESSING, self::STAGE_SHIPPING, self::STAGE_DELIVERED, self::STAGE_COMPLETED, self::STAGE_CANCELLED, self::STAGE_RETURNED],
+        self::STATUS_PROCESSING => [self::STAGE_SHIPPING, self::STAGE_DELIVERED, self::STAGE_COMPLETED, self::STAGE_CANCELLED, self::STAGE_RETURNED],
+        self::STAGE_SHIPPING => [self::STAGE_DELIVERED, self::STAGE_RETURNED, self::STAGE_CANCELLED],
+        self::STATUS_COMPLETED => [self::STAGE_RETURNED, self::STAGE_REFUNDED],
+        self::STATUS_RETURNED => [self::STAGE_REFUNDED],
+        self::STATUS_CANCELLED => [],
+        self::STATUS_REFUNDED => [],
+    ];
+
+    public ?string $statusTransitionStage = null;
+
+    public ?string $statusTransitionReason = null;
+
+    public string $statusTransitionSource = 'direct';
+
+    public ?int $statusTransitionActorId = null;
 
     public const DELIVERY_STATUSES = [
         CourierBooking::STATUS_NOT_BOOKED => 'Not Booked',
@@ -88,7 +165,7 @@ class Order extends Model
         static::creating(function (Order $order): void {
             $order->order_number ??= static::nextOrderNumber($order->company);
             $order->order_date ??= now()->toDateString();
-            $order->status ??= 'draft';
+            $order->status ??= self::STATUS_DRAFT;
             $order->delivery_status ??= CourierBooking::STATUS_NOT_BOOKED;
             $order->source ??= self::SOURCE_ADMIN;
             $order->customer_name = $order->customer?->name ?? $order->customer_name;
@@ -104,10 +181,31 @@ class Order extends Model
             $order->customer_name = $order->customer?->name ?? $order->customer_name;
         });
 
+        static::updated(function (Order $order): void {
+            if (
+                ! $order->wasChanged(['status', 'delivery_status'])
+                || ! Schema::hasTable('order_status_transitions')
+            ) {
+                return;
+            }
+
+            $order->statusTransitions()->create([
+                'company_id' => $order->company_id,
+                'changed_by' => $order->statusTransitionActorId ?? Auth::id(),
+                'stage' => $order->statusTransitionStage,
+                'from_status' => $order->getRawOriginal('status'),
+                'to_status' => $order->status,
+                'from_delivery_status' => $order->getRawOriginal('delivery_status'),
+                'to_delivery_status' => $order->delivery_status,
+                'source' => $order->statusTransitionSource,
+                'reason' => $order->statusTransitionReason,
+            ]);
+        });
+
         static::saved(function (Order $order): void {
             $order->syncTotalsStockAndCustomerBalance();
             app(OrderWorkflowService::class)->syncPreviousCustomerBalance($order);
-            if ($order->wasChanged('status') && in_array($order->status, ['confirmed', 'completed'], true) && Schema::hasTable('fraud_checks')) {
+            if ($order->wasChanged('status') && $order->isAccounted() && Schema::hasTable('fraud_checks')) {
                 app(CustomerRiskService::class)->evaluateOrder($order);
             }
         });
@@ -158,6 +256,11 @@ class Order extends Model
         return $this->hasMany(CustomerRiskReview::class);
     }
 
+    public function statusTransitions(): HasMany
+    {
+        return $this->hasMany(OrderStatusTransition::class);
+    }
+
     public function latestRiskReview()
     {
         return $this->hasOne(CustomerRiskReview::class)->latestOfMany();
@@ -203,5 +306,48 @@ class Order extends Model
     public function syncCustomerBalance(): void
     {
         app(OrderWorkflowService::class)->syncCustomerBalance($this);
+    }
+
+    public function isAccounted(): bool
+    {
+        return in_array($this->status, self::ACCOUNTED_STATUSES, true);
+    }
+
+    public function workflowStage(): string
+    {
+        if (in_array($this->status, [self::STATUS_CANCELLED, self::STATUS_RETURNED, self::STATUS_REFUNDED], true)) {
+            return $this->status;
+        }
+
+        if (in_array($this->delivery_status, [
+            CourierBooking::STATUS_PICKED_UP,
+            CourierBooking::STATUS_IN_TRANSIT,
+            CourierBooking::STATUS_PARTIAL_DELIVERED,
+        ], true)) {
+            return self::STAGE_SHIPPING;
+        }
+
+        return $this->status;
+    }
+
+    /** @return list<string> */
+    public function allowedWorkflowStages(): array
+    {
+        return self::WORKFLOW_TRANSITIONS[$this->workflowStage()] ?? [];
+    }
+
+    public function allowedWorkflowStageOptions(): array
+    {
+        return collect($this->allowedWorkflowStages())
+            ->mapWithKeys(fn (string $stage): array => [$stage => self::WORKFLOW_STAGES[$stage]])
+            ->all();
+    }
+
+    public function clearStatusTransitionContext(): void
+    {
+        $this->statusTransitionStage = null;
+        $this->statusTransitionReason = null;
+        $this->statusTransitionSource = 'direct';
+        $this->statusTransitionActorId = null;
     }
 }

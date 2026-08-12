@@ -176,14 +176,20 @@ class OrderForm
                             ->default('draft')
                             ->required()
                             ->live()
-                            ->helperText('Controls invoice, stock, accounts, and sales reporting.'),
+                            ->disabled(fn (?Order $record): bool => (bool) $record?->exists)
+                            ->helperText(fn (?Order $record): string => $record?->exists
+                                ? 'Use Change status to follow the controlled workflow.'
+                                : 'Controls invoice, stock, accounts, and sales reporting.'),
 
                         Select::make('delivery_status')
                             ->label('Delivery Status')
                             ->options(Order::DELIVERY_STATUSES)
                             ->default('not_booked')
                             ->required()
-                            ->helperText('Controls courier progress shown on storefront tracking.'),
+                            ->disabled(fn (?Order $record): bool => (bool) $record?->exists)
+                            ->helperText(fn (?Order $record): string => $record?->exists
+                                ? 'Use Change status or courier actions to update delivery progress.'
+                                : 'Controls courier progress shown on storefront tracking.'),
                     ])
                     ->columns(2)
                     ->collapsible()

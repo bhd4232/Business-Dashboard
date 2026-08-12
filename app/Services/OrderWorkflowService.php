@@ -29,7 +29,7 @@ class OrderWorkflowService
             ])->saveQuietly();
         }
 
-        if (in_array($order->status, ['confirmed', 'completed'], true)) {
+        if ($order->isAccounted()) {
             $this->syncStockMovements($order, $items);
         } else {
             $this->deleteStockMovements($order);

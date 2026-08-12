@@ -708,9 +708,119 @@ class StorefrontSettingResource extends Resource
                 ->columns(2)
                 ->collapsible(),
 
+            Section::make('Checkout Protection')
+                ->columnSpanFull()
+                ->description('Validate Bangladesh phone numbers, enforce customer blacklists, and limit repeated storefront orders. Start with Observe only to review violations without blocking customers.')
+                ->schema([
+                    Select::make('checkout_policy_mode')
+                        ->label('Policy mode')
+                        ->options(StorefrontSetting::CHECKOUT_POLICY_MODES)
+                        ->default(StorefrontSetting::CHECKOUT_POLICY_OFF)
+                        ->required()
+                        ->live(),
+                    Toggle::make('checkout_validate_bd_phone')
+                        ->label('Require a valid Bangladesh mobile number')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('checkout_block_phone')
+                        ->label('Enforce phone blacklist')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('checkout_block_email')
+                        ->label('Enforce email blacklist')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('checkout_block_ip')
+                        ->label('Enforce IP blacklist')
+                        ->default(true)
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('checkout_order_limit_enabled')
+                        ->label('Limit repeated orders')
+                        ->default(false)
+                        ->live()
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    TextInput::make('checkout_order_limit_count')
+                        ->label('Maximum recent orders')
+                        ->integer()
+                        ->default(1)
+                        ->minValue(1)
+                        ->maxValue(100)
+                        ->required()
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF && (bool) $get('checkout_order_limit_enabled')),
+                    TextInput::make('checkout_order_limit_hours')
+                        ->label('Order-limit window (hours)')
+                        ->integer()
+                        ->default(24)
+                        ->minValue(1)
+                        ->maxValue(168)
+                        ->required()
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF && (bool) $get('checkout_order_limit_enabled')),
+                    TextInput::make('checkout_policy_contact_phone')
+                        ->label('Checkout support phone')
+                        ->tel()
+                        ->maxLength(40)
+                        ->helperText('Shown in the generic blocked-checkout message; the exact policy violation remains private.')
+                        ->visible(fn (Get $get): bool => $get('checkout_policy_mode') !== StorefrontSetting::CHECKOUT_POLICY_OFF),
+                    Toggle::make('risk_payment_enabled')
+                        ->label('Use courier history for advance eligibility')
+                        ->default(false)
+                        ->live()
+                        ->helperText('Checks configured Pathao, Steadfast, and RedX accounts at submit time. If every provider is unavailable, checkout continues without a risk advance.'),
+                    TextInput::make('risk_payment_success_ratio_threshold')
+                        ->label('Minimum successful-delivery ratio')
+                        ->integer()
+                        ->suffix('%')
+                        ->default(70)
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->required()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled')),
+                    Select::make('risk_payment_advance_type')
+                        ->label('Risk advance calculation')
+                        ->options(StorefrontSetting::RISK_ADVANCE_TYPES)
+                        ->default(StorefrontSetting::RISK_ADVANCE_FIXED)
+                        ->required()
+                        ->live()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled')),
+                    TextInput::make('risk_payment_advance_amount')
+                        ->label('Fixed risk advance')
+                        ->numeric()
+                        ->prefix('BDT')
+                        ->default(100)
+                        ->minValue(0)
+                        ->required()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled') && $get('risk_payment_advance_type') === StorefrontSetting::RISK_ADVANCE_FIXED),
+                    TextInput::make('risk_payment_advance_percent')
+                        ->label('Risk advance percentage')
+                        ->integer()
+                        ->suffix('%')
+                        ->default(20)
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->required()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled') && $get('risk_payment_advance_type') === StorefrontSetting::RISK_ADVANCE_PERCENT),
+                    Select::make('risk_payment_zero_history_action')
+                        ->label('When couriers report no history')
+                        ->options(StorefrontSetting::RISK_ZERO_HISTORY_ACTIONS)
+                        ->default(StorefrontSetting::RISK_ZERO_HISTORY_ALLOW_COD)
+                        ->required()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled')),
+                    Textarea::make('risk_payment_customer_message')
+                        ->label('Customer-facing advance notice')
+                        ->rows(3)
+                        ->maxLength(1000)
+                        ->placeholder(StorefrontSetting::DEFAULT_RISK_PAYMENT_CUSTOMER_MESSAGE)
+                        ->helperText('Keep this generic; courier scores and internal thresholds are never shown to customers.')
+                        ->columnSpanFull()
+                        ->visible(fn (Get $get): bool => (bool) $get('risk_payment_enabled')),
+                ])
+                ->columns(2)
+                ->collapsible()
+                ->collapsed(),
+
             Section::make('Online Payments (ZiniPay)')
                 ->columnSpanFull()
-                ->description('Used for verified new-customer delivery advances and pre-order advances. Product balances can remain Cash on Delivery.')
+                ->description('Used for unified checkout advances: pre-order, new-customer delivery, and optional courier-history eligibility. Product balances can remain Cash on Delivery.')
                 ->schema([
                     Toggle::make('online_payment_enabled')
                         ->label('Enable online payments')
@@ -772,6 +882,10 @@ class StorefrontSettingResource extends Resource
                     Toggle::make('abandoned_cart_reminders_enabled')
                         ->label('Enable reminders')
                         ->default(false),
+                    Toggle::make('checkout_autosave_enabled')
+                        ->label('Capture incomplete checkout details')
+                        ->default(false)
+                        ->helperText('Securely saves valid name, phone, email, and address fields while the customer types. Email and address are encrypted at rest.'),
                     TextInput::make('abandoned_cart_delay_hours')
                         ->label('Remind after (hours)')
                         ->integer()
@@ -829,6 +943,10 @@ class StorefrontSettingResource extends Resource
                         ->label('WhatsApp template language')
                         ->maxLength(10)
                         ->placeholder('bn'),
+                    TextInput::make('notification_credentials.whatsapp_recovery_template_name')
+                        ->label('WhatsApp recovery-link template')
+                        ->maxLength(100)
+                        ->helperText('Optional Meta-approved template with three body variables: customer name, store name, and recovery URL. When empty, the existing two-variable reminder template remains unchanged.'),
                 ])
                 ->columns(2)
                 ->collapsible()

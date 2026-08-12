@@ -385,9 +385,9 @@ class VoucherService
 
         $order = Order::query()->find($data['order_id'] ?? null);
 
-        if (! $order || ! in_array($order->status, ['confirmed', 'completed'], true)) {
+        if (! $order || ! $order->isAccounted()) {
             throw ValidationException::withMessages([
-                'order_id' => 'Select a confirmed or completed order invoice for this refund.',
+                'order_id' => 'Select a confirmed, processing, or completed order invoice for this refund.',
             ]);
         }
 

@@ -160,6 +160,8 @@
         })();
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @include('storefront.partials.meta-pixel')
+    @stack('meta-events')
 </head>
 <body
     class="storefront-shell bg-white text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100"
@@ -563,6 +565,8 @@
             {{ $accountsEnabled ? 'Account' : 'Track' }}
         </a>
     </nav>
+
+    @include('storefront.partials.meta-consent')
 
     <script>
         (function () {

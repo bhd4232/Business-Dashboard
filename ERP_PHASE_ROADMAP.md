@@ -158,23 +158,26 @@ Related planning documents:
 - Multi-product sales invoice workflow.
 - Order Items are the source of invoice lines.
 - Order totals from items, discount, VAT, and paid amount.
-- Confirmed and completed invoices create sale stock movements.
-- Draft and cancelled invoices do not affect stock.
+- Confirmed, processing, and completed invoices create sale stock movements.
+- Draft, cancelled, returned, and refunded invoices do not affect stock.
 - Customer current balance syncs from invoice due minus payments.
+- Controlled OrderFlow-inspired transitions are available as default Filament row/detail/edit and bulk actions; invalid jumps are rejected and cancellation/return/refund require a reason.
+- `shipping` and `delivered` workflow commands map onto the separate courier delivery status, while incomplete/recovered checkout state remains in the recovery subsystem.
+- Company-scoped immutable order status history records before/after order and delivery states, actor, source, and reason.
 - Printable invoice page at `/admin/orders/{order}/print`.
 - Tests for sales totals, stock sync, customer due, and insufficient stock blocking.
 
 **Future Work:**
 
 - PDF invoice export.
-- Return and refund workflow.
+- Return/refund financial approval, payment reversal, and item-condition workflow (status transitions are implemented).
 - Delivery challan.
 - Customer credit limit.
 
 **Done Criteria:**
 
 - Multi-product sale works.
-- Stock decreases only for confirmed or completed invoices.
+- Stock decreases only for confirmed, processing, or completed invoices.
 - Customer due is visible.
 - Printable invoice works.
 - `php artisan test --filter=SalesOrderTest` passes.
@@ -482,6 +485,8 @@ Related planning documents:
 - Registered active customers can log in with a hashed, single-use email or SMS OTP, with expiry, attempt limits, resend cooldown, and non-enumerating responses.
 - Delivery area is derived from the submitted address on the server; configurable Dhaka locality keywords feed weight-based inside/outside-Dhaka rates without a customer area selector.
 - New customers can be required to pay only the calculated weight-based delivery charge through the verified online-payment flow before the order is created.
+- Checkout protection can validate/normalize Bangladesh phone numbers, enforce company/global phone-email-IP blacklists, rate-limit recent storefront orders, and retain privacy-minimized masked/HMAC audit attempts in a read-only Filament table.
+- Optional courier-history payment eligibility combines Pathao/Steadfast/RedX success history with pre-order and new-customer rules in one non-additive advance decision. Required advances create the final Customer/Order only after exact gateway verification; all-provider failure remains fail-open.
 
 **Tasks:**
 
@@ -509,20 +514,27 @@ Related planning documents:
 
 **Goal:** Give admin users full control over e-commerce operations from the ERP panel.
 
-**Status:** Planned.
+**Status:** In progress.
+
+**Completed Foundations:**
+
+- Controlled order lifecycle with processing, shipping, delivered, cancelled, returned, and refunded stages.
+- Shipping/delivery mapping to the existing courier status model without duplicated status columns.
+- Default Filament row/detail/edit and bulk status actions with legal-transition enforcement.
+- Company-scoped immutable status history and consistent stock, customer-due, voucher, and report accounting.
 
 **Tasks:**
 
 - E-commerce dashboard.
 - Order management dashboard.
-- Order status flow: pending, processing, shipped, delivered, cancelled, returned, refunded.
+- Order status flow: pending/draft, processing, shipped, delivered, cancelled, returned, refunded. (Completed foundation; financial refund approval remains Phase 13 work.)
 - Banner and slider management.
 - Featured product management.
 - Discount and coupon management.
 - Shipping method and rate management.
 - Payment verification.
 - PDF invoice generation.
-- Admin audit trail for e-commerce actions.
+- Admin audit trail for e-commerce actions. (Order status history completed; other action types remain.)
 
 **Done Criteria:**
 
@@ -542,8 +554,10 @@ Related planning documents:
 **Completed Foundations:**
 
 - Company-scoped abandoned-cart recovery can send WhatsApp templates through the same centrally tested Chat Channel used by CRM, while retaining legacy credentials only for migration fallback.
+- Incomplete checkout capture now autosaves valid contact/address fields without creating ERP orders, sends HMAC-protected company-domain recovery links, restores saved carts, links recovered orders/revenue, and exposes default Filament lifecycle analytics. Email/address snapshots are encrypted and capture is opt-in.
 - Responsive channel-based CRM Inbox for WhatsApp and Messenger with unread/search/assignment/status workflows, internal notes, order links, delivery states, and retryable failures.
 - Reliable WhatsApp webhook foundation: callback/signature verification, WABA subscription diagnostics, synchronous core ingest, company isolation, durable outbound attempts, and Meta v25 configuration.
+- Company-scoped Meta commerce tracking now covers consent-gated selectable funnel/catalog/account events, configurable selector/scroll/time browser events, domain verification, hashed advanced matching, multiple Pixels/Datasets, deduplicated immediate/confirmed/risk-aware Purchase delivery, recovery and order-status CAPI events, encrypted short-lived attribution, per-Pixel delivery audit, and scheduled/manual retry without blocking commerce workflows.
 
 **Tasks:**
 
@@ -552,12 +566,12 @@ Related planning documents:
 - Product comparison.
 - Related products.
 - Promotional campaigns.
-- Abandoned cart recovery.
+- Abandoned cart recovery. (Completed foundation; multi-step campaign sequencing remains future work.)
 - Support ticket system.
 - Return and refund workflow.
 - Back-in-stock notifications.
 - Product variants such as size and color.
-- Analytics integration.
+- Analytics integration. (OrderFlow-equivalent Meta Pixel/CAPI event delivery is completed; cross-provider dashboards and additional analytics providers remain future work.)
 
 **Done Criteria:**
 

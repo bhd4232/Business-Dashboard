@@ -1,5 +1,22 @@
 @extends('storefront.layout')
 
+@push('meta-events')
+    @php
+        $metaTracking = app(\App\Services\StorefrontMetaTrackingService::class);
+    @endphp
+    @if (! isset($previewSlug) && $metaTracking->browserEventEnabled($setting, 'ViewCart', request()))
+        <script>
+            fbq('track', 'ViewCart', {{ Illuminate\Support\Js::from([
+                'content_ids' => collect($items)->map(fn ($item) => (string) $item['product']->getKey())->unique()->values()->all(),
+                'content_type' => 'product',
+                'currency' => 'BDT',
+                'value' => round((float) $subtotal, 2),
+                'num_items' => collect($items)->sum('quantity'),
+            ]) }}, {eventID: {{ Illuminate\Support\Js::from($metaTracking->eventId('view-cart')) }}});
+        </script>
+    @endif
+@endpush
+
 @section('content')
     <section class="border-b border-gray-200 dark:border-white/10">
         <div class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-5 lg:px-6">

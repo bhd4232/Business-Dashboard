@@ -51,7 +51,10 @@ class StorefrontPaymentService
             }
         }
 
-        if ($payment->purpose === StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY) {
+        if (in_array($payment->purpose, [
+            StorefrontPayment::PURPOSE_CHECKOUT_ADVANCE,
+            StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY,
+        ], true)) {
             return $this->orders->placePaidCheckout($payment->fresh());
         }
 

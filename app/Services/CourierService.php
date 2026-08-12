@@ -84,7 +84,7 @@ class CourierService
         ]);
 
         $this->logStatus($booking, null, $status, $data['note'] ?? 'Manual courier booking created.');
-        $order->forceFill(['delivery_status' => $status])->saveQuietly();
+        $this->syncOrderDeliveryStatus($order, $status, $data['note'] ?? 'Manual courier booking created.');
 
         return $booking;
     }
@@ -133,7 +133,7 @@ class CourierService
         ]);
 
         $this->logStatus($booking, null, $status, $response['message'] ?? 'Steadfast consignment created.');
-        $order->forceFill(['delivery_status' => $status])->saveQuietly();
+        $this->syncOrderDeliveryStatus($order, $status, $response['message'] ?? 'Steadfast consignment created.');
 
         return $booking;
     }
@@ -447,7 +447,7 @@ class CourierService
         ], $attributes));
 
         $this->logStatus($booking, null, $status, $logNote);
-        $order->forceFill(['delivery_status' => $status])->saveQuietly();
+        $this->syncOrderDeliveryStatus($order, $status, $logNote);
 
         return $booking;
     }
@@ -460,7 +460,7 @@ class CourierService
             ->implode(', ');
     }
 
-    public function updateStatus(CourierBooking $booking, string $status, ?string $note = null): CourierBooking
+    public function updateStatus(CourierBooking $booking, string $status, ?string $note = null, bool $syncOrder = true): CourierBooking
     {
         if (! array_key_exists($status, CourierBooking::STATUSES)) {
             throw ValidationException::withMessages([
@@ -478,12 +478,53 @@ class CourierService
         ])->save();
 
         $this->logStatus($booking, $fromStatus, $status, $note);
-        $booking->order?->forceFill(['delivery_status' => $status])->saveQuietly();
+        if ($syncOrder && $booking->order) {
+            $this->syncOrderDeliveryStatus($booking->order, $status, $note);
+        }
+
         if ($booking->order) {
             app(CustomerRiskService::class)->recordDeliveryEvent($booking->order, $status);
         }
 
         return $booking->refresh();
+    }
+
+    protected function syncOrderDeliveryStatus(Order $order, string $status, ?string $note = null): void
+    {
+        $stage = match ($status) {
+            CourierBooking::STATUS_PICKED_UP,
+            CourierBooking::STATUS_IN_TRANSIT,
+            CourierBooking::STATUS_PARTIAL_DELIVERED => Order::STAGE_SHIPPING,
+            CourierBooking::STATUS_DELIVERED => Order::STAGE_DELIVERED,
+            CourierBooking::STATUS_RETURNED => Order::STAGE_RETURNED,
+            default => null,
+        };
+
+        if ($stage && in_array($stage, $order->allowedWorkflowStages(), true)) {
+            app(OrderStatusWorkflowService::class)->transition(
+                $order,
+                $stage,
+                $stage === Order::STAGE_RETURNED ? ($note ?: 'Courier reported the order as returned.') : $note,
+                'courier',
+            );
+
+            return;
+        }
+
+        if ($order->delivery_status === $status) {
+            return;
+        }
+
+        $order->statusTransitionStage = $stage;
+        $order->statusTransitionReason = $note;
+        $order->statusTransitionSource = 'courier';
+        $order->statusTransitionActorId = Auth::id();
+
+        try {
+            $order->forceFill(['delivery_status' => $status])->save();
+        } finally {
+            $order->clearStatusTransitionContext();
+        }
     }
 
     protected function manualTrackingId(Order $order): string

@@ -40,7 +40,9 @@ class CustomerBlacklistResource extends Resource
         return $schema->columns(1)->components([
             Section::make('Blacklist Entry')->columnSpanFull()->schema([
                 Select::make('company_id')->relationship('company', 'name')->placeholder('All companies (global)'),
-                TextInput::make('phone')->tel()->maxLength(40)->helperText('Provide phone, address, or both.'),
+                TextInput::make('phone')->tel()->maxLength(40)->helperText('Provide at least one customer identifier.'),
+                TextInput::make('email')->email()->maxLength(255),
+                TextInput::make('ip_address')->label('IP address')->maxLength(45),
                 Textarea::make('address')->rows(3),
                 Textarea::make('reason')->required()->rows(3),
                 Toggle::make('is_active')->default(true),
@@ -53,6 +55,8 @@ class CustomerBlacklistResource extends Resource
         return $table->columns([
             TextColumn::make('company.name')->label('Scope')->placeholder('All Companies'),
             TextColumn::make('phone')->searchable()->placeholder('-'),
+            TextColumn::make('email')->searchable()->placeholder('-')->toggleable(),
+            TextColumn::make('ip_address')->label('IP address')->searchable()->placeholder('-')->toggleable(),
             TextColumn::make('address')->limit(40)->placeholder('-'),
             TextColumn::make('reason')->limit(50),
             IconColumn::make('is_active')->boolean(),

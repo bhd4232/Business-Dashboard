@@ -8,20 +8,26 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\StorefrontCartRecord;
+use App\Models\StorefrontCheckoutAttempt;
 use App\Models\StorefrontPayment;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class StorefrontOrderPlacementService
 {
-    public function __construct(protected CompanyContext $context) {}
+    public function __construct(
+        protected CompanyContext $context,
+        protected StorefrontCheckoutPolicyService $checkoutPolicies,
+        protected StorefrontMetaDispatchService $metaDispatch,
+    ) {}
 
     public function placePaidCheckout(StorefrontPayment $payment): Order
     {
         $company = $payment->company()->withoutGlobalScopes()->firstOrFail();
         $this->context->set($company);
 
-        return DB::transaction(function () use ($payment): Order {
+        return DB::transaction(function () use ($payment, $company): Order {
             $lockedPayment = StorefrontPayment::withoutGlobalScopes()->lockForUpdate()->findOrFail($payment->getKey());
 
             if ($lockedPayment->order_id) {
@@ -29,7 +35,7 @@ class StorefrontOrderPlacementService
             }
 
             if ($lockedPayment->status !== StorefrontPayment::STATUS_COMPLETED) {
-                throw new RuntimeException('The delivery advance has not been verified yet.');
+                throw new RuntimeException('The checkout advance has not been verified yet.');
             }
 
             $data = $lockedPayment->checkout_data;
@@ -38,7 +44,9 @@ class StorefrontOrderPlacementService
                 throw new RuntimeException('The pending checkout data is incomplete.');
             }
 
-            $customer = Customer::query()->firstOrNew(['phone' => $data['phone']]);
+            $customer = Customer::query()
+                ->whereIn('phone', $this->checkoutPolicies->phoneVariants($data['phone']))
+                ->first() ?? new Customer(['phone' => $data['phone']]);
             $customer->fill([
                 'name' => $data['name'],
                 'email' => $data['email'] ?: $customer->email,
@@ -49,6 +57,19 @@ class StorefrontOrderPlacementService
                 'is_active' => true,
             ]);
             $customer->save();
+
+            $advanceReasonLabels = collect(array_keys($data['advance_reasons'] ?? []))
+                ->map(fn (string $reason): string => match ($reason) {
+                    'preorder' => 'pre-order',
+                    'new_customer_delivery' => 'new-customer delivery',
+                    'courier_no_history', 'courier_low_success_ratio' => 'checkout eligibility',
+                    default => 'checkout',
+                })
+                ->unique()
+                ->implode(', ');
+            $advanceNote = $advanceReasonLabels !== ''
+                ? "Verified online advance paid ({$advanceReasonLabels})"
+                : 'Verified online advance paid';
 
             $order = Order::query()->create([
                 'customer_id' => $customer->getKey(),
@@ -61,7 +82,7 @@ class StorefrontOrderPlacementService
                 'paid_amount' => 0,
                 'status' => 'draft',
                 'source' => Order::SOURCE_STOREFRONT,
-                'note' => trim("Storefront checkout\nDelivery address: {$data['address']}\nDelivery advance paid online\n".(($data['note'] ?? null) ? "Customer note: {$data['note']}" : '')),
+                'note' => trim("Storefront checkout\nDelivery address: {$data['address']}\n{$advanceNote}\n".(($data['note'] ?? null) ? "Customer note: {$data['note']}" : '')),
             ]);
 
             foreach ($data['items'] as $snapshot) {
@@ -85,7 +106,34 @@ class StorefrontOrderPlacementService
             $order->update(['paid_amount' => min((float) $lockedPayment->amount, (float) $order->total_amount)]);
             $lockedPayment->update(['order_id' => $order->getKey(), 'checkout_data' => null]);
 
+            $cartRecordId = (int) ($data['cart_record_id'] ?? 0);
+
+            if ($cartRecordId > 0) {
+                StorefrontCartRecord::withoutGlobalScopes()
+                    ->where('company_id', $company->getKey())
+                    ->find($cartRecordId)
+                    ?->markConverted($order);
+            }
+
+            $attemptId = (int) ($data['checkout_attempt_id'] ?? 0);
+            $attempt = null;
+
+            if ($attemptId > 0) {
+                $attempt = StorefrontCheckoutAttempt::withoutGlobalScopes()
+                    ->where('company_id', $company->getKey())
+                    ->find($attemptId);
+                $this->checkoutPolicies->markAccepted($attempt, $order);
+            }
+
             CheckExternalCourierFraudJob::dispatch($order->getKey())->afterCommit();
+
+            $this->metaDispatch->captureOrder(
+                $order,
+                $company->storefrontSetting,
+                (array) ($data['meta_tracking_context'] ?? []),
+                isset($data['courier_success_ratio']) ? (float) $data['courier_success_ratio'] : $attempt?->courier_success_ratio,
+                $cartRecordId ?: null,
+            );
 
             return $order->fresh(['items.product', 'customer', 'storefrontPayments']);
         });

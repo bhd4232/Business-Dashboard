@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders\Tables;
 
+use App\Filament\Resources\Orders\Actions\ChangeOrderWorkflowAction;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
 use App\Models\CustomerRiskProfile;
@@ -10,7 +11,9 @@ use App\Models\Order;
 use App\Services\CompanyContext;
 use App\Services\CourierService;
 use App\Services\CustomerRiskService;
+use App\Services\OrderStatusWorkflowService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -19,10 +22,15 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class OrdersTable
 {
@@ -71,9 +79,12 @@ class OrdersTable
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => Order::STATUSES[$state] ?? str($state)->headline()->toString())
                     ->color(fn (string $state): string => match ($state) {
-                        'confirmed', 'completed' => 'success',
-                        'cancelled' => 'danger',
+                        Order::STATUS_CONFIRMED, Order::STATUS_COMPLETED => 'success',
+                        Order::STATUS_PROCESSING => 'warning',
+                        Order::STATUS_CANCELLED, Order::STATUS_RETURNED => 'danger',
+                        Order::STATUS_REFUNDED => 'gray',
                         default => 'gray',
                     }),
 
@@ -139,6 +150,7 @@ class OrdersTable
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                ChangeOrderWorkflowAction::make(),
                 Action::make('bookCourier')
                     ->label('Book courier')
                     ->icon('heroicon-o-truck')
@@ -222,6 +234,58 @@ class OrdersTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('changeWorkflowStatus')
+                        ->label('Change status')
+                        ->icon('heroicon-o-arrow-path-rounded-square')
+                        ->visible(fn (): bool => Auth::user()?->hasPermission('sales.update') ?? false)
+                        ->schema([
+                            Select::make('stage')
+                                ->label('Next stage')
+                                ->options(Order::WORKFLOW_STAGES)
+                                ->required()
+                                ->live()
+                                ->native(false),
+                            Textarea::make('reason')
+                                ->label('Reason / note')
+                                ->rows(3)
+                                ->maxLength(1000)
+                                ->required(fn (Get $get): bool => in_array($get('stage'), Order::REASON_REQUIRED_STAGES, true))
+                                ->helperText('Orders that cannot legally reach the selected stage will be skipped.'),
+                        ])
+                        ->requiresConfirmation()
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records, array $data): void {
+                            $updated = 0;
+                            $skipped = 0;
+
+                            foreach ($records as $record) {
+                                try {
+                                    app(OrderStatusWorkflowService::class)->transition(
+                                        $record,
+                                        $data['stage'],
+                                        $data['reason'] ?? null,
+                                        'bulk',
+                                    );
+                                    $updated++;
+                                } catch (ValidationException) {
+                                    $skipped++;
+                                }
+                            }
+
+                            $notification = Notification::make()
+                                ->title("{$updated} order(s) updated")
+                                ->body($skipped > 0 ? "{$skipped} order(s) were skipped because that transition is not allowed." : null);
+
+                            if ($updated === 0) {
+                                $notification->danger();
+                            } elseif ($skipped > 0) {
+                                $notification->warning();
+                            } else {
+                                $notification->success();
+                            }
+
+                            $notification->send();
+                        }),
                     DeleteBulkAction::make(),
                 ]),
             ]);

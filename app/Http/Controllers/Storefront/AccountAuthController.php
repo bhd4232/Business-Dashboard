@@ -8,6 +8,7 @@ use App\Models\StorefrontCustomerActivity;
 use App\Services\CompanyContext;
 use App\Services\CustomerAccountService;
 use App\Services\StorefrontCustomerActivityService;
+use App\Services\StorefrontMetaTrackingService;
 use App\Services\StorefrontNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -314,6 +315,12 @@ class AccountAuthController extends Controller
             'Account created',
             "Your {$customer->company->name} customer account is ready.",
         );
+
+        $request->session()->flash('storefront_meta_event', [
+            'name' => 'CompleteRegistration',
+            'event_id' => app(StorefrontMetaTrackingService::class)->eventId('complete-registration'),
+            'data' => ['status' => 'registered'],
+        ]);
 
         return redirect()->to($this->accountRoute($request, 'profile'))->with('storefront_status', "Welcome, {$customer->name}! Your account has been created.");
     }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Services\StorefrontMetaTrackingService;
 use App\Support\StorefrontThemeRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -10,6 +11,38 @@ use Illuminate\Support\Facades\Cache;
 class StorefrontSetting extends Model
 {
     use BelongsToCompany;
+
+    public const CHECKOUT_POLICY_OFF = 'off';
+
+    public const CHECKOUT_POLICY_OBSERVE = 'observe';
+
+    public const CHECKOUT_POLICY_ENFORCE = 'enforce';
+
+    public const CHECKOUT_POLICY_MODES = [
+        self::CHECKOUT_POLICY_OFF => 'Off',
+        self::CHECKOUT_POLICY_OBSERVE => 'Observe only',
+        self::CHECKOUT_POLICY_ENFORCE => 'Enforce',
+    ];
+
+    public const RISK_ADVANCE_FIXED = 'fixed';
+
+    public const RISK_ADVANCE_PERCENT = 'percent';
+
+    public const RISK_ADVANCE_TYPES = [
+        self::RISK_ADVANCE_FIXED => 'Fixed amount',
+        self::RISK_ADVANCE_PERCENT => 'Percentage of order total',
+    ];
+
+    public const RISK_ZERO_HISTORY_ALLOW_COD = 'allow_cod';
+
+    public const RISK_ZERO_HISTORY_REQUIRE_ADVANCE = 'require_advance';
+
+    public const RISK_ZERO_HISTORY_ACTIONS = [
+        self::RISK_ZERO_HISTORY_ALLOW_COD => 'Allow Cash on Delivery',
+        self::RISK_ZERO_HISTORY_REQUIRE_ADVANCE => 'Require the configured advance',
+    ];
+
+    public const DEFAULT_RISK_PAYMENT_CUSTOMER_MESSAGE = 'Some orders may require a small verified online advance before confirmation. If required, the secure payment page will show the exact amount and the remaining balance will stay payable on delivery.';
 
     public const DEFAULT_NEW_CUSTOMER_ADVANCE_MESSAGE = 'ZamZam International চায় কাস্টমারের সাথে একটি সুসম্পর্ক গড়ে উঠুক। পার্সেল নিয়ে কোনো ভুল বোঝাবুঝি এড়াতে নতুন কাস্টমারের অর্ডার শুধু ডেলিভারি চার্জ অগ্রিম পরিশোধের পর নিশ্চিত করা হয়। ভয় পাওয়ার কিছু নেই—আপনার পণ্যের ওজন অনুযায়ী শুধু ডেলিভারি চার্জ অগ্রিম দিতে হবে। পণ্যের বাকি সম্পূর্ণ টাকা হাতে পেয়ে যাচাই করে ডেলিভারি ম্যানকে পরিশোধ করবেন।';
 
@@ -275,6 +308,22 @@ class StorefrontSetting extends Model
         'online_payment_enabled',
         'payment_credentials',
         'cod_enabled',
+        'checkout_policy_mode',
+        'checkout_validate_bd_phone',
+        'checkout_block_phone',
+        'checkout_block_email',
+        'checkout_block_ip',
+        'checkout_order_limit_enabled',
+        'checkout_order_limit_count',
+        'checkout_order_limit_hours',
+        'checkout_policy_contact_phone',
+        'risk_payment_enabled',
+        'risk_payment_success_ratio_threshold',
+        'risk_payment_advance_type',
+        'risk_payment_advance_amount',
+        'risk_payment_advance_percent',
+        'risk_payment_zero_history_action',
+        'risk_payment_customer_message',
         'delivery_charge_inside',
         'delivery_charge_outside',
         'delivery_first_kg_inside',
@@ -292,6 +341,23 @@ class StorefrontSetting extends Model
         'manual_nagad_number',
         'manual_nagad_instructions',
         'abandoned_cart_reminders_enabled',
+        'checkout_autosave_enabled',
+        'meta_tracking_enabled',
+        'meta_consent_required',
+        'meta_consent_message',
+        'meta_browser_tracking_enabled',
+        'meta_advanced_matching_enabled',
+        'meta_browser_events',
+        'meta_custom_events_enabled',
+        'meta_custom_events',
+        'meta_capi_enabled',
+        'meta_purchase_timing',
+        'meta_purchase_success_ratio_threshold',
+        'meta_status_events_enabled',
+        'meta_status_events',
+        'meta_pixel_id',
+        'meta_domain_verification_tags',
+        'meta_tracking_credentials',
         'abandoned_cart_delay_hours',
         'notification_credentials',
         'woocommerce_base_url',
@@ -321,6 +387,17 @@ class StorefrontSetting extends Model
         'online_payment_enabled' => 'boolean',
         'payment_credentials' => 'encrypted:array',
         'cod_enabled' => 'boolean',
+        'checkout_validate_bd_phone' => 'boolean',
+        'checkout_block_phone' => 'boolean',
+        'checkout_block_email' => 'boolean',
+        'checkout_block_ip' => 'boolean',
+        'checkout_order_limit_enabled' => 'boolean',
+        'checkout_order_limit_count' => 'integer',
+        'checkout_order_limit_hours' => 'integer',
+        'risk_payment_enabled' => 'boolean',
+        'risk_payment_success_ratio_threshold' => 'integer',
+        'risk_payment_advance_amount' => 'decimal:2',
+        'risk_payment_advance_percent' => 'integer',
         'delivery_charge_inside' => 'decimal:2',
         'delivery_charge_outside' => 'decimal:2',
         'delivery_first_kg_inside' => 'decimal:2',
@@ -330,6 +407,20 @@ class StorefrontSetting extends Model
         'complaint_telegram_enabled' => 'boolean',
         'telegram_credentials' => 'encrypted:array',
         'abandoned_cart_reminders_enabled' => 'boolean',
+        'checkout_autosave_enabled' => 'boolean',
+        'meta_tracking_enabled' => 'boolean',
+        'meta_consent_required' => 'boolean',
+        'meta_browser_tracking_enabled' => 'boolean',
+        'meta_advanced_matching_enabled' => 'boolean',
+        'meta_browser_events' => 'array',
+        'meta_custom_events_enabled' => 'boolean',
+        'meta_custom_events' => 'array',
+        'meta_capi_enabled' => 'boolean',
+        'meta_purchase_success_ratio_threshold' => 'integer',
+        'meta_status_events_enabled' => 'boolean',
+        'meta_status_events' => 'array',
+        'meta_domain_verification_tags' => 'array',
+        'meta_tracking_credentials' => 'encrypted:array',
         'abandoned_cart_delay_hours' => 'integer',
         'notification_credentials' => 'encrypted:array',
         'header_menu' => 'array',
@@ -342,6 +433,11 @@ class StorefrontSetting extends Model
     public function customerAdvanceMessage(): string
     {
         return trim((string) $this->new_customer_advance_message) ?: self::DEFAULT_NEW_CUSTOMER_ADVANCE_MESSAGE;
+    }
+
+    public function riskPaymentCustomerMessage(): string
+    {
+        return trim((string) $this->risk_payment_customer_message) ?: self::DEFAULT_RISK_PAYMENT_CUSTOMER_MESSAGE;
     }
 
     public function whatsappGroupUrl(): string
@@ -384,6 +480,27 @@ class StorefrontSetting extends Model
             $setting->customer_accounts_enabled ??= true;
             $setting->theme_mode ??= 'system';
             $setting->cod_enabled ??= true;
+            $setting->checkout_policy_mode ??= self::CHECKOUT_POLICY_OFF;
+            $setting->checkout_validate_bd_phone ??= true;
+            $setting->checkout_block_phone ??= true;
+            $setting->checkout_block_email ??= true;
+            $setting->checkout_block_ip ??= true;
+            $setting->checkout_order_limit_enabled ??= false;
+            $setting->checkout_order_limit_count ??= 1;
+            $setting->checkout_order_limit_hours ??= 24;
+            $setting->risk_payment_enabled ??= false;
+            $setting->risk_payment_success_ratio_threshold ??= 70;
+            $setting->risk_payment_advance_type ??= self::RISK_ADVANCE_FIXED;
+            $setting->risk_payment_advance_amount ??= 100;
+            $setting->risk_payment_advance_percent ??= 20;
+            $setting->risk_payment_zero_history_action ??= self::RISK_ZERO_HISTORY_ALLOW_COD;
+            $setting->checkout_autosave_enabled ??= false;
+            $setting->meta_consent_required ??= true;
+            $setting->meta_advanced_matching_enabled ??= false;
+            $setting->meta_browser_events ??= StorefrontMetaTrackingService::DEFAULT_BROWSER_EVENTS;
+            $setting->meta_custom_events_enabled ??= false;
+            $setting->meta_purchase_timing ??= 'immediate';
+            $setting->meta_purchase_success_ratio_threshold ??= 70;
             $setting->marketplace_announcement_enabled ??= true;
             $setting->marketplace_quote_enabled ??= true;
             $setting->marketplace_business_accounts_enabled ??= true;

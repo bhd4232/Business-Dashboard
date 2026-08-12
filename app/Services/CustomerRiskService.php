@@ -238,14 +238,19 @@ class CustomerRiskService
     {
         $phone = $this->normalizePhone($customer->phone);
 
-        if (! $phone && blank($customer->address)) {
+        $email = filled($customer->email) ? mb_strtolower(trim($customer->email)) : null;
+
+        if (! $phone && ! $email && blank($customer->address)) {
             return null;
         }
 
         return CustomerBlacklist::query()->where('is_active', true)
             ->where(fn ($query) => $query->whereNull('company_id')->orWhere('company_id', $customer->company_id))
-            ->where(function ($query) use ($phone, $customer): void {
+            ->where(function ($query) use ($phone, $email, $customer): void {
                 $query->when($phone, fn ($q) => $q->where('phone', $phone));
+                if ($email) {
+                    $query->orWhere('email', $email);
+                }
                 if (filled($customer->address)) {
                     $query->orWhereRaw('LOWER(address) = ?', [mb_strtolower(trim($customer->address))]);
                 }

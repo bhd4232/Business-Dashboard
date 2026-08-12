@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\StorefrontCartRecord;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
+use App\Services\StorefrontMetaTrackingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,6 +20,7 @@ class CartController extends Controller
     public function __construct(
         protected CompanyContext $context,
         protected StorefrontCart $cart,
+        protected StorefrontMetaTrackingService $metaTracking,
     ) {}
 
     public function show(Request $request): View
@@ -60,7 +63,9 @@ class CartController extends Controller
         $buyNow = $request->boolean('buy_now');
 
         if (! $product->has_variants) {
-            $this->cart->add($company, $product, (int) $request->integer('quantity', 1));
+            $quantity = max(1, (int) $request->integer('quantity', 1));
+            $this->cart->add($company, $product, $quantity);
+            $this->flashAddToCartEvent($product, $quantity, $product->priceForQuantity($quantity) * $quantity);
 
             if ($buyNow) {
                 return $this->redirectToCheckout($request, $company);
@@ -90,6 +95,8 @@ class CartController extends Controller
         abort_if($variants->isEmpty(), 422, 'Selected options are not available.');
 
         $addedLines = 0;
+        $addedQuantity = 0;
+        $addedValue = 0.0;
 
         foreach ($quantities as $variantId => $quantity) {
             $variant = $variants->get((int) $variantId);
@@ -100,9 +107,12 @@ class CartController extends Controller
 
             $this->cart->add($company, $product, $quantity, $variant);
             $addedLines++;
+            $addedQuantity += $quantity;
+            $addedValue += $variant->effectiveSalePrice() * $quantity;
         }
 
         abort_if($addedLines === 0, 422, 'Selected options are out of stock.');
+        $this->flashAddToCartEvent($product, $addedQuantity, $addedValue);
 
         if ($buyNow) {
             return $this->redirectToCheckout($request, $company);
@@ -118,6 +128,21 @@ class CartController extends Controller
         return redirect()->to($previewSlug
             ? route('storefront.preview.checkout.show', $previewSlug)
             : route('storefront.checkout.show'));
+    }
+
+    protected function flashAddToCartEvent(Product $product, int $quantity, float $value): void
+    {
+        session()->flash('storefront_meta_event', [
+            'name' => 'AddToCart',
+            'event_id' => $this->metaTracking->eventId('add-to-cart'),
+            'data' => [
+                'content_ids' => [(string) $product->getKey()],
+                'content_type' => 'product',
+                'currency' => 'BDT',
+                'value' => round($value, 2),
+                'num_items' => $quantity,
+            ],
+        ]);
     }
 
     public function update(Request $request, string $slug): RedirectResponse
@@ -144,6 +169,7 @@ class CartController extends Controller
     {
         [$company] = $this->domainStorefront($request);
         $product = $this->product($slug);
+        $this->flashRemoveFromCartEvent($product);
         $this->cart->remove($company, $product, $this->resolveVariant($request, $product));
 
         return back()->with('storefront_status', 'Item removed from cart.');
@@ -156,6 +182,34 @@ class CartController extends Controller
         $this->cart->remove($company, $product, $this->resolveVariant($request, $product));
 
         return back()->with('storefront_status', 'Item removed from cart.');
+    }
+
+    protected function flashRemoveFromCartEvent(Product $product): void
+    {
+        session()->flash('storefront_meta_event', [
+            'name' => 'RemoveFromCart',
+            'event_id' => $this->metaTracking->eventId('remove-from-cart'),
+            'data' => [
+                'content_ids' => [(string) $product->getKey()],
+                'content_type' => 'product',
+                'currency' => 'BDT',
+                'value' => round((float) $product->selling_price, 2),
+            ],
+        ]);
+    }
+
+    public function recover(Request $request, int $cart, string $token): RedirectResponse
+    {
+        [$company] = $this->domainStorefront($request);
+        $record = StorefrontCartRecord::withoutGlobalScopes()
+            ->where('company_id', $company->getKey())
+            ->findOrFail($cart);
+
+        abort_unless($record->hasValidRecoveryToken($token), 404);
+        $this->cart->restore($company, $record);
+
+        return redirect()->route('storefront.cart.show')
+            ->with('storefront_status', 'Your saved cart has been restored. Review the items before checkout.');
     }
 
     protected function resolveVariant(Request $request, Product $product, bool $requireForVariable = false): ?ProductVariant

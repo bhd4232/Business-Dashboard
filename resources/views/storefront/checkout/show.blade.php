@@ -1,5 +1,22 @@
 @extends('storefront.layout')
 
+@push('meta-events')
+    @php
+        $metaTracking = app(\App\Services\StorefrontMetaTrackingService::class);
+    @endphp
+    @if (! isset($previewSlug) && $metaTracking->browserEventEnabled($setting, 'InitiateCheckout', request()))
+        <script>
+            fbq('track', 'InitiateCheckout', {{ Illuminate\Support\Js::from([
+                'content_ids' => collect($items)->map(fn ($item) => (string) $item['product']->getKey())->unique()->values()->all(),
+                'content_type' => 'product',
+                'currency' => 'BDT',
+                'value' => round((float) $subtotal, 2),
+                'num_items' => collect($items)->sum('quantity'),
+            ]) }}, {eventID: {{ Illuminate\Support\Js::from($metaTracking->eventId('initiate-checkout')) }}});
+        </script>
+    @endif
+@endpush
+
 @section('content')
     @php
         $insideCharge = (float) $insideQuote['fee'];
@@ -28,6 +45,11 @@
         // Computed here (not read from layout.blade.php) since child @section
         // content executes before the parent layout's own @php block runs.
         $loggedInCustomer = auth('customer')->user();
+        $checkoutAutosaveUrl = ($setting->checkout_autosave_enabled ?? false)
+            ? (isset($previewSlug)
+                ? route('storefront.preview.checkout.autosave', $previewSlug)
+                : route('storefront.checkout.autosave'))
+            : null;
     @endphp
 
     <section class="border-b border-gray-200 dark:border-white/10">
@@ -117,6 +139,13 @@
                                 @endif
                             </div>
                         </div>
+                    </div>
+                @endif
+
+                @if ($setting->risk_payment_enabled ?? false)
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 sm:col-span-2 dark:border-white/10 dark:bg-white/5" role="note">
+                        <h2 class="text-sm font-semibold text-gray-950 dark:text-white">Verified advance eligibility</h2>
+                        <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">{{ $setting->riskPaymentCustomerMessage() }}</p>
                     </div>
                 @endif
 
@@ -241,7 +270,7 @@
                     </div>
                     @if ($onlinePaymentAvailable ?? false)
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                            Your cart includes pre-order items. You will be redirected to a secure payment page after placing the order.
+                            Your cart includes pre-order items. The order will be created only after the secure payment verifies this advance.
                         </p>
                     @else
                         <p id="checkout-preorder-payment-unavailable" class="mt-2 text-xs font-medium text-red-600 dark:text-red-400" role="alert">
@@ -266,7 +295,7 @@
                 @disabled($checkoutBlocked)
                 @if ($checkoutBlocked) aria-disabled="true" aria-describedby="{{ $checkoutBlockDescription }}" @endif
             >
-                Place order / pay delivery charge
+                Place order / continue to payment
             </button>
         </aside>
     </section>
@@ -278,7 +307,39 @@
             if (! form) return;
 
             var dirty = false;
-            form.addEventListener('input', function () { dirty = true; });
+            var autosaveUrl = {{ Illuminate\Support\Js::from($checkoutAutosaveUrl) }};
+            var autosaveTimer = null;
+
+            function checkoutDetails() {
+                return ['name', 'phone', 'email', 'address'].reduce(function (details, field) {
+                    var input = form.elements.namedItem(field);
+                    details[field] = input ? input.value : '';
+                    return details;
+                }, {});
+            }
+
+            function autosave() {
+                if (! autosaveUrl) return;
+                var token = form.querySelector('input[name="_token"]');
+                fetch(autosaveUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    keepalive: true,
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token ? token.value : ''
+                    },
+                    body: JSON.stringify(checkoutDetails())
+                }).catch(function () {});
+            }
+
+            form.addEventListener('input', function (event) {
+                dirty = true;
+                if (! autosaveUrl || ! ['name', 'phone', 'email', 'address'].includes(event.target.name)) return;
+                window.clearTimeout(autosaveTimer);
+                autosaveTimer = window.setTimeout(autosave, 1200);
+            });
 
             var errorSummary = document.querySelector('[data-checkout-errors]');
             if (errorSummary) {
@@ -287,10 +348,16 @@
 
             form.addEventListener('submit', function () {
                 dirty = false;
+                window.clearTimeout(autosaveTimer);
                 if (submitButton) {
                     submitButton.disabled = true;
                     submitButton.textContent = 'Processing…';
                 }
+            });
+
+            window.addEventListener('pagehide', function () {
+                window.clearTimeout(autosaveTimer);
+                if (dirty) autosave();
             });
 
             window.addEventListener('beforeunload', function (event) {
