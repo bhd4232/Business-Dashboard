@@ -20,6 +20,7 @@ All notable production changes to Business Dashboard are documented here.
 
 - Checkout derives the delivery area from the submitted address instead of asking the customer to select an area. The server remains authoritative, configurable Dhaka locality keywords drive detection, and ambiguous addresses default to the outside-Dhaka rate.
 - The order thank-you page shows customer/order details and a configurable WhatsApp group CTA.
+- Courier-provider credentials now use a text database column, matching Laravel's encrypted-array ciphertext format and allowing providers to be created on MySQL without JSON validation errors.
 
 ### Security
 

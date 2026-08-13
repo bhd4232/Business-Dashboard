@@ -18,14 +18,33 @@ use App\Services\CourierManager;
 use App\Services\CourierService;
 use App\Services\SteadfastCourierClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class CourierIntegrationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_courier_credentials_use_text_storage_for_the_encrypted_array_cast(): void
+    {
+        $company = $this->company('Encrypted Courier Company', 'encrypted-courier-company', 'ENC');
+        app(CompanyContext::class)->set($company);
+
+        $provider = $this->steadfastProvider($company);
+        $rawCredentials = DB::table('courier_providers')
+            ->where('id', $provider->getKey())
+            ->value('credentials');
+
+        $this->assertSame('text', Schema::getColumnType('courier_providers', 'credentials'));
+        $this->assertIsString($rawCredentials);
+        $this->assertStringNotContainsString('test-api-key', $rawCredentials);
+        $this->assertSame('test-api-key', $provider->fresh()->credentials['api_key']);
+        $this->assertSame('test-secret-key', $provider->fresh()->credentials['secret_key']);
+    }
 
     public function test_courier_manager_resolves_manual_adapter_and_creates_booking(): void
     {

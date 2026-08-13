@@ -246,6 +246,7 @@ Implemented behavior:
 - **Delivery fee vs. courier cost margin**: providers now also configure a "Courier Delivery Cost" section (`settings.delivery_costs.{inside,outside,suburb}`) alongside the existing customer-facing "Set Delivery Fees". Every booking created through a provider with these settings gets `delivery_fee_charged`, `delivery_cost`, `cod_charge_amount`, and `margin` recorded on `courier_bookings` at creation time (toggleable columns on the Bookings table, a "Delivery Economics" section on the Booking view). `CourierReportService` sums `margin` per provider/company.
 - **Customer Delivery Success Rate**: the "Courier Fraud Check" panel on the Order form now also runs automatically (cached, 24h) when a customer is selected, not only on manual button click, and renders as a per-courier table (Total / Delivered / Undelivered / Confidence) instead of plain text.
 - Webhook signature enforcement is per-provider: `settings.webhook_signature_required` (default `true`) can be turned off if a courier is confirmed not to sign its webhook requests, without a code change.
+- `courier_providers.credentials` must remain a nullable text column because `CourierProvider` uses Laravel's `encrypted:array` cast. The stored value is opaque encrypted ciphertext, not database JSON. Existing MySQL installations are corrected by `2026_08_13_000000_change_courier_provider_credentials_to_text`; deploy it before saving provider API credentials.
 
 Not implemented yet:
 

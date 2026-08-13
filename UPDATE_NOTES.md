@@ -2,6 +2,33 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-13 - MySQL courier credential storage hotfix
+
+Reason:
+
+- Staging rejected Steadfast provider creation with MySQL error 3140 because `courier_providers.credentials` was declared as JSON while Laravel's `encrypted:array` cast writes opaque Base64 ciphertext.
+
+Important changed files:
+
+- `database/migrations/2026_06_22_003000_create_courier_tables_and_delivery_status.php` - fresh installations now create `credentials` as nullable text.
+- `database/migrations/2026_08_13_000000_change_courier_provider_credentials_to_text.php` - existing installations convert the JSON column to text without deleting values; rollback intentionally does not restore the incompatible JSON type.
+- `tests/Feature/CourierIntegrationTest.php` - verifies text column metadata, encrypted-at-rest storage, and decrypted model round-trip.
+- `CHANGELOG.md` and `PROJECT_GUIDE.md` - document the production schema requirement and deployment migration.
+
+Security note:
+
+- The submitted exception page contained provider credentials in its captured Livewire request body. Rotate the exposed Steadfast API key/secret and fraud-check password before re-entering them after deployment.
+
+Verification:
+
+- `php artisan test --compact tests/Feature/CourierIntegrationTest.php`: 16 passed (71 assertions), including text-column metadata, ciphertext-at-rest, and decrypted credential round-trip.
+- Corrective migration and courier test files pass `php -l`; scoped `git diff --check` passes.
+- `php artisan migrate --pretend --path=database/migrations/2026_08_13_000000_change_courier_provider_credentials_to_text.php` completes without error in the local environment.
+
+Commit status:
+
+- Approved by the owner for commit and push to `staging` on 2026-08-13; included in this hotfix commit.
+
 ## 2026-08-13 - Staging batch: courier, storefront settings, company selection, and invoice print
 
 Reason:
