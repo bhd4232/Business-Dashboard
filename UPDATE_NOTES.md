@@ -2,6 +2,31 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-13 - Remove duplicate Courier Delivery Cost form section
+
+Reason:
+
+- The owner confirmed that "Courier Delivery Cost" duplicates "Set Delivery Fees" and requested that only "Set Delivery Fees" remain on Courier Provider create/edit forms.
+
+Important changed files:
+
+- `app/Filament/Resources/CourierProviders/CourierProviderResource.php` - removed the duplicate Filament section and its Inside/Outside/Suburb inputs.
+- `tests/Feature/CourierIntegrationTest.php` - verifies the create page shows "Set Delivery Fees" and does not show "Courier Delivery Cost".
+- `CHANGELOG.md` and `PROJECT_GUIDE.md` - document the single-section form behavior and preservation of existing booking economics data.
+
+Data compatibility:
+
+- No database columns or saved booking records are deleted. Previously stored `settings.delivery_costs` values remain readable for historical margin reporting, but the duplicate fields are no longer exposed for new edits.
+
+Verification:
+
+- `php artisan test --compact tests/Feature/CourierIntegrationTest.php`: 16 passed (71 assertions), including the provider-form visibility regression check.
+- Changed PHP files pass `php -l`; scoped `git diff --check` passes.
+
+Commit status:
+
+- Approved by the owner for commit and push to `staging` on 2026-08-13; included in this change's commit.
+
 ## 2026-08-13 - MySQL courier credential storage hotfix
 
 Reason:

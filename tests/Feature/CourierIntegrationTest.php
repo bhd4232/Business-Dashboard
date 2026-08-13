@@ -285,7 +285,7 @@ class CourierIntegrationTest extends TestCase
             ->assertOk()
             ->assertSee('Select Delivery Partner')
             ->assertSee('Set Delivery Fees')
-            ->assertSee('Courier Delivery Cost');
+            ->assertDontSee('Courier Delivery Cost');
 
         $this->actingAs($user)
             ->get('/admin/courier/courier-merchant-dashboard')

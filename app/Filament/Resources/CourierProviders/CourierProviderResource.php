@@ -140,29 +140,6 @@ class CourierProviderResource extends Resource
                 ->columns(2)
                 ->collapsible(),
 
-            Section::make('Courier Delivery Cost')
-                ->description('What this courier actually charges us for the outbound delivery — separate from the fee we charge the customer above. Used to compute each booking\'s margin.')
-                ->columnSpanFull()
-                ->schema([
-                    TextInput::make('settings.delivery_costs.inside')
-                        ->label('Inside')
-                        ->prefix('BDT')
-                        ->numeric()
-                        ->default(0),
-                    TextInput::make('settings.delivery_costs.outside')
-                        ->label('Outside')
-                        ->prefix('BDT')
-                        ->numeric()
-                        ->default(0),
-                    TextInput::make('settings.delivery_costs.suburb')
-                        ->label('Suburb')
-                        ->prefix('BDT')
-                        ->numeric()
-                        ->default(0),
-                ])
-                ->columns(2)
-                ->collapsible(),
-
             Section::make('Courier Return Cost')
                 ->columnSpanFull()
                 ->schema([

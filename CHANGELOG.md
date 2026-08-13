@@ -13,7 +13,7 @@ All notable production changes to Business Dashboard are documented here.
 - **Courier Merchant Dashboard** (Courier cluster, first item): a single admin screen showing the current company's live Steadfast balance, delivery/return performance, delivery-margin totals, recent consignments, and recent return requests. Bookings/Status Logs/Returns/Webhook Logs/Payments are removed from the Courier sidebar menu and surfaced instead as native Filament stat-card quick links at the bottom of this page — staff never need to open Steadfast's own website.
 - Courier bookings can now request a **Steadfast return** directly from the Bookings list/view; requests are recorded locally under a new **Returns** screen for history and filtering.
 - A new **Payments** screen shows Steadfast payment/settlement history fetched live from the merchant API.
-- Courier Providers now also configure a **Courier Delivery Cost** (what the courier actually charges us), alongside the existing customer-facing delivery fee and return cost — every booking records its delivery fee, courier cost, COD charge, and resulting margin.
+- Courier booking economics record the configured delivery fee, COD charge, and any previously stored courier cost/margin without exposing a duplicate **Courier Delivery Cost** section on the provider form.
 - The Order form's courier reliability check now runs automatically when a customer is selected and displays a per-courier Total/Delivered/Undelivered/Confidence table.
 
 ### Changed
@@ -21,6 +21,7 @@ All notable production changes to Business Dashboard are documented here.
 - Checkout derives the delivery area from the submitted address instead of asking the customer to select an area. The server remains authoritative, configurable Dhaka locality keywords drive detection, and ambiguous addresses default to the outside-Dhaka rate.
 - The order thank-you page shows customer/order details and a configurable WhatsApp group CTA.
 - Courier-provider credentials now use a text database column, matching Laravel's encrypted-array ciphertext format and allowing providers to be created on MySQL without JSON validation errors.
+- Courier Provider create/edit forms now use **Set Delivery Fees** as the only outbound delivery-fee section; the duplicate **Courier Delivery Cost** inputs were removed.
 
 ### Security
 
