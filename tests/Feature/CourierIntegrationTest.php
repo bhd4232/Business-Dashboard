@@ -265,7 +265,23 @@ class CourierIntegrationTest extends TestCase
             ->get('/admin/courier/courier-providers/create')
             ->assertOk()
             ->assertSee('Select Delivery Partner')
-            ->assertSee('Set Delivery Fees');
+            ->assertSee('Set Delivery Fees')
+            ->assertSee('Courier Delivery Cost');
+
+        $this->actingAs($user)
+            ->get('/admin/courier/courier-merchant-dashboard')
+            ->assertOk()
+            ->assertSee('Courier Merchant Dashboard');
+
+        $this->actingAs($user)
+            ->get('/admin/courier/courier-payment-history')
+            ->assertOk()
+            ->assertSee('Payment / Settlement History');
+
+        $this->actingAs($user)
+            ->get('/admin/courier/courier-returns')
+            ->assertOk()
+            ->assertSee('Returns');
     }
 
     public function test_super_admin_can_open_courier_provider_create_and_must_select_company_when_all_companies_are_selected(): void
@@ -278,7 +294,7 @@ class CourierIntegrationTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->withSession(['current_company_id' => 'all'])
+            ->withSession(['current_company_id' => 'all', 'current_company_selection_explicit' => true])
             ->get('/admin/courier/courier-providers/create')
             ->assertOk()
             ->assertSee('Company')
@@ -366,6 +382,119 @@ class CourierIntegrationTest extends TestCase
             'from_status' => CourierBooking::STATUS_BOOKED,
             'to_status' => CourierBooking::STATUS_DELIVERED,
         ]);
+    }
+
+    public function test_steadfast_booking_calculates_delivery_margin_when_provider_has_fee_settings(): void
+    {
+        $company = $this->company('Margin Company', 'margin-company', 'MRG');
+        app(CompanyContext::class)->set($company);
+        $order = $this->orderForCompany($company);
+        $provider = $this->steadfastProvider($company);
+        $provider->update([
+            'settings' => array_merge($provider->settings ?? [], [
+                'delivery_fees' => ['inside' => 70, 'outside' => 100, 'suburb' => 90],
+                'delivery_costs' => ['inside' => 60, 'outside' => 80, 'suburb' => 70],
+                'cod_charge_percent' => 1,
+            ]),
+        ]);
+
+        Http::fake([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/create_order' => Http::response([
+                'status' => 200,
+                'message' => 'Consignment has been created successfully.',
+                'consignment' => [
+                    'consignment_id' => 1424108,
+                    'invoice' => $order->order_number,
+                    'tracking_code' => 'MARGIN-TRACK',
+                    'recipient_name' => 'Courier Customer',
+                    'recipient_phone' => '+8801700000000',
+                    'recipient_address' => 'Dhaka',
+                    'cod_amount' => 1000,
+                    'status' => 'in_review',
+                ],
+            ]),
+        ]);
+
+        $booking = app(CourierService::class)->createSteadfastBooking($order, $provider, [
+            'recipient_address' => 'Dhaka',
+            'cod_amount' => 1000,
+        ]);
+
+        $booking->refresh();
+
+        $this->assertEquals(100.0, (float) $booking->delivery_fee_charged);
+        $this->assertEquals(80.0, (float) $booking->delivery_cost);
+        $this->assertEquals(10.0, (float) $booking->cod_charge_amount);
+        $this->assertEquals(10.0, (float) $booking->margin);
+    }
+
+    public function test_steadfast_return_request_is_recorded_locally(): void
+    {
+        $company = $this->company('Return Company', 'return-company', 'RTN');
+        app(CompanyContext::class)->set($company);
+        $order = $this->orderForCompany($company);
+        $provider = $this->steadfastProvider($company);
+
+        $booking = CourierBooking::query()->create([
+            'company_id' => $company->getKey(),
+            'courier_provider_id' => $provider->getKey(),
+            'order_id' => $order->getKey(),
+            'tracking_id' => 'RETURN-TRACK',
+            'provider_reference' => '555',
+            'recipient_name' => 'Courier Customer',
+            'recipient_phone' => '+8801700000000',
+            'recipient_address' => 'Dhaka',
+            'cod_amount' => 500,
+            'status' => CourierBooking::STATUS_IN_TRANSIT,
+            'booked_at' => now(),
+        ]);
+
+        Http::fake([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/create_return_request' => Http::response([
+                'status' => 200,
+                'message' => 'Return request submitted.',
+                'return' => ['id' => 321],
+            ]),
+        ]);
+
+        $return = app(CourierService::class)->requestReturn($booking, ['reason' => 'Customer refused delivery.']);
+
+        $this->assertSame($company->getKey(), $return->company_id);
+        $this->assertSame($booking->getKey(), $return->courier_booking_id);
+        $this->assertSame('321', $return->provider_reference);
+        $this->assertSame('Customer refused delivery.', $return->reason);
+        $this->assertDatabaseHas('courier_returns', [
+            'courier_booking_id' => $booking->getKey(),
+            'company_id' => $company->getKey(),
+        ]);
+
+        Http::assertSent(fn ($request): bool => $request->hasHeader('Api-Key', 'test-api-key')
+            && $request['consignment_id'] === '555'
+            && $request['tracking_code'] === 'RETURN-TRACK');
+    }
+
+    public function test_steadfast_payment_history_is_fetched_through_the_adapter(): void
+    {
+        $company = $this->company('Payment History Company', 'payment-history-company', 'PMT');
+        app(CompanyContext::class)->set($company);
+        $provider = $this->steadfastProvider($company);
+
+        Http::fake([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/payment' => Http::response([
+                'status' => 200,
+                'data' => [
+                    ['id' => 1, 'amount' => 5000, 'status' => 'paid'],
+                ],
+            ]),
+        ]);
+
+        $response = app(CourierManager::class)->adapter($provider)->paymentHistory($provider);
+
+        $this->assertSame(200, $response['status']);
+        $this->assertSame(5000, $response['data'][0]['amount']);
+
+        Http::assertSent(fn ($request): bool => $request->hasHeader('Api-Key', 'test-api-key')
+            && str_contains((string) $request->url(), '/payment'));
     }
 
     protected function company(string $name, string $slug, string $prefix): Company

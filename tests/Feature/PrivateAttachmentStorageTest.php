@@ -251,7 +251,10 @@ class PrivateAttachmentStorageTest extends TestCase
             ->assertNotFound();
 
         $superAdmin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
-        $this->actingAs($superAdmin)->withSession(['current_company_id' => 'all']);
+        $this->actingAs($superAdmin)->withSession([
+            'current_company_id' => 'all',
+            'current_company_selection_explicit' => true,
+        ]);
         $this->get(route('conversation-messages.media', ['message' => $messageB->getKey()]))
             ->assertOk()
             ->assertStreamedContent('company-b-media');

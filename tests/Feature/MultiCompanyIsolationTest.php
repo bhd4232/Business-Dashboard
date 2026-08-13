@@ -15,6 +15,7 @@ use App\Models\Conversation;
 use App\Models\ConversationChannel;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
+use App\Models\CourierReturn;
 use App\Models\CourierStatusLog;
 use App\Models\CourierWebhookLog;
 use App\Models\Customer;
@@ -73,7 +74,7 @@ class MultiCompanyIsolationTest extends TestCase
     {
         $models = [
             Account::class, AuditLog::class, Category::class, CourierBooking::class,
-            CourierProvider::class, CourierStatusLog::class, CourierWebhookLog::class,
+            CourierProvider::class, CourierStatusLog::class, CourierWebhookLog::class, CourierReturn::class,
             Customer::class, CustomerPayment::class, Expense::class, ExpenseCategory::class,
             CustomerRiskProfile::class, CustomerRiskEvent::class, CustomerRiskReview::class, FraudCheck::class,
             Order::class, OrderItem::class, Product::class, Purchase::class, PurchaseItem::class,

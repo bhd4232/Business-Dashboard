@@ -7,6 +7,14 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * The return/payment endpoint paths below (create_return_request, return/{id},
+ * payment) are not published in a canonical machine-readable spec by
+ * Steadfast; they follow the naming convention of their existing endpoints
+ * and third-party integration guides. Confirm the exact path/payload shape
+ * against a live sandbox call once real API credentials are configured, and
+ * adjust here if Steadfast's actual contract differs.
+ */
 class SteadfastCourierClient
 {
     public const DEFAULT_BASE_URL = 'https://portal.packzy.com/api/v1';
@@ -39,6 +47,30 @@ class SteadfastCourierClient
     {
         return $this->request($provider)
             ->get($this->baseUrl($provider).'/get_balance')
+            ->throw()
+            ->json();
+    }
+
+    public function createReturnRequest(CourierProvider $provider, array $payload): array
+    {
+        return $this->request($provider)
+            ->post($this->baseUrl($provider).'/create_return_request', $payload)
+            ->throw()
+            ->json();
+    }
+
+    public function returnStatus(CourierProvider $provider, int|string $returnId): array
+    {
+        return $this->request($provider)
+            ->get($this->baseUrl($provider).'/return/'.$returnId)
+            ->throw()
+            ->json();
+    }
+
+    public function payments(CourierProvider $provider, array $query = []): array
+    {
+        return $this->request($provider)
+            ->get($this->baseUrl($provider).'/payment', $query)
             ->throw()
             ->json();
     }

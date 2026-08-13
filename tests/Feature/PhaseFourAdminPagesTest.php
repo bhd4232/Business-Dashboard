@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\StorefrontSettings\Pages\CreateStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
+use App\Filament\Resources\StorefrontSettings\Pages\ListStorefrontSettings;
 use App\Models\Account;
 use App\Models\Company;
 use App\Models\Customer;
@@ -120,7 +121,7 @@ class PhaseFourAdminPagesTest extends TestCase
             ->assertSee('Open Site');
 
         $this->actingAs($user)
-            ->get("/admin/storefront/storefront-settings/{$storefrontSetting->id}/edit")
+            ->get("/admin/storefront/storefront-settings/{$storefrontSetting->id}/edit?section=launch_branding")
             ->assertOk()
             ->assertSee('Domain and Launch Readiness')
             ->assertSee('Storefront Domain')
@@ -129,6 +130,113 @@ class PhaseFourAdminPagesTest extends TestCase
             ->assertSee('Missing Setup')
             ->assertSee('Visible Products')
             ->assertSee('Published Pages');
+    }
+
+    public function test_storefront_settings_forms_use_responsive_section_navigation(): void
+    {
+        $user = User::factory()->create();
+        $company = $user->defaultCompany();
+        app(CompanyContext::class)->set($company);
+
+        $setting = StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'is_published' => true,
+            'theme_color' => '#0F766E',
+        ]);
+
+        $this->actingAs($user);
+
+        $component = Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
+            ->assertSet('activeSection', 'publishing')
+            ->assertSee('Storefront settings sections')
+            ->assertSee('Open Storefront settings navigation')
+            ->assertSee('.zz-storefront-settings-custom-header {', false)
+            ->assertSee('position: sticky;', false)
+            ->assertSee('top: 4rem;', false)
+            ->assertSee('z-index: 20;', false)
+            ->assertSee('Connect a company to its public storefront and control whether it is visible.')
+            ->assertDontSee('Choose the storefront design and its homepage layout.')
+            ->call('selectSection', 'theme')
+            ->assertSet('activeSection', 'theme')
+            ->assertSee('Choose the storefront design and its homepage layout.')
+            ->assertDontSee('Connect a company to its public storefront and control whether it is visible.')
+            ->call('selectSection', 'homepage')
+            ->assertSee('Override the default homepage hero copy.')
+            ->assertDontSee('Theme-specific campaign copy.')
+            ->call('selectSection', 'theme')
+            ->set('data.storefront_theme', 'marketplace_pro')
+            ->call('selectSection', 'homepage')
+            ->assertSee('Theme-specific campaign copy.')
+            ->assertDontSee('Override the default homepage hero copy.')
+            ->call('selectSection', 'invalid-section')
+            ->assertSet('activeSection', 'homepage')
+            ->set('activeSection', 'invalid-section')
+            ->assertSet('activeSection', 'publishing');
+
+        $this->assertSame(
+            [
+                'publishing',
+                'theme',
+                'design',
+                'homepage',
+                'launch_branding',
+                'checkout',
+                'integrations',
+                'notifications',
+                'navigation_seo',
+            ],
+            array_column($component->instance()->sectionNavigation(), 'key'),
+        );
+
+        Livewire::test(CreateStorefrontSetting::class)
+            ->assertSet('activeSection', 'publishing')
+            ->assertSee('zz-storefront-settings-rail', false)
+            ->assertSee('zz-storefront-settings-mobile-nav', false)
+            ->call('selectSection', 'navigation_seo')
+            ->assertSet('activeSection', 'navigation_seo')
+            ->assertSee('Links shown in the storefront header navigation')
+            ->assertDontSee('Connect a company to its public storefront and control whether it is visible.');
+    }
+
+    public function test_storefront_settings_list_follows_the_selected_company_context(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $selectedCompany = $user->defaultCompany();
+        $otherCompany = Company::query()->create([
+            'name' => 'Other Storefront Company',
+            'slug' => 'other-storefront-company',
+            'invoice_prefix' => 'OSC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $selectedSetting = StorefrontSetting::withoutGlobalScopes()->create([
+            'company_id' => $selectedCompany->getKey(),
+            'theme_color' => '#0F766E',
+            'is_published' => true,
+        ]);
+        $otherSetting = StorefrontSetting::withoutGlobalScopes()->create([
+            'company_id' => $otherCompany->getKey(),
+            'theme_color' => '#0369A1',
+            'is_published' => true,
+        ]);
+
+        $this->actingAs($user);
+        app(CompanyContext::class)->set($selectedCompany);
+
+        Livewire::test(ListStorefrontSettings::class)
+            ->assertCanSeeTableRecords([$selectedSetting])
+            ->assertCanNotSeeTableRecords([$otherSetting])
+            ->assertCountTableRecords(1);
+
+        app(CompanyContext::class)->all();
+
+        Livewire::test(ListStorefrontSettings::class)
+            ->assertCanSeeTableRecords([$selectedSetting, $otherSetting])
+            ->assertCountTableRecords(2);
     }
 
     public function test_storefront_settings_edit_synchronizes_company_domain_fields(): void
@@ -145,6 +253,11 @@ class PhaseFourAdminPagesTest extends TestCase
             'company_id' => $company->getKey(),
             'is_published' => true,
             'theme_color' => '#0F766E',
+            'woocommerce_base_url' => 'https://old-shop.example.test',
+            'woocommerce_credentials' => [
+                'consumer_key' => 'ck_test',
+                'consumer_secret' => 'cs_test',
+            ],
         ]);
 
         $this->actingAs($user);
@@ -152,10 +265,17 @@ class PhaseFourAdminPagesTest extends TestCase
         $component = Livewire::test(EditStorefrontSetting::class, ['record' => $setting->getKey()])
             ->assertFormFieldExists('company_domain')
             ->assertFormFieldExists('company_domain_verified')
+            ->assertSet('data.company_domain', 'old-store.example.test')
+            ->assertSet('data.company_domain_verified', true);
+
+        $component
+            ->call('selectSection', 'theme')
             ->assertFormFieldExists('storefront_theme')
             ->assertFormFieldExists('homepage_template')
-            ->assertFormFieldExists('marketplace_announcement_enabled')
-            ->assertFormFieldExists('marketplace_product_limit')
+            ->assertFormFieldExists('marketplace_product_limit');
+
+        $component
+            ->call('selectSection', 'design')
             ->assertFormFieldExists('theme_foreground_mode')
             ->assertFormFieldExists('theme_palette_preset')
             ->assertFormFieldExists('theme_secondary_color')
@@ -168,17 +288,19 @@ class PhaseFourAdminPagesTest extends TestCase
             ->assertFormFieldExists('typography_content_width')
             ->assertFormFieldExists('appearance_preset')
             ->assertFormFieldExists('appearance_corner_radius')
-            ->assertFormFieldExists('appearance_motion')
-            ->assertSet('data.company_domain', 'old-store.example.test')
-            ->assertSet('data.company_domain_verified', true)
+            ->assertFormFieldExists('appearance_motion');
+
+        $component
             ->assertSet('data.storefront_theme', 'builtin')
             ->assertSet('data.homepage_template', 'default');
 
         $component
+            ->call('selectSection', 'theme')
             ->set('data.storefront_theme', 'marketplace_pro')
             ->assertSet('data.homepage_template', 'hero_driven')
             ->set('data.homepage_template', 'compact_dense')
-            ->set('data.marketplace_product_limit', 15);
+            ->set('data.marketplace_product_limit', 15)
+            ->call('selectSection', 'design');
 
         $component
             ->set('data.theme_surface_color', '#FFFFFF')
@@ -199,10 +321,16 @@ class PhaseFourAdminPagesTest extends TestCase
             ->assertSet('data.appearance_shadow', 'elevated')
             ->assertSet('data.appearance_card_hover', 'lift');
 
+        $component
+            ->call('selectSection', 'integrations')
+            ->assertSee('Sync WooCommerce')
+            ->assertDontSee('Manage Pages')
+            ->assertDontSee('New Page');
+
         $headerActions = collect($component->instance()->getCachedHeaderActions());
 
         $this->assertSame(
-            ['syncWooCommerce', 'managePages', 'createPage', 'saveChanges'],
+            ['saveChanges'],
             $headerActions->map->getName()->all(),
         );
         $this->assertSame('Save changes', $headerActions->last()->getLabel());
@@ -261,7 +389,10 @@ class PhaseFourAdminPagesTest extends TestCase
 
         $component = Livewire::test(CreateStorefrontSetting::class)
             ->assertFormFieldExists('company_domain')
-            ->assertFormFieldExists('company_domain_verified')
+            ->assertFormFieldExists('company_domain_verified');
+
+        $component
+            ->call('selectSection', 'design')
             ->assertFormFieldExists('theme_foreground_mode')
             ->assertFormFieldExists('theme_palette_preset')
             ->assertFormFieldExists('theme_background_color')

@@ -63,7 +63,14 @@
 
     <style>
         .zz-meta-custom-header {
-            display: contents;
+            position: sticky;
+            top: 4rem;
+            z-index: 20;
+        }
+
+        .zz-meta-custom-header .fi-header-subheading {
+            font-size: var(--text-sm);
+            line-height: var(--text-sm--line-height);
         }
 
         .zz-meta-shell {
@@ -150,8 +157,8 @@
             }
 
             .zz-meta-custom-header > .fi-header {
-                margin-top: 1rem;
-                margin-bottom: 2rem;
+                margin-top: 0;
+                margin-bottom: 0;
             }
 
             .zz-meta-rail {
@@ -160,9 +167,7 @@
 
             .zz-meta-mobile-nav {
                 display: block;
-                position: sticky;
-                top: 4rem;
-                z-index: 20;
+                position: relative;
                 background-color: var(--gray-50);
                 padding-top: 10px;
             }

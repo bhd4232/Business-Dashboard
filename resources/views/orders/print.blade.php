@@ -24,7 +24,7 @@
         body {
             color: #111827;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: 13px;
+            font-size: 10px;
             margin: 0;
             padding: 24px;
             background: #f3f4f6;
@@ -60,10 +60,19 @@
             page-break-inside: avoid;
         }
 
+        .inv-header .logo {
+            align-items: center;
+            display: flex;
+            height: 17.2mm;
+            justify-content: flex-start;
+        }
+
         .inv-header .logo img {
-            max-height: 58px;
-            max-width: 160px;
+            display: block;
+            max-height: 17.2mm;
+            max-width: 31.8mm;
             object-fit: contain;
+            object-position: left center;
         }
 
         .inv-header .title {
@@ -71,7 +80,7 @@
         }
 
         .inv-header .title h1 {
-            font-size: 30px;
+            font-size: 28px;
             font-weight: 800;
             margin: 0;
         }
@@ -96,13 +105,22 @@
         }
 
         .bill-to .label {
+            font-size: 12px;
             font-weight: 700;
         }
 
-        .bill-to .name,
-        .bill-to .phone {
+        .bill-to .name {
             font-weight: 700;
             font-size: 14px;
+        }
+
+        .bill-to .phone {
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .bill-to p:not(.label):not(.name):not(.phone) {
+            font-size: 12px;
         }
 
         .inv-ref {
@@ -138,15 +156,16 @@
             background: #f3f4f6;
             border: 1px solid #e5e7eb;
             color: #111827;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 700;
-            padding: 9px 8px;
+            padding: 7px 6px;
             text-align: left;
         }
 
         table.items td {
             border: 1px solid #e5e7eb;
-            padding: 8px;
+            font-size: 10px;
+            padding: 5px 6px;
             vertical-align: middle;
         }
 
@@ -170,9 +189,9 @@
             border: 1px solid #e5e7eb;
             border-radius: 4px;
             display: block;
-            height: 44px;
+            height: 34px;
             object-fit: cover;
-            width: 44px;
+            width: 34px;
         }
 
         .item-name {
@@ -181,7 +200,7 @@
 
         .item-variant {
             color: #6b7280;
-            font-size: 12px;
+            font-size: 9px;
             font-weight: 400;
         }
 
@@ -226,8 +245,8 @@
         }
 
         table.totals td {
-            font-size: 13px;
-            padding: 8px 12px;
+            font-size: 10px;
+            padding: 6px 10px;
         }
 
         table.totals tr.row {
@@ -261,7 +280,7 @@
         }
 
         .contact-strip span {
-            font-size: 12.5px;
+            font-size: 10px;
         }
 
         .contact-strip strong {
@@ -270,7 +289,7 @@
 
         .thank-you {
             background: #f9fafb;
-            font-size: 15px;
+            font-size: 12px;
             font-weight: 800;
             margin-top: 14px;
             padding: 22px 12px;
@@ -310,10 +329,19 @@
             align-items: center;
         }
 
+        .slip-header .logo {
+            align-items: center;
+            display: flex;
+            height: 9.2mm;
+            justify-content: flex-start;
+        }
+
         .slip-header .logo img {
-            max-height: 34px;
-            max-width: 110px;
+            display: block;
+            max-height: 9.2mm;
+            max-width: 16.9mm;
             object-fit: contain;
+            object-position: left center;
         }
 
         .slip-header .title {
@@ -321,14 +349,14 @@
         }
 
         .slip-header .title h2 {
-            font-size: 21px;
+            font-size: 19px;
             font-weight: 800;
             margin: 0;
         }
 
         .slip-header .title .hotline {
             color: #374151;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         .slip-body {
@@ -340,8 +368,18 @@
         }
 
         .slip-body .bill-to {
-            font-size: 12.5px;
+            font-size: 10px;
             max-width: 320px;
+        }
+
+        .slip-body .bill-to .label,
+        .slip-body .bill-to .name {
+            font-size: 12px;
+        }
+
+        .slip-body .bill-to .phone,
+        .slip-body .bill-to p:not(.label):not(.name):not(.phone) {
+            font-size: 10px;
         }
 
         .slip-ref {
@@ -354,7 +392,7 @@
         }
 
         .slip-ref p {
-            font-size: 12.5px;
+            font-size: 10px;
             margin: 2px 0;
         }
 
@@ -362,7 +400,7 @@
             background: #000000;
             color: #ffffff;
             display: inline-block;
-            font-size: 13px;
+            font-size: 10px;
             font-weight: 800;
             margin-top: 8px;
             padding: 7px 14px;
@@ -385,6 +423,11 @@
         }
 
         @media print {
+            * {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
             body {
                 background: #ffffff;
                 padding: 0;
@@ -403,7 +446,10 @@
             }
         }
 
-        @media (max-width: 720px) {
+        /* Keep the stacked layout screen-only. An A4 printable area is about
+         * 703 CSS pixels wide, so an unqualified max-width query also matched
+         * during printing and collapsed the desktop invoice columns. */
+        @media screen and (max-width: 720px) {
             body {
                 padding: 10px;
             }
@@ -419,6 +465,11 @@
                 grid-template-columns: 1fr;
                 justify-items: center;
                 text-align: center;
+            }
+
+            .inv-header .logo,
+            .slip-header .logo {
+                justify-content: center;
             }
 
             .inv-meta,
@@ -465,6 +516,7 @@
         $barcodeSvg = $showBarcode ? Code128::svg($order->order_number) : '';
         $columnCount = 5 + ($showImages ? 1 : 0) + ($showWeight ? 1 : 0);
         $websiteLabel = preg_replace('#^https?://#', '', rtrim((string) ($invoice['website'] ?? ''), '/'));
+        $invoiceLogoUrl = $company['logo_url'] ?? $company['dark_logo_url'] ?? null;
     @endphp
     <div class="print-actions">
         <button class="print-button" id="invoice-print-button" type="button">Print</button>
@@ -472,8 +524,8 @@
     <main class="invoice">
         <header class="inv-header">
             <div class="logo">
-                @if (! empty($company['logo_url']))
-                    <img src="{{ $company['logo_url'] }}" alt="{{ $company['name'] }}">
+                @if (filled($invoiceLogoUrl))
+                    <img src="{{ $invoiceLogoUrl }}" alt="{{ $company['name'] }} logo" data-invoice-logo="main" decoding="sync" loading="eager">
                 @endif
             </div>
             <div class="title">
@@ -643,8 +695,8 @@
                 <section class="slip" id="courier-slip">
                     <div class="slip-header">
                         <div class="logo">
-                            @if (! empty($company['logo_url']))
-                                <img src="{{ $company['logo_url'] }}" alt="{{ $company['name'] }}">
+                            @if (filled($invoiceLogoUrl))
+                                <img src="{{ $invoiceLogoUrl }}" alt="{{ $company['name'] }} logo" data-invoice-logo="slip" decoding="sync" loading="eager">
                             @endif
                         </div>
                         <div class="title">

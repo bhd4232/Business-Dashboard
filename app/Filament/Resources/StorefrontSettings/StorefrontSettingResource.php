@@ -4,7 +4,6 @@ namespace App\Filament\Resources\StorefrontSettings;
 
 use App\Filament\Clusters\Storefront;
 use App\Filament\Concerns\OptimizesUploadedImages;
-use App\Filament\Resources\StorefrontPages\StorefrontPageResource;
 use App\Filament\Resources\StorefrontSettings\Pages\CreateStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\ListStorefrontSettings;
@@ -36,6 +35,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Actions as SchemaActions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
@@ -47,6 +47,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
 use Illuminate\Validation\Rule;
@@ -69,7 +70,7 @@ class StorefrontSettingResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->columns(1)->components([
+        $components = [
             Section::make('Storefront Publishing')
                 ->columnSpanFull()
                 ->description('Connect a company to its public storefront and control whether it is visible.')
@@ -148,10 +149,6 @@ class StorefrontSettingResource extends Resource
                 ->description('Enable only the B2B features needed by this storefront. Template-specific controls appear automatically.')
                 ->visible(fn (Get $get): bool => $get('storefront_theme') === StorefrontThemeRegistry::MARKETPLACE_PRO)
                 ->schema([
-                    Toggle::make('marketplace_announcement_enabled')
-                        ->label('Announcement bar')
-                        ->default(true)
-                        ->live(),
                     Toggle::make('marketplace_quote_enabled')
                         ->label('Quote actions')
                         ->default(true),
@@ -186,15 +183,9 @@ class StorefrontSettingResource extends Resource
 
             Section::make('Marketplace Pro Content')
                 ->columnSpanFull()
-                ->description('Theme-specific announcement and campaign copy. Empty campaign fields fall back to professional defaults using the company name.')
+                ->description('Theme-specific campaign copy. Empty campaign fields fall back to professional defaults using the company name.')
                 ->visible(fn (Get $get): bool => $get('storefront_theme') === StorefrontThemeRegistry::MARKETPLACE_PRO)
                 ->schema([
-                    TextInput::make('marketplace_announcement_text')
-                        ->label('Announcement text')
-                        ->maxLength(160)
-                        ->placeholder('Verified business accounts get flexible payment terms')
-                        ->visible(fn (Get $get): bool => (bool) $get('marketplace_announcement_enabled'))
-                        ->columnSpanFull(),
                     TextInput::make('marketplace_campaign_badge')
                         ->label('Campaign badge')
                         ->maxLength(60)
@@ -954,7 +945,7 @@ class StorefrontSettingResource extends Resource
 
             Section::make('WooCommerce Import')
                 ->columnSpanFull()
-                ->description('Optional. Save these credentials, then use the "Sync WooCommerce" button on this row in the list page to pull published products from the old WooCommerce site.')
+                ->description('Optional. Save these credentials first, then run the sync here to pull published products from the old WooCommerce site.')
                 ->schema([
                     TextInput::make('woocommerce_base_url')
                         ->label('WooCommerce site URL')
@@ -972,6 +963,9 @@ class StorefrontSettingResource extends Resource
                         ->password()
                         ->revealable()
                         ->maxLength(255),
+                    SchemaActions::make([
+                        self::syncWooCommerceAction(),
+                    ])->columnSpanFull(),
                 ])
                 ->columns(2)
                 ->collapsible()
@@ -999,7 +993,42 @@ class StorefrontSettingResource extends Resource
                 ])
                 ->columns(2)
                 ->collapsible(),
-        ]);
+        ];
+
+        $sectionKeys = [
+            'publishing',
+            'theme',
+            'theme',
+            'homepage',
+            'design',
+            'design',
+            'design',
+            'homepage',
+            'homepage',
+            'homepage',
+            'launch_branding',
+            'launch_branding',
+            'checkout',
+            'checkout',
+            'integrations',
+            'integrations',
+            'notifications',
+            'integrations',
+            'navigation_seo',
+            'navigation_seo',
+        ];
+
+        foreach ($components as $index => $component) {
+            $section = $sectionKeys[$index] ?? 'publishing';
+
+            $component
+                ->hidden(fn ($livewire): bool => method_exists($livewire, 'isStorefrontSectionActive')
+                    && ! $livewire->isStorefrontSectionActive($section))
+                ->dehydratedWhenHidden()
+                ->extraAttributes(['class' => 'zz-storefront-settings-anchor']);
+        }
+
+        return $schema->columns(1)->components($components);
     }
 
     protected static function menuRepeater(string $name, string $label): Repeater
@@ -1143,17 +1172,31 @@ class StorefrontSettingResource extends Resource
                     ->url(fn (StorefrontSetting $record): string => self::publicUrl($record))
                     ->openUrlInNewTab()
                     ->visible(fn (StorefrontSetting $record): bool => filled($record->company?->domain)),
-                Action::make('managePages')
-                    ->label('Pages')
-                    ->icon('heroicon-o-document-text')
-                    ->url(fn (): string => StorefrontPageResource::getUrl('index')),
-                self::syncWooCommerceAction(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $context = app(CompanyContext::class);
+
+        if ($context->isAllCompanies()) {
+            return $query;
+        }
+
+        if ($context->hasCompany()) {
+            return $query->where(
+                $query->getModel()->qualifyColumn('company_id'),
+                $context->id(),
+            );
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 
     public static function readinessChecks(StorefrontSetting $record): array
@@ -1245,7 +1288,7 @@ class StorefrontSettingResource extends Resource
             ->label('Sync WooCommerce')
             ->icon('heroicon-o-arrow-path')
             ->color('gray')
-            ->visible(fn (StorefrontSetting $record): bool => self::hasWooCommerceCredentials($record))
+            ->visible(fn (?StorefrontSetting $record): bool => $record !== null && self::hasWooCommerceCredentials($record))
             ->requiresConfirmation()
             ->modalDescription('Pulls published products from the WooCommerce site into this company\'s catalog. Products are matched by SKU/slug and updated; nothing is deleted.')
             ->schema([
@@ -1253,7 +1296,11 @@ class StorefrontSettingResource extends Resource
                     ->label('Download product images')
                     ->default(true),
             ])
-            ->action(function (StorefrontSetting $record, array $data): void {
+            ->action(function (?StorefrontSetting $record, array $data): void {
+                if ($record === null || ! self::hasWooCommerceCredentials($record)) {
+                    return;
+                }
+
                 try {
                     $result = app(WooCommerceImportService::class)->importProducts(
                         $record->company,

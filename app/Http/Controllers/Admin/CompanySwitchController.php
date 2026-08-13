@@ -15,12 +15,14 @@ class CompanySwitchController extends Controller
 
         if ($user?->isSuperAdmin() && $companyId === 'all') {
             $request->session()->put('current_company_id', 'all');
+            $request->session()->put('current_company_selection_explicit', true);
 
             return back();
         }
 
         if (is_numeric($companyId) && $user?->canAccessCompany((int) $companyId)) {
             $request->session()->put('current_company_id', (int) $companyId);
+            $request->session()->put('current_company_selection_explicit', true);
         }
 
         return back();

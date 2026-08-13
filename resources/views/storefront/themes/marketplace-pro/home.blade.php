@@ -6,10 +6,8 @@
         $productLimit = $setting->marketplaceProductLimit();
         $visibleProducts = $products->take($productLimit);
         $primaryProduct = $visibleProducts->first();
-        $primarySlide = ($slides ?? collect())->first();
-        $heroImage = $primarySlide?->image
-            ? \App\Support\CompanyMedia::publicUrl($primarySlide->image, $company)
-            : ($primaryProduct?->image ? \App\Support\CompanyMedia::publicUrl($primaryProduct->image, $company) : null);
+        $slides = $slides ?? collect();
+        $heroImage = $primaryProduct?->image ? \App\Support\CompanyMedia::publicUrl($primaryProduct->image, $company) : null;
         $productsUrl = isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index');
         $categoryUrl = fn ($category) => isset($previewSlug)
             ? route('storefront.preview.categories.show', [$previewSlug, $category->slug])
@@ -17,7 +15,6 @@
         $resellerUrl = isset($previewSlug) ? route('storefront.preview.reseller.show', $previewSlug) : route('storefront.reseller.show');
         $whatsappDigits = preg_replace('/\D+/', '', (string) $setting->whatsapp_number);
         $quoteUrl = $whatsappDigits !== '' ? 'https://wa.me/'.$whatsappDigits : $productsUrl;
-        $announcement = $setting->marketplace_announcement_text ?: 'Verified business accounts get flexible payment terms and priority support';
         $campaignBadge = $setting->marketplace_campaign_badge ?: ($template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN ? 'SEASON-END CLEARANCE' : 'WHOLESALE OFFERS');
         $campaignHeading = $setting->marketplace_campaign_heading ?: match ($template) {
             \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN => 'Wholesale savings across essential business supplies',
@@ -35,18 +32,11 @@
     @endphp
 
     <div class="marketplace-pro-home">
-        @if ($setting->marketplace_announcement_enabled)
-            <div class="marketplace-announcement">
-                <div class="marketplace-container flex min-h-8 items-center justify-between gap-4 py-1.5 text-xs">
-                    <p class="min-w-0 truncate">{{ $announcement }}</p>
-                    @if ($setting->marketplace_quote_enabled)
-                        <a class="hidden font-semibold underline-offset-4 hover:underline sm:inline" href="{{ $quoteUrl }}" @if ($whatsappDigits !== '') target="_blank" rel="noopener noreferrer" @endif>Request a quote</a>
-                    @endif
-                </div>
-            </div>
+        @if ($slides->isNotEmpty())
+            @include('storefront.partials.image-banner', ['slides' => $slides])
         @endif
 
-        @if ($template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_HERO)
+        @if ($slides->isEmpty() && $template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_HERO)
             <section class="marketplace-section marketplace-hero-grid" aria-labelledby="marketplace-hero-title">
                 <div class="marketplace-hero-card">
                     @if ($heroImage)
@@ -87,7 +77,7 @@
                     @endforeach
                 </div>
             </section>
-        @elseif ($template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN)
+        @elseif ($slides->isEmpty() && $template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN)
             <section class="marketplace-campaign" aria-labelledby="marketplace-campaign-title">
                 <div class="marketplace-container py-10 text-center sm:py-14">
                     <span class="marketplace-badge marketplace-badge-light">{{ $campaignBadge }}</span>
@@ -146,10 +136,12 @@
                 @endif
 
                 <section class="min-w-0 py-5 lg:px-6" aria-labelledby="dense-products-title">
-                    <div class="marketplace-dense-banner">
-                        <div><p class="font-bold">{{ $campaignHeading }}</p><p class="mt-1 text-xs text-white/75">{{ $campaignSubheading }}</p></div>
-                        <a class="marketplace-button marketplace-button-accent" href="{{ $productsUrl }}">Shop now</a>
-                    </div>
+                    @if ($slides->isEmpty())
+                        <div class="marketplace-dense-banner">
+                            <div><p class="font-bold">{{ $campaignHeading }}</p><p class="mt-1 text-xs text-white/75">{{ $campaignSubheading }}</p></div>
+                            <a class="marketplace-button marketplace-button-accent" href="{{ $productsUrl }}">Shop now</a>
+                        </div>
+                    @endif
                     @if ($setting->marketplace_trust_strip_enabled)
                         <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-b border-[var(--storefront-border)] pb-4 text-xs font-semibold dark:border-[var(--storefront-dark-border)]">
                             @foreach ($trustItems as $item)<span>✓ {{ $item['title'] }}</span>@endforeach

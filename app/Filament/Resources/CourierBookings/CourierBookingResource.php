@@ -39,6 +39,8 @@ class CourierBookingResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static ?string $recordTitleAttribute = 'tracking_id';
 
     public static function table(Table $table): Table
@@ -64,6 +66,26 @@ class CourierBookingResource extends Resource
                 TextColumn::make('cod_amount')
                     ->money('BDT')
                     ->sortable(),
+                TextColumn::make('delivery_fee_charged')
+                    ->label('Delivery Fee')
+                    ->money('BDT')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('delivery_cost')
+                    ->label('Courier Cost')
+                    ->money('BDT')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('cod_charge_amount')
+                    ->label('COD Charge')
+                    ->money('BDT')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('margin')
+                    ->money('BDT')
+                    ->placeholder('-')
+                    ->color(fn (?string $state): ?string => $state === null ? null : ((float) $state >= 0 ? 'success' : 'danger'))
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => CourierBooking::STATUSES[$state ?? ''] ?? str($state)->headline()->toString())
@@ -81,6 +103,7 @@ class CourierBookingResource extends Resource
                 ViewAction::make(),
                 self::statusAction(),
                 self::syncSteadfastAction(),
+                self::requestReturnAction(),
                 self::trackAction(),
                 self::labelAction(),
                 self::cancelAction(),
@@ -106,6 +129,20 @@ class CourierBookingResource extends Resource
                     TextEntry::make('cod_amount')->money('BDT'),
                 ])
                 ->columns(2),
+
+            Section::make('Delivery Economics')
+                ->columnSpanFull()
+                ->schema([
+                    TextEntry::make('delivery_fee_charged')->label('Delivery Fee')->money('BDT')->placeholder('Not configured'),
+                    TextEntry::make('delivery_cost')->label('Courier Cost')->money('BDT')->placeholder('Not configured'),
+                    TextEntry::make('cod_charge_amount')->label('COD Charge')->money('BDT')->placeholder('Not configured'),
+                    TextEntry::make('margin')
+                        ->money('BDT')
+                        ->placeholder('Not configured')
+                        ->color(fn (?string $state): ?string => $state === null ? null : ((float) $state >= 0 ? 'success' : 'danger')),
+                ])
+                ->columns(4)
+                ->collapsible(),
 
             Section::make('Status Logs')
                 ->columnSpanFull()
@@ -172,6 +209,39 @@ class CourierBookingResource extends Resource
             ->visible(fn (CourierBooking $record): bool => in_array($record->provider?->driver, CourierProvider::API_DRIVERS, true))
             ->action(function (CourierBooking $record): void {
                 app(CourierManager::class)->sync($record);
+            });
+    }
+
+    public static function requestReturnAction(): Action
+    {
+        return Action::make('requestReturn')
+            ->label('Request return')
+            ->icon('heroicon-o-arrow-uturn-left')
+            ->color('warning')
+            ->schema([
+                Textarea::make('reason')
+                    ->rows(3)
+                    ->helperText('Optional — why this parcel is being returned.'),
+            ])
+            ->visible(fn (CourierBooking $record): bool => $record->provider?->driver === CourierProvider::DRIVER_STEADFAST
+                && ! in_array($record->status, [CourierBooking::STATUS_RETURNED, CourierBooking::STATUS_CANCELLED], true))
+            ->action(function (CourierBooking $record, array $data): void {
+                try {
+                    app(CourierService::class)->requestReturn($record, $data);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Return requested')
+                        ->success()
+                        ->send();
+                } catch (\Throwable $exception) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Return request failed')
+                        ->body($exception instanceof \Illuminate\Validation\ValidationException
+                            ? collect($exception->errors())->flatten()->implode(' ')
+                            : $exception->getMessage())
+                        ->danger()
+                        ->send();
+                }
             });
     }
 

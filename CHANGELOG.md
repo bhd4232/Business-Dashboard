@@ -10,6 +10,11 @@ All notable production changes to Business Dashboard are documented here.
 - Weight-based delivery pricing supports separate first-kilogram rates for inside and outside Dhaka plus a shared additional-kilogram rate.
 - Customer complaints can be submitted with an order/invoice/phone reference and routed to a company-specific Telegram destination while remaining manageable from Filament.
 - Registered customers can sign in with a secure, single-use email or SMS OTP alongside the existing password and password-reset flows.
+- **Courier Merchant Dashboard** (Courier cluster, first item): a single admin screen showing the current company's live Steadfast balance, delivery/return performance, delivery-margin totals, recent consignments, and recent return requests. Bookings/Status Logs/Returns/Webhook Logs/Payments are removed from the Courier sidebar menu and surfaced instead as native Filament stat-card quick links at the bottom of this page — staff never need to open Steadfast's own website.
+- Courier bookings can now request a **Steadfast return** directly from the Bookings list/view; requests are recorded locally under a new **Returns** screen for history and filtering.
+- A new **Payments** screen shows Steadfast payment/settlement history fetched live from the merchant API.
+- Courier Providers now also configure a **Courier Delivery Cost** (what the courier actually charges us), alongside the existing customer-facing delivery fee and return cost — every booking records its delivery fee, courier cost, COD charge, and resulting margin.
+- The Order form's courier reliability check now runs automatically when a customer is selected and displays a per-courier Total/Delivered/Undelivered/Confidence table.
 
 ### Changed
 

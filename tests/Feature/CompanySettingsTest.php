@@ -171,7 +171,7 @@ class CompanySettingsTest extends TestCase
             ->assertSee('position: sticky;', escape: false);
 
         $this->actingAs($admin)
-            ->withSession(['current_company_id' => 'all'])
+            ->withSession(['current_company_id' => 'all', 'current_company_selection_explicit' => true])
             ->get('/admin/company-management/company-settings')
             ->assertOk()
             ->assertSee('Select a company to edit settings')
@@ -234,7 +234,7 @@ class CompanySettingsTest extends TestCase
             ->assertSee('Company Settings');
 
         $this->actingAs($admin)
-            ->withSession(['current_company_id' => 'all'])
+            ->withSession(['current_company_id' => 'all', 'current_company_selection_explicit' => true])
             ->get('/admin/company-management/companies')
             ->assertOk()
             ->assertSee('Companies')
@@ -272,17 +272,18 @@ class CompanySettingsTest extends TestCase
 
     public function test_admin_panel_uses_company_name_as_brand(): void
     {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $company = $admin->defaultCompany();
+
         app(CompanySettingsService::class)->save([
             'name' => 'ZamZam ERP',
             'currency' => 'BDT',
             'timezone' => 'Asia/Dhaka',
             'date_format' => 'd M Y',
-        ]);
-
-        $admin = User::factory()->create([
-            'role' => 'super_admin',
-            'is_active' => true,
-        ]);
+        ], $company);
 
         $this->actingAs($admin)
             ->get('/admin')
@@ -294,28 +295,30 @@ class CompanySettingsTest extends TestCase
     public function test_admin_panel_uses_light_and_dark_company_logos(): void
     {
         Storage::fake('public');
-        Storage::disk('public')->put('company/light-logo.png', 'light-logo');
-        Storage::disk('public')->put('company/dark-logo.png', 'dark-logo');
-
-        app(CompanySettingsService::class)->save([
-            'name' => 'ZamZam ERP',
-            'logo' => 'company/light-logo.png',
-            'dark_logo' => 'company/dark-logo.png',
-            'currency' => 'BDT',
-            'timezone' => 'Asia/Dhaka',
-            'date_format' => 'd M Y',
-        ]);
 
         $admin = User::factory()->create([
             'role' => 'super_admin',
             'is_active' => true,
         ]);
+        $company = $admin->defaultCompany();
+        $storage = app(CompanyStorageService::class);
+        $lightLogo = $storage->putPublic($company, 'company', 'light-logo.png', 'light-logo');
+        $darkLogo = $storage->putPublic($company, 'company', 'dark-logo.png', 'dark-logo');
+
+        app(CompanySettingsService::class)->save([
+            'name' => 'ZamZam ERP',
+            'logo' => $lightLogo,
+            'dark_logo' => $darkLogo,
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'date_format' => 'd M Y',
+        ], $company);
 
         $this->actingAs($admin)
             ->get('/admin')
             ->assertOk()
-            ->assertSee('/storage/company/light-logo.png')
-            ->assertSee('/storage/company/dark-logo.png');
+            ->assertSee(Storage::disk('public')->url($lightLogo))
+            ->assertSee(Storage::disk('public')->url($darkLogo));
     }
 
     public function test_invoice_print_uses_company_settings(): void

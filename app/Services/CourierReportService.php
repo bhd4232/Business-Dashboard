@@ -17,6 +17,7 @@ class CourierReportService
             ->selectRaw('SUM(CASE WHEN courier_bookings.status = ? THEN 1 ELSE 0 END) as returned', [CourierBooking::STATUS_RETURNED])
             ->selectRaw('SUM(CASE WHEN courier_bookings.status = ? THEN 1 ELSE 0 END) as cancelled', [CourierBooking::STATUS_CANCELLED])
             ->selectRaw('SUM(CASE WHEN courier_bookings.status = ? THEN courier_bookings.cod_amount ELSE 0 END) as delivered_cod', [CourierBooking::STATUS_DELIVERED])
+            ->selectRaw('SUM(courier_bookings.margin) as total_margin')
             ->groupBy('courier_providers.id', 'courier_providers.name', 'courier_providers.driver')
             ->get()
             ->map(function ($row) {
@@ -37,6 +38,7 @@ class CourierReportService
             ->selectRaw('SUM(CASE WHEN courier_bookings.status = ? THEN 1 ELSE 0 END) as delivered', [CourierBooking::STATUS_DELIVERED])
             ->selectRaw('SUM(CASE WHEN courier_bookings.status = ? THEN 1 ELSE 0 END) as returned', [CourierBooking::STATUS_RETURNED])
             ->selectRaw('SUM(courier_bookings.cod_amount) as cod_amount')
+            ->selectRaw('SUM(courier_bookings.margin) as total_margin')
             ->groupBy('companies.id', 'companies.name')
             ->get();
     }

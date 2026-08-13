@@ -72,7 +72,6 @@ class StorefrontThemeTest extends TestCase
 
         $setting->forceFill([
             'homepage_template' => StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN,
-            'marketplace_announcement_enabled' => false,
             'marketplace_categories_enabled' => false,
             'marketplace_deals_enabled' => false,
             'marketplace_bulk_pricing_enabled' => false,
@@ -86,6 +85,21 @@ class StorefrontThemeTest extends TestCase
             ->assertDontSee('Flash deals')
             ->assertDontSee('Bulk pricing benefits')
             ->assertDontSee('Open a business account');
+    }
+
+    public function test_marketplace_announcement_bar_is_not_rendered(): void
+    {
+        [, $setting] = $this->createMarketplaceStore();
+
+        $setting->forceFill([
+            'marketplace_announcement_enabled' => true,
+            'marketplace_announcement_text' => 'Legacy announcement must stay hidden',
+        ])->save();
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertDontSee('Legacy announcement must stay hidden')
+            ->assertDontSee('marketplace-announcement', false);
     }
 
     private function createMarketplaceStore(): array

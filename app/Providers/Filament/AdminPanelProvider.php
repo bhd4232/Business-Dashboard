@@ -131,6 +131,24 @@ class AdminPanelProvider extends PanelProvider
                             border-bottom-color: rgb(255 255 255 / 0.1);
                         }
 
+                        .zz-storefront-settings-custom-header,
+                        .zz-meta-custom-header {
+                            position: sticky;
+                            top: 4rem;
+                            z-index: 20;
+                            margin-inline: -1rem;
+                            padding: 1rem;
+                            background-color: rgb(249 250 251 / 0.94);
+                            backdrop-filter: blur(10px);
+                            border-bottom: 1px solid rgb(229 231 235 / 0.75);
+                        }
+
+                        .dark .zz-storefront-settings-custom-header,
+                        .dark .zz-meta-custom-header {
+                            background-color: rgb(17 24 39 / 0.94);
+                            border-bottom-color: rgb(255 255 255 / 0.1);
+                        }
+
                         .fi-header-actions-ctn {
                             justify-content: flex-end;
                         }
@@ -201,6 +219,11 @@ class AdminPanelProvider extends PanelProvider
                         }
 
                         @media (max-width: 640px) {
+                            .zz-storefront-settings-custom-header,
+                            .zz-meta-custom-header {
+                                padding: 0.625rem 1rem 1rem;
+                            }
+
                             .zz-company-switcher {
                                 width: min(12rem, 46vw);
                             }

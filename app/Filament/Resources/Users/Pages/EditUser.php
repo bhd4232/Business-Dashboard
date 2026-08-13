@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Concerns\HasStickyHeaderFormActions;
 use App\Filament\Resources\Users\UserResource;
+use App\Services\CompanyContext;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -64,5 +65,25 @@ class EditUser extends EditRecord
             ->all();
 
         $record->companies()->sync($sync);
+
+        if ((int) auth()->id() !== (int) $record->getKey()) {
+            return;
+        }
+
+        $defaultCompany = $record->defaultCompany();
+
+        if ($defaultCompany) {
+            session()->put('current_company_id', $defaultCompany->getKey());
+            session()->put('current_company_selection_explicit', false);
+            app(CompanyContext::class)->set($defaultCompany);
+
+            return;
+        }
+
+        if ($record->isSuperAdmin()) {
+            session()->put('current_company_id', 'all');
+            session()->put('current_company_selection_explicit', false);
+            app(CompanyContext::class)->all();
+        }
     }
 }

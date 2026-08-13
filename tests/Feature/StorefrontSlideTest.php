@@ -22,7 +22,7 @@ class StorefrontSlideTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
-    public function test_active_slide_shows_on_homepage(): void
+    public function test_active_slide_shows_as_an_image_only_banner(): void
     {
         $company = $this->createPublishedStorefrontCompany('Gadget Store', 'slides.example.test');
 
@@ -38,9 +38,11 @@ class StorefrontSlideTest extends TestCase
 
         $this->get('http://slides.example.test/')
             ->assertOk()
-            ->assertSee('Big Summer Sale')
-            ->assertSee('Up to 50% off electronics')
-            ->assertSee('Shop now');
+            ->assertSee('storefront/slides/hero.jpg', false)
+            ->assertSee('storefront-image-banner', false)
+            ->assertDontSee('Big Summer Sale')
+            ->assertDontSee('Up to 50% off electronics')
+            ->assertDontSee('Shop now');
     }
 
     public function test_inactive_and_out_of_window_slides_are_hidden(): void
@@ -98,7 +100,8 @@ class StorefrontSlideTest extends TestCase
 
         $this->get('http://slides-gift.example.test/')
             ->assertOk()
-            ->assertSee('Gift Store Slide');
+            ->assertSee('storefront/slides/gift.jpg', false)
+            ->assertDontSee('Gift Store Slide');
     }
 
     private function createPublishedStorefrontCompany(string $name, string $domain): Company

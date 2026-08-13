@@ -96,6 +96,7 @@ class OrderForm
                                 }
 
                                 self::setShippingFee($get, $set, $customer);
+                                self::runExternalCourierFraudCheck($set, $customer, bypassCache: false);
                             }),
 
                         Hidden::make('customer_name'),
@@ -118,14 +119,7 @@ class OrderForm
                                             return;
                                         }
 
-                                        $result = app(ExternalCourierFraudService::class)->checkByPhone(
-                                            $customer->phone,
-                                            app(CompanyContext::class)->id() ?? $customer->company_id,
-                                            $customer->getKey(),
-                                            bypassCache: true,
-                                        );
-
-                                        $set('external_fraud_result', $result);
+                                        self::runExternalCourierFraudCheck($set, $customer, bypassCache: true);
                                     }),
                             ])->grow(false),
 
@@ -146,15 +140,37 @@ class OrderForm
                                     default => ['#22c55e', "Good — {$ratio}% success"],
                                 };
 
-                                $lines = collect($result)
+                                $rows = collect($result)
                                     ->except('overall_success_ratio')
-                                    ->map(fn (array $stats, string $driver): string => e(ucfirst($driver).": {$stats['success']} success / {$stats['cancel']} cancel (of {$stats['total']})"))
-                                    ->implode('<br>');
+                                    ->map(function (array $stats, string $driver): string {
+                                        $total = max(1, (int) $stats['total']);
+                                        $successRate = round(($stats['success'] / $total) * 100, 1);
+
+                                        return '<tr>'
+                                            .'<td style="padding:2px 10px 2px 0;font-weight:600;">'.e(ucfirst($driver)).'</td>'
+                                            .'<td style="padding:2px 10px;text-align:right;">'.e((string) $stats['total']).'</td>'
+                                            .'<td style="padding:2px 10px;text-align:right;color:#22c55e;">'.e((string) $stats['success']).'</td>'
+                                            .'<td style="padding:2px 10px;text-align:right;color:#ef4444;">'.e((string) $stats['cancel']).'</td>'
+                                            .'<td style="padding:2px 0;text-align:right;">'.e((string) $successRate).'%</td>'
+                                            .'</tr>';
+                                    })
+                                    ->implode('');
+
+                                $table = $rows !== ''
+                                    ? '<table style="font-size:0.8125rem;opacity:0.85;border-collapse:collapse;">'
+                                        .'<thead><tr style="opacity:0.6;">'
+                                        .'<th style="text-align:left;padding:2px 10px 2px 0;">Courier</th>'
+                                        .'<th style="padding:2px 10px;text-align:right;">Total</th>'
+                                        .'<th style="padding:2px 10px;text-align:right;">Delivered</th>'
+                                        .'<th style="padding:2px 10px;text-align:right;">Undelivered</th>'
+                                        .'<th style="padding:2px 0;text-align:right;">Confidence</th>'
+                                        .'</tr></thead><tbody>'.$rows.'</tbody></table>'
+                                    : '';
 
                                 return new HtmlString(
-                                    '<div style="display:flex;flex-direction:column;gap:2px;font-size:0.875rem;">'
+                                    '<div style="display:flex;flex-direction:column;gap:4px;font-size:0.875rem;">'
                                     .'<span style="color:'.$color.';font-weight:600;">'.e($label).'</span>'
-                                    .($lines !== '' ? '<span style="opacity:0.75;">'.$lines.'</span>' : '')
+                                    .$table
                                     .'</div>'
                                 );
                             }),
@@ -421,5 +437,27 @@ class OrderForm
         $set('shipping_zone', $result['zone']);
         $set('shipping_fee', $result['fee']);
         self::setOrderTotals($get, $set);
+    }
+
+    /**
+     * Shared by both the manual "Courier Fraud Check" button and the
+     * automatic check that runs when a customer is selected. The automatic
+     * path uses the 24h cache (bypassCache: false) so switching between
+     * customers while building an order never spams the courier portals.
+     */
+    protected static function runExternalCourierFraudCheck(Set $set, ?Customer $customer, bool $bypassCache): void
+    {
+        if (! $customer?->phone) {
+            return;
+        }
+
+        $result = app(ExternalCourierFraudService::class)->checkByPhone(
+            $customer->phone,
+            app(CompanyContext::class)->id() ?? $customer->company_id,
+            $customer->getKey(),
+            bypassCache: $bypassCache,
+        );
+
+        $set('external_fraud_result', $result);
     }
 }

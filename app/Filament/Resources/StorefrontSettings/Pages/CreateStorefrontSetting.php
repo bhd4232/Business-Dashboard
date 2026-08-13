@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\StorefrontSettings\Pages;
 
 use App\Filament\Concerns\HasStickyHeaderFormActions;
+use App\Filament\Resources\StorefrontSettings\Pages\Concerns\HasStorefrontSettingsNavigation;
 use App\Filament\Resources\StorefrontSettings\StorefrontSettingResource;
 use App\Models\Company;
 use Filament\Resources\Pages\CreateRecord;
@@ -12,10 +13,20 @@ use Illuminate\Validation\ValidationException;
 class CreateStorefrontSetting extends CreateRecord
 {
     use HasStickyHeaderFormActions;
+    use HasStorefrontSettingsNavigation;
 
     protected static string $resource = StorefrontSettingResource::class;
 
+    protected string $view = 'filament.resources.storefront-settings.settings-page';
+
     protected ?bool $hasDatabaseTransactions = true;
+
+    public function mount(): void
+    {
+        parent::mount();
+
+        $this->normalizeActiveSection();
+    }
 
     protected function getHeaderActions(): array
     {

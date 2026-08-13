@@ -2,6 +2,59 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-13 - Staging batch: courier, storefront settings, company selection, and invoice print
+
+Reason:
+
+- Publish the approved application changes to `staging` while explicitly excluding local skills, local settings/temp artifacts, ERP design references, and `Refarence Only Not For Commit`.
+
+Important changed files:
+
+- Courier dashboard/returns/payments/margin implementation under `app/Filament/Pages/Courier*`, `app/Filament/Resources/Courier*`, `app/Services/Courier*`, `app/Services/SteadfastCourierClient.php`, `app/Models/CourierReturn.php`, and the two `2026_08_12_*` migrations.
+- Storefront settings navigation and shared banner implementation under `app/Filament/Resources/StorefrontSettings`, `resources/views/filament/resources/storefront-settings`, and `resources/views/storefront/partials/image-banner.blade.php`.
+- Company-selection persistence in `CompanySwitchController`, `SetCurrentCompany`, the user edit page, and `CompanySelectionPersistenceTest`.
+- Invoice print/PDF views and `InvoiceDesignTest`: A4 print no longer triggers the mobile breakpoint; typography follows the compact reference scale; configured order-company logos render in the main header and courier slip using only the reference invoice's physical dimensions (the reference logo asset is not used).
+- `PROJECT_GUIDE.md`, `CHANGELOG.md`, and relevant feature tests updated for the combined batch.
+
+Verification:
+
+- Changed feature-test batches: 105 passed, 984 assertions.
+- `npm.cmd run build`: passed (Vite production build and deployment metadata generation).
+- Full suite was attempted twice but exceeded the command timeout. The longer run reproduced the already-documented baseline failures: three stale `ReleaseNotesTest` assertions still expect published version `1.23.0` while `CHANGELOG.md` publishes `2.0.1`, plus the two previously documented storefront flow failures. No changed-feature batch failed.
+
+Commit status:
+
+- Approved by the owner for commit and push to `origin/staging`.
+
+## 2026-08-12 - Courier Merchant Dashboard: Steadfast return/payment/margin extension
+
+Reason:
+
+- Owner reviewed a competitor ERP (Nuport) for courier-module UX ideas and asked for a single ZamZam dashboard screen where staff manage everything courier-related (booking, balance, returns, payment/settlement) without needing a separate Steadfast login. Explored the codebase first and found a full production-grade multi-provider courier system already existed (`CourierProvider`/`CourierBooking`/`CourierStatusLog`/`CourierWebhookLog`, live Steadfast/Pathao/RedX/E-Courier clients, signed+queued webhooks, scheduled sync+alerting) — this was a targeted extension of that, not a rebuild. Full plan approved via plan mode before implementation; explicitly decided to build a native dashboard against Steadfast's official REST API rather than embedding/iframing Steadfast's own website (that pattern doesn't exist anywhere in the codebase, most portals block iframing, and it would mean storing a raw third-party login).
+
+What happened:
+
+- `SteadfastCourierClient`: added `createReturnRequest()`, `returnStatus()`, `payments()` (endpoint paths not published in a canonical spec — flagged in a docblock to confirm against a live call once real credentials exist).
+- `CourierProviderInterface` + `AbstractCourierAdapter` + `SteadfastCourierAdapter`: added `returns()`/`paymentHistory()` to the adapter contract (default `unsupported()` for Pathao/RedX/E-Courier, so they're unaffected); `AbstractCourierAdapter::verifyWebhook()` now honors a per-provider `settings.webhook_signature_required` toggle in case Steadfast turns out not to sign webhook requests.
+- New `courier_returns` table + `CourierReturn` model (`BelongsToCompany`, added to `MultiCompanyIsolationTest`) + `CourierService::requestReturn()`; new read-only `CourierReturnResource` under the Courier cluster and a "Request return" action on Bookings.
+- New nullable `delivery_fee_charged`, `delivery_cost`, `cod_charge_amount`, `margin` columns on `courier_bookings`, populated by `CourierService::applyMargin()` at booking-creation time from a new "Courier Delivery Cost" section on `CourierProviderResource` (mirrors the existing "Set Delivery Fees" section) — shown as toggleable Bookings columns and a "Delivery Economics" infolist section; `CourierReportService` now sums `margin`.
+- Order form: the "Courier Fraud Check" result now renders as a Total/Delivered/Undelivered/Confidence table and runs automatically (24h cache) when a customer is selected, not only on manual click.
+- New `CourierPaymentHistory` page (Payments, Courier cluster) — fetches Steadfast's payment/settlement history live, 10-minute cache, columns derived from whatever keys the response returns since the shape isn't confirmed yet.
+- New `CourierMerchantDashboard` page (Dashboard, first item in the Courier cluster) — live balance, performance/margin stats, recent consignments table, recent returns preview, quick links out to Providers/Bookings/Status Logs/Webhook Logs/Payments.
+- `PROJECT_GUIDE.md`'s "Courier and Delivery Integration" section updated with all of the above plus an updated "Not implemented yet" list (Pathao/RedX/E-Courier return+payment endpoints; a locally-persisted payment history table).
+- UX follow-up (owner feedback, 2 rounds): `CourierBookingResource`/`CourierStatusLogResource`/`CourierWebhookLogResource`/`CourierReturnResource`/`CourierPaymentHistory` all set `$shouldRegisterNavigation = false` — removed from the main Courier cluster sidebar (routes stay reachable) since only Dashboard and Providers should show there. Their quick-links now live as cards inside the Courier Merchant Dashboard's "Manage" section — first as a hand-rolled Tailwind card grid, then converted (per explicit owner ask "ফিলামেন্টের ডিফল্ট কার্ড UI লেয়াউট এইখানে এপ্লাই কর") to a native Filament `StatsOverviewWidget`/`Stat` widget (`App\Filament\Pages\CourierWidgets\CourierQuickLinksWidget`, deliberately kept outside the auto-discovered `app/Filament/Widgets/` directory so it renders only on this page, not the main admin Dashboard) — each card shows a live count/state and links to its resource, matching the panel's standard stat-card styling used elsewhere (e.g. `CourierHealthWidget`).
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest`: 15 passed (66 assertions) — covers return-request, payment-history, margin-calculation, and the widget/nav-hiding change (admin-page-render test still asserts all 3 dashboard-linked screens render OK).
+- `php artisan test --filter=MultiCompanyIsolationTest`: 7 passed (confirms `CourierReturn` satisfies the company-scope contract).
+- Full `php artisan test` (plain, no `--env`): 617 passed, 5 failed — the 5 failures are the pre-existing, unrelated `ReleaseNotesTest` (×3, hardcoded to expect CHANGELOG version `1.23.0`) and `StorefrontCustomerAdvanceAndComplaintTest`/`StorefrontIncompleteCheckoutRecoveryTest` (×1 each, tied to the earlier OrderFlow storefront-parity commit `a6d07277`) — confirmed unrelated to this session's courier work in a prior isolated run and reproduced identically here, so no regression from the courier/widget changes.
+- Owner still needs to: (1) generate a real Steadfast API Key/Secret from their merchant portal and enter them on Courier → Providers → Steadfast; (2) once live, confirm the actual return/payment endpoint paths and outgoing webhook signature scheme against Steadfast's real responses, adjusting `SteadfastCourierClient`/`AbstractCourierAdapter` if they differ from what's implemented here.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
 ## 2026-08-11 - CI workflow: bump deploy.yml's PHP 8.2 to 8.4
 
 Reason:
