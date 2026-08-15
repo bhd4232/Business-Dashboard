@@ -33,8 +33,16 @@ use App\Models\InvestmentProject;
 use App\Models\Investor;
 use App\Models\InvestorSecurityInstrument;
 use App\Models\Lead;
+use App\Models\MetaAd;
+use App\Models\MetaAdAccount;
+use App\Models\MetaAdCampaign;
+use App\Models\MetaAdProposal;
+use App\Models\MetaAudience;
+use App\Models\MetaAdSet;
 use App\Models\Order;
+use App\Models\OrderCost;
 use App\Models\OrderItem;
+use App\Models\OrderPayment;
 use App\Models\Product;
 use App\Models\ProductCarousel;
 use App\Models\ProjectCostItem;
@@ -77,7 +85,8 @@ class MultiCompanyIsolationTest extends TestCase
             CourierProvider::class, CourierStatusLog::class, CourierWebhookLog::class, CourierReturn::class,
             Customer::class, CustomerPayment::class, Expense::class, ExpenseCategory::class,
             CustomerRiskProfile::class, CustomerRiskEvent::class, CustomerRiskReview::class, FraudCheck::class,
-            Order::class, OrderItem::class, Product::class, Purchase::class, PurchaseItem::class,
+            Order::class, OrderItem::class, OrderPayment::class, OrderCost::class,
+            Product::class, Purchase::class, PurchaseItem::class,
             StockMovement::class, Supplier::class, SupplierPayment::class, TransactionLedger::class,
             Container::class, Shipment::class, StorefrontPage::class, StorefrontSetting::class,
             ProductCarousel::class, StorefrontPayment::class,
@@ -94,6 +103,7 @@ class MultiCompanyIsolationTest extends TestCase
             Investment::class, ProjectCostItem::class,
             InvestorSecurityInstrument::class, ProjectSettlement::class,
             SettlementPayout::class, ChannelPartnerPayout::class,
+            MetaAdAccount::class, MetaAdCampaign::class, MetaAdSet::class, MetaAd::class, MetaAdProposal::class, MetaAudience::class,
         ];
 
         foreach ($models as $modelClass) {

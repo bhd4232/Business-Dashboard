@@ -41,12 +41,15 @@ Related planning documents:
 
 **Completed:**
 
-- Category module.
-- Product module.
+- Category module, including an explicit searchable Heroicon selection/apply workflow.
+- Product module, including a full-width responsive Products-list stat-card grid matching the main Dashboard layout.
+- Product stat currency/typography formatting for compact mobile cards and readable desktop values.
+- Compact Products mobile header with all page actions grouped in one native Filament navigation menu on the title's right side.
 - Product details: description, barcode, unit, brand, cost price, sale price, reorder level, VAT, image, and active status.
 - Product status: `available`, `coming_soon`.
 - Coming Soon placeholder product support.
 - Product table filters: category, status, active/inactive, low stock, and brand.
+- Bulk stock editing with blank draft inputs and one transactional Save changes action.
 - Stock Movement module.
 - Stock recalculation from movements.
 - Opening stock backfill.
@@ -234,7 +237,7 @@ Related planning documents:
 **Completed:**
 
 - `ReportService` centralizes report calculations.
-- Dashboard business overview widget.
+- Dashboard business overview widget, with a compact responsive card grid (2 columns on mobile, 5 on desktop).
 - Reports page.
 - Date range filters.
 - CSV exports.

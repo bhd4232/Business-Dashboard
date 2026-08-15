@@ -2,6 +2,880 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-15 - Meta Ads Manager, Phase E: Events Manager (Pixel Health + Audiences)
+
+Reason:
+
+- Owner asked why there was no Meta Pixel setup option and Events Manager. Clarified this already existed as a separate feature (Storefront → Meta CAPI, which configures the Pixel and only ever *sends* events) but the owner specifically wanted a dashboard reachable from this app showing real data pulled *from* Meta's own Events Manager tool, plus Audience management — neither of which existed anywhere in the codebase. Entered plan mode, researched Meta's real Pixel Stats and Custom Audiences Graph API endpoints (WebSearch/WebFetch against developers.facebook.com), and got explicit approval before implementing.
+
+What happened:
+
+- New **Events Manager** page (Ads cluster): account + Pixel + date-window selector (Pixel options are read live from the company's already-configured `StorefrontSetting`/Meta CAPI pixels — no new pixel-credential field was added anywhere). A **Pixel Health** panel shows real Pixel identity (`GET /{pixel_id}`) and real event-volume-by-type (`GET /{pixel_id}/stats?aggregation=event`) side by side with this app's own local `storefront_meta_events` send-attempt log for the same window — two distinct real sources, labeled "What Meta recorded" vs "What we attempted to send," never merged. Meta's public docs don't fully specify the stats endpoint's row shape, so it's parsed defensively and falls back to a plain "not recognized" notice rather than guessing.
+- A real **Audiences** manager: **Sync Audiences** pulls existing Website/Lookalike Custom Audiences from Meta into a new local `meta_audiences` table; **New Audience** creates a Website Visitors audience (from a configured Pixel, retention window, optional URL-contains filter) or a Lookalike (sourced only from this app's own Website-subtype audiences, editable target country defaulting to `BD`, 1–20% size); **Delete** calls Meta first and only removes the local row once Meta confirms — the same "Meta first, then local" discipline as Phase B's Pause/Resume. "Customer List" (bulk hashed-PII-upload) audiences are deliberately not supported — a bigger, separate privacy-sensitive ask.
+- `MetaMarketingApiClient` gained `pixel()`, `pixelEventStats()`, `customAudiences()`, `websiteAudienceRule()` (shared, pure rule-builder — used both for the real API call and for what's persisted locally, so the two can never drift apart), `createWebsiteCustomAudience()`, `createLookalikeAudience()`, `deleteAudience()`.
+- New `MetaAudienceSyncService::sync()` upserts by `meta_id`; deliberately lets exceptions propagate (no per-audience-sync failure column exists, and reusing the account's own `last_sync_error` would conflate two independent sync loops) — the page's action catches and reports.
+- `MetaAdAccountResource`'s Access Token helper text gained one clause noting it should also have Pixel access under Business Settings for this page to work.
+
+Important changed files:
+
+- `database/migrations/2026_08_15_030000_create_meta_audiences_table.php`
+- `app/Models/MetaAudience.php`, `app/Models/User.php` (MODEL_MODULES)
+- `app/Services/MetaMarketingApiClient.php`, `app/Services/MetaAudienceSyncService.php`
+- `app/Filament/Pages/MetaEventsManager.php`, `resources/views/filament/pages/meta-events-manager.blade.php`
+- `app/Filament/Resources/MetaAdAccounts/MetaAdAccountResource.php`
+- `tests/Feature/MetaMarketingApiClientTest.php` (extended), `tests/Feature/MetaAudienceSyncServiceTest.php` (new), `tests/Feature/MetaEventsManagerPageTest.php` (new), `tests/Feature/MultiCompanyIsolationTest.php` (extended)
+- `CHANGELOG.md`, `PROJECT_GUIDE.md`
+
+Verification:
+
+- `php artisan test tests/Feature/MetaMarketingApiClientTest.php tests/Feature/MetaAudienceSyncServiceTest.php tests/Feature/MetaEventsManagerPageTest.php tests/Feature/MultiCompanyIsolationTest.php`: 40 passed (216 assertions).
+- Also ran the full existing Meta Ads Manager suite alongside it (`MetaAdsDashboardPageTest`, `MetaAdsSyncServiceTest`, `MetaAdsAiAssistantServiceTest`, `MetaAdsAiAssistantPageTest`, `CreateMetaAdCampaignPageTest`, `MetaAdsCreationServiceTest`, `MetaAdAccountResourceTest`): 76 passed total (416 assertions) — confirms Phases A–D are unaffected.
+- Full `php artisan test`: 742 passed, 5 failed — the same pre-existing, unrelated baseline failures from before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); the +20 passing tests are exactly this phase's new tests, zero regressions.
+- `npm run build` ran clean (new Blade view's Tailwind classes all already exist elsewhere in the compiled bundle; no arbitrary-value classes were introduced).
+- **Honesty caveat, stated plainly**: the Pixel Stats endpoint's exact response row shape isn't fully documented by Meta publicly, so it's handled defensively rather than guaranteed to render a clean table — a deliberate regression test (`test_pixel_health_panel_does_not_crash_when_stats_returns_an_unrecognized_shape`) confirms the page degrades gracefully instead of erroring. Custom Audience creation/list/delete are well-documented, higher-confidence calls. Interactive browser verification against a real Meta account was not completed this round — logging into the local admin panel to click through Sync/New Audience/Delete live was blocked by this session's own safety guardrails around typing a password into a login field (same limitation noted in the credential-hint-icon entry below); verification instead relies on the Livewire test suite above, which fully mounts and renders the page, calls every action, and asserts on real (`Http::fake()`-simulated) request shapes and outcomes.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-15 - Meta Ad Account credential fields: "where do I find this" hint icons
+
+Reason:
+
+- Owner reported "Test Connection" failing with Meta's `OAuthException` code 190, "Invalid OAuth access token - Cannot parse access token." Diagnosed via `tinker` (length/format only, never printing the actual secret): the stored Access Token on the real "ZamZam International" account is 32 characters and matches a 32-char hex shape — the format of a Meta **App Secret**, not a real OAuth access token (those are long, usually 100+ characters, and start with `EAA`). This is a data-entry problem, not a code bug — most likely the wrong value was pasted into the Access Token field at some point. Owner then asked for an **(i)** info icon on every credential field showing exactly where in Meta's UI to find the correct value, to prevent this mix-up going forward.
+
+What happened:
+
+- Added `->hintIcon(Heroicon::OutlinedInformationCircle)->hintIconTooltip(...)` to all 5 credential fields on `MetaAdAccountResource`'s form (App ID, App Secret, Access Token, Ad Account ID, Facebook Page ID). Each tooltip names the exact Meta screen (developers.facebook.com → My Apps → Settings > Basic for App ID/Secret; business.facebook.com/settings → System Users for the Access Token; → Accounts > Ad Accounts / Accounts > Pages for the IDs) and, for Access Token, what it should look like (long, starts with `EAA`).
+- No behavior change — purely an inline help addition. Existing `mutateFormDataBeforeFill`/`mutateFormDataBeforeSave` credential round-trip logic (previous entry below) is untouched.
+
+Important changed files:
+
+- `app/Filament/Resources/MetaAdAccounts/MetaAdAccountResource.php`
+- `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/MetaAdAccountResourceTest.php`: 4 passed (28 assertions) — form still fills/saves/validates correctly with the new hint icons present.
+- Browser-verification was not completed this round — logging into the local admin panel to visually confirm the tooltip render was blocked by this session's own safety guardrails (typing a password into a login field), so this is confirmed via the Livewire form test above plus reading `vendor/filament/forms/src/Components/Concerns/HasHint.php` to confirm `hintIcon()`/`hintIconTooltip()` are real, stable Filament 5 APIs. Worth a quick manual glance next time the owner is in the Edit Ad Account screen.
+- Root-cause finding on the real account (the actual bug the owner asked about) was reported directly to the owner in chat with fix steps (get a real long-lived System User token from Meta Business Settings and re-enter it) — no code fix possible for that part since it's a real credential value only the owner can supply.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-15 - Fix: Meta Ad Account edit form losing credentials on save
+
+Reason:
+
+- While verifying Phase D, editing the real "ZamZam International" Meta Ad Account showed App Secret/Access Token blank and failed required-field validation. Root cause: `MetaAdAccount::$hidden = ['credentials']` (added in Phase A) excludes `credentials` from Filament's default `attributesToArray()`-based form fill (`EditRecord::fillFormWithDataAndCallHooks()`), so the edit form was blank on every load — and saving anyway would have overwritten the real encrypted credentials with blanks. Confirmed live: the save correctly failed validation, so nothing was actually lost, but the account could not be edited at all (not even to toggle Active, or set the new AI budget guardrails) without re-entering all four real values from scratch. The owner asked to fix this directly rather than leave it as a flagged follow-up.
+- A second, related bug surfaced during the fix's own verification: saving a Max Daily Budget (AI guardrail) without a Min Daily Budget also failed validation. Root cause: Laravel's built-in `gte:field` rule (`Illuminate\Validation\Concerns\ValidatesAttributes::validateGte()`) cannot treat a blank compared-to field as "no floor" — it falls through to a same-type check between a number and `null` and always fails.
+
+What happened:
+
+- `EditMetaAdAccount` gained `mutateFormDataBeforeFill()`/`mutateFormDataBeforeSave()` — the exact same pattern already established in this codebase for `EditConversationChannel` (which has the identical `$hidden`-secrets problem on flat columns), adapted for `credentials` being one nested array attribute rather than separate columns. On fill: the non-secret sub-fields (`app_id`, `ad_account_id`, `page_id`) round-trip normally since they aren't sensitive; `app_secret`/`access_token` are always blanked. On save: if either secret is left blank, the existing encrypted value is merged back in from the record rather than being overwritten with null.
+- `MetaAdAccountResource`'s `app_secret`/`access_token` fields are now `required()` only when creating a new account (`$record === null`), with helper text explaining they're "Never shown again once saved — leave blank to keep the existing value" when editing.
+- Replaced `->gte('ai_daily_budget_min')` on the Max Daily Budget field with a custom closure-based rule that only compares the two values when both are actually filled — Min Daily Budget is meant to be optional ("leave blank for no floor"), and the built-in rule couldn't express that.
+
+Important changed files:
+
+- `app/Filament/Resources/MetaAdAccounts/Pages/EditMetaAdAccount.php`
+- `app/Filament/Resources/MetaAdAccounts/MetaAdAccountResource.php`
+- `tests/Feature/MetaAdAccountResourceTest.php` (new)
+- `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/MetaAdAccountResourceTest.php`: 4 passed (28 assertions) — blank-secrets-preserve-credentials, typing-new-secrets-overwrites, max-budget-alone-without-min, max-budget-below-min-still-rejected.
+- `php artisan test tests/Feature/MetaAdsDashboardPageTest.php tests/Feature/MetaAdsCreationServiceTest.php tests/Feature/CreateMetaAdCampaignPageTest.php tests/Feature/MetaAdsAiAssistantServiceTest.php tests/Feature/MetaAdsAiAssistantPageTest.php tests/Feature/MetaMarketingApiClientTest.php tests/Feature/MetaAdsSyncServiceTest.php tests/Feature/MultiCompanyIsolationTest.php`: 56 passed (348 assertions) — confirms all four Meta Ads Manager phases are unaffected.
+- Full `php artisan test`: 722 passed, 5 failed — the same pre-existing, unrelated baseline failures from before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); the +4 passing tests are exactly this fix's new tests, zero regressions.
+- **Browser-verified against the real "ZamZam International" account** (Main Company, id 5): opened Edit — App ID/Ad Account ID/Page ID showed their real values, App Secret/Access Token were correctly blank. Set only a Max Daily Budget (no Min) and saved without touching any credential field — got a real **Saved** confirmation (this exact save had failed twice before the fix). Confirmed via `tinker` immediately after: the real App Secret and Access Token were still intact, and the new Max Daily Budget persisted. Both the guardrail value and the credentials were then reverted/left untouched respectively, so the account is back to its original state (guardrails unset) — the real credentials were never edited or exposed at any point.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-15 - Meta Ads Manager, Phase D: AI Marketing Assistant
+
+Reason:
+
+- Owner approved proceeding to Phase D, the last of the previously-approved 4-phase Meta Ads plan: an AI tool that looks at real stock data and recommends which product(s) are worth advertising, with real reasoning, budget/duration suggestions, and draft ad copy — never spending on its own.
+- Re-entered plan mode to pin down two design questions the original stub left open: where budget guardrails live (per-Ad-Account columns, not the shared CRM AI settings page — budgets are currency-specific per account), and how "which campaign would be most effective" should be answered (a ranked top pick + up to 2 alternatives, each with its own real reasoning, rather than a single forced answer).
+
+What happened:
+
+- `meta_ad_accounts` gained `ai_daily_budget_min`/`ai_daily_budget_max`/`ai_max_duration_days`. **The assistant is switched off entirely for an account until `ai_daily_budget_max` is set** — there is no invented default spending ceiling. New `meta_ad_proposals` table stores every AI-drafted recommendation.
+- New `MetaAdsAiAssistantService` — a grounded, tool-calling agent in the same shape as the existing WhatsApp `AiReplyService`, reusing the exact same per-company `AiSettingsService`/`AiLlmClient` provider+model+API-key configuration (zero new credential UI). Tools: `get_candidate_products` (real stock/margin/trailing-30-and-60-day sales velocity from `OrderItem`/`Order`), `get_product_ad_history` (real past `MetaAd` performance for that product, if any), `get_account_summary` (real recent account totals + the account's own guardrails), `submit_recommendation` (one `recommended` pick + up to 2 `alternatives`, each with its own reasoning, plus a `comparison_reasoning`), and `report_no_candidates` for "nothing worth advertising right now."
+- Two safety nets, deliberately different in kind from `AiReplyService`'s "every ৳ must match a tool result" check (that check exists because that text is sent straight to a paying customer — here `reasoning_text` is internal, owner-facing only): (1) any `product_id` the model proposes that wasn't actually returned by `get_candidate_products` this run gets the whole submission rejected, no rows created — no hallucinated products; (2) `daily_budget`/`duration_days`/age-range/gender/call-to-action are all hard-clamped in code against the account's own configured guardrails regardless of what the model outputs.
+- Regenerating recommendations for an account marks its previous `draft` proposals `dismissed` (kept, not deleted, as an audit trail) before inserting the new ones.
+- New **AI Assistant** page in the Ads cluster: lists an account's recommendations (Product, Recommended badge, Daily Budget, Duration, Status, a "Reasoning" modal), a **Generate Recommendations** header action, and per-row **Review & Launch** (opens Phase C's `CreateMetaAdCampaign` pre-filled from the proposal — `?proposalId=...`) / **Dismiss** actions.
+- `CreateMetaAdCampaign` gained proposal-prefill: opened with a `proposalId`, it pre-fills Account/Product/Budget/Audience/Ad-copy from the draft (with an on-page "Prefilled from an AI recommendation — review before launching" banner) and, on successful submit, marks the proposal `launched` and links the real `meta_ad_campaign_id` it just created. **The AI never calls Meta and never activates anything itself** — every object Phase C creates still always lands PAUSED, and only Phase B's explicit Resume ever starts real spending.
+- `suggested_duration_days` is advisory only, shown to the owner as guidance text — Phase C's create form has no start/stop-time field, so it is never wired into a real Meta field; extending Phase C's scheduling is a separate future ask, not silently bundled in here.
+
+Important changed files:
+
+- `database/migrations/2026_08_15_010000_add_ai_guardrails_to_meta_ad_accounts_table.php`, `database/migrations/2026_08_15_020000_create_meta_ad_proposals_table.php`
+- `app/Models/MetaAdProposal.php` (new), `app/Models/MetaAdAccount.php` (guardrail fields, `aiGuardrailsConfigured()`)
+- `app/Filament/Resources/MetaAdAccounts/MetaAdAccountResource.php` (AI Marketing Assistant Guardrails section)
+- `app/Services/MetaAdsAiAssistantService.php` (new)
+- `app/Filament/Pages/MetaAdsAiAssistant.php` (new), `resources/views/filament/pages/meta-ads-ai-assistant.blade.php` (new)
+- `app/Filament/Pages/CreateMetaAdCampaign.php` (proposal prefill + launched-status handoff)
+- `app/Models/User.php` (`MetaAdProposal::class => 'marketing'`)
+- `tests/Feature/MetaAdsAiAssistantServiceTest.php` (new), `tests/Feature/MetaAdsAiAssistantPageTest.php` (new), `tests/Feature/CreateMetaAdCampaignPageTest.php` (extended), `tests/Feature/MultiCompanyIsolationTest.php` (extended)
+- `PROJECT_GUIDE.md` and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/MetaAdsAiAssistantServiceTest.php tests/Feature/MetaAdsAiAssistantPageTest.php tests/Feature/CreateMetaAdCampaignPageTest.php tests/Feature/MultiCompanyIsolationTest.php`: 22 passed (201 assertions) — covers the guardrail/AI-not-configured gates, the happy path with budget/duration clamping, hallucinated-product rejection, regenerate-dismisses-old-drafts, `report_no_candidates`, proposal prefill, and launched-status handoff.
+- `php artisan test tests/Feature/MetaMarketingApiClientTest.php tests/Feature/MetaAdsSyncServiceTest.php tests/Feature/MetaAdsDashboardPageTest.php tests/Feature/MetaAdsCreationServiceTest.php`: 30 passed (119 assertions) — confirms Phase A/B/C are unaffected.
+- Full `php artisan test`: 718 passed, 5 failed — the same pre-existing, unrelated baseline failures from before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); the +12 passing tests are exactly this change's new tests, zero regressions.
+- Browser-verified against the real ad account and the real Anthropic API: with no `ai_daily_budget_max` configured, **Generate Recommendations** correctly refused before any HTTP call fired, with a clear on-screen message. With guardrails set but no AI provider/key configured on the company, it correctly refused with a message pointing at the AI Assistant Settings page, again before any HTTP call. With a fake Anthropic key temporarily configured, the real call fired against `api.anthropic.com` and came back a genuine `401 authentication_error` ("API key is invalid"), which was caught and shown as a clear danger notification with zero `meta_ad_proposals` rows created and no crash. All test data (a throwaway Ad Account and the temporary fake AI key) was removed/reverted afterward — the real "ZamZam International" account and its real credentials were never touched.
+- **A real, pre-existing bug found in passing (not part of Phase D, not fixed here)**: editing an existing Meta Ad Account in Filament shows the App ID/App Secret/Access Token/Ad Account ID fields blank and fails required-field validation on save, because `MetaAdAccount::$hidden = ['credentials']` (added in Phase A) excludes `credentials` from the form's fill — unlike `CourierProvider`, which this resource was modeled after and which does not hide its own `credentials`. Confirmed live against the real "ZamZam International" account: Save correctly failed validation both times and nothing was lost, but the account currently cannot be edited at all (not even to toggle Active, or set the new AI budget guardrails) without re-entering all four real credential values from scratch. Flagged as a separate follow-up task, not addressed in this change.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval. All four phases of the Meta Ads Manager plan are now implemented.
+
+## 2026-08-14 - Meta Ads Manager, Phase C: create a real Campaign + Ad Set + Ad from a Product
+
+Reason:
+
+- Owner approved proceeding straight to Phase C of the previously-approved 4-phase Meta Ads plan: creating new campaigns/ad sets/ads from ZamZam, tied to a real Product.
+- Researching Meta's actual object-creation requirements surfaced a real gap the earlier plan didn't account for: an ad's creative always attaches to a real **Facebook Page** (`object_story_spec.page_id`) — nothing like it existed anywhere in this app (the `page_id` field on `StorefrontSettingResource` is an unrelated *content page* selector for the footer menu). Re-entered plan mode specifically to work this out before writing code, rather than guessing at Meta's field shapes.
+
+What happened:
+
+- `MetaAdAccount` gained a `page_id` (Facebook Page ID) field inside its existing encrypted `credentials` blob — no migration needed. Only required for creating ads; existing accounts keep viewing/syncing/pausing without it (`canCreateAds()` helper).
+- `MetaMarketingApiClient` gained the 5 real write calls needed to create objects: `createCampaign()`, `createAdSet()`, `uploadAdImage()` (raw bytes, base64-encoded — never a public-URL fetch, so it works even when the storefront isn't publicly reachable), `createAdCreative()`, `createAd()`. Complex params (`targeting`, `object_story_spec`, `creative`, `special_ad_categories`) are JSON-encoded before sending, matching Meta's documented convention. **Every create call hard-codes `status: PAUSED`**, regardless of anything the caller passes — nothing this feature creates can ever start spending without a later, separate, explicit Resume (Phase B).
+- Deliberately scoped to exactly one objective (`OUTCOME_TRAFFIC` / `LINK_CLICKS` / `IMPRESSIONS`) — the one well-documented combination that needs no pixel/conversions setup — and the ad image always comes from the selected **Product's own image** (no separate manual upload path). Both are explicit, documented scope limits.
+- New `MetaAdsCreationService` orchestrates the chain (Campaign → Ad Set → Ad Image → Ad Creative → Ad). Each local row is persisted **immediately after its own Meta call succeeds** — deliberately not one wrapped DB transaction — so a mid-chain failure (e.g. the ad-set call gets rejected) leaves the local database reflecting exactly what's really sitting on Meta, never silently losing track of an already-created PAUSED campaign. The destination link reuses `StorefrontCartRecord::recoveryUrl()`'s own absolute-URL pattern (`'https://'.$company->domain.route(...)`).
+- New **New Campaign** page (`CreateMetaAdCampaign`, reached from a header action on the Meta Ads Dashboard): Campaign name/budget, Audience (age range, gender, Bangladesh-only geo), and Ad (Product picker that auto-fills headline/primary text/price-based copy — editable — plus a Call To Action). Submitting redirects back to the dashboard with the new campaign in view.
+- **Bug caught by the page's own test, not by hand**: with only one ad account configured (the common single-business case), the Ad Account selector is hidden — and Filament doesn't dehydrate a hidden field's value by default, so the account was silently missing from the submitted form state every time. Fixed with `->dehydratedWhenHidden()`. Without this, campaign creation would have failed 100% of the time for any owner with just one connected account.
+
+Important changed files:
+
+- `app/Models/MetaAdAccount.php` (`page_id`/`pageId()`/`canCreateAds()`), `app/Models/MetaAdSet.php`, `app/Models/MetaAd.php` (`SOURCE_META`/`SOURCE_ERP` constants)
+- `app/Filament/Resources/MetaAdAccounts/MetaAdAccountResource.php` (Facebook Page ID field)
+- `app/Services/MetaMarketingApiClient.php` (5 new write methods + shared `write()` helper, refactored `updateStatus()`/`updateBudget()` onto it)
+- `app/Services/MetaAdsCreationService.php` (new)
+- `app/Filament/Pages/CreateMetaAdCampaign.php` (new), `resources/views/filament/pages/create-meta-ad-campaign.blade.php` (new)
+- `app/Filament/Pages/MetaAdsDashboard.php` (New Campaign header action)
+- `tests/Feature/MetaMarketingApiClientTest.php` (extended), `tests/Feature/MetaAdsCreationServiceTest.php` (new), `tests/Feature/CreateMetaAdCampaignPageTest.php` (new)
+- `PROJECT_GUIDE.md` and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/MetaMarketingApiClientTest.php tests/Feature/MetaAdsSyncServiceTest.php tests/Feature/MetaAdsDashboardPageTest.php tests/Feature/MetaAdsCreationServiceTest.php tests/Feature/CreateMetaAdCampaignPageTest.php tests/Feature/MultiCompanyIsolationTest.php`: 40 passed (274 assertions) — covers success + mid-chain-failure + missing-Page-ID + missing-product-image paths, and confirms Phase A/B still work after the shared `write()` refactor.
+- Full `php artisan test`: 706 passed, 5 failed — the same pre-existing, unrelated baseline failures from before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); zero new regressions.
+- Browser-verified against the real Meta API (dummy-credential throwaway account + Facebook Page ID + a real product with an image): filled the New Campaign form, confirmed the Product picker auto-fills headline/primary text from real product name/price, submitted — Meta genuinely rejected the create call (fake credentials), zero local rows were persisted (correct: the very first step failed), and the page stayed intact with the form data preserved, no crash. Test account removed afterward.
+- **Honesty about verification limits** (documented in the plan and here, not glossed over): without a real connected ad account + Page, the full success path (Meta actually accepting all 5 calls) could only be verified structurally (`Http::fake()` request-shape assertions matching Meta's published API docs), not confirmed end-to-end against Meta's live validation. The owner should test the complete flow against a real account before relying on it.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval. Phase D (AI marketing assistant) remains a separate, later, owner-approved phase.
+
+## 2026-08-14 - Meta Ads Manager, Phase B: Pause/Resume and Daily Budget editing
+
+Reason:
+
+- Owner approved proceeding straight to Phase B of the previously-approved 4-phase Meta Ads plan: write-back management (Pause/Resume + budget editing) on top of the read-only Phase A dashboard shipped earlier the same day.
+
+What happened:
+
+- `MetaMarketingApiClient` gained `updateStatus()` (POST `/{object_id}` with `status`, works for campaigns/ad sets/ads alike) and `updateBudget()` (POST `/{object_id}` with `daily_budget`/`lifetime_budget`, converting our major-currency-unit values to Meta's minor-unit/cents contract — the mirror image of `MetaAdsSyncService::minorToMajor()`).
+- `MetaAdsDashboard` gained a **Pause**/**Resume** row action (label/icon/color react to the record's current status, `requiresConfirmation()`) at all three drill levels, and an inline-editable **Daily Budget** column (`TextInputColumn`) at the Campaign and Ad Set levels only — Ads have no budget of their own in Meta's model, so that level keeps a plain read-only column. **Lifetime Budget** stays read-only everywhere: a campaign/ad set uses one budget type or the other in Meta's own model, and Daily Budget is the common case.
+- Both write paths follow the same rule: call Meta first, and only touch the local row (or let the input keep the new value) once Meta actually confirms success. A failed or rejected call leaves both Meta and the local database exactly as they were and shows a danger notification — never a silent or partial update. This was verified against the real Meta API, not just mocked: a throwaway test account with dummy credentials got a real rejection from `graph.facebook.com` for both a Pause click and a Daily Budget edit, and in both cases the local row was correctly left unchanged.
+
+Important changed files:
+
+- `app/Services/MetaMarketingApiClient.php` (`updateStatus()`, `updateBudget()`)
+- `app/Filament/Pages/MetaAdsDashboard.php` (Pause/Resume action, editable Daily Budget column, `updateBudget()`/`toggleStatus()` helpers)
+- `tests/Feature/MetaMarketingApiClientTest.php`, `tests/Feature/MetaAdsDashboardPageTest.php`
+- `PROJECT_GUIDE.md` and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/MetaMarketingApiClientTest.php tests/Feature/MetaAdsDashboardPageTest.php`: 16 passed (59 assertions), covering successful and failed status/budget round trips and the Ad-level read-only column.
+- Full `php artisan test`: 692 passed, 5 failed — the same pre-existing, unrelated baseline failures (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); zero new regressions.
+- Browser-verified against the real dev database and the real Meta API: seeded a throwaway campaign under a dummy-credential account, clicked Pause (confirmed the modal, confirmed the action) and edited Daily Budget inline — both produced a real rejection from Meta and the local row (and the input's displayed value, after a fresh reload) correctly stayed unchanged. Test data removed afterward.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval. Phase C (campaign/ad set/ad creation, always landing PAUSED) and Phase D (AI marketing assistant) remain separate, later, owner-approved phases.
+
+## 2026-08-14 - Products mobile header action menu
+
+Reason:
+
+- The owner asked to clean up the Products mobile header by moving all five wrapped header buttons into one navigation menu on the right side of the page title.
+
+What happened:
+
+- Added one icon-only native Filament `ActionGroup` for mobile containing Import CSV, Sample CSV, Bulk Update Stock, Export CSV, and New product.
+- Kept the existing five individual header buttons at the desktop `lg` breakpoint and above.
+- Reused the same permission checks, URLs, upload form, import handler, icons, and labels in both presentations.
+- Added Products-only responsive header alignment so the native menu sits beside the title instead of below it; other Filament page headers are unchanged.
+
+Important changed files:
+
+- `app/Filament/Resources/Products/Pages/ListProducts.php`
+- `resources/css/filament/admin/theme.css`
+- `tests/Feature/ProductHeaderActionsResponsiveTest.php`
+- `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/ProductHeaderActionsResponsiveTest.php tests/Feature/ProductStatsOverviewTest.php tests/Feature/ProductCsvTest.php tests/Feature/BulkUpdateStockPageTest.php`: 16 passed (111 assertions).
+- Scoped PHP syntax checks and `vendor\bin\pint --test` passed.
+- `php artisan view:cache`, scoped `git diff --check`, and `npm.cmd run build` passed; the compiled theme contains the Products-only mobile header selector.
+- In-app browser connection was unavailable in this session, so verification used rendered Livewire HTML, action registration, responsive CSS assertions, and the production asset build.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-14 - Meta Ads Manager, Phase A: account integration, sync, and a read-only Campaigns/Ad Sets/Ads dashboard
+
+Reason:
+
+- The owner asked to visit Nuport's `/ads/meta` page and build an equivalent Meta Ads dashboard for managing Campaigns/Ad Sets/Ads. Nuport's own page turned out to be integration + analytics only (App ID/Secret/Access Token/Ad Account ID settings, then an analytics screen — no campaign-creation UI). Asked to clarify scope, the owner wants: (1) managing existing campaigns, (2) creating new campaigns/ad sets/ads from ZamZam, and (3) an AI assistant that analyzes stock/margin data to draft ad copy, suggest budget/duration, and can launch campaigns. Given the size (5 new tables, a write-capable external API with real money at stake, an AI agent) and this codebase's own precedent for shipping large AI/integration features in checkpointed phases (the WhatsApp AI auto-reply feature's steps 13.0/13.3/14), this was scoped into 4 phases with owner sign-off on the phased plan. **This entry covers Phase A only**: real account integration, a sync pipeline, and a read-only dashboard. Two safety rules are locked in for every later phase: nothing this feature creates on Meta is ever launched automatically (always created PAUSED, a separate explicit Activate action is the only thing that starts real spending), and the future AI assistant only ever reasons over this app's own real stock/sales/ad-performance data — never fabricated "market analysis".
+
+What happened:
+
+- New tables `meta_ad_accounts` (encrypted `credentials`: app_id/app_secret/access_token/ad_account_id, mirrors `CourierProvider`'s `text` + `encrypted:array` shape so it works on MySQL too), `meta_ad_campaigns`, `meta_ad_sets`, `meta_ads` — all company-scoped (`BelongsToCompany` + `CompanyScope`, added to `MultiCompanyIsolationTest`).
+- `MetaMarketingApiClient` (read-only): wraps the real Meta Graph Marketing API (`config('services.meta.graph_api_version')`, currently v25.0) — `campaigns()`/`adSets()`/`ads()` each request the object fields plus a nested `insights.date_preset(...)` edge in one call (spend/impressions/clicks/ctr/cpc/reach/actions), and `verifyCredentials()` powers a **Test Connection** action. Mirrors `SteadfastCourierClient`'s shape (blank-credential guard, `Http::...->throw()->json()`).
+- `MetaAdsSyncService` + `meta-ads:sync` console command: pulls Campaigns → Ad Sets → Ads with insights for an account, upserts local rows by `meta_id`, and stamps `last_synced_at`/`last_sync_error`/`sync_failure_count` on the account — a failing account never throws out or blocks other accounts, mirroring `SyncCourierStatuses`.
+- New **Ads** cluster: `MetaAdAccountResource` (credential entry, Test Connection, mirrors `CourierProviderResource`) and `MetaAdsDashboard` (a `Page implements HasTable`, mirrors `BulkUpdateStock`/`CourierMerchantDashboard`) — an account selector, a Sync Window (`date_preset`) selector, a **Sync Data** action, real Spend/Impressions/Clicks/CTR/CPC stat cards (CTR/CPC are weighted aggregates, never a naive average of each row's own ratio), and a Campaigns → Ad Sets → Ads table you drill into via `#[Url]`-bound `campaignId`/`adSetId` with a clickable breadcrumb — all within one page, no full navigation.
+- New `marketing.view`/`marketing.create`/`marketing.update`/`marketing.delete` permissions (`User::CUSTOM_PERMISSION_OPTIONS`/`MODEL_MODULES`), granted to the Manager role by default (Super Admin already has everything).
+- Live-verified against the real Meta Graph API with a throwaway test account (dummy credentials, deleted afterward): **Test Connection** and **Sync Data** both actually reached `graph.facebook.com` and got back a real `OAuthException` ("Invalid OAuth access token"), which was caught and stamped exactly as designed — proving the request shape is correct and failures never crash the page.
+
+Important changed files:
+
+- `database/migrations/2026_08_14_04-070000_*.php` (4 new tables)
+- `app/Models/MetaAdAccount.php`, `MetaAdCampaign.php`, `MetaAdSet.php`, `MetaAd.php`
+- `app/Services/MetaMarketingApiClient.php`, `MetaAdsSyncService.php`
+- `app/Console/Commands/SyncMetaAdsData.php`
+- `app/Filament/Clusters/Ads.php`, `app/Filament/Resources/MetaAdAccounts/*`, `app/Filament/Pages/MetaAdsDashboard.php`, `resources/views/filament/pages/meta-ads-dashboard.blade.php`
+- `app/Models/User.php` (new `marketing.*` permissions)
+- `tests/Feature/MetaMarketingApiClientTest.php`, `MetaAdsSyncServiceTest.php`, `MetaAdsDashboardPageTest.php`, `MultiCompanyIsolationTest.php`
+- `PROJECT_GUIDE.md` and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/MetaMarketingApiClientTest.php tests/Feature/MetaAdsSyncServiceTest.php tests/Feature/MetaAdsDashboardPageTest.php tests/Feature/MultiCompanyIsolationTest.php`: 22 passed.
+- Full `php artisan test`: 681 passed, 5 failed — the same pre-existing, unrelated baseline failures from before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); zero new regressions.
+- Browser-verified end-to-end against the real dev database (migrations applied via plain `php artisan migrate`, no `--fresh`, no seeders): created and deleted a throwaway Meta Ad Account, confirmed Test Connection and Sync Data both reach the real Meta API (see above), confirmed the dashboard's empty state, stat cards, and full 3-level Campaigns → Ad Sets → Ads drill-down with breadcrumb navigation using seeded rows (removed afterward, demo data left unchanged).
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval. Phase B (Pause/Resume + budget editing), Phase C (campaign/ad set/ad creation), and Phase D (AI marketing assistant) are separate, later, owner-approved phases.
+
+## 2026-08-14 - Products stat currency formatting and mobile typography
+
+Reason:
+
+- The owner asked the Products stat cards to use the Taka symbol instead of `BDT`, suppress `.00` for whole amounts, keep decimal output only for fractional amounts, and reduce only the mobile label/value sizes to 12px/16px.
+
+What happened:
+
+- Added `ProductStatsOverview::formatCurrency()`: whole values render like `৳ 2,149,140`; fractional values are rounded to currency precision and render like `৳ 360,175.50`.
+- Currency cards call the formatter instead of hard-coding `BDT` and two decimals.
+- The custom Filament card labels now use `!text-xs lg:!text-sm` (12px mobile, 14px desktop); values use `!text-base lg:!text-[20px]` (16px mobile, 20px desktop). Grid, padding, icons, and desktop layout remain unchanged.
+
+Important changed files:
+
+- `app/Filament/Resources/Products/Widgets/ProductStatsOverview.php`
+- `resources/views/filament/resources/products/widgets/product-stats-overview.blade.php`
+- `tests/Feature/ProductStatsOverviewTest.php`
+- `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/ProductStatsOverviewTest.php tests/Feature/BusinessOverviewLayoutTest.php`: 6 passed (45 assertions), including exact integer/fractional Taka formatting and rendered responsive typography classes.
+- Scoped PHP syntax checks, `vendor\\bin\\pint --test`, `php artisan view:cache`, scoped `git diff --check`, and `npm.cmd run build` passed.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-14 - Bulk Update Stock now stages blank inputs and saves them together
+
+Reason:
+
+- The owner asked to remove **Upload Stock CSV** and **Stock CSV Sample** from the Bulk Update Stock header, replace them with one button that saves this page's changes, and keep every New Stock field empty by default.
+
+What happened:
+
+- Replaced both header actions with one native Filament **Save changes** action.
+- Every New Stock `TextInputColumn` now renders blank. Entered values are validated and staged in the page's `stockUpdates` Livewire property; editing or leaving a field does not update the database.
+- Save changes validates the complete draft again, resolves only products visible through the current company scope, locks all selected products in one database transaction, and applies only nonblank changed rows through `Product::setStockFromProductForm()`. Stock movements therefore remain ledger-safe, blank rows stay untouched, and all fields clear after a successful save.
+- Saving without entering any value shows a warning instead of performing a write.
+
+Important changed files:
+
+- `app/Filament/Resources/Products/Pages/BulkUpdateStock.php`
+- `tests/Feature/BulkUpdateStockPageTest.php`
+- `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/BulkUpdateStockPageTest.php tests/Feature/ProductStockCsvTest.php tests/Feature/ProductStockFormTest.php tests/Feature/StockMovementTest.php tests/Feature/MultiCompanyIsolationTest.php`: 29 passed (223 assertions).
+- Coverage confirms default blank inputs, no database write before Save changes, removal of both previous header actions, multi-row transactional save, blank-row preservation, stock-movement creation, and company isolation.
+- Scoped PHP syntax checks, `vendor\\bin\\pint --test`, `php artisan view:cache`, and scoped `git diff --check` passed.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-14 - Products header stats use the main Dashboard's full-width layout
+
+Reason:
+
+- The owner reported that the Products header cards were compressed into a narrow block and asked for the same overall layout as the app's main Dashboard cards.
+
+What happened:
+
+- Root cause: `ProductStatsOverview` is a hand-built plain Filament `Widget`, and its custom Blade view did not use Filament's native `<x-filament-widgets::widget>` root wrapper. Adding `columnSpan = 'full'` in PHP alone therefore had no DOM element on which Filament could emit the span CSS, leaving the inner 5-column grid compressed inside one of the page header's two desktop columns.
+- Added both parts of Filament's native widget contract: `protected int|string|array $columnSpan = 'full'` on the widget and `<x-filament-widgets::widget>` around the custom Blade grid. The wrapper now renders `--col-span-lg: 1 / -1`, so each row's 5 cards divide the entire available Products-page width equally. The existing card design remains unchanged: 2 cards per row on mobile, 20px values, and 10px card padding.
+- Added a rendered-Livewire regression test covering the native wrapper, emitted full-span CSS, and responsive sizing classes.
+
+Important changed files:
+
+- `app/Filament/Resources/Products/Widgets/ProductStatsOverview.php`
+- `resources/views/filament/resources/products/widgets/product-stats-overview.blade.php`
+- `tests/Feature/ProductStatsOverviewTest.php`
+- `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/ProductStatsOverviewTest.php tests/Feature/BusinessOverviewLayoutTest.php`: 5 passed (39 assertions), covering both the Products cards and the main Dashboard layout used as the reference. The Products assertion verifies the rendered native wrapper emits `--col-span-lg: 1 / -1`.
+- Scoped PHP syntax checks and `vendor\\bin\\pint --test` passed.
+- `php artisan view:cache` passed.
+- `npm.cmd run build` passed and rebuilt the Filament theme/assets.
+- Automated browser visual QA could not connect to the in-app browser in this environment; the layout contract is covered by the rendered Livewire assertion for `--col-span-lg: 1 / -1` plus the Blade responsive-grid assertions.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-14 - Damage stock movement type, Total Shortage stat, and a real Bulk Update Stock screen
+
+Reason:
+
+- The owner reviewed the previous round (3 inventory stat cards + a CSV-upload Bulk Update Stock modal) and asked for three follow-ups: (1) we don't track Wastage, but a real **Damage** concept can be tracked instead; (2) **Total Shortage** is wanted after all, defined precisely — "at a glance the total shortage count; clicking it shows which product has how many pieces in stock and how many short"; (3) **Bulk Update Stock** shouldn't be a CSV-upload modal as the primary flow — it should open a searchable/filterable list of every product with the current stock, the shortfall, and an inline **New Stock** field, editable in place.
+
+What happened:
+
+- Added a real `'damage'` type to `StockMovement::TYPES`, wired everywhere `'sale'` was already special-cased so damage reduces stock the same way: `StockMovementService::signedStockSum()` (raw SQL), `normalizeQuantity()`, `signedQuantityFor()`, and `validate()` (now requires a `reason` for damage too, plus a damage-specific "insufficient stock" message). `StockMovementForm`'s quantity/reason helper text and both Stock-Movements-table Type-badge colors (`StockMovementsTable.php`, `StockMovementsRelationManager.php`) branch for damage the same way they already did for adjustment/sale. Previously damage was informally recorded as a generic `adjustment` (see the pre-existing test at `tests/Feature/StockMovementTest.php`, reason "Damaged stock removal") — it now has its own reportable type.
+- **Total Shortage** reuses the *exact* predicate the Products table's existing "Low stock" filter already uses (`whereColumn('stock', '<=', 'reorder_level')`) — not a new rule, just surfaced as a stat. **Total Damage** sums `StockMovement` rows of the new type. Both added to `ProductStatsOverview::stats()`, bringing the grid to 10 cards (still 5/2 desktop/mobile, unchanged styling).
+- Built a new custom Filament page, `app/Filament/Resources/Products/Pages/BulkUpdateStock.php` (`Page implements HasTable`), registered on `ProductResource::getPages()` at `/admin/inventory/products/bulk-stock` — same architecture as `CourierMerchantDashboard`. Every product in one searchable (name/SKU/ID/category) table, with In Stock, Reorder Level, Short By (computed), and an inline-editable **New Stock** `TextInputColumn`. Editing New Stock never writes `stock` directly — it calls `Product::setStockFromProductForm()`, the same ledger-safe method the product edit form and the stock-CSV importer already use, so a real `StockMovement` (opening/adjustment) is always created. Verified live: editing 166 → 170 on a real demo product produced an `adjustment` movement (`quantity: 4`, reason "Product form stock correction") and the value persisted after a fresh page reload; reverted back to 166 afterward.
+- `#[Url] public bool $shortageOnly` scopes the table's base query (not Filament's own filter-state) so the Total Shortage stat card can deep-link here via a plain `?shortageOnly=1` query string. Deliberately not Filament's own `?tableFilters=...` mechanism — `CourierMerchantDashboard`'s own code comment documents that as not applying from a cold GET request in this install; a plain Livewire `#[Url]` property (the same technique that page's own `providerFilter` already uses) sidesteps it entirely. Verified live: `?shortageOnly=1` correctly shows "No products" (matching the current Total Shortage count of 0 in demo data).
+- `ProductCsvService::importStock()`/`sampleStock()` (unchanged) and their header actions moved from `ListProducts` onto `BulkUpdateStock::getHeaderActions()` — still available as a power-user path for very large catalogs, now contextually placed on the screen where bulk stock editing happens. `ListProducts`'s own `bulkUpdateStock` action is now a plain link to the new page (matching the existing `exportCsv`/`downloadSampleCsv` plain-link pattern) instead of a FileUpload modal.
+
+Important changed/added files:
+
+- `app/Models/StockMovement.php`, `app/Services/StockMovementService.php`, `app/Filament/Resources/StockMovements/Schemas/StockMovementForm.php`, `app/Filament/Resources/StockMovements/Tables/StockMovementsTable.php`, `app/Filament/Resources/Products/RelationManagers/StockMovementsRelationManager.php`
+- `app/Filament/Resources/Products/Widgets/ProductStatsOverview.php`, `resources/views/filament/resources/products/widgets/product-stats-overview.blade.php` (dynamic `<a>`/`<div>` tag per stat, driven by an optional `url` key)
+- `app/Filament/Resources/Products/Pages/BulkUpdateStock.php` (new), `resources/views/filament/resources/products/pages/bulk-update-stock.blade.php` (new), `app/Filament/Resources/Products/ProductResource.php` (registered the page)
+- `app/Filament/Resources/Products/Pages/ListProducts.php` (header actions simplified)
+- `tests/Feature/StockMovementTest.php` (damage sign/reason coverage), `tests/Feature/ProductStatsOverviewTest.php` (extended), `tests/Feature/BulkUpdateStockPageTest.php` (new)
+
+Verification:
+
+- `php artisan test tests/Feature/StockMovementTest.php tests/Feature/ProductStatsOverviewTest.php tests/Feature/ProductStockCsvTest.php tests/Feature/ProductCsvTest.php tests/Feature/BulkUpdateStockPageTest.php tests/Feature/PurchaseTest.php tests/Feature/ProductVariantTest.php tests/Feature/ProductStockFormTest.php tests/Feature/MultiCompanyIsolationTest.php`: 50 passed (278 assertions).
+- Full `php artisan test`: 668 passed, 5 failed — the same 5 pre-existing, unrelated baseline failures from before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); zero new regressions (668 = the prior 660 baseline + these 8 new tests).
+- Browser-verified against real demo data: all 10 cards render (Total Shortage 0, Total Damage 0 — correct, no demo product is currently short or damaged), 10px padding / 20px value font intact, Total Shortage renders as a real `<a href="…/bulk-stock?shortageOnly=1">` while every other card stays a plain `<div>`; Bulk Update Stock page loads with the 4 expected header actions moved correctly, the table renders with working search/columns, an inline stock edit round-tripped through a real `StockMovement` and was reverted; the Stock Movement create form shows "Damage" in the Type dropdown with the correct quantity/reason helper text and required-reason behavior; mobile-preset (375px) confirmed 2-per-row across all 10 cards.
+- No new Tailwind arbitrary-value classes were introduced, so `npm run build` was not required.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Products page: 3 more inventory stat cards + Bulk Update Stock action
+
+Reason:
+
+- The owner visited the competitor ERP's Inventory page (`app.nuport.io/inventory-products`) and asked for its header metric cards to be added next to the existing 5 Products stat cards, plus an equivalent to its Action menu's "Bulk Update Inventory" tool.
+
+What happened:
+
+- Browsed the competitor's Inventory page and its Action menu, and cross-checked each of its 6 header cards against our actual schema. Only 3 map onto real, already-tracked data — **Total Available Quantity**, **Total Stock Value**, **Total Purchase Cost** — and were built. The other 3 (**Total Shortage Quantity**, **Total Wastage**, **Total Expired**) have no backing concept anywhere in this app (no backorder tracking, no wastage `StockMovement` type, no product expiry-date field) and were deliberately not built, per `CLAUDE.md`'s rule against inventing business rules — documented as a finding for the owner to prioritize, and explained directly when the owner asked why they were skipped.
+- Extended `ProductStatsOverview::stats()` from 5 to 8 entries, reusing the exact same blade grid/CSS from the prior 5/2-column, 20px-value, 10px-padding entry below — no new styling work needed. Added a `formatCurrency`/`isCurrency` flag to the blade so the two new money cards render as `BDT 1,234.00` instead of a bare integer.
+- Correctness detail: a variant-bearing product's own `stock` is already a live mirror of the sum of its variants' stock (`ProductVariant::syncProductStock()`), so the new quantity/value aggregates exclude `has_variants = true` products' own stock/cost_price and only add their variants on top, to avoid double-counting. Added `ProductVariant::effectiveCostPrice()` (mirrors the existing `effectiveSalePrice()` parent-fallback pattern) for the value calculation.
+- Total Purchase Cost sums `PurchaseItem.subtotal + PurchaseItem.allocated_cost` (the item's own cost plus its share of allocated landed costs — `allocated_cost` alone is only the landed-cost *share*, not the full spend) across `received`-status purchases only; draft/cancelled purchases are excluded.
+- Investigated the competitor's "Bulk Update Inventory" action directly in the browser: it opens a small modal that only asks for a Warehouse, then completes with no further visible step (almost certainly a warehouse-scoped CSV/export the sandboxed browser can't confirm the exact shape of). Found we already have an equivalent full **Import CSV** action; the owner confirmed they want a separate, focused **Bulk Update Stock** action instead — a 2-column `sku, stock` CSV, purpose-built for correcting stock counts without touching prices/names.
+- Added `ProductCsvService::importStock()`/`sampleStock()` (reusing the existing `import()`'s header-parsing/transaction/error-aggregation helpers). Each row is matched against `ProductVariant` first (a variant's own `stock` is a live counter, updated directly — its `saved` hook already re-syncs the parent), then `Product` (updated via the existing `setStockFromProductForm()`, the same method the product edit form uses, which creates the correct `opening`/`adjustment` `StockMovement`). A variant-bearing product's own SKU is rejected with a row error explaining its stock is derived from its variants.
+- Added the `products.stock.sample` route + `ProductCsvController::stockSample()`, and two new Products-list header actions: **Bulk Update Stock** and **Stock CSV Sample**.
+
+Important changed/added files:
+
+- `app/Filament/Resources/Products/Widgets/ProductStatsOverview.php`, `resources/views/filament/resources/products/widgets/product-stats-overview.blade.php`
+- `app/Models/ProductVariant.php` (`effectiveCostPrice()`)
+- `app/Services/ProductCsvService.php` (`importStock()`, `sampleStock()`, `STOCK_HEADINGS`)
+- `app/Http/Controllers/Admin/ProductCsvController.php`, `routes/web.php`
+- `app/Filament/Resources/Products/Pages/ListProducts.php`
+- `tests/Feature/ProductStatsOverviewTest.php` (extended), `tests/Feature/ProductStockCsvTest.php` (new), `tests/Feature/ProductCsvTest.php` (extended auth-check)
+
+Verification:
+
+- `php artisan test tests/Feature/ProductStatsOverviewTest.php tests/Feature/ProductStockCsvTest.php tests/Feature/ProductCsvTest.php tests/Feature/ProductStockFormTest.php tests/Feature/ProductVariantTest.php tests/Feature/ProductCarouselTest.php tests/Feature/PurchaseTest.php tests/Feature/MultiCompanyIsolationTest.php`: 40 passed (262 assertions).
+- Full `php artisan test`: 660 passed, 5 failed — the same 5 pre-existing, unrelated baseline failures from before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); zero new regressions.
+- Browser-verified against the real demo data: all 8 cards render correctly (Total Available Quantity 1,275; Total Stock Value BDT 1,251,680.00; Total Purchase Cost BDT 360,175.00), `getComputedStyle` confirmed 8 cards / 10px padding / 20px value font intact; desktop screenshot shows 5+3 layout, mobile-preset (375px) shows 2 per row throughout. The two new header actions render with the correct labels/helper text; the Stock CSV Sample link returns 200 with the exact `sku,stock` content. The actual file-upload step of Bulk Update Stock could not be driven through browser automation (no native file-picker support in this tool), so that path relies on `ProductStockCsvTest`'s 7 passing tests, which exercise the identical service method directly.
+- No new Tailwind arbitrary-value classes were introduced, so `npm run build` was not required this time.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Category icon picker selection persistence and Add Icon action
+
+Reason:
+
+- The owner reported that searching and selecting a category icon immediately restored the full icon list, the selected value did not reliably remain saved, and the modal had no explicit action button to apply the icon.
+
+What happened:
+
+- Confirmed root cause after inspecting the local app's compiled Blade output: `@js($icon['value'])` was embedded inside a quoted Blade-component attribute, where it was not compiled. The browser therefore received a literal invalid Alpine expression such as `choose(@js($icon['value']))`, so clicking an icon could not select it at all. Separately, the delegated search script reset the search on every icon click.
+- Icon values now render through a safe `data-zz-category-icon-value="heroicon-..."` attribute and the valid static Alpine expression `choose($el.dataset.zzCategoryIconValue)`. Regression assertions inspect the rendered Livewire HTML so a literal uncompiled `@js($icon...)` cannot return unnoticed.
+- The picker now keeps one Livewire-entangled committed `state` plus a modal-local `pendingIcon`. Clicking an icon only updates/highlights `pendingIcon`, so the filtered results remain visible and no form-state request is made yet.
+- Added a native Filament **Add Icon** primary action in a sticky modal footer. It is disabled until an icon is selected and is the only icon-tile workflow that copies `pendingIcon` into the form state. Added a secondary **Cancel** action that closes without changing the existing icon; **Use category initial** still explicitly clears the field.
+- The delegated search helper now resets only when the picker opens, not when an icon is selected.
+- Added edit-page persistence coverage proving the selected Heroicon is saved to the category record.
+
+Important changed files:
+
+- `resources/views/filament/forms/components/category-icon-picker.blade.php`
+- `resources/views/filament/partials/category-icon-search.blade.php`
+- `tests/Feature/CategoryMediaTest.php`
+- `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/CategoryMediaTest.php`: 4 passed (50 assertions).
+- Scoped PHP syntax and Pint checks passed; scoped `git diff --check` passed.
+- `php artisan view:cache` and `npm.cmd run build` both passed.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Main Dashboard Business Overview compact 5/2 card layout
+
+Reason:
+
+- The owner asked for the main Dashboard's Business Overview cards to show 5 per row on desktop, 2 per row on mobile, with 20px number/value text and 10px card padding.
+
+What happened:
+
+- Kept `BusinessOverview` as Filament's native `StatsOverviewWidget` and overrode its native schema grid columns to `default => 2` and `lg => 5`.
+- Added the scoped `zz-business-overview-stat` class to this widget's stats only. The Filament admin theme sets the root card padding to exactly `10px` and the value font size to exactly `20px` with a matching line-height; no other stat widget is affected.
+- Added a regression test that checks the PHP grid configuration, every stat's scoped class, the exact CSS rules, and the rendered Livewire HTML's 2/5-column CSS variables.
+
+Important changed/added files:
+
+- `app/Filament/Widgets/BusinessOverview.php`
+- `resources/css/filament/admin/theme.css`
+- `tests/Feature/BusinessOverviewLayoutTest.php`
+- `PROJECT_GUIDE.md`, `ERP_PHASE_ROADMAP.md`, and `CHANGELOG.md`
+
+Verification:
+
+- `php artisan test tests/Feature/BusinessOverviewLayoutTest.php`: 1 passed (18 assertions).
+- Scoped PHP syntax checks and `vendor\\bin\\pint --test` passed.
+- `npm.cmd run build` passed and compiled the updated Filament theme bundle.
+- Automated browser visual QA could not run because the in-app browser connection was unavailable in this environment; the responsive CSS variables are covered by the server-rendered Livewire assertion instead.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Product stat cards: exact 5/2-column grid, 20px value, 10px padding
+
+Reason:
+
+- The owner reviewed the stat cards from the previous entry below and asked for an exact layout: 5 cards per row on desktop, 2 per row on mobile, 20px value font size, 10px card padding.
+
+What happened:
+
+- Rebuilt `ProductStatsOverview` from a `StatsOverviewWidget`/`Stat::make()` widget into a hand-built `Widget` + Blade view (`resources/views/filament/resources/products/widgets/product-stats-overview.blade.php`), reusing Filament's own native `fi-wi-stats-overview-stat*` CSS classes on custom markup — the exact same technique `CourierMerchantDashboard`'s status cards already use (see the comment there), which was necessary because `Stat::make()` doesn't expose pixel-level padding/font-size control or a 5-column grid.
+- Grid: `grid grid-cols-2 gap-4 lg:grid-cols-5` (2 cols below `lg`, 5 at `lg`+). Padding: `!p-[10px]` on the card's outer `.fi-wi-stats-overview-stat` element (verified via computed styles that this element, not `-content`, carries Filament's default 24px padding). Value font size: `!text-[20px]` on `.fi-wi-stats-overview-stat-value`.
+- These are new Tailwind arbitrary-value utility classes that didn't exist in the previously compiled CSS bundle, so `npm run build` was required — confirmed via browser computed-style checks (`getComputedStyle`) before and after the rebuild: font-size went from Filament's default 30px to the requested 20px, outer padding from 24px to 10px.
+- Browser-verified directly this time (the owner's session was already logged in): desktop screenshot shows 5 cards in one row, mobile-preset (375px) screenshot shows exactly 2 per row, both confirmed via computed styles, not just visually.
+
+Important changed/added files:
+
+- `app/Filament/Resources/Products/Widgets/ProductStatsOverview.php` — rewritten (`Widget`, not `StatsOverviewWidget`; public `stats()` returns label/value/icon/color rather than `Stat` objects).
+- `resources/views/filament/resources/products/widgets/product-stats-overview.blade.php` — new.
+- `tests/Feature/ProductStatsOverviewTest.php` — updated to call the new public `stats()` method directly instead of reflecting into `getStats()`.
+
+Verification:
+
+- `php artisan test tests/Feature/ProductStatsOverviewTest.php`: 1 passed (5 assertions).
+- `npm run build`: succeeded.
+- Manual browser pass: desktop (5-column) and mobile-preset (2-column) screenshots, `getComputedStyle` checks for `font-size`/`padding` on the live page, no server errors in `preview_logs` after the rebuild.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Products list: 5 stat cards (Total/New/Active/Inactive SKU, Total Variants)
+
+Reason:
+
+- The owner opened Nuport's "Products & Pricing" list page and asked for the same 5 stat cards it shows at the top (Total SKU, Total Variants, New SKU, Active SKU, Inactive SKU) on our Products page, plus a general "explore the rest" review. Plan approved in plan mode. Everything else found on Nuport's products pages (role-based Distributor/Retailer pricing, per-product order-usage table, per-product trend charts, a much more granular multi-warehouse inventory pipeline, an "Internal ID" field) was documented as findings in the plan file but deliberately **not built** — those are real product/scope decisions for the owner to prioritize, not something to invent per `CLAUDE.md`.
+
+What happened:
+
+- Nuport counts every SKU-bearing row: a variant-less product is one row, a variant-bearing product is one "Base Product" row plus one row per variant. Mapped onto our schema with no migration: `Total SKU = Product::count() + ProductVariant::count()`, `Total Variants = ProductVariant::count()`, `New SKU` = both counted with `created_at` in the last 7 days (Nuport's own value was 0, so the exact window wasn't visible — 7 days is a reasonable, easily-adjustable default), `Active/Inactive SKU` = both counted by `is_active`.
+- New `app/Filament/Resources/Products/Widgets/ProductStatsOverview.php` (`StatsOverviewWidget`, mirrors the existing `StorefrontRecoveryOverview` pattern), registered via `ListProducts::getHeaderWidgets()`.
+
+Important changed/added files:
+
+- `app/Filament/Resources/Products/Widgets/ProductStatsOverview.php` — new.
+- `app/Filament/Resources/Products/Pages/ListProducts.php` — `getHeaderWidgets()`.
+- `tests/Feature/ProductStatsOverviewTest.php` — new, asserts all 5 counts against a mix of active/inactive products and variants, backdated vs recent, plus a second company to prove `CompanyScope` isolation.
+
+Verification:
+
+- `php artisan test tests/Feature/ProductStatsOverviewTest.php`: 1 passed (5 assertions).
+- Regression: `php artisan test tests/Feature/ProductCsvTest.php tests/Feature/ProductStockFormTest.php tests/Feature/ProductCarouselTest.php tests/Feature/ProductVariantTest.php`: 16 passed (64 assertions), no existing product test file needed updating.
+- `php -l` on every new/changed PHP file.
+- Manual browser pass on the Products list was not completed — same missing local `ADMIN_PASSWORD` limitation as the order-detail-page work below; please confirm the cards render correctly on your own login.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Order detail page: Payments/Costs ledgers, Profit, Activity feed, Prev/Next nav
+
+Reason:
+
+- The owner opened a competitor ERP's (Nuport) order detail page side by side with ours and asked for a plan to add every metric there that our app doesn't have. After browsing that page and reading our actual `Order`/`OrderItem`/`Customer`/`Product` code, most of it turned out to already exist (customer type, source, weight, variant, courier margin fields) and just needed surfacing; the genuine gaps were an order-level payment ledger, an order-level cost ledger, and a narrated activity feed. Plan approved in plan mode; implemented Phase 1 (ledgers) and Phase 2 (display upgrades, activity feed, prev/next nav) from that plan. Phase 3 items (attachments, internal-notes thread, requested-vs-delivered qty, delivery type) were explicitly left out pending owner confirmation they're real requirements, per `CLAUDE.md`'s rule against inventing business rules.
+
+What happened:
+
+- **Payments History ledger** — new `OrderPayment` model/table (`type`, `method`, `amount`, `note`, `received_by`, `paid_at`). `Order::paid_amount`/`due_amount` are now derived from `SUM(order_payments.amount)` via `Order::recalculatePaidAmount()` (mirrors how `CustomerPayment` already syncs `Customer::current_balance`), recomputed whenever a payment row is added/edited/deleted. Order creation still seeds one `advance` payment row from whatever was typed into the existing one-field "Paid Amount" input (`Order::booted()`'s new `created` hook), so the create flow is unchanged. Managed via a new **Payments History** `RelationManager` on the order view page. The `OrderForm` `paid_amount` field is now read-only once the order exists — corrections go through the ledger instead of typing a new total, so the two write paths can't disagree.
+- **Associated Costs ledger** — new `OrderCost` model/table (`cost_head`: purchase/courier_delivery/cod/other, `amount`, `note`), managed via a new **Associated Costs** `RelationManager`, matching Nuport's exact 4 cost heads (confirmed live in the browser).
+- **Profit figure** — `Order::profit()` = `total_amount` − per-line COGS (`OrderItem::unit_cost`, already existed) − `Order::totalCost()` (the new ledger). Shown on `OrderInfolist`'s Totals section alongside a new Total Weight figure.
+- **Display upgrades** (no schema changes) — `OrderInfolist` now shows the customer's type badge, a click-to-WhatsApp phone link (same `wa.me` normalization `QuotationsTable`'s "Share on WhatsApp" already uses), and each line item's variant label and product weight.
+- **Narrated Activity feed** — new `OrderActivityFeedService` turns the existing raw `AuditLog` rows (plus courier `CourierStatusLog` history) into short sentences ("Payment of BDT 500.00 added by Rahim.") on a new Activity section on the order view page. `AuditLogService::record()` already accepted an arbitrary action string, so two new non-CRUD events were added with no schema change: `'viewed'` (logged once per user per 5 minutes from `ViewOrder::mount()`) and `'printed'` (logged from both `orders.print` and `orders.print.bulk` routes).
+- **Previous/Next navigation** — two header icon-button `Action`s on `ViewOrder` resolve the id-adjacent order (company-scoped via the existing `CompanyScope`) and link to it, matching Nuport's `< >` arrows.
+
+Important changed/added files:
+
+- `database/migrations/2026_08_14_010000_create_order_payments_table.php`, `2026_08_14_020000_create_order_costs_table.php` — new tables.
+- `app/Models/OrderPayment.php`, `app/Models/OrderCost.php` — new models (`BelongsToCompany` + `CompanyScope`).
+- `app/Models/Order.php` — `payments()`/`costs()` relations, `recalculatePaidAmount()`, `totalCost()`, `profit()`, the `created` auto-seed hook.
+- `app/Filament/Resources/Orders/RelationManagers/PaymentsRelationManager.php`, `CostsRelationManager.php` — new (mirrors the existing `CostItemsRelationManager`/`StatusTransitionsRelationManager` pattern), registered in `OrderResource::getRelations()`.
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php` — `paid_amount` read-only on edit.
+- `app/Filament/Resources/Orders/Schemas/OrderInfolist.php` — customer type/WhatsApp, item weight/variant, Total Weight/Associated Costs/Profit, new Activity section.
+- `app/Services/OrderActivityFeedService.php` — new.
+- `app/Filament/Resources/Orders/Pages/ViewOrder.php` — `mount()` viewed-logging, Previous/Next actions.
+- `routes/web.php` — 'printed' logging on both print routes.
+- `app/Providers/AppServiceProvider.php` — registers `AuditObserver` for the two new models.
+- `tests/Feature/MultiCompanyIsolationTest.php` — adds `OrderPayment::class`, `OrderCost::class`.
+- `tests/Feature/OrderLedgersTest.php` — new, 8 tests covering the auto-seed, add/edit/delete recomputation, validation guards, and profit math.
+
+Verification:
+
+- `php artisan test tests/Feature/OrderLedgersTest.php`: 8 passed (22 assertions).
+- `php artisan test tests/Feature/MultiCompanyIsolationTest.php tests/Feature/OrderBulkPrintTest.php tests/Feature/OrderFormTest.php tests/Feature/OrderStatusWorkflowTest.php tests/Feature/OrderTrashWorkflowTest.php tests/Feature/SalesOrderTest.php`: all passed, no regressions.
+- `php -l` on every new/changed PHP file.
+- Applied the two new migrations to the local dev database (`php artisan migrate`, additive only).
+- Manual browser pass on the order view page was not completed — the local dev admin login credentials weren't available in this session (no `ADMIN_PASSWORD` in `.env`), so the new Payments History/Associated Costs/Activity/Prev-Next UI hasn't been visually confirmed yet. Backend logic is fully covered by the automated tests above; please give it a look on your own login.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Orders trash workflow and permanent cleanup
+
+Reason:
+
+- The Orders bulk menu exposed **Delete selected** as an immediate deletion. The owner requested **Move to trash**, a Trash button beside Bulk actions, a popup listing trashed orders, row-by-row or select-all restoration, and a way to permanently delete that trash.
+
+Important changed files:
+
+- `database/migrations/2026_08_14_030000_add_soft_deletes_to_orders_table.php` - adds `orders.deleted_at`.
+- `app/Models/Order.php` - enables `SoftDeletes`; confirmed permanent deletion cleans restrictive courier-booking children before deleting the order; restored orders rebuild their stock and customer-balance effects through the existing order workflow sync.
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php` - relabels/configures the bulk action as **Move to trash** and adds the default Filament **Trash** toolbar action, count badge, embedded trash-table modal, destructive confirmation, notifications, and **Delete permanently** behavior. The action is hidden in All Companies mode and every mutation query fails closed without one active company.
+- `app/Livewire/OrderTrashTable.php` and `resources/views/livewire/order-trash-table.blade.php` - render the popup list through Filament's native Table UI with per-row checkboxes, header Select all, search/sort/pagination, row-level **Restore**, and confirmed **Restore selected** bulk action. Both single and bulk restore rebuild stock/customer-balance effects, report success/failure, and remain explicitly company-scoped.
+- `app/Filament/Resources/Orders/OrderResource.php` - applies the existing Super Admin sensitive-delete permission to force deletion.
+- `tests/Feature/OrderTrashWorkflowTest.php` - covers soft deletion, active-list hiding, toolbar/modal configuration, company isolation, row-specific restoration, checkbox-driven single/multi selection restoration, restored stock effects, courier-booking cleanup, permanent deletion, permission visibility, and All Companies fail-closed behavior.
+- `PROJECT_GUIDE.md` - documents behavior, permissions, isolation, cleanup, and verification.
+
+Verification:
+
+- `php artisan test tests/Feature/OrderTrashWorkflowTest.php`: 6 passed (70 assertions).
+- Restore regression suite: `OrderBulkPrintTest`, `SalesOrderTest`, and `OrderStatusWorkflowTest`: 13 passed (59 assertions). The earlier courier regression remains 27 passed (126 assertions).
+- Scoped Laravel Pint check passes for all changed PHP files.
+
+Commit status:
+
+- Not committed. Commit and push require explicit owner approval.
+
+## 2026-08-14 - Courier filter uses Filament default Select UI
+
+Reason:
+
+- The Courier Merchant Dashboard's provider filter rendered as a browser-native dropdown and did not match Filament's admin UI. The owner requested Filament's default dropdown design.
+
+Important changed files:
+
+- `app/Filament/Pages/CourierMerchantDashboard.php` - added a live, non-native Filament `Select` schema bound to `providerFilter`, constrained with Filament's `Width::ExtraSmall`, and visible only when more than one provider is active.
+- `resources/views/filament/pages/courier-merchant-dashboard.blade.php` - removed the raw select/input-wrapper markup and renders the page's Filament form schema only for multiple active providers.
+- `tests/Feature/CourierIntegrationTest.php` - verifies the Select is non-native, live, visibly labelled, compact-width, contains the aggregate plus provider options, preserves filtering, and becomes hidden after only one provider remains active.
+- `CHANGELOG.md` and `PROJECT_GUIDE.md` - document the Filament-only UI pattern.
+
+Verification:
+
+- `php artisan test --compact tests/Feature/CourierIntegrationTest.php`: 27 passed (126 assertions), including compact width, multiple-active visibility, single-active hiding, and live filtering.
+- Changed PHP files pass `php -l`; scoped `git diff --check` passes.
+- In-app browser visual verification could not start in the current sandbox session; no alternate browser tool was used. Automated rendering/schema verification remains green.
+
+Commit status:
+
+- Not committed. Commit and push require explicit owner approval.
+
+## 2026-08-14 - Fix print/print-to-PDF right-edge clipping + modern invoice font
+
+Reason:
+
+- Owner tested printing invoices (including the new bulk print feature) and attached a real "Print to PDF" output showing every invoice's right edge cut off — not usable. Also asked for the invoice font to be a lighter, more modern typeface (design/layout otherwise fine).
+
+What happened:
+
+- Root cause: `orders/partials/invoice-styles.blade.php` set both a CSS `@page { margin: 10mm 12mm; }` **and** built the same 10mm/12mm margin into `.invoice`'s own padding for screen display, with a `@media print` override that swapped `.invoice` to `width: 100%; padding: 0` to rely solely on the `@page` margin while printing. Print destinations (a real printer, "Microsoft Print to PDF", Chrome's own "Save as PDF") don't all honor a CSS `@page` margin consistently — some ignore it, some add their own default margin on top — so depending on the destination the rendered content could end up wider than the actual printable area, clipping the right edge. This matches exactly what the attached PDF showed.
+- Fix: `@page { margin: 0; size: A4; }` — no external page margin for any print destination to disagree about. `.invoice` no longer gets a print-only `width`/`padding` override, so it keeps its normal 210mm-wide box with the 10mm/12mm margin baked into its own padding in *every* context (screen and print alike) — what's on screen is now exactly what prints, regardless of print destination. `min-height` in print goes back to the full A4 height since there's no external margin to subtract anymore.
+- Font: `body`'s `font-family` changed from `Arial, Helvetica, sans-serif` to `'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif` — a lighter, more modern look on whichever OS is doing the printing, still falling back to the original Arial/Helvetica if neither is available. No layout/weight/size changes, per the owner's "design is fine" note.
+- Both fixes live in the shared `orders/partials/invoice-styles.blade.php` partial (from the same-day bulk-print refactor), so they automatically apply to both the single-order print (`orders.print`) and the new bulk print (`orders.print.bulk`) — no duplicate edit needed.
+
+Verification:
+
+- `php artisan test --filter=InvoiceDesignTest`: 8 passed, including the two tests that assert print/mobile CSS specifics (`mobile_layout_does_not_override_the_a4_print_layout`, `print_typography_matches_the_compact_reference_scale`) — confirms the CSS restructuring didn't change any asserted value.
+- `php artisan test --filter=OrderBulkPrintTest`: 4 passed — confirms the bulk print route/action still work after the shared-partial edit.
+- Parsed the live page's CSSOM in the browser to confirm the compiled rules are exactly as intended: `@page { margin: 0px; size: a4; }` and `.invoice { border: 0px; box-shadow: none; margin: 0px; min-height: var(--page-height); }` (no `width`/`padding` override left in the print block) — and confirmed the computed `body` font-family resolves to the new stack.
+- Actually triggering a real print/print-to-PDF from this sandboxed browser tool blocks on the native OS print dialog (confirmed indirectly — the tooling hung exactly as expected when `window.print()` fired for the bulk print route, proving the auto-print trigger itself still works). The owner's original bug report was itself a real "Print to PDF" output, so the fix should be confirmed by the owner re-printing on their own machine.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Orders list: bulk "Print invoices" (select orders, print all invoices in one click)
+
+Reason:
+
+- Owner asked for one more Orders list bulk-action metric: select multiple orders and print all their invoices in one click, with the print preview shown in the PC/mobile's default print app (i.e. the browser/OS print dialog, same as the existing single-order print).
+
+What happened:
+
+- Refactored the single-order print view (`resources/views/orders/print.blade.php`) so its CSS and per-invoice markup live in two shared partials — `orders/partials/invoice-styles.blade.php` and `orders/partials/invoice.blade.php` (wrapped in a `.invoice-page` div so a new `.invoice-page + .invoice-page { page-break-before: always; }` rule can force a page break between orders on the bulk page, harmless as a no-op on the single-order page). No visual/behavioral change to the existing single-order print — re-verified against `InvoiceDesignTest`, `CompanySettingsTest`, and `PhaseThreeAdminPagesTest` (all still passing) plus a live browser check.
+- New route `orders.print.bulk` (`GET /admin/orders/print-bulk?orders=1,2,3`, `web.php`) and new view `orders/print-bulk.blade.php`: resolves the comma-separated order IDs (via `Order::query()`, so `CompanyScope` silently drops any ID outside the current company rather than leaking or erroring), renders every resolved order's invoice through the shared partial, and always auto-triggers `window.print()` on load (bulk print is only ever reached by explicitly clicking the button, so no `?print=1` opt-in like the single-order view). 404s if nothing valid remains after company-scoping.
+- New `OrdersTable` bulk action **Print invoices**. First attempt used `->url()` + `->openUrlInNewTab()` (mirroring the row-level "print" action) — caught live in the browser that this was broken: a bulk action's trigger link is rendered once and does not re-evaluate as checkboxes are (de)selected client-side, so the pre-rendered `href` kept pointing at whatever selection existed at the table's last full render (usually `?orders=` empty, i.e. a 404). Fixed by switching to `->action()` (same mechanism `bookCourierBulk` already uses, so `$records` always reflects the true live selection) plus `$livewire->js('window.open(...)')` to open the new tab from the server response. No `->schema()`/`->requiresConfirmation()`, so it's still one click.
+
+Verification:
+
+- New `tests/Feature/OrderBulkPrintTest.php`, 4 tests: bulk route renders every selected order's invoice and includes the auto-print trigger; only includes orders belonging to the current company (two-company isolation check); 404s on no valid order IDs; the Filament bulk action exists/has the right label+icon and calls `OrdersTable::printInvoicesBulk()` with exactly the selected orders (verified directly via reflection + a `$livewire` test double capturing the `js()` call, since asserting on a Livewire "js" effect isn't part of the public testing API).
+- `php artisan test --filter=OrderBulkPrintTest`: 4 passed. Re-ran `InvoiceDesignTest` (8 passed), `CompanySettingsTest` (23 passed), `PhaseThreeAdminPagesTest` (1 passed), and `CourierIntegrationTest` (27 passed) to confirm the shared-partial refactor and the same `OrdersTable.php` file didn't regress anything already covered.
+- Manually verified live on the local dev server: selected 2 orders, opened Bulk actions → Print invoices — confirmed (via a `window.open` interception) it opened `orders/print-bulk?orders=1,2` reflecting exactly the current selection; navigated there directly and confirmed the tab title read "2 Invoices" and the native print dialog opened automatically (the browser automation tooling itself blocked on it, which is the expected proof it fired). Re-confirmed the single-order print view (`/admin/orders/1/print`) still renders correctly after the partial refactor.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Unified "Book courier" popup (row + bulk), courier pre-selected and changeable
+
+Reason:
+
+- Immediate follow-up to the default-courier/bulk-booking work: owner asked that both the row-level and bulk "Book courier" actions open a popup showing the default courier pre-selected, changeable before confirming, and clarified that the Orders list no longer needs separate per-courier buttons (Book Steadfast/Pathao/RedX/E-Courier) — just one "Book courier" button that does all of it.
+
+What happened:
+
+- **Row-level**: the five separate `Action::make()` buttons in `OrdersTable` (bookCourier/bookSteadfast/bookPathao/bookRedx/bookECourier) are now one `bookCourier` action. Its popup schema (`unifiedBookingForm()`) has a single `Select::make('courier_provider_id')` (`->live()`, defaulting to the order's own assigned courier or the company default) whose selection reactively shows/hides each driver's extra fields via `Get`-based `->visible()` closures — verified live in the browser that switching the select from Steadfast to Pathao correctly swapped "Alternative Phone"/"Recipient Email" out for "Store ID"/"City ID"/"Zone ID"/"Area ID".
+- Found and fixed a real field-name collision while merging the four driver-specific forms into one schema: `recipient_city`/`recipient_area`/`delivery_type` are used by more than one driver with different meanings (e.g. Pathao's `recipient_city` is a numeric ID, E-Courier's is a plain city name; Steadfast's `delivery_type` is home/point delivery, Pathao's is normal/on-demand) — two Filament form components can't safely share one state path in the same schema. Fixed by prefixing every driver-specific field (`sf_`/`ph_`/`rx_`/`ec_`) and adding `OrdersTable::bookingPayloadFor(CourierProvider, array $data)` to strip the prefix back off into the flat shape `CourierService::create*Booking()` already expects — those service methods themselves needed no changes.
+- **Bulk**: redesigned from "each order books through its own assigned provider" (the previous entry's design) to "one courier chosen in the popup, applied to every selected order" — a single `Select::make('courier_provider_id')`, pre-filled from `CourierProvider::defaultForCompany()`, changeable before confirming. Its options are restricted to `BULK_SAFE_DRIVERS` (Steadfast, Manual only) since Pathao/RedX/E-Courier need per-order fields that can't be shared across a batch of different recipients — rather than list them and then silently skip everything (confusing), they're simply not offered as bulk options at all; the row-level action is where those belong.
+- Rewrote both affected automated tests to match the new semantics (the old bulk test asserted "each order's own assigned provider" behavior, which no longer applies) and added a new test for the unified row action switching drivers.
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest`: 27 passed — includes `orders_list_bulk_book_courier_uses_the_one_courier_chosen_in_the_popup_for_the_whole_batch` (asserts the popup pre-selects the default and applies it to every selected order) and `orders_list_book_courier_action_is_unified_and_books_through_the_selected_driver` (asserts the old per-driver actions no longer exist, the popup defaults to the company's default courier, and switching to a different courier before submitting books through that one instead).
+- Manually verified live on the local dev server: Orders list rows now show a single "Book courier" button (confirmed via page text — no more Book Steadfast/Pathao/RedX/E-Courier); its popup pre-selects "Demo Steadfast (sandbox) (Steadfast) — Default" with the Steadfast-specific fields showing, and switching the select to "Pathao (Pathao)" correctly swapped in Pathao's fields (Store ID/City ID/Zone ID/Area ID) live; the bulk "Book courier" popup (selecting all 10 visible demo orders) showed the same default-preselected courier select with the expected helper text about Pathao/RedX/E-Courier not being offered — cancelled rather than confirming, to avoid mutating demo order data during a UI check (the actual booking behavior is already covered end-to-end by the automated tests using `Http::fake()`).
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Default courier + Orders list bulk booking
+
+Reason:
+
+- Follow-up to the multi-courier dashboard: owner asked for a way to mark one courier as the default, have website/storefront orders automatically use it (still changeable per order before booking), and be able to select multiple orders from the list and book them all with one click.
+
+What happened:
+
+- Migration `2026_08_14_000000_add_default_courier_and_order_courier_preference`: `courier_providers.is_default` (boolean) + `orders.courier_provider_id` (nullable FK, `nullOnDelete`).
+- `CourierProvider`: `is_default` fillable/cast; a `saved` model event enforces at most one default per company (setting one unsets all others in the same company); new `CourierProvider::defaultForCompany(?int $companyId)` resolves the default, falling back to the company's sole active provider if none is explicitly flagged (so a single-courier company doesn't need to remember to flip a toggle).
+- `Order`: new `courier_provider_id` fillable + `courierProvider()` relation; the existing `creating` model event (already defaulting `order_number`/`status`/`shipping_zone` etc.) now also pre-fills `courier_provider_id` from `CourierProvider::defaultForCompany()` whenever it isn't explicitly set. Confirmed this one hook covers **both** origins the owner asked about — storefront checkout (`CheckoutController`) and admin-created orders both call `Order::query()->create()`, so neither needed its own separate wiring.
+- `CourierProviderResource`: new "Set as default courier" toggle (with explanatory helper text) next to "Active", plus a "Default" column on the list.
+- `OrderForm`: new native Filament `Select::make('courier_provider_id')` ("Courier") next to Delivery Status — pre-filled by the model event on new orders, left enabled (unlike the Order/Delivery Status selects beside it) so it stays editable right up until the order is actually booked, per the owner's explicit ask.
+- `OrdersTable`: new **Book courier** bulk action. Books every selected, not-yet-booked order through its own assigned courier (or the company's default). Steadfast/Manual bookings need no extra input beyond what the existing `steadfastPayload()`/`createManualBooking()` already derive from the Order/Customer, so those go straight through; Pathao/RedX/E-Courier require structured per-order fields (city/zone/area IDs, delivery area names, ...) that don't exist on the Order model — rather than invent plausible-looking values for a batch of different recipients (which CLAUDE.md's "never invent placeholder business rules" rules out, and which could genuinely mis-route a real parcel), those are counted and skipped with a clear reason in the completion notification, alongside already-booked/no-courier/failed counts.
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest`: 26 passed — 2 new tests (`default_courier_is_enforced_to_one_per_company_and_pre_fills_new_orders`, `orders_list_bulk_book_courier_books_through_each_orders_assigned_provider_and_skips_the_rest`) plus the 24 from the earlier multi-courier dashboard work, unaffected.
+- Manually verified live on the local dev server: toggled "Set as default courier" on the Steadfast sandbox provider and saved — Providers list "Default" column flipped to Yes; opened an existing order and confirmed the new "Courier" select is enabled (unlike the disabled Order/Delivery Status selects) and offers both configured providers, with the default one labelled "(Default)"; selected multiple demo orders on the Orders list and confirmed the "Book courier" bulk action appears with the expected confirmation copy — cancelled rather than confirming, to avoid mutating demo order data during a UI check (the actual booking logic is already covered end-to-end by the automated test using `Http::fake()`).
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Multi-courier Merchant Dashboard: courier selector + All Couriers aggregation
+
+Reason:
+
+- Owner added a second courier provider (Pathao, alongside the existing Steadfast sandbox) and asked two things: how to tell which courier a booking went through once there's more than one, and for the dashboard to show combined totals across all couriers by default while still being able to drill into one specific courier's data.
+
+What happened:
+
+- `CourierMerchantDashboard` was Steadfast-only everywhere (`activeProvider()` hardcoded `DRIVER_STEADFAST`, every query filtered by that driver). Reworked to be provider-agnostic: a new "Courier" `<select>` (`providerFilter`, `#[Url(as: 'courier')]`, bookmarkable) drives every section — Balance, Delivery Performance, Booking Status Summary, Recent Consignments, Recent Returns, and the Manage quick-link counts. Default is **All Couriers** (every section aggregates across every provider the company has); picking one scopes everything to just that provider.
+- `providerFilter` is a **string** sentinel (`'all'` or the provider id as text), not `?int` — confirmed a `?int` property throws a TypeError when Livewire assigns the "All Couriers" option's value to it, since only numeric strings coerce to `int` on a typed property assignment; this mirrors the Inbox page's existing `$assignedFilter` string-sentinel pattern. `selectedProviderId()` is the one place that turns it into a real `?int` for every query.
+- Recent Consignments and the Booking Status Summary modal both gained a **Courier** column/badge per row, directly answering "কিভাবে বুঝব কোন কুরিয়ারে বুকিং হয়েছে" (how do I know which courier a booking went through).
+- Balance: `AbstractCourierAdapter::balance()` returns `null` for couriers with no balance endpoint wired up (everything except Steadfast today) — All Couriers mode silently skips those; explicitly selecting one still says "This courier doesn't expose a balance check" rather than showing nothing.
+- The nested **Manage** quick-links widget (`CourierQuickLinksWidget`) is provider-scoped too — it now accepts `providerId` via `@livewire(Widget::class, ['providerId' => ...], key('courier-quick-links-'.($id ?? 'all')))`. The `key()` changing when the selection changes is required: confirmed a nested `@livewire()` component is its own independent Livewire instance that does **not** re-`mount()` just because the parent page re-renders with a different array value — only a changed key forces a fresh instance.
+- **Found live, not by a test**: `CourierReportService::providerPerformance()`'s rows are raw `stdClass` from a manual `->select()`, not Eloquent models. Storing that in a public Livewire property (`public Collection $performance`) rendered correctly on first load but silently reset to an empty collection after any subsequent Livewire round-trip — caught by clicking a Booking Status Summary card, closing the modal, and noticing "Delivery Performance" had gone from real numbers to "No bookings yet." with nothing else on the page having changed. A fresh full page load rendered it correctly again, confirming it was specifically a wire:snapshot hydration issue with plain `stdClass` objects, not a query bug. Fixed by not storing `performance`/`balances`/`recentReturns` as properties at all — they're now plain methods recomputed fresh on every render, the same pattern `statusCounts()`/`providers()` already used. Re-verified live after the fix: open → close the same modal, "Delivery Performance" now keeps its real numbers.
+- Verified the sandbox `create_order` → status-sync → dashboard flow end-to-end for the first time this session (earlier verification had only covered `get_balance`/`payments()`/`payment()`): created one clearly-labeled test order (`MAIN-20260814-0001`, customer "ZamZam Sandbox Verify") and booked it through the real Steadfast sandbox — got back a real tracking code (`SFR260814ST2EB54DBBD`) and consignment id, synced its status successfully, and confirmed it appeared live on the dashboard (Booking Status Summary, margin, Manage counts). Whether to keep it or clean it up is still an open question put to the owner — it currently remains in the local dev database.
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest`: 24 passed (3 new tests — All Couriers aggregation + per-provider scoping via `statusCounts()`, the Booking Status Summary modal showing both providers' names, and the balance section correctly marking Pathao as unsupported).
+- Manually verified live on the local dev server with two real providers (Steadfast sandbox + Pathao): default load aggregates both; selecting Pathao shows all-zero counts and "This courier doesn't expose a balance check"; selecting Steadfast shows its real sandbox booking; the Manage section's counts changed correctly on each selection (proving the `key()` remount fix works); the modal-hydration bug is confirmed fixed by the same open/close/reload sequence that first exposed it.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Courier dashboard card redesign: native Filament styling, 5/2 grid, color tints
+
+Reason:
+
+- Owner asked (screenshot of steadfast.com.bd's own consignment list) whether all of Steadfast's data/dashboard could be controlled from ZamZam directly. Confirmed Steadfast's public API has no "list all consignments" endpoint (checked three independent sources), so any list our app shows can only ever be consignments booked *through* ZamZam itself. Owner chose a process rule over new code: book everything from ZamZam ERP going forward, not steadfast.com.bd directly. Documented in `PROJECT_GUIDE.md` and saved as a memory.
+- Owner then flagged that the Booking Status Summary cards "lost Filament's default design" (compared to the reference Manage section, which already used a native `Stat` widget) and asked for: description text removed from under each count, a 5-cards-per-row desktop / 2-per-row mobile layout matching a reference screenshot, the same treatment + matching font sizes applied to Manage, and — in follow-up messages mid-turn — the Manage cards' descriptions removed too, and finally a distinct semi-transparent color per card in both sections.
+
+What happened:
+
+- Root cause of the "lost design": the hand-built Booking Status Summary cards used approximated Tailwind utilities (`text-2xl`, `p-4`, `border`) instead of Filament's actual compiled card styles (`text-3xl` value, `p-6`, `ring-1`/`shadow-sm`), so they visually drifted from the Manage section's native `StatsOverviewWidget` cards.
+- Fixed by having the hand-built `<button wire:click="mountAction(...)">` cards reuse Filament's own compiled `.fi-wi-stats-overview-stat*` class names directly (shipped in `vendor/filament/filament/dist/theme.css`, loaded on every panel page regardless of which PHP component emits the class) instead of approximating them — now pixel-identical to native `Stat` cards. A real `Stat`/`StatsOverviewWidget` couldn't be used for these cards because `Stat::make()->url()` only supports plain navigation, not a `wire:click` modal action (established earlier this session).
+- Removed the description text/badge from every Booking Status Summary card, and (per the owner's follow-up message) every Manage card too — `CourierQuickLinksWidget::getStats()` no longer calls `->description(...)`. The Webhook Logs failed-webhook alert signal now lives entirely in the card switching to `danger` color rather than in explanatory text.
+- Both grids now use `grid-cols-2 lg:grid-cols-5` (2 per row on mobile, 5 on desktop, matching the owner's reference screenshot). `CourierQuickLinksWidget::getColumns()` overrides the base `StatsOverviewWidget`'s auto-computed column count (which picks 3 or 4 based on stat count) to force the same breakpoints as the Booking Status Summary grid, so both sections read as one consistent layout with matching font sizes automatically (both now literally share the same `fi-wi-stats-overview-stat-value`/`-label` CSS classes).
+- Added `CourierMerchantDashboard::statCardTint(string $color): array` — maps a Filament color name (`primary`/`info`/`success`/`warning`/`danger`/`gray`, the only names Filament registers by default) to `['!bg-{color}-50 dark:!bg-{color}-400/10', 'hover:!bg-{color}-100 dark:hover:!bg-{color}-400/20']`. The `!` (Tailwind important) prefix is required because Filament's `.fi-wi-stats-overview-stat` class already bakes in `bg-white`/`dark:bg-gray-900` at the same utility specificity — an unmarked override isn't guaranteed to win the cascade. Applied to the Booking Status Summary buttons directly in Blade, and to Manage's native `Stat` cards via `->extraAttributes(['class' => ...])` (`Stat` has `HasExtraAttributes` in its inheritance chain, which the vendor `stat.blade.php` merges onto the root element). Changed `in_progress`'s color from `warning` to `info` and Manage's "Status Logs" from `gray` to `info` so no two adjacent cards in either grid share an identical tint by default.
+- Verified live that `primary`'s tint correctly tracks the active company's own dynamic brand color (`DynamicColorService` sets `--primary-*` via an inline `<style>` per request) rather than a build-time-baked default — confirmed by inspecting the computed CSS custom properties in the browser, which is why "Main Company"'s primary-tinted cards render green (its configured dashboard color) rather than the fallback amber.
+- Required an `npm run build` after each Blade/PHP change — the new Tailwind utilities (`lg:grid-cols-5`, `!bg-primary-50`, etc.) don't exist in the already-compiled `public/build/assets/theme-*.css` until Tailwind's `@source`-scanning rebuild picks up the new literal class-name strings.
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest`: 21 passed, twice (once after the layout/description changes, again after the color-tint changes) — no test asserted the removed description text, so nothing needed updating.
+- Manually verified live on the local dev server (`localhost:8931`) at desktop (1280px) and mobile (375px) viewports, and in dark mode: both grids show 5/2 columns correctly, no description text remains, every card has a distinct tint with legible text, and clicking a Booking Status Summary card still opens the correct filtered modal (regression-checked, since the button's classes were rewritten).
+- Full `php artisan test` (plain, no `--env`): 625 passed, 5 failed — the same 5 pre-existing, unrelated failures as every prior run this week (`ReleaseNotesTest` ×3, `StorefrontCustomerAdvanceAndComplaintTest`/`StorefrontIncompleteCheckoutRecoveryTest` ×1 each). No regressions from this round's card-design changes.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Clickable Booking Status Summary cards + Payment Details redesign
+
+Reason:
+
+- Owner asked for the Booking Status Summary cards to be clickable, opening a popup with that status's own bookings, and separately asked (via the `/web-design-guidelines` skill) for the Payment Details popup — which had been plain flattened "key: value" text — to be redesigned using Filament's own default UI components.
+
+What happened:
+
+- **Payment Details modal redesign**: `CourierPaymentHistory::paymentDetailEntries()` rewritten from one flat list of `TextEntry` rows into structured `Section`s — "Settlement Summary" (money-formatted amounts, a colored status badge, columns(4) grid), "Timeline" (formatted dates), "Consignments" (a `RepeatableEntry` — tracking code, invoice, status badge, COD amount, recipient, phone, address — one mini-card per consignment instead of a comma-joined string), and a collapsed "Additional Details" fallback for any field outside the confirmed shape. Found and fixed a real bug in the process: the summary/timeline entries weren't given an explicit `->state()`, so Filament tried to resolve them from the mounted table row instead of the fetched payment detail — they rendered as blank rather than 40,541.00 until fixed.
+- **Booking Status Summary cards made clickable**: first attempt linked each card (`Stat::make()->url(...)`) to `CourierBookingResource` with `?tableFilters[status][values][]=...` — cross-checked against Filament's `SelectFilter` source for the correct `value`/`values` query-string keys, but confirmed live in the browser (real click-through, then a manually-crafted URL to rule out a click-timing issue) that this Filament install doesn't apply table filters from a cold GET request at all — the filter badge stayed at 0 and every row still showed. Abandoned that approach rather than ship something that only looks like it works. Rebuilt as a page-level modal instead: `CourierMerchantDashboard::bookingStatusAction()` + `bookingStatusEntries()`, using the same `Section`/`RepeatableEntry` technique as the Payment Details redesign, latest 50 bookings with a "showing X of Y" note when more exist. `Filament\Pages\Page` already implements `HasActions`/`InteractsWithActions` (via `BasePage`), so no extra scaffolding was needed on the page. The now-unused `App\Filament\Pages\CourierWidgets\CourierBookingStatusWidget` (`StatsOverviewWidget`, which has no click/modal support) was deleted; the cards are now hand-built in the page's own Blade view using `<x-filament::icon>`/`<x-filament::badge>` (which resolve dynamic `:color` correctly, unlike raw interpolated Tailwind classes) wrapped in a semantic `<button wire:click="mountAction(...)">`.
+- Along the way, `CourierBookingResource`'s table gained a multi-select **Status** filter and a new **Provider** filter — independently useful even though the dashboard cards no longer rely on URL deep-linking.
+- Per the owner's earlier explicit request, moved the "Manage" quick-links section to sit directly after "Booking Status Summary" (was previously after "Recent Returns"/the consignments table).
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest`: 21 passed — includes a regression test asserting money-formatted values actually render in the Payment Details modal (non-breaking-space-aware, since Filament's `->money()` inserts `\u{00A0}` between currency code and amount, not a regular space — confirmed byte-for-byte via `xxd` after a same-looking assertion failed), and a test proving the booking-status modal actually filters (`mountAction('bookingStatus', ['key' => 'delivered'])` shows only delivered bookings) as opposed to the abandoned deep-link approach.
+- Manually verified live on the local dev server: created 2 real local test bookings (delivered + cancelled) to click through — Booking Status Summary reflects live counts, clicking "Delivered" opens a modal with only that one booking; Payment Details modal shows the redesigned Settlement Summary/Timeline/Consignments layout against the real settlement data fetched earlier. Also caught and fixed a duplicate "Consignments" heading (`RepeatableEntry::label('')` doesn't hide the label the way `->hiddenLabel()` does) by re-checking the live render after the first pass.
+- Full `php artisan test` (plain, no `--env`): 625 passed, 5 failed — the same 5 pre-existing, unrelated failures as every prior run this week (`ReleaseNotesTest` ×3, `StorefrontCustomerAdvanceAndComplaintTest`/`StorefrontIncompleteCheckoutRecoveryTest` ×1 each). No regressions from this round's changes.
+- Cleaned up the 2 local debug bookings created for manual verification (`DEBUG-DELIVERED`/`DEBUG-CANCELLED`) — local dashboard is back to its pre-verification state.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-14 - Steadfast Payments fix verified live on the local dev server
+
+Reason:
+
+- Owner asked whether connecting real Steadfast API credentials to the local dev server would exercise the corrected endpoint paths from the previous entry (it does — same working tree, no deploy needed). Owner logged into the local admin panel and added the real API Key/Secret Key to the local "Demo Steadfast (sandbox)" provider.
+
+What happened:
+
+- Checked the local Courier Merchant Dashboard: balance loaded (`get_balance`), but Payments still showed no data at first — traced this to the provider's **Active** toggle being off (not a credentials or endpoint problem). Owner enabled it.
+- Re-checked: Steadfast Balance now shows a real live value; the Payments page returned **10 real settlement rows** (`payment_id` like `SFC-20293988`, amount, method, due/paid bills, charges, total, status, timestamps) — confirms the `/payments` path fix from 2026-08-13 is correct.
+- Opened the "View" drill-down on a row: `SteadfastCourierClient::payment()` (`/payments/{payment_id}`) returned real consignment data (consignment_id, invoice, tracking_code, recipient name/phone/address, cod_amount, status) — confirms the new drill-down feature works end-to-end.
+- Found the real response shape wraps the settlement under a top-level `payment` key (not `data`); updated `CourierPaymentHistory::paymentDetailEntries()` to prefer it, and made the value formatter recursive so nested arrays (like `consignments[]`) render as readable "key: value" lines instead of raw JSON.
+- Updated docblocks on `SteadfastCourierClient` and `CourierPaymentHistory`, plus `PROJECT_GUIDE.md` and `CHANGELOG.md`, with the now-confirmed field names.
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest`: 20 passed.
+- Manually verified end-to-end on the local dev server (`localhost:8931`) with the owner's real Steadfast credentials — both the Payments list and the drill-down modal render real live data correctly.
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval.
+
+## 2026-08-13 - Distinct Courier submenu icons
+
+Reason:
+
+- The Courier Dashboard and Providers submenu items both rendered the same truck icon, making them difficult to distinguish at a glance.
+
+Important changed files:
+
+- `app/Filament/Pages/CourierMerchantDashboard.php` - Dashboard now uses Filament's `OutlinedRectangleGroup` icon.
+- `app/Filament/Resources/CourierProviders/CourierProviderResource.php` - Providers retains Filament's courier-appropriate `OutlinedTruck` icon while Dashboard changes to a distinct panel icon.
+- `tests/Feature/CourierIntegrationTest.php` - verifies both semantic icons and ensures they remain distinct.
+- `CHANGELOG.md` and `PROJECT_GUIDE.md` - document the navigation convention.
+
+Verification:
+
+- `php artisan test --compact tests/Feature/CourierIntegrationTest.php`: 20 passed (85 assertions), including 3 assertions for the distinct icon mapping.
+- Changed PHP files pass `php -l`; scoped `git diff --check` passes.
+- `pint --test` reported pre-existing line-ending/strict-type/import-order findings in overlapping files; no automatic formatting was applied so the separate in-progress courier work remains untouched.
+
+Commit status:
+
+- Not committed. Commit and push require explicit owner approval.
+
+## 2026-08-13 - Steadfast endpoint fix (live-verified) + Booking Status Summary + Payments drill-down
+
+Reason:
+
+- Owner recorded a screen-capture video ("steadfast courier merchant dashboard journey") of the Steadfast mobile app's merchant UX for reference, and separately added real Steadfast API credentials to the staging Courier Provider for the first time. Reviewed the video frame-by-frame (ffmpeg scene/interval extraction, since there's no native video-reading tool) and found 3 UX ideas ZamZam didn't have yet; owner selected all 3 to build now.
+
+What happened:
+
+- **Live bug found and fixed**: with real credentials now live on staging, checked the Courier Merchant Dashboard and Payments page in the browser. Balance loaded correctly (`get_balance` is genuinely correct), but Payments returned an HTTP 404 — the guessed `/payment` path was wrong. Cross-checked against two independent open-source Steadfast API wrapper packages (`nayemuf/steadfast-courier`, `sabitahmadumid/laravel-steadfast`, both fetched fresh from GitHub) which agree on the real paths. Fixed in `SteadfastCourierClient`: `payments()` → `/payments` (was `/payment`), `returnStatus()` → `/get_return_request/{id}` (was `/return/{id}`); added `returnRequests()` (`GET /get_return_requests`) and `payment()` (`GET /payments/{id}`, single settlement with its consignments).
+- **Booking Status Summary** (new `App\Filament\Pages\CourierWidgets\CourierBookingStatusWidget`, native `StatsOverviewWidget`): a stat-card breakdown on the Courier Merchant Dashboard modelled on Steadfast's own "Parcel Summary" screen — All / In Progress / Delivered / Partial Delivered / Returned / Cancelled (+rate %) / Failed, counted from ZamZam's own local `CourierBooking` rows (Steadfast's app-only "In Review" / "Waiting Approval" / "Amount Changed" states aren't exposed by the public API, so those are deliberately left out rather than faked).
+- **Payments drill-down**: each row on the Payments page now has a "View" action that fetches `SteadfastCourierClient::payment()` (10-minute cache) and renders the settlement's fields generically (unknown response shape) via Filament `TextEntry` schema in a read-only modal — mirrors the Steadfast app's own "Payment Details" screen. The exact key identifying a payment in the list response isn't confirmed, so several common candidates are tried (`id`, `payment_id`, `invoice_id`, `invoice`, `reference_id`, `sf_id`); the action stays hidden if none resolve.
+- **Explicitly NOT built**: "Bill Payment" (pay a due balance to Steadfast) and "Tickets" (merchant support tickets), both seen in the video's app UI. Confirmed via the official Steadfast API PDF summary and both open-source wrapper packages that neither is part of the public REST API — building against a guessed endpoint here risked sending malformed requests, so this was skipped and documented as a known gap in `PROJECT_GUIDE.md` instead of faked.
+- `PROJECT_GUIDE.md`, `CHANGELOG.md` updated with the corrected endpoint paths and both new features.
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest`: 19 passed (added endpoint-path regression test, Booking Status Summary count test, Payments drill-down Livewire test using `mountTableAction` + `assertMountedActionModalSee`).
+- `php artisan test --filter=MultiCompanyIsolationTest`: 7 passed.
+- Manually verified live on staging (`staging-app.zamzamint.com`) with the owner's real Steadfast credentials: balance loads correctly; the `/payment` 404 was caught this way before the fix (not yet re-verified live after the fix — needs a deploy to staging first).
+- Full `php artisan test` run pending as of this note (courier + isolation suites both green in isolation).
+
+Commit status:
+
+- Not committed yet — awaiting owner's approval. Live re-verification of the payments fix on staging requires a deploy.
+
 ## 2026-08-13 - Remove duplicate Courier Delivery Cost form section
 
 Reason:
