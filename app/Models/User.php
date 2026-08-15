@@ -168,6 +168,10 @@ class User extends Authenticatable implements FilamentUser
             'finance.dashboard',
             'investments.view',
             'investments.manage',
+            'marketing.view',
+            'marketing.create',
+            'marketing.update',
+            'marketing.delete',
         ],
         'sales_staff' => [
             'dashboard.view',
@@ -252,6 +256,10 @@ class User extends Authenticatable implements FilamentUser
         'investments.manage' => 'Investments: Manage Projects and Investors',
         'investments.settle' => 'Investments: Calculate Settlements and Pay Payouts',
         'investments.manage_channel_partner' => 'Investments: Change Assigned Channel Partner',
+        'marketing.view' => 'Marketing/Ads: View',
+        'marketing.create' => 'Marketing/Ads: Create',
+        'marketing.update' => 'Marketing/Ads: Update',
+        'marketing.delete' => 'Marketing/Ads: Delete',
     ];
 
     public const MODEL_MODULES = [
@@ -276,6 +284,12 @@ class User extends Authenticatable implements FilamentUser
         ProjectSettlement::class => 'investments',
         SettlementPayout::class => 'investments',
         ChannelPartnerPayout::class => 'investments',
+        MetaAdAccount::class => 'marketing',
+        MetaAdCampaign::class => 'marketing',
+        MetaAdSet::class => 'marketing',
+        MetaAd::class => 'marketing',
+        MetaAdProposal::class => 'marketing',
+        MetaAudience::class => 'marketing',
         self::class => 'users',
         AuditLog::class => 'users',
     ];
