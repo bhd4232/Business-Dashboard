@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products;
 
 use App\Filament\Clusters\Inventory;
+use App\Filament\Resources\Products\Pages\BulkUpdateStock;
 use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
@@ -58,6 +59,7 @@ class ProductResource extends Resource
         return [
             'index' => ListProducts::route('/'),
             'create' => CreateProduct::route('/create'),
+            'bulk-stock' => BulkUpdateStock::route('/bulk-stock'),
             'view' => Pages\ViewProduct::route('/{record}'),
             'edit' => EditProduct::route('/{record}/edit'),
         ];

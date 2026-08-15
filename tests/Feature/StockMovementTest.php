@@ -141,4 +141,83 @@ class StockMovementTest extends TestCase
             'quantity' => 3,
         ]);
     }
+
+    public function test_damage_is_normalized_signed_and_reduces_stock(): void
+    {
+        $product = Product::query()->create([
+            'name' => 'Damage Product',
+            'sku' => 'TEST-005',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 0,
+        ]);
+
+        StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'opening',
+            'quantity' => 5,
+        ]);
+
+        $damage = StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'damage',
+            'quantity' => -2,
+            'reason' => 'Box crushed in transit',
+        ]);
+
+        $this->assertSame(2, $damage->refresh()->quantity);
+        $this->assertSame(-2, $damage->signed_quantity);
+        $this->assertSame(3, $product->refresh()->stock);
+    }
+
+    public function test_damage_is_blocked_when_stock_is_insufficient(): void
+    {
+        $product = Product::query()->create([
+            'name' => 'Damage Insufficient Product',
+            'sku' => 'TEST-006',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 0,
+        ]);
+
+        StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'opening',
+            'quantity' => 5,
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'damage',
+            'quantity' => 6,
+            'reason' => 'Too much damage',
+        ]);
+    }
+
+    public function test_damage_requires_reason(): void
+    {
+        $product = Product::query()->create([
+            'name' => 'Damage Reason Product',
+            'sku' => 'TEST-007',
+            'price' => 100,
+            'sale_price' => 100,
+            'stock' => 0,
+        ]);
+
+        StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'opening',
+            'quantity' => 5,
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        StockMovement::query()->create([
+            'product_id' => $product->id,
+            'type' => 'damage',
+            'quantity' => 2,
+        ]);
+    }
 }

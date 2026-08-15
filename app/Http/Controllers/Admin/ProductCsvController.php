@@ -23,4 +23,11 @@ class ProductCsvController extends Controller
 
         return $products->sample();
     }
+
+    public function stockSample(Request $request, ProductCsvService $products): StreamedResponse
+    {
+        abort_unless($request->user()?->canPerformModelAbility('viewAny', Product::class), 403);
+
+        return $products->sampleStock();
+    }
 }

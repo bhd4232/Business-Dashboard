@@ -15,6 +15,31 @@
     <div
         x-data="{
             state: $wire.{{ $applyStateBindingModifiers("\$entangle('{$statePath}')") }},
+            pendingIcon: null,
+            openPicker() {
+                this.pendingIcon = this.state
+                this.$dispatch('zz-reset-category-icon-search', { id: @js($modalId) })
+            },
+            choose(value) {
+                this.pendingIcon = value
+            },
+            addIcon() {
+                if (! this.pendingIcon) {
+                    return
+                }
+
+                this.state = this.pendingIcon
+                this.$dispatch('close-modal', { id: @js($modalId) })
+            },
+            clear() {
+                this.pendingIcon = null
+                this.state = null
+                this.$dispatch('close-modal', { id: @js($modalId) })
+            },
+            cancel() {
+                this.pendingIcon = this.state
+                this.$dispatch('close-modal', { id: @js($modalId) })
+            },
         }"
         class="space-y-3"
     >
@@ -23,8 +48,9 @@
                 :id="$modalId"
                 width="7xl"
                 sticky-header
+                sticky-footer
                 heading="Choose a category icon"
-                description="Search and select from every solid and outline icon included with Filament."
+                description="Search and select an icon, then click Add Icon to apply it to this category."
             >
                 <x-slot name="trigger">
                     <x-filament::button
@@ -33,23 +59,14 @@
                         outlined
                         icon="heroicon-o-squares-2x2"
                         :disabled="$isDisabled"
+                        x-on:click="openPicker()"
+                        data-zz-category-icon-open
                     >
                         <span x-text="state ? 'Change icon' : 'Choose icon'"></span>
                     </x-filament::button>
                 </x-slot>
 
                 <div
-                    x-data="{
-                        state: $wire.{{ $applyStateBindingModifiers("\$entangle('{$statePath}')") }},
-                        choose(value) {
-                            this.state = value
-                            this.$dispatch('close-modal', { id: @js($modalId) })
-                        },
-                        clear() {
-                            this.state = null
-                            this.$dispatch('close-modal', { id: @js($modalId) })
-                        },
-                    }"
                     class="space-y-4"
                     data-zz-category-icon-browser
                 >
@@ -92,9 +109,10 @@
                                 size="sm"
                                 :icon="$icon['value']"
                                 :tooltip="$icon['label']"
-                                x-on:click="choose(@js($icon['value']))"
-                                x-bind:aria-selected="state === @js($icon['value'])"
-                                x-bind:class="state === @js($icon['value']) ? 'ring-2 ring-primary-500' : ''"
+                                x-on:click="choose($el.dataset.zzCategoryIconValue)"
+                                x-bind:aria-selected="pendingIcon === $el.dataset.zzCategoryIconValue"
+                                x-bind:class="pendingIcon === $el.dataset.zzCategoryIconValue ? 'ring-2 ring-primary-500' : ''"
+                                :data-zz-category-icon-value="$icon['value']"
                                 :data-zz-category-icon-search="$icon['search']"
                                 data-zz-category-icon-option
                                 class="min-h-20 flex-col justify-center gap-2 text-center"
@@ -113,6 +131,28 @@
                         />
                     </div>
                 </div>
+
+                <x-slot name="footerActions">
+                    <x-filament::button
+                        type="button"
+                        icon="heroicon-m-check"
+                        x-on:click="addIcon()"
+                        x-bind:disabled="! pendingIcon"
+                        data-zz-category-icon-add
+                    >
+                        Add Icon
+                    </x-filament::button>
+
+                    <x-filament::button
+                        type="button"
+                        color="gray"
+                        outlined
+                        x-on:click="cancel()"
+                        data-zz-category-icon-cancel
+                    >
+                        Cancel
+                    </x-filament::button>
+                </x-slot>
             </x-filament::modal>
 
             @if ($selectedIcon)

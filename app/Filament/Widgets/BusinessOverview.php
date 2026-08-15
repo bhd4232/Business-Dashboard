@@ -13,11 +13,25 @@ class BusinessOverview extends StatsOverviewWidget
 
     protected ?string $description = 'Today and current balance summary';
 
+    /**
+     * Keep the overview dense on both phone and desktop while retaining
+     * Filament's native responsive grid implementation.
+     *
+     * @return array<string, int>
+     */
+    protected function getColumns(): array
+    {
+        return [
+            'default' => 2,
+            'lg' => 5,
+        ];
+    }
+
     protected function getStats(): array
     {
         $summary = app(ReportService::class)->dashboardSummary();
 
-        return [
+        $stats = [
             Stat::make('Today Sales', $this->money($summary['sales_today']))
                 ->icon(Heroicon::OutlinedDocumentCurrencyBangladeshi)
                 ->color('success'),
@@ -58,6 +72,12 @@ class BusinessOverview extends StatsOverviewWidget
                 ->icon(Heroicon::OutlinedClock)
                 ->color($summary['coming_soon_count'] > 0 ? 'warning' : 'success'),
         ];
+
+        foreach ($stats as $stat) {
+            $stat->extraAttributes(['class' => 'zz-business-overview-stat'], merge: true);
+        }
+
+        return $stats;
     }
 
     protected function money(float|int|string $amount): string

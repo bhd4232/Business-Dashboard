@@ -15,6 +15,7 @@ class StockMovement extends Model
         'purchase' => 'Purchase',
         'sale' => 'Sale',
         'return' => 'Return',
+        'damage' => 'Damage',
         'adjustment' => 'Adjustment',
     ];
 

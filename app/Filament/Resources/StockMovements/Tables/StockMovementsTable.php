@@ -29,7 +29,7 @@ class StockMovementsTable
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => StockMovement::TYPES[$state] ?? ucfirst($state))
                     ->color(fn (string $state): string => match ($state) {
-                        'sale' => 'danger',
+                        'sale', 'damage' => 'danger',
                         'adjustment' => 'warning',
                         default => 'success',
                     }),
