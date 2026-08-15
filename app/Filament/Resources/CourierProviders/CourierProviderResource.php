@@ -106,6 +106,10 @@ class CourierProviderResource extends Resource
                     Toggle::make('is_active')
                         ->label('Active')
                         ->default(true),
+                    Toggle::make('is_default')
+                        ->label('Set as default courier')
+                        ->helperText('New orders (including from the storefront) are pre-assigned to this courier. Only one provider per company can be default — turning this on turns it off for any other provider.')
+                        ->default(false),
                 ])
                 ->columns(2)
                 ->collapsible(),
@@ -352,6 +356,9 @@ class CourierProviderResource extends Resource
                     ->placeholder('-'),
                 IconColumn::make('is_active')
                     ->label('Active')
+                    ->boolean(),
+                IconColumn::make('is_default')
+                    ->label('Default')
                     ->boolean(),
                 TextColumn::make('last_synced_at')
                     ->label('Last Sync')

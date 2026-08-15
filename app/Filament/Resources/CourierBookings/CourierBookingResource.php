@@ -97,7 +97,11 @@ class CourierBookingResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('status')
-                    ->options(CourierBooking::STATUSES),
+                    ->options(CourierBooking::STATUSES)
+                    ->multiple(),
+                SelectFilter::make('courier_provider_id')
+                    ->label('Provider')
+                    ->relationship('provider', 'name'),
             ])
             ->recordActions([
                 ViewAction::make(),

@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\CourierMerchantDashboard;
+use App\Filament\Pages\CourierPaymentHistory;
+use App\Filament\Resources\CourierProviders\CourierProviderResource;
+use App\Filament\Resources\Orders\Pages\ListOrders;
 use App\Jobs\ProcessCourierWebhook;
 use App\Models\Company;
 use App\Models\CourierBooking;
@@ -17,17 +21,28 @@ use App\Services\CompanyContext;
 use App\Services\CourierManager;
 use App\Services\CourierService;
 use App\Services\SteadfastCourierClient;
+use Filament\Forms\Components\Select;
+use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class CourierIntegrationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_courier_dashboard_and_provider_navigation_use_distinct_semantic_icons(): void
+    {
+        $this->assertSame(Heroicon::OutlinedRectangleGroup, CourierMerchantDashboard::getNavigationIcon());
+        $this->assertSame(Heroicon::OutlinedTruck, CourierProviderResource::getNavigationIcon());
+        $this->assertNotSame(CourierMerchantDashboard::getNavigationIcon(), CourierProviderResource::getNavigationIcon());
+    }
 
     public function test_courier_credentials_use_text_storage_for_the_encrypted_array_cast(): void
     {
@@ -499,7 +514,7 @@ class CourierIntegrationTest extends TestCase
         $provider = $this->steadfastProvider($company);
 
         Http::fake([
-            SteadfastCourierClient::DEFAULT_BASE_URL.'/payment' => Http::response([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/payments' => Http::response([
                 'status' => 200,
                 'data' => [
                     ['id' => 1, 'amount' => 5000, 'status' => 'paid'],
@@ -513,7 +528,438 @@ class CourierIntegrationTest extends TestCase
         $this->assertSame(5000, $response['data'][0]['amount']);
 
         Http::assertSent(fn ($request): bool => $request->hasHeader('Api-Key', 'test-api-key')
-            && str_contains((string) $request->url(), '/payment'));
+            && str_ends_with((string) $request->url(), '/payments'));
+    }
+
+    public function test_steadfast_single_payment_and_return_status_hit_the_corrected_endpoint_paths(): void
+    {
+        // Regression test for a live-verified bug: the original guessed paths
+        // (/payment and /return/{id}) 404'd against a real Steadfast account
+        // on 2026-08-13; the corrected paths below were cross-checked against
+        // two independent open-source Steadfast API wrapper packages.
+        $company = $this->company('Endpoint Fix Company', 'endpoint-fix-company', 'EFX');
+        app(CompanyContext::class)->set($company);
+        $provider = $this->steadfastProvider($company);
+
+        Http::fake([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/payments/77' => Http::response([
+                'status' => 200,
+                'data' => ['id' => 77, 'total' => 40541, 'consignments' => [['cn' => 'CN#1', 'status' => 'delivered']]],
+            ]),
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/get_return_request/321' => Http::response([
+                'status' => 200,
+                'return' => ['id' => 321, 'status' => 'approved'],
+            ]),
+        ]);
+
+        $payment = app(SteadfastCourierClient::class)->payment($provider, 77);
+        $return = app(SteadfastCourierClient::class)->returnStatus($provider, 321);
+
+        $this->assertSame(40541, $payment['data']['total']);
+        $this->assertSame('approved', $return['return']['status']);
+
+        Http::assertSent(fn ($request): bool => str_ends_with((string) $request->url(), '/payments/77'));
+        Http::assertSent(fn ($request): bool => str_ends_with((string) $request->url(), '/get_return_request/321'));
+    }
+
+    public function test_courier_merchant_dashboard_shows_booking_status_summary_counts(): void
+    {
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $company = Company::defaultCompany();
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+        $provider = $this->steadfastProvider($company);
+
+        $order = $this->orderForCompany($company);
+
+        foreach ([CourierBooking::STATUS_DELIVERED, CourierBooking::STATUS_DELIVERED, CourierBooking::STATUS_CANCELLED] as $i => $status) {
+            CourierBooking::query()->create([
+                'company_id' => $company->getKey(),
+                'courier_provider_id' => $provider->getKey(),
+                'order_id' => $order->getKey(),
+                'tracking_id' => "STATUS-{$i}",
+                'recipient_name' => 'Courier Customer',
+                'recipient_phone' => '+8801700000000',
+                'recipient_address' => 'Dhaka',
+                'cod_amount' => 500,
+                'status' => $status,
+                'booked_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($user)
+            ->get('/admin/courier/courier-merchant-dashboard')
+            ->assertOk()
+            ->assertSee('Booking Status Summary')
+            ->assertSeeText('Delivered')
+            ->assertSeeText('Cancelled');
+    }
+
+    public function test_booking_status_summary_card_click_opens_a_modal_with_only_matching_bookings(): void
+    {
+        // Regression test: an earlier version tried to make cards clickable by
+        // deep-linking to CourierBookingResource with ?tableFilters=... query
+        // params. Confirmed live (browser) that this Filament install does not
+        // apply table filters from a cold GET request — the filter badge stays
+        // at 0 and every row still shows. Cards now open a modal on the
+        // Dashboard page itself instead (Filament\Pages\Page already
+        // implements HasActions/InteractsWithActions), which this test proves
+        // actually filters, unlike the abandoned deep-link approach.
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $company = Company::defaultCompany();
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+        $provider = $this->steadfastProvider($company);
+        $order = $this->orderForCompany($company);
+
+        foreach ([CourierBooking::STATUS_DELIVERED => 'DELIVERED-CARD', CourierBooking::STATUS_CANCELLED => 'CANCELLED-CARD'] as $status => $trackingId) {
+            CourierBooking::query()->create([
+                'company_id' => $company->getKey(),
+                'courier_provider_id' => $provider->getKey(),
+                'order_id' => $order->getKey(),
+                'tracking_id' => $trackingId,
+                'recipient_name' => 'Courier Customer',
+                'recipient_phone' => '+8801700000000',
+                'recipient_address' => 'Dhaka',
+                'cod_amount' => 500,
+                'status' => $status,
+                'booked_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($user);
+
+        Livewire::test(\App\Filament\Pages\CourierMerchantDashboard::class)
+            ->mountAction('bookingStatus', arguments: ['key' => 'delivered'])
+            ->assertMountedActionModalSee(['DELIVERED-CARD'])
+            ->assertMountedActionModalDontSee(['CANCELLED-CARD']);
+    }
+
+    public function test_courier_merchant_dashboard_aggregates_all_couriers_by_default_and_can_be_scoped_to_one(): void
+    {
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $company = Company::defaultCompany();
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+
+        $steadfast = $this->steadfastProvider($company);
+        $pathao = $this->pathaoProvider($company);
+        $order = $this->orderForCompany($company);
+
+        foreach ([$steadfast->getKey() => 'STEADFAST-MULTI', $pathao->getKey() => 'PATHAO-MULTI'] as $providerId => $trackingId) {
+            CourierBooking::query()->create([
+                'company_id' => $company->getKey(),
+                'courier_provider_id' => $providerId,
+                'order_id' => $order->getKey(),
+                'tracking_id' => $trackingId,
+                'recipient_name' => 'Courier Customer',
+                'recipient_phone' => '+8801700000000',
+                'recipient_address' => 'Dhaka',
+                'cod_amount' => 500,
+                'status' => CourierBooking::STATUS_DELIVERED,
+                'booked_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($user);
+
+        $dashboard = Livewire::test(CourierMerchantDashboard::class)
+            ->assertSchemaComponentExists('providerFilter', 'form', function (Select $field) use ($steadfast, $pathao): bool {
+                $options = $field->getOptions();
+
+                return $field->getLabel() === 'Courier'
+                    && ! $field->isNative()
+                    && $field->isLive()
+                    && $field->getMaxWidth() === Width::ExtraSmall
+                    && $field->isVisible()
+                    && $options['all'] === 'All Couriers'
+                    && array_key_exists($steadfast->getKey(), $options)
+                    && array_key_exists($pathao->getKey(), $options);
+            });
+
+        // Default is "All Couriers" ('providerFilter' === 'all') — both
+        // providers' bookings are counted together.
+        $counts = $dashboard->instance()->statusCounts();
+        $this->assertSame(2, $counts['all']);
+        $this->assertSame(2, $counts['delivered']);
+
+        // Scoping to one provider only counts that provider's bookings.
+        $dashboard->set('providerFilter', (string) $pathao->getKey());
+        $pathaoCounts = $dashboard->instance()->statusCounts();
+        $this->assertSame(1, $pathaoCounts['all']);
+
+        $dashboard->set('providerFilter', (string) $steadfast->getKey());
+        $steadfastCounts = $dashboard->instance()->statusCounts();
+        $this->assertSame(1, $steadfastCounts['all']);
+
+        $pathao->update(['is_active' => false]);
+
+        Livewire::test(CourierMerchantDashboard::class)
+            ->assertSchemaComponentHidden('providerFilter', 'form');
+    }
+
+    public function test_booking_status_summary_modal_shows_which_courier_each_booking_belongs_to(): void
+    {
+        // Regression test for the owner's question "কিভাবে বুঝব কোন কুরিয়ারে
+        // বুকিং হয়েছে" (how will I know which courier a booking went
+        // through) once a company has more than one active courier — the
+        // modal must label each row with its provider, not just its status.
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $company = Company::defaultCompany();
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+
+        $steadfast = $this->steadfastProvider($company);
+        $pathao = $this->pathaoProvider($company);
+        $order = $this->orderForCompany($company);
+
+        foreach ([$steadfast->getKey() => 'STEADFAST-DELIVERED', $pathao->getKey() => 'PATHAO-DELIVERED'] as $providerId => $trackingId) {
+            CourierBooking::query()->create([
+                'company_id' => $company->getKey(),
+                'courier_provider_id' => $providerId,
+                'order_id' => $order->getKey(),
+                'tracking_id' => $trackingId,
+                'recipient_name' => 'Courier Customer',
+                'recipient_phone' => '+8801700000000',
+                'recipient_address' => 'Dhaka',
+                'cod_amount' => 500,
+                'status' => CourierBooking::STATUS_DELIVERED,
+                'booked_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($user);
+
+        Livewire::test(CourierMerchantDashboard::class)
+            ->mountAction('bookingStatus', arguments: ['key' => 'delivered'])
+            ->assertMountedActionModalSee(['STEADFAST-DELIVERED', 'Steadfast', 'PATHAO-DELIVERED', 'Pathao']);
+    }
+
+    public function test_courier_merchant_dashboard_balance_section_marks_couriers_without_a_balance_endpoint_as_unsupported(): void
+    {
+        // Only Steadfast's adapter overrides balance(); Pathao/RedX/E-Courier
+        // fall back to AbstractCourierAdapter::balance() => null. All
+        // Couriers hides those unsupported rows entirely; explicitly
+        // selecting one still says so rather than showing nothing.
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $company = Company::defaultCompany();
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+
+        $pathao = $this->pathaoProvider($company);
+
+        $this->actingAs($user);
+
+        $dashboard = Livewire::test(CourierMerchantDashboard::class);
+
+        $allCouriersBalances = $dashboard->instance()->balances();
+        $this->assertTrue($allCouriersBalances->every(fn (array $row): bool => $row['provider']->driver !== CourierProvider::DRIVER_PATHAO));
+
+        $dashboard->set('providerFilter', (string) $pathao->getKey());
+        $pathaoBalances = $dashboard->instance()->balances();
+        $this->assertCount(1, $pathaoBalances);
+        $this->assertFalse($pathaoBalances->first()['supported']);
+    }
+
+    public function test_default_courier_is_enforced_to_one_per_company_and_pre_fills_new_orders(): void
+    {
+        $company = Company::defaultCompany();
+        app(CompanyContext::class)->set($company);
+
+        $steadfast = $this->steadfastProvider($company);
+        $steadfast->update(['is_default' => true]);
+        $pathao = $this->pathaoProvider($company);
+
+        $this->assertSame($steadfast->getKey(), CourierProvider::defaultForCompany($company->getKey())?->getKey());
+
+        // Only one provider per company may be default — flipping Pathao's
+        // flag on must flip Steadfast's off (CourierProvider::booted()'s
+        // `saved` hook).
+        $pathao->update(['is_default' => true]);
+        $this->assertFalse($steadfast->fresh()->is_default);
+        $this->assertTrue($pathao->fresh()->is_default);
+        $this->assertSame($pathao->getKey(), CourierProvider::defaultForCompany($company->getKey())?->getKey());
+
+        // A brand new order (this is exactly what storefront checkout and
+        // admin order creation both go through — Order::query()->create())
+        // is pre-assigned to whichever provider is default, without being
+        // told to.
+        $order = $this->orderForCompany($company);
+        $this->assertSame($pathao->getKey(), $order->fresh()->courier_provider_id);
+
+        // Explicitly choosing a different courier at creation time is
+        // respected, not overridden by the default.
+        $order->courierProvider()->associate($steadfast);
+        $order->save();
+        $this->assertSame($steadfast->getKey(), $order->fresh()->courier_provider_id);
+    }
+
+    public function test_orders_list_bulk_book_courier_uses_the_one_courier_chosen_in_the_popup_for_the_whole_batch(): void
+    {
+        // Owner asked that the bulk "Book courier" action open a popup
+        // showing the default courier pre-selected, changeable, and applied
+        // to every selected order — not each order's own individually
+        // assigned provider (the earlier design). Pathao/RedX/E-Courier are
+        // deliberately not offered as options at all in the bulk popup
+        // (see BULK_SAFE_DRIVERS) since their per-order fields can't be
+        // safely filled for a batch of different recipients.
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $company = Company::defaultCompany();
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+
+        $steadfast = $this->steadfastProvider($company);
+        $steadfast->update(['is_default' => true]);
+
+        Http::fake([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/create_order' => Http::response([
+                'status' => 200,
+                'consignment' => ['consignment_id' => 991, 'tracking_code' => 'BULK-STEADFAST', 'status' => 'in_review'],
+            ]),
+        ]);
+
+        // Reuse one customer/product across every order in this test —
+        // orderForCompany() creates a fresh product with a company-scoped
+        // SKU, and calling it more than once for the same company collides
+        // on that unique SKU (a real bug this session already found once).
+        $seed = $this->orderForCompany($company);
+        $customer = $seed->customer;
+        $product = $seed->items->first()->product;
+
+        $makeOrder = function () use ($customer, $product): Order {
+            $order = Order::query()->create([
+                'customer_id' => $customer->getKey(),
+                'order_date' => now()->toDateString(),
+                'discount' => 0,
+                'vat' => 0,
+                'paid_amount' => 0,
+                'status' => 'draft',
+            ]);
+            OrderItem::query()->create([
+                'order_id' => $order->getKey(),
+                'product_id' => $product->getKey(),
+                'quantity' => 1,
+                'unit_price' => 500,
+            ]);
+            $order->update(['status' => 'completed']);
+
+            return $order->refresh();
+        };
+
+        $orderOne = $makeOrder();
+        $orderTwo = $makeOrder();
+
+        $alreadyBookedOrder = $makeOrder();
+        CourierBooking::query()->create([
+            'company_id' => $company->getKey(),
+            'courier_provider_id' => $steadfast->getKey(),
+            'order_id' => $alreadyBookedOrder->getKey(),
+            'tracking_id' => 'ALREADY-BOOKED',
+            'recipient_name' => 'Courier Customer',
+            'recipient_phone' => '+8801700000000',
+            'recipient_address' => 'Dhaka',
+            'cod_amount' => 500,
+            'status' => CourierBooking::STATUS_BOOKED,
+            'booked_at' => now(),
+        ]);
+        $alreadyBookedOrder->update(['delivery_status' => CourierBooking::STATUS_BOOKED]);
+
+        $this->actingAs($user);
+
+        Livewire::test(ListOrders::class)
+            ->mountTableBulkAction('bookCourierBulk', [$orderOne, $orderTwo, $alreadyBookedOrder])
+            ->assertTableBulkActionDataSet(['courier_provider_id' => $steadfast->getKey()]) // pre-selected default
+            ->callMountedTableBulkAction();
+
+        $this->assertNotSame(CourierBooking::STATUS_NOT_BOOKED, $orderOne->fresh()->delivery_status);
+        $this->assertNotSame(CourierBooking::STATUS_NOT_BOOKED, $orderTwo->fresh()->delivery_status);
+        $this->assertSame(CourierBooking::STATUS_BOOKED, $alreadyBookedOrder->fresh()->delivery_status);
+
+        Http::assertSentCount(2); // one create_order call per not-yet-booked order, none for the already-booked one.
+    }
+
+    public function test_orders_list_book_courier_action_is_unified_and_books_through_the_selected_driver(): void
+    {
+        // Owner asked to consolidate the per-driver row buttons (Book
+        // Steadfast / Book Pathao / ...) into one "Book courier" action
+        // whose popup lets the courier be picked (default pre-selected)
+        // instead of one button per courier.
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $company = Company::defaultCompany();
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+
+        $steadfast = $this->steadfastProvider($company);
+        $manual = CourierProvider::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => 'In-house Rider',
+            'slug' => 'in-house-rider',
+            'driver' => CourierProvider::DRIVER_MANUAL,
+            'is_active' => true,
+            'is_default' => true,
+        ]);
+        $order = $this->orderForCompany($company);
+
+        $this->actingAs($user);
+
+        // The old per-driver buttons no longer exist.
+        Livewire::test(ListOrders::class)
+            ->assertTableActionExists('bookCourier', record: $order)
+            ->assertTableActionDoesNotExist('bookSteadfast', record: $order)
+            ->assertTableActionDoesNotExist('bookPathao', record: $order)
+            // No explicit assignment on this order, so the unified popup
+            // defaults to the company's default courier (Manual, here).
+            ->mountTableAction('bookCourier', $order)
+            ->assertTableActionDataSet(['courier_provider_id' => $manual->getKey()])
+            // Switch the popup's selection to Steadfast and submit — proves
+            // the choice isn't locked to the pre-filled default.
+            ->setTableActionData(['courier_provider_id' => $steadfast->getKey()]);
+
+        Http::fake([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/create_order' => Http::response([
+                'status' => 200,
+                'consignment' => ['consignment_id' => 992, 'tracking_code' => 'UNIFIED-STEADFAST', 'status' => 'in_review'],
+            ]),
+        ]);
+
+        Livewire::test(ListOrders::class)
+            ->mountTableAction('bookCourier', $order)
+            ->setTableActionData(['courier_provider_id' => $steadfast->getKey()])
+            ->callMountedTableAction();
+
+        $this->assertSame($steadfast->getKey(), CourierBooking::where('order_id', $order->getKey())->first()?->courier_provider_id);
+        Http::assertSent(fn ($request): bool => str_ends_with((string) $request->url(), '/create_order'));
+    }
+
+    public function test_courier_payment_history_view_details_action_fetches_the_payment_via_the_corrected_endpoint(): void
+    {
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $company = Company::defaultCompany();
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+        $this->steadfastProvider($company);
+
+        Http::fake([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/payments' => Http::response([
+                'status' => 200,
+                'data' => [
+                    ['id' => 501, 'reference' => 'SFC#501', 'amount' => 12345, 'status' => 'paid'],
+                ],
+            ]),
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/payments/501' => Http::response([
+                'status' => 200,
+                'data' => ['total' => 40541, 'recipient' => 'ZamZam International'],
+            ]),
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CourierPaymentHistory::class)
+            ->assertTableActionExists('viewPaymentDetails', record: 'payment-0')
+            ->mountTableAction('viewPaymentDetails', 'payment-0')
+            ->assertMountedActionModalSee(["BDT\u{00A0}40,541.00", 'ZamZam International']);
+
+        Http::assertSent(fn ($request): bool => str_ends_with((string) $request->url(), '/payments/501'));
     }
 
     protected function company(string $name, string $slug, string $prefix): Company
@@ -592,6 +1038,23 @@ class CourierIntegrationTest extends TestCase
             ],
             'settings' => [
                 'base_url' => SteadfastCourierClient::DEFAULT_BASE_URL,
+            ],
+            'is_active' => true,
+        ]);
+    }
+
+    protected function pathaoProvider(Company $company): CourierProvider
+    {
+        return CourierProvider::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => 'Pathao',
+            'slug' => 'pathao',
+            'driver' => CourierProvider::DRIVER_PATHAO,
+            'credentials' => [
+                'client_id' => 'test-client-id',
+                'client_secret' => 'test-client-secret',
+                'username' => 'test-username',
+                'password' => 'test-password',
             ],
             'is_active' => true,
         ]);

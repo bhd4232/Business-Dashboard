@@ -51,6 +51,7 @@ class CourierProvider extends Model
         'credentials',
         'settings',
         'is_active',
+        'is_default',
         'sync_failure_count',
         'last_sync_error',
         'last_synced_at',
@@ -60,6 +61,7 @@ class CourierProvider extends Model
         'credentials' => 'encrypted:array',
         'settings' => 'array',
         'is_active' => 'boolean',
+        'is_default' => 'boolean',
         'sync_failure_count' => 'integer',
         'last_synced_at' => 'datetime',
     ];
@@ -69,6 +71,17 @@ class CourierProvider extends Model
         static::saving(function (CourierProvider $provider): void {
             $provider->slug = $provider->slug ?: Str::slug($provider->name);
             $provider->driver = $provider->driver ?: self::DRIVER_MANUAL;
+        });
+
+        // Only one provider per company may be the default at a time — this
+        // fires after save so it can safely exclude the just-saved row.
+        static::saved(function (CourierProvider $provider): void {
+            if ($provider->is_default) {
+                static::withoutGlobalScopes()
+                    ->where('company_id', $provider->company_id)
+                    ->whereKeyNot($provider->getKey())
+                    ->update(['is_default' => false]);
+            }
         });
     }
 
@@ -82,5 +95,25 @@ class CourierProvider extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(CourierBooking::class);
+    }
+
+    /**
+     * The company's default courier — pre-fills new orders'
+     * `courier_provider_id` and is what bulk-booking falls back to when an
+     * order doesn't already have one assigned. Falls back to the company's
+     * sole active provider when none is explicitly marked default, so a
+     * company with only one courier configured doesn't need to remember to
+     * flip the toggle.
+     */
+    public static function defaultForCompany(?int $companyId): ?self
+    {
+        if (! $companyId) {
+            return null;
+        }
+
+        $query = static::query()->where('company_id', $companyId)->where('is_active', true);
+
+        return (clone $query)->where('is_default', true)->first()
+            ?? (($query->count() === 1) ? $query->first() : null);
     }
 }
