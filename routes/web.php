@@ -40,6 +40,7 @@ use App\Http\Middleware\ResolveCompanyFromDomain;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\AppUpdateService;
+use App\Services\AuditLogService;
 use App\Services\CompanySettingsService;
 use App\Support\AppDeployment;
 use App\Support\AppRelease;
@@ -355,12 +356,59 @@ Route::post('/webhooks/zinipay/{payment}', ZiniPayWebhookController::class)
 Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $order, Request $request) {
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);
 
+    // Feeds OrderActivityFeedService's narrated "Order printed by X" line
+    // on the order's Activity section — see AuditLogService::record()'s
+    // arbitrary-action support, no schema change needed. Every hit of
+    // this route is a genuine print/print-preview open (the page always
+    // triggers window.print() on load via ?print=1 or the Print button),
+    // so this isn't deduped the way the ViewOrder 'viewed' log is.
+    app(AuditLogService::class)->record('printed', $order);
+
     return view('orders.print', [
         'order' => $order->load(['company', 'customer', 'items.product', 'latestCourierBooking.provider']),
         'company' => app(CompanySettingsService::class)->profile($order->company),
         'invoice' => app(CompanySettingsService::class)->invoice($order->company),
     ]);
 })->name('orders.print');
+
+// Bulk invoice print for the Orders list's "Print invoices" bulk action —
+// takes a comma-separated list of order IDs (built from the selected
+// table rows) instead of a single {order} binding. `Order::query()` is
+// still scoped by CompanyScope (BelongsToCompany), so IDs belonging to
+// another company are silently dropped rather than leaking across
+// companies.
+Route::middleware('auth')->get('/admin/orders/print-bulk', function (Request $request) {
+    abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);
+
+    $orderIds = collect(explode(',', (string) $request->query('orders')))
+        ->map(fn (string $id): int => (int) trim($id))
+        ->filter()
+        ->unique();
+
+    abort_if($orderIds->isEmpty(), 404);
+
+    $ordersById = Order::query()
+        ->whereIn('id', $orderIds)
+        ->with(['company', 'customer', 'items.product', 'latestCourierBooking.provider'])
+        ->get()
+        ->keyBy('id');
+
+    $orders = $orderIds->map(fn (int $id) => $ordersById->get($id))->filter()->values();
+
+    abort_if($orders->isEmpty(), 404);
+
+    $company = $orders->first()->company;
+
+    // Same 'printed' narration as the single-order route, once per order
+    // in the batch.
+    $orders->each(fn (Order $order) => app(AuditLogService::class)->record('printed', $order));
+
+    return view('orders.print-bulk', [
+        'orders' => $orders,
+        'company' => app(CompanySettingsService::class)->profile($company),
+        'invoice' => app(CompanySettingsService::class)->invoice($company),
+    ]);
+})->name('orders.print.bulk');
 
 Route::middleware('auth')
     ->get('/admin/orders/{order}/pdf', OrderPdfController::class)
@@ -405,6 +453,9 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/admin/products/import/sample', [ProductCsvController::class, 'sample'])
         ->name('products.import.sample');
+
+    Route::get('/admin/products/stock/sample', [ProductCsvController::class, 'stockSample'])
+        ->name('products.stock.sample');
 
     Route::get('/admin/customers/export/csv', [CustomerCsvController::class, 'export'])
         ->name('customers.export.csv');

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Orders\Tables;
 
 use App\Filament\Resources\Orders\Actions\ChangeOrderWorkflowAction;
+use App\Livewire\OrderTrashTable;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
 use App\Models\CustomerRiskProfile;
@@ -23,14 +24,16 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Livewire as SchemaLivewire;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 
 class OrdersTable
 {
@@ -155,52 +158,18 @@ class OrdersTable
                     ->label('Book courier')
                     ->icon('heroicon-o-truck')
                     ->visible(fn (Order $record): bool => self::canBookCourier($record))
-                    ->schema(fn (Order $record): array => self::courierBookingForm($record))
-                    ->action(function (Order $record, array $data): void {
-                        app(CourierService::class)->createManualBooking($record, $data);
-                    }),
-                Action::make('bookSteadfast')
-                    ->label('Book Steadfast')
-                    ->icon('heroicon-o-truck')
-                    ->color('warning')
-                    ->visible(fn (Order $record): bool => self::canBookCourier($record) && CourierProvider::query()
-                        ->where('driver', CourierProvider::DRIVER_STEADFAST)
-                        ->where('is_active', true)
-                        ->exists())
-                    ->schema(fn (Order $record): array => self::steadfastBookingForm($record))
+                    ->schema(fn (Order $record): array => self::unifiedBookingForm($record))
                     ->action(function (Order $record, array $data): void {
                         $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
-                        app(CourierService::class)->createSteadfastBooking($record, $provider, $data);
-                    }),
-                Action::make('bookPathao')
-                    ->label('Book Pathao')
-                    ->icon('heroicon-o-truck')
-                    ->color('info')
-                    ->visible(fn (Order $record): bool => self::canBookCourier($record) && self::hasActiveProvider(CourierProvider::DRIVER_PATHAO))
-                    ->schema(fn (Order $record): array => self::pathaoBookingForm($record))
-                    ->action(function (Order $record, array $data): void {
-                        $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
-                        app(CourierService::class)->createPathaoBooking($record, $provider, $data);
-                    }),
-                Action::make('bookRedx')
-                    ->label('Book RedX')
-                    ->icon('heroicon-o-truck')
-                    ->color('danger')
-                    ->visible(fn (Order $record): bool => self::canBookCourier($record) && self::hasActiveProvider(CourierProvider::DRIVER_REDX))
-                    ->schema(fn (Order $record): array => self::redxBookingForm($record))
-                    ->action(function (Order $record, array $data): void {
-                        $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
-                        app(CourierService::class)->createRedxBooking($record, $provider, $data);
-                    }),
-                Action::make('bookECourier')
-                    ->label('Book E-Courier')
-                    ->icon('heroicon-o-truck')
-                    ->color('success')
-                    ->visible(fn (Order $record): bool => self::canBookCourier($record) && self::hasActiveProvider(CourierProvider::DRIVER_ECOURIER))
-                    ->schema(fn (Order $record): array => self::ecourierBookingForm($record))
-                    ->action(function (Order $record, array $data): void {
-                        $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
-                        app(CourierService::class)->createECourierBooking($record, $provider, $data);
+                        $payload = self::bookingPayloadFor($provider, $data);
+
+                        match ($provider->driver) {
+                            CourierProvider::DRIVER_STEADFAST => app(CourierService::class)->createSteadfastBooking($record, $provider, $payload),
+                            CourierProvider::DRIVER_PATHAO => app(CourierService::class)->createPathaoBooking($record, $provider, $payload),
+                            CourierProvider::DRIVER_REDX => app(CourierService::class)->createRedxBooking($record, $provider, $payload),
+                            CourierProvider::DRIVER_ECOURIER => app(CourierService::class)->createECourierBooking($record, $provider, $payload),
+                            default => app(CourierService::class)->createManualBooking($record, $payload),
+                        };
                     }),
                 Action::make('markDelivered')
                     ->label('Delivered')
@@ -286,16 +255,298 @@ class OrdersTable
 
                             $notification->send();
                         }),
-                    DeleteBulkAction::make(),
+                    BulkAction::make('bookCourierBulk')
+                        ->label('Book courier')
+                        ->icon('heroicon-o-truck')
+                        ->color('primary')
+                        ->visible(fn (): bool => Auth::user()?->hasPermission('sales.update') ?? false)
+                        ->schema(fn (): array => self::bulkBookingForm())
+                        ->requiresConfirmation()
+                        ->modalDescription('Books every selected, not-yet-booked order through the chosen courier. Orders that are already booked are skipped.')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(fn (Collection $records, array $data) => self::bookCourierBulk($records, $data)),
+                    BulkAction::make('printInvoicesBulk')
+                        ->label('Print invoices')
+                        ->icon('heroicon-o-printer')
+                        ->color('gray')
+                        // Deliberately NOT ->url(): a bulk action's trigger
+                        // link is rendered once and doesn't re-evaluate as
+                        // checkboxes are (de)selected client-side, so a
+                        // ->url() closure here would keep opening the print
+                        // view with whatever selection existed at the last
+                        // full render — often empty. ->action() instead
+                        // always sees the live selection (same as every
+                        // other bulk action here) and opens the new tab
+                        // itself via a JS effect once the URL is computed.
+                        // No ->schema()/->requiresConfirmation(), so this is
+                        // still one click, matching the row-level "print"
+                        // action's directness.
+                        ->action(fn (Collection $records, $livewire) => self::printInvoicesBulk($records, $livewire)),
+                    DeleteBulkAction::make()
+                        ->label('Move to trash')
+                        ->icon('heroicon-o-trash')
+                        ->modalHeading('Move selected orders to trash?')
+                        ->modalDescription('The selected orders will leave the active order list and remain available in Trash until they are permanently deleted.')
+                        ->modalSubmitActionLabel('Move to trash')
+                        ->successNotificationTitle('Selected orders moved to trash'),
                 ]),
+                Action::make('trash')
+                    ->label('Trash')
+                    ->icon('heroicon-o-trash')
+                    ->color('gray')
+                    ->badge(fn (): ?string => ($count = self::trashedOrdersQuery()->count()) > 0 ? (string) $count : null)
+                    ->authorize(fn (): bool => self::canManageTrash())
+                    ->visible(fn (): bool => self::canManageTrash())
+                    ->modalHeading('Trashed orders')
+                    ->modalIcon('heroicon-o-trash')
+                    ->modalDescription(fn (): string => self::trashModalDescription())
+                    ->modalWidth(Width::FiveExtraLarge)
+                    ->schema([
+                        SchemaLivewire::make(OrderTrashTable::class)
+                            ->key('orderTrashTable'),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalSubmitAction(fn (Action $action): Action => $action
+                        ->label('Delete permanently')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->disabled(fn (): bool => self::trashedOrdersQuery()->doesntExist()))
+                    ->modalCancelActionLabel('Close')
+                    ->action(fn (): int => self::permanentlyDeleteTrashedOrders()),
             ]);
     }
 
-    protected static function courierBookingForm(Order $record, bool $includeProvider = true): array
+    protected static function trashModalDescription(): string
     {
-        $record->loadMissing('customer');
+        $count = self::trashedOrdersQuery()->count();
 
-        $schema = [
+        if ($count === 0) {
+            return 'Orders moved to trash will appear here.';
+        }
+
+        return "Permanently deleting all {$count} trashed order(s) cannot be undone.";
+    }
+
+    protected static function permanentlyDeleteTrashedOrders(): int
+    {
+        $count = self::trashedOrdersQuery()->count();
+
+        if ($count === 0) {
+            Notification::make()
+                ->title('Trash is already empty')
+                ->info()
+                ->send();
+
+            return 0;
+        }
+
+        DB::transaction(function (): void {
+            self::trashedOrdersQuery()->eachById(
+                fn (Order $order): bool => $order->forceDelete(),
+            );
+        });
+
+        Notification::make()
+            ->title("{$count} order(s) permanently deleted")
+            ->success()
+            ->send();
+
+        return $count;
+    }
+
+    protected static function trashedOrdersQuery(): Builder
+    {
+        // `All Companies` deliberately removes CompanyScope. A destructive
+        // "delete all" must instead fail closed until one company is active.
+        return Order::onlyTrashed()
+            ->where('company_id', app(CompanyContext::class)->id() ?? 0);
+    }
+
+    protected static function canManageTrash(): bool
+    {
+        return (Auth::user()?->canDeleteSensitiveRecords() ?? false)
+            && app(CompanyContext::class)->hasCompany();
+    }
+
+    /**
+     * Bulk-safe couriers only — Steadfast and Manual need no extra input
+     * beyond what Order/Customer already supply (see
+     * SteadfastCourierClient's steadfastPayload()); Pathao/RedX/E-Courier
+     * require structured per-order fields (city/zone/area IDs, delivery
+     * area names, ...) that don't exist on the Order model and can't be
+     * safely guessed for a batch of different recipients, so they're left
+     * out of this list entirely rather than offered and then silently
+     * skipped — "Book courier" on an individual order is where those
+     * belong.
+     */
+    protected const BULK_SAFE_DRIVERS = [CourierProvider::DRIVER_STEADFAST, CourierProvider::DRIVER_MANUAL];
+
+    /**
+     * @return array<int, Component>
+     */
+    protected static function bulkBookingForm(): array
+    {
+        $companyId = app(CompanyContext::class)->id();
+
+        return [
+            Select::make('courier_provider_id')
+                ->label('Courier')
+                ->options(fn (): array => self::providerOptions($companyId, self::BULK_SAFE_DRIVERS))
+                ->default(function () use ($companyId): ?int {
+                    $default = CourierProvider::defaultForCompany($companyId);
+
+                    return $default && in_array($default->driver, self::BULK_SAFE_DRIVERS, true) ? $default->getKey() : null;
+                })
+                ->required()
+                ->native(false)
+                ->helperText('Applies to every selected order. Pre-filled from the default courier — change it if this batch needs a different one. Pathao/RedX/E-Courier need per-order details and aren\'t offered here; use "Book courier" on an individual order for those.'),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $drivers  restrict options to these driver keys, or null for all
+     */
+    protected static function providerOptions(?int $companyId, ?array $drivers = null): array
+    {
+        return CourierProvider::query()
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->when($drivers, fn ($query) => $query->whereIn('driver', $drivers))
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn (CourierProvider $provider): array => [
+                $provider->getKey() => $provider->name.' ('.(CourierProvider::DRIVERS[$provider->driver] ?? $provider->driver).')'.($provider->is_default ? ' — Default' : ''),
+            ])
+            ->all();
+    }
+
+    /**
+     * Books every eligible order in $records through the one courier chosen
+     * in the bulk popup ($data['courier_provider_id']) — restricted to
+     * BULK_SAFE_DRIVERS by bulkBookingForm(), so every booking here is
+     * either Steadfast or Manual.
+     */
+    protected static function bookCourierBulk(Collection $records, array $data): void
+    {
+        $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
+
+        $booked = 0;
+        $skippedAlreadyBooked = 0;
+        $skippedFailed = 0;
+
+        foreach ($records as $record) {
+            /** @var Order $record */
+            if (! self::canBookCourier($record)) {
+                $skippedAlreadyBooked++;
+
+                continue;
+            }
+
+            try {
+                match ($provider->driver) {
+                    CourierProvider::DRIVER_STEADFAST => app(CourierService::class)->createSteadfastBooking($record, $provider),
+                    default => app(CourierService::class)->createManualBooking($record, ['courier_provider_id' => $provider->getKey()]),
+                };
+                $booked++;
+            } catch (ValidationException) {
+                $skippedFailed++;
+            }
+        }
+
+        $notes = array_filter([
+            $skippedAlreadyBooked > 0 ? "{$skippedAlreadyBooked} already booked" : null,
+            $skippedFailed > 0 ? "{$skippedFailed} failed — see Status Logs" : null,
+        ]);
+
+        $notification = Notification::make()
+            ->title("{$booked} order(s) booked")
+            ->body($notes === [] ? null : implode('; ', $notes).'.');
+
+        if ($booked === 0) {
+            $notification->danger();
+        } elseif ($notes !== []) {
+            $notification->warning();
+        } else {
+            $notification->success();
+        }
+
+        $notification->send();
+    }
+
+    /**
+     * Opens every selected order's invoice in one new tab (see
+     * orders.print.bulk / orders/print-bulk.blade.php), which auto-triggers
+     * the browser/OS print dialog once loaded — same one-click "print
+     * preview" behaviour as the row-level "print" action, just for a whole
+     * batch at once.
+     *
+     * $livewire->js() rather than ->url() on the action itself: a bulk
+     * action's trigger link is rendered once and doesn't re-evaluate as
+     * checkboxes are (de)selected client-side, so a static ->url() closure
+     * would keep opening the print view with whatever selection existed at
+     * the table's last full render — often empty. Routing through
+     * ->action() means $records always reflects the live selection (same
+     * as every other bulk action here), and the URL is only computed —
+     * then opened — once we actually have it.
+     */
+    protected static function printInvoicesBulk(Collection $records, mixed $livewire): void
+    {
+        if ($records->isEmpty()) {
+            return;
+        }
+
+        $url = route('orders.print.bulk', [
+            'orders' => $records->pluck('id')->implode(','),
+        ]);
+
+        $livewire->js('window.open('.json_encode($url).', "_blank")');
+    }
+
+    /**
+     * Single unified booking form for the per-order "Book courier" action.
+     * One `courier_provider_id` Select (default: the order's own assigned
+     * courier, falling back to the company's default) drives which
+     * driver-specific field group is visible via `->live()` + `Get` — the
+     * common fields cover Manual bookings outright, and the reason this
+     * isn't also how the bulk action works is that the bulk popup can't
+     * collect different per-order details for a batch of different
+     * recipients (see BULK_SAFE_DRIVERS).
+     *
+     * Field names are prefixed per driver (`sf_`/`ph_`/`rx_`/`ec_`) because
+     * three field names genuinely collide across drivers with different
+     * meanings — `recipient_city` (Pathao: numeric city ID; E-Courier:
+     * plain city name), `recipient_area` (Pathao: numeric area ID;
+     * E-Courier: plain area name), and `delivery_type` (Steadfast:
+     * home/point; Pathao: normal/on-demand) — two Filament components can't
+     * safely share one state path in the same schema. `bookingPayloadFor()`
+     * strips the prefix back off before calling the matching
+     * `CourierService::create*Booking()`, whose signatures are unchanged.
+     *
+     * @return array<int, Component>
+     */
+    protected static function unifiedBookingForm(Order $record): array
+    {
+        $record->loadMissing('customer', 'courierProvider');
+        $companyId = app(CompanyContext::class)->id();
+
+        $providers = CourierProvider::query()
+            ->where('company_id', $companyId)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy('id');
+
+        $driverOf = fn (Get $get): ?string => $providers->get((int) $get('courier_provider_id'))?->driver;
+
+        return [
+            Select::make('courier_provider_id')
+                ->label('Courier')
+                ->options(fn (): array => self::providerOptions($companyId))
+                ->default($record->courier_provider_id ?? CourierProvider::defaultForCompany($companyId)?->getKey())
+                ->required()
+                ->live()
+                ->native(false)
+                ->helperText('Defaults to this order\'s assigned courier (or the company default) — change it here if this order needs a different one.'),
+
             Placeholder::make('risk_notice')
                 ->label('Customer Risk Check')
                 ->content(function () use ($record): string {
@@ -325,160 +576,159 @@ class OrdersTable
                 ->minValue(0),
             Textarea::make('note')
                 ->rows(2),
-        ];
 
-        if (! $includeProvider) {
-            return $schema;
-        }
-
-        return [
-            Select::make('courier_provider_id')
-                ->label('Custom Provider')
-                ->options(fn (): array => CourierProvider::query()
-                    ->where('driver', CourierProvider::DRIVER_MANUAL)
-                    ->where('is_active', true)
-                    ->orderBy('name')
-                    ->pluck('name', 'id')
-                    ->all())
-                ->placeholder('Default Custom')
-                ->native(false),
-            ...$schema,
-        ];
-    }
-
-    protected static function steadfastBookingForm(Order $record): array
-    {
-        return [
-            Select::make('courier_provider_id')
-                ->label('Steadfast Provider')
-                ->options(fn (): array => CourierProvider::query()
-                    ->where('driver', CourierProvider::DRIVER_STEADFAST)
-                    ->where('is_active', true)
-                    ->orderBy('name')
-                    ->pluck('name', 'id')
-                    ->all())
-                ->required()
-                ->native(false),
-            ...self::courierBookingForm($record, includeProvider: false),
-            TextInput::make('alternative_phone')
+            // Steadfast-only
+            TextInput::make('sf_alternative_phone')
+                ->label('Alternative Phone')
                 ->tel()
-                ->maxLength(255),
-            TextInput::make('recipient_email')
+                ->maxLength(255)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_STEADFAST),
+            TextInput::make('sf_recipient_email')
+                ->label('Recipient Email')
                 ->email()
                 ->default($record->customer?->email)
-                ->maxLength(255),
-            TextInput::make('item_description')
-                ->maxLength(255),
-            TextInput::make('total_lot')
+                ->maxLength(255)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_STEADFAST),
+            TextInput::make('sf_item_description')
+                ->label('Item Description')
+                ->maxLength(255)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_STEADFAST),
+            TextInput::make('sf_total_lot')
+                ->label('Total Lot')
                 ->numeric()
-                ->minValue(1),
-            Select::make('delivery_type')
-                ->options([
-                    0 => 'Home Delivery',
-                    1 => 'Point Delivery / Hub Pickup',
-                ])
+                ->minValue(1)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_STEADFAST),
+            Select::make('sf_delivery_type')
+                ->label('Delivery Type')
+                ->options([0 => 'Home Delivery', 1 => 'Point Delivery / Hub Pickup'])
                 ->default(0)
-                ->native(false),
-        ];
-    }
+                ->native(false)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_STEADFAST),
 
-    protected static function hasActiveProvider(string $driver): bool
-    {
-        return CourierProvider::query()
-            ->where('driver', $driver)
-            ->where('is_active', true)
-            ->exists();
-    }
-
-    protected static function providerSelect(string $driver, string $label): Select
-    {
-        return Select::make('courier_provider_id')
-            ->label($label)
-            ->options(fn (): array => CourierProvider::query()
-                ->where('driver', $driver)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->pluck('name', 'id')
-                ->all())
-            ->required()
-            ->native(false);
-    }
-
-    protected static function pathaoBookingForm(Order $record): array
-    {
-        return [
-            self::providerSelect(CourierProvider::DRIVER_PATHAO, 'Pathao Provider'),
-            ...self::courierBookingForm($record, includeProvider: false),
-            TextInput::make('store_id')
+            // Pathao-only
+            TextInput::make('ph_store_id')
                 ->label('Store ID')
                 ->numeric()
-                ->helperText('Leave blank to use the provider default store.'),
-            TextInput::make('recipient_city')
+                ->helperText('Leave blank to use the provider default store.')
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_PATHAO),
+            TextInput::make('ph_recipient_city')
                 ->label('City ID')
                 ->numeric()
-                ->helperText('Pathao city/zone/area IDs from the merchant panel or API city list.'),
-            TextInput::make('recipient_zone')
+                ->helperText('Pathao city/zone/area IDs from the merchant panel or API city list.')
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_PATHAO),
+            TextInput::make('ph_recipient_zone')
                 ->label('Zone ID')
-                ->numeric(),
-            TextInput::make('recipient_area')
+                ->numeric()
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_PATHAO),
+            TextInput::make('ph_recipient_area')
                 ->label('Area ID')
-                ->numeric(),
-            Select::make('delivery_type')
-                ->options([
-                    48 => 'Normal Delivery',
-                    12 => 'On-Demand Delivery',
-                ])
+                ->numeric()
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_PATHAO),
+            Select::make('ph_delivery_type')
+                ->label('Delivery Type')
+                ->options([48 => 'Normal Delivery', 12 => 'On-Demand Delivery'])
                 ->default(48)
-                ->native(false),
-            TextInput::make('item_weight')
+                ->native(false)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_PATHAO),
+            TextInput::make('ph_item_weight')
                 ->label('Weight (kg)')
                 ->numeric()
                 ->default(0.5)
-                ->minValue(0.1),
-        ];
-    }
+                ->minValue(0.1)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_PATHAO),
 
-    protected static function redxBookingForm(Order $record): array
-    {
-        return [
-            self::providerSelect(CourierProvider::DRIVER_REDX, 'RedX Provider'),
-            ...self::courierBookingForm($record, includeProvider: false),
-            TextInput::make('delivery_area')
+            // RedX-only
+            TextInput::make('rx_delivery_area')
                 ->label('Delivery Area Name')
-                ->required()
-                ->helperText('RedX area name, e.g. from the RedX areas list.'),
-            TextInput::make('delivery_area_id')
+                ->helperText('RedX area name, e.g. from the RedX areas list.')
+                ->required(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_REDX)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_REDX),
+            TextInput::make('rx_delivery_area_id')
                 ->label('Delivery Area ID')
                 ->numeric()
-                ->required(),
-            TextInput::make('parcel_weight')
+                ->required(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_REDX)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_REDX),
+            TextInput::make('rx_parcel_weight')
                 ->label('Weight (grams)')
                 ->numeric()
                 ->default(500)
-                ->minValue(1),
+                ->minValue(1)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_REDX),
+
+            // E-Courier-only
+            TextInput::make('ec_recipient_city')
+                ->label('City')
+                ->required(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_ECOURIER)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_ECOURIER),
+            TextInput::make('ec_recipient_thana')
+                ->label('Thana')
+                ->required(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_ECOURIER)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_ECOURIER),
+            TextInput::make('ec_recipient_zip')
+                ->label('Post Code')
+                ->required(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_ECOURIER)
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_ECOURIER),
+            TextInput::make('ec_recipient_area')
+                ->label('Area')
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_ECOURIER),
+            TextInput::make('ec_package_code')
+                ->label('Package Code')
+                ->helperText('Leave blank to use the provider default package.')
+                ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_ECOURIER),
         ];
     }
 
-    protected static function ecourierBookingForm(Order $record): array
+    /**
+     * Strips the unifiedBookingForm() driver prefix back off and rebuilds
+     * the flat `$data` shape each `CourierService::create*Booking()` method
+     * already expects, so none of those methods needed to change.
+     */
+    protected static function bookingPayloadFor(CourierProvider $provider, array $data): array
     {
-        return [
-            self::providerSelect(CourierProvider::DRIVER_ECOURIER, 'E-Courier Provider'),
-            ...self::courierBookingForm($record, includeProvider: false),
-            TextInput::make('recipient_city')
-                ->label('City')
-                ->required(),
-            TextInput::make('recipient_thana')
-                ->label('Thana')
-                ->required(),
-            TextInput::make('recipient_zip')
-                ->label('Post Code')
-                ->required(),
-            TextInput::make('recipient_area')
-                ->label('Area'),
-            TextInput::make('package_code')
-                ->label('Package Code')
-                ->helperText('Leave blank to use the provider default package.'),
+        $common = [
+            'courier_provider_id' => $provider->getKey(),
+            'tracking_id' => $data['tracking_id'] ?? null,
+            'recipient_name' => $data['recipient_name'] ?? null,
+            'recipient_phone' => $data['recipient_phone'] ?? null,
+            'recipient_address' => $data['recipient_address'] ?? null,
+            'cod_amount' => $data['cod_amount'] ?? null,
+            'note' => $data['note'] ?? null,
         ];
+
+        return match ($provider->driver) {
+            CourierProvider::DRIVER_STEADFAST => [
+                ...$common,
+                'alternative_phone' => $data['sf_alternative_phone'] ?? null,
+                'recipient_email' => $data['sf_recipient_email'] ?? null,
+                'item_description' => $data['sf_item_description'] ?? null,
+                'total_lot' => $data['sf_total_lot'] ?? null,
+                'delivery_type' => $data['sf_delivery_type'] ?? 0,
+            ],
+            CourierProvider::DRIVER_PATHAO => [
+                ...$common,
+                'store_id' => $data['ph_store_id'] ?? null,
+                'recipient_city' => $data['ph_recipient_city'] ?? null,
+                'recipient_zone' => $data['ph_recipient_zone'] ?? null,
+                'recipient_area' => $data['ph_recipient_area'] ?? null,
+                'delivery_type' => $data['ph_delivery_type'] ?? 48,
+                'item_weight' => $data['ph_item_weight'] ?? 0.5,
+            ],
+            CourierProvider::DRIVER_REDX => [
+                ...$common,
+                'delivery_area' => $data['rx_delivery_area'] ?? null,
+                'delivery_area_id' => $data['rx_delivery_area_id'] ?? null,
+                'parcel_weight' => $data['rx_parcel_weight'] ?? 500,
+            ],
+            CourierProvider::DRIVER_ECOURIER => [
+                ...$common,
+                'recipient_city' => $data['ec_recipient_city'] ?? null,
+                'recipient_thana' => $data['ec_recipient_thana'] ?? null,
+                'recipient_zip' => $data['ec_recipient_zip'] ?? null,
+                'recipient_area' => $data['ec_recipient_area'] ?? null,
+                'package_code' => $data['ec_package_code'] ?? null,
+            ],
+            default => $common, // Manual
+        };
     }
 
     protected static function canBookCourier(Order $record): bool

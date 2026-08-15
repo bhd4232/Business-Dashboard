@@ -7,6 +7,8 @@ use App\Filament\Resources\Orders\OrderResource;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
 use App\Models\CustomerRiskProfile;
+use App\Models\Order;
+use App\Services\AuditLogService;
 use App\Services\CompanyContext;
 use App\Services\CourierService;
 use App\Services\CustomerRiskService;
@@ -17,14 +19,48 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ViewOrder extends ViewRecord
 {
     protected static string $resource = OrderResource::class;
 
+    public function mount(int|string $record): void
+    {
+        parent::mount($record);
+
+        // Nuport's per-order "Logs" tab narrates a "viewed by X" line
+        // every time staff open the order; AuditLogService::record()
+        // already accepts an arbitrary action string, so this needs no
+        // schema change. Deduped per user per order for 5 minutes so a
+        // Livewire refresh or accidental double-open doesn't spam the
+        // activity feed built from these rows (OrderActivityFeedService).
+        $cacheKey = 'order-viewed-log:'.$this->record->getKey().':'.(Auth::id() ?? 'guest');
+
+        if (! Cache::has($cacheKey)) {
+            Cache::put($cacheKey, true, now()->addMinutes(5));
+            app(AuditLogService::class)->record('viewed', $this->record);
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('previousOrder')
+                ->label('Previous')
+                ->icon('heroicon-o-chevron-left')
+                ->iconButton()
+                ->color('gray')
+                ->visible(fn (): bool => $this->previousOrderId() !== null)
+                ->url(fn (): string => OrderResource::getUrl('view', ['record' => $this->previousOrderId()])),
+            Action::make('nextOrder')
+                ->label('Next')
+                ->icon('heroicon-o-chevron-right')
+                ->iconButton()
+                ->color('gray')
+                ->visible(fn (): bool => $this->nextOrderId() !== null)
+                ->url(fn (): string => OrderResource::getUrl('view', ['record' => $this->nextOrderId()])),
             ChangeOrderWorkflowAction::make(),
             Action::make('bookCourier')
                 ->label('Book courier')
@@ -180,5 +216,28 @@ class ViewOrder extends ViewRecord
         return $this->record->delivery_status === CourierBooking::STATUS_NOT_BOOKED
             && app(CompanyContext::class)->hasCompany()
             && (int) app(CompanyContext::class)->id() === (int) $this->record->company_id;
+    }
+
+    /**
+     * Nuport's `< >` arrows next to the order number, so staff can page
+     * through orders without going back to the list. Id-based rather than
+     * tied to whatever sort/filter the list table happened to have —
+     * CompanyScope (BelongsToCompany) already keeps this scoped to the
+     * current company like every other Order query.
+     */
+    protected function previousOrderId(): ?int
+    {
+        return Order::query()
+            ->where('id', '<', $this->record->getKey())
+            ->orderByDesc('id')
+            ->value('id');
+    }
+
+    protected function nextOrderId(): ?int
+    {
+        return Order::query()
+            ->where('id', '>', $this->record->getKey())
+            ->orderBy('id')
+            ->value('id');
     }
 }

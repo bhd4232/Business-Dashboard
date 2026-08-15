@@ -6,6 +6,7 @@ use App\Filament\Forms\Components\CustomerSourceSelect;
 use App\Filament\Forms\Components\CustomerTypeSelect;
 use App\Filament\Forms\Components\EmailInput;
 use App\Filament\Forms\Components\PhoneInput;
+use App\Models\CourierProvider;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -206,6 +207,21 @@ class OrderForm
                             ->helperText(fn (?Order $record): string => $record?->exists
                                 ? 'Use Change status or courier actions to update delivery progress.'
                                 : 'Controls courier progress shown on storefront tracking.'),
+
+                        Select::make('courier_provider_id')
+                            ->label('Courier')
+                            ->options(fn (): array => CourierProvider::query()
+                                ->where('company_id', app(CompanyContext::class)->id())
+                                ->where('is_active', true)
+                                ->orderBy('name')
+                                ->get()
+                                ->mapWithKeys(fn (CourierProvider $provider): array => [
+                                    $provider->getKey() => $provider->name.($provider->is_default ? ' (Default)' : ''),
+                                ])
+                                ->all())
+                            ->placeholder('None')
+                            ->native(false)
+                            ->helperText('Pre-selects which courier "Book courier" defaults to. Pre-filled from the default courier on new orders; change it anytime before booking.'),
                     ])
                     ->columns(2)
                     ->collapsible()
@@ -372,7 +388,19 @@ class OrderForm
                             ->minValue(0)
                             ->required()
                             ->live(onBlur: true)
-                            ->afterStateUpdated(fn (Get $get, Set $set) => self::setOrderTotals($get, $set)),
+                            ->afterStateUpdated(fn (Get $get, Set $set) => self::setOrderTotals($get, $set))
+                            // Once the order exists, paid_amount is derived from the
+                            // Payments History ledger (OrderPayment rows, recomputed by
+                            // Order::recalculatePaidAmount()) shown on the order's view
+                            // page — corrections go through that ledger (add/edit/delete
+                            // a payment row) instead of typing a new total here, so the
+                            // two write paths can't silently disagree. Still a normal
+                            // editable field at creation time, which auto-seeds the first
+                            // ledger row (see Order::booted()'s `created` hook).
+                            ->readOnly(fn (string $operation): bool => $operation === 'edit')
+                            ->helperText(fn (string $operation): ?string => $operation === 'edit'
+                                ? 'Managed from Payments History on the order view page.'
+                                : null),
 
                         TextInput::make('due_amount')
                             ->numeric()

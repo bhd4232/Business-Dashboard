@@ -22,7 +22,9 @@ use App\Models\InvestmentProject;
 use App\Models\Investor;
 use App\Models\InvestorSecurityInstrument;
 use App\Models\Order;
+use App\Models\OrderCost;
 use App\Models\OrderItem;
+use App\Models\OrderPayment;
 use App\Models\Product;
 use App\Models\ProjectCostItem;
 use App\Models\ProjectSettlement;
@@ -111,6 +113,8 @@ class AppServiceProvider extends ServiceProvider
             ChannelPartnerPayout::class,
             Order::class,
             OrderItem::class,
+            OrderPayment::class,
+            OrderCost::class,
             Product::class,
             Purchase::class,
             PurchaseItem::class,

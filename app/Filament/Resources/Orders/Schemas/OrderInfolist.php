@@ -3,9 +3,12 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Models\CourierBooking;
+use App\Models\Customer;
 use App\Models\CustomerRiskProfile;
 use App\Models\CustomerRiskReview;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Services\OrderActivityFeedService;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -23,6 +26,31 @@ class OrderInfolist
                     ->schema([
                         TextEntry::make('order_number')->label('Invoice Number'),
                         TextEntry::make('customer.name')->label('Customer'),
+                        TextEntry::make('customer.customer_type')
+                            ->label('Customer Type')
+                            ->badge()
+                            ->placeholder('Regular')
+                            ->formatStateUsing(fn (?string $state): ?string => Customer::typeLabel($state) ?? 'Regular'),
+                        TextEntry::make('customer.phone')
+                            ->label('Phone')
+                            ->placeholder('-')
+                            ->icon('heroicon-o-chat-bubble-left-right')
+                            // wa.me needs a leading country code, not the local
+                            // 0-prefixed format phone numbers are stored in —
+                            // same normalization QuotationsTable's "Share on
+                            // WhatsApp" action already uses.
+                            ->url(function (Order $record): ?string {
+                                $phone = preg_replace('/\D/', '', $record->customer?->phone ?? '');
+
+                                if (blank($phone)) {
+                                    return null;
+                                }
+
+                                $phone = str_starts_with($phone, '0') ? '88'.$phone : $phone;
+
+                                return "https://wa.me/{$phone}";
+                            })
+                            ->openUrlInNewTab(),
                         TextEntry::make('order_date')->date(),
                         TextEntry::make('source')
                             ->badge()
@@ -41,7 +69,7 @@ class OrderInfolist
                             ->badge()
                             ->formatStateUsing(fn (?string $state): string => Order::DELIVERY_STATUSES[$state ?? CourierBooking::STATUS_NOT_BOOKED] ?? str($state)->headline()->toString()),
                     ])
-                    ->columns(2),
+                    ->columns(4),
 
                 Section::make('Courier')
                     ->columnSpanFull()
@@ -87,8 +115,25 @@ class OrderInfolist
                         TextEntry::make('total_amount')->money('BDT'),
                         TextEntry::make('paid_amount')->money('BDT'),
                         TextEntry::make('due_amount')->money('BDT'),
+                        TextEntry::make('total_weight')
+                            ->label('Total Weight')
+                            ->state(fn (Order $record): string => number_format(
+                                $record->items->sum(fn (OrderItem $item): float => (int) $item->quantity * (float) ($item->product?->weight_kg ?? 0)),
+                                3
+                            ).' kg'),
+                        TextEntry::make('total_cost')
+                            ->label('Associated Costs')
+                            ->state(fn (Order $record): float => $record->totalCost())
+                            ->money('BDT'),
+                        // total_amount minus per-line COGS (OrderItem::unit_cost) minus
+                        // the Associated Costs ledger below — see Order::profit().
+                        TextEntry::make('profit')
+                            ->label('Profit')
+                            ->state(fn (Order $record): float => $record->profit())
+                            ->money('BDT')
+                            ->color(fn (Order $record): string => $record->profit() >= 0 ? 'success' : 'danger'),
                     ])
-                    ->columns(3),
+                    ->columns(4),
 
                 Section::make('Items')
                     ->columnSpanFull()
@@ -99,8 +144,16 @@ class OrderInfolist
                                 TextEntry::make('product.name')
                                     ->label('Product'),
 
+                                TextEntry::make('variant_label')
+                                    ->label('Variant')
+                                    ->placeholder('-'),
+
                                 TextEntry::make('quantity')
                                     ->badge(),
+
+                                TextEntry::make('product.weight_kg')
+                                    ->label('Weight (kg)')
+                                    ->placeholder('-'),
 
                                 TextEntry::make('unit_price')
                                     ->money('BDT'),
@@ -108,12 +161,37 @@ class OrderInfolist
                                 TextEntry::make('subtotal')
                                     ->money('BDT'),
                             ])
-                            ->columns(4)
+                            ->columns(6)
                             ->contained(false)
                             ->columnSpanFull(),
                     ]),
 
                 TextEntry::make('note')->columnSpanFull(),
+
+                Section::make('Activity')
+                    ->columnSpanFull()
+                    ->collapsible()
+                    ->persistCollapsed()
+                    ->schema([
+                        TextEntry::make('activity_feed')
+                            ->hiddenLabel()
+                            ->html()
+                            ->state(function (Order $record): string {
+                                $entries = app(OrderActivityFeedService::class)->narrate($record);
+
+                                if ($entries->isEmpty()) {
+                                    return '<p class="text-sm text-gray-500">No activity recorded yet.</p>';
+                                }
+
+                                $rows = $entries->map(fn (array $entry): string => sprintf(
+                                    '<li><span class="text-gray-500">%s</span> — %s</li>',
+                                    e($entry['at']?->format('d M Y, h:i A') ?? ''),
+                                    e($entry['text'])
+                                ))->implode('');
+
+                                return "<ul class=\"space-y-1 text-sm\">{$rows}</ul>";
+                            }),
+                    ]),
             ]);
     }
 }

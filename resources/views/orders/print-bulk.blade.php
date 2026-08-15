@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Invoice {{ $order->order_number }}</title>
+    <title>{{ $orders->count() }} Invoice{{ $orders->count() === 1 ? '' : 's' }}</title>
     @include('orders.partials.invoice-styles')
 </head>
 <body>
@@ -11,7 +11,9 @@
         <button class="print-button" id="invoice-print-button" type="button">Print</button>
     </div>
 
-    @include('orders.partials.invoice', ['order' => $order, 'company' => $company ?? null, 'invoice' => $invoice ?? null])
+    @foreach ($orders as $order)
+        @include('orders.partials.invoice', ['order' => $order, 'company' => $company, 'invoice' => $invoice])
+    @endforeach
 
     <script>
         (function () {
@@ -27,9 +29,12 @@
                 printButton.addEventListener('click', openPrintDialog);
             }
 
-            if (new URLSearchParams(window.location.search).get('print') === '1') {
-                window.addEventListener('load', openPrintDialog);
-            }
+            // Bulk print is only ever reached by explicitly clicking "Print
+            // invoices" on the Orders list, so the print dialog opens
+            // automatically every time — no `?print=1` opt-in needed like
+            // the single-order view (which is also linked to from places
+            // where auto-printing isn't wanted).
+            window.addEventListener('load', openPrintDialog);
         })();
     </script>
 </body>
