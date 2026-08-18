@@ -122,6 +122,7 @@ class CompanyResource extends Resource
                         ->label('Dashboard Color')
                         ->helperText('This company\'s admin panel color (sidebar, buttons, links). Separate from any storefront branding color.')
                         ->default('#F59E0B')
+                        ->live(onBlur: true)
                         ->required(),
                 ])
                 ->columns(2),

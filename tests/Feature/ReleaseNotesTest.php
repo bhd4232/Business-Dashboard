@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Support\AppDeployment;
+use App\Support\AppRelease;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
@@ -28,6 +29,15 @@ class ReleaseNotesTest extends TestCase
         Filament::setCurrentPanel(Filament::getPanel('admin'));
     }
 
+    public function test_configured_release_matches_the_latest_published_changelog_entry(): void
+    {
+        $latestRelease = AppRelease::latestPublished();
+
+        $this->assertSame(AppRelease::version(), $latestRelease['version']);
+        $this->assertSame(AppRelease::typeLabel(), $latestRelease['type_label']);
+        $this->assertSame(AppRelease::date(), $latestRelease['date']);
+    }
+
     public function test_health_version_endpoint_exposes_release_metadata(): void
     {
         Config::set('release.version', '9.8.7');
@@ -39,7 +49,7 @@ class ReleaseNotesTest extends TestCase
             ->assertOk()
             ->assertHeader('Cache-Control')
             ->assertJsonPath('version', '9.8.7')
-            ->assertJsonPath('published_version', '1.23.0')
+            ->assertJsonPath('published_version', '2.1.0')
             ->assertJsonPath('release_type', 'critical_fix')
             ->assertJsonPath('release_label', 'Critical Fix Update')
             ->assertJsonPath('release_date', '2026-06-21')
@@ -65,13 +75,13 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.23.0')
+            ->assertSee('v2.1.0')
             ->assertSee('Installed version')
             ->assertSee('Minor Feature')
-            ->assertSee('Released 2026-08-03')
-            ->assertSee('Site Theme system')
-            ->assertSee('Super Admin Database & Deployment Notes')
-            ->assertSee('Added disposable SQLite backup restore verification')
+            ->assertSee('Released 2026-08-18')
+            ->assertSee('Noor Solar Energy')
+            ->assertSee('Technical Notes')
+            ->assertSee('Added `three` as a production dependency')
             ->assertSee('Production Update Rules')
             ->assertSee('class="fi-section', false)
             ->assertSee('class="fi-btn', false)
@@ -94,8 +104,8 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v1.23.0')
-            ->assertSee('Complete customer account area')
+            ->assertSee('v2.1.0')
+            ->assertSee('Noor Solar Energy')
             ->assertSee('Added Customer and Order risk badges')
             ->assertDontSee('Added disposable SQLite backup restore verification')
             ->assertDontSee('Technical Notes')
@@ -123,7 +133,7 @@ class ReleaseNotesTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/settings/release-notes')
             ->assertOk()
-            ->assertSee('Update available: v1.23.0')
+            ->assertSee('Update available: v2.1.0')
             ->assertSee('Awaiting your approval')
             ->assertSee('Installed version: v1.21.0')
             ->assertDontSee('Android update push notifications');
@@ -141,7 +151,7 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertDontSee('Awaiting your approval')
-            ->assertSee('Installed version: v1.23.0')
-            ->assertSee('Complete customer account area');
+            ->assertSee('Installed version: v2.1.0')
+            ->assertSee('Noor Solar Energy');
     }
 }

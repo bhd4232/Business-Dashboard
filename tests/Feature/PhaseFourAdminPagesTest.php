@@ -343,7 +343,9 @@ class PhaseFourAdminPagesTest extends TestCase
         );
         $this->assertSame('Save changes', $headerActions->last()->getLabel());
         $this->assertSame(['mod+s'], $headerActions->last()->getKeyBindings());
-        $this->assertSame('save', $headerActions->last()->getLivewireClickHandler());
+        $this->assertTrue($headerActions->last()->canSubmitForm());
+        $this->assertSame('save', $headerActions->last()->getFormToSubmit());
+        $this->assertSame('form', $headerActions->last()->getFormId());
 
         $component
             ->set('data.company_id', $company->getKey())
@@ -415,7 +417,9 @@ class PhaseFourAdminPagesTest extends TestCase
         $this->assertSame(['saveChanges'], $headerActions->map->getName()->all());
         $this->assertSame('Save changes', $headerActions->first()->getLabel());
         $this->assertSame(['mod+s'], $headerActions->first()->getKeyBindings());
-        $this->assertSame('create', $headerActions->first()->getLivewireClickHandler());
+        $this->assertTrue($headerActions->first()->canSubmitForm());
+        $this->assertSame('create', $headerActions->first()->getFormToSubmit());
+        $this->assertSame('form', $headerActions->first()->getFormId());
 
         $component
             ->fillForm([

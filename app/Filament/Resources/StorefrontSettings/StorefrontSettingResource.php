@@ -252,6 +252,7 @@ class StorefrontSettingResource extends Resource
                                     ColorPicker::make('theme_color')
                                         ->label('Primary — actions & active states')
                                         ->default('#0F766E')
+                                        ->live(onBlur: true)
                                         ->required(),
                                     Select::make('theme_foreground_mode')
                                         ->label('Text placed on primary')
@@ -262,10 +263,12 @@ class StorefrontSettingResource extends Resource
                                     ColorPicker::make('theme_secondary_color')
                                         ->label('Secondary — supporting surfaces')
                                         ->default('#0F172A')
+                                        ->live(onBlur: true)
                                         ->required(),
                                     ColorPicker::make('theme_accent_color')
                                         ->label('Accent — focus & promotion')
                                         ->default('#F59E0B')
+                                        ->live(onBlur: true)
                                         ->required(),
                                 ])
                                 ->columns(2)
@@ -277,28 +280,33 @@ class StorefrontSettingResource extends Resource
                                         ->label('Page canvas')
                                         ->helperText('Behind every section and card.')
                                         ->default('#FFFFFF')
+                                        ->live(onBlur: true)
                                         ->required(),
                                     ColorPicker::make('theme_surface_color')
                                         ->label('Cards & controls')
                                         ->helperText('Cards, dropdowns, headers, and form surfaces.')
                                         ->default('#FFFFFF')
+                                        ->live(onBlur: true)
                                         ->required(),
                                     ColorPicker::make('theme_text_color')
                                         ->label('Primary text')
                                         ->helperText('Headings, prices, labels, and important copy.')
                                         ->default('#111827')
+                                        ->live(onBlur: true)
                                         ->rule(fn (Get $get): Closure => self::contrastRule($get, 'theme_surface_color', 4.5, 'light cards and controls'))
                                         ->required(),
                                     ColorPicker::make('theme_muted_text_color')
                                         ->label('Secondary text')
                                         ->helperText('Descriptions, metadata, hints, and inactive navigation.')
                                         ->default('#6B7280')
+                                        ->live(onBlur: true)
                                         ->rule(fn (Get $get): Closure => self::contrastRule($get, 'theme_surface_color', 3, 'light cards and controls'))
                                         ->required(),
                                     ColorPicker::make('theme_border_color')
                                         ->label('Borders & dividers')
                                         ->helperText('Card outlines, fields, separators, and table rules.')
                                         ->default('#E5E7EB')
+                                        ->live(onBlur: true)
                                         ->required(),
                                 ])
                                 ->columns(2),
@@ -309,28 +317,33 @@ class StorefrontSettingResource extends Resource
                                         ->label('Page canvas')
                                         ->helperText('The darkest storefront background layer.')
                                         ->default('#030712')
+                                        ->live(onBlur: true)
                                         ->required(),
                                     ColorPicker::make('theme_dark_surface_color')
                                         ->label('Cards & controls')
                                         ->helperText('Raised cards, dropdowns, fields, and navigation surfaces.')
                                         ->default('#111827')
+                                        ->live(onBlur: true)
                                         ->required(),
                                     ColorPicker::make('theme_dark_text_color')
                                         ->label('Primary text')
                                         ->helperText('Headings, prices, labels, and important copy.')
                                         ->default('#F3F4F6')
+                                        ->live(onBlur: true)
                                         ->rule(fn (Get $get): Closure => self::contrastRule($get, 'theme_dark_surface_color', 4.5, 'dark cards and controls'))
                                         ->required(),
                                     ColorPicker::make('theme_dark_muted_text_color')
                                         ->label('Secondary text')
                                         ->helperText('Descriptions, metadata, hints, and inactive navigation.')
                                         ->default('#9CA3AF')
+                                        ->live(onBlur: true)
                                         ->rule(fn (Get $get): Closure => self::contrastRule($get, 'theme_dark_surface_color', 3, 'dark cards and controls'))
                                         ->required(),
                                     ColorPicker::make('theme_dark_border_color')
                                         ->label('Borders & dividers')
                                         ->helperText('Visible separation without high-contrast glare.')
                                         ->default('#374151')
+                                        ->live(onBlur: true)
                                         ->required(),
                                 ])
                                 ->columns(2),
