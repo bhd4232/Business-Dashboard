@@ -122,6 +122,6 @@ class OrderActivityFeedService
 
     protected function money(mixed $amount): string
     {
-        return 'BDT '.number_format((float) $amount, 2);
+        return 'BDT '.\App\Support\MoneyFormatter::number((float) $amount);
     }
 }

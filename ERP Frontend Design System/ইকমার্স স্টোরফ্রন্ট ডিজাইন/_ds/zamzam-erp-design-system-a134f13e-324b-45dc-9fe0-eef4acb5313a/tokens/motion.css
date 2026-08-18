@@ -1,0 +1,25 @@
+@keyframes sfFadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes sfPulseRing { 0%, 100% { box-shadow: 0 0 0 0 rgba(13,148,136,.35); } 50% { box-shadow: 0 0 0 7px rgba(13,148,136,0); } }
+@keyframes sfShimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+
+.sf-reveal { animation: sfFadeUp var(--sf-duration-base) var(--sf-ease) both; }
+.sf-reveal-1 { animation-delay: .04s; } .sf-reveal-2 { animation-delay: .09s; } .sf-reveal-3 { animation-delay: .14s; }
+.sf-reveal-4 { animation-delay: .19s; } .sf-reveal-5 { animation-delay: .24s; } .sf-reveal-6 { animation-delay: .29s; }
+
+.sf-card-hover { transition: transform var(--sf-duration-fast) var(--sf-ease), box-shadow var(--sf-duration-fast) var(--sf-ease); }
+.sf-card-hover:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(15,42,67,.12); }
+
+.sf-btn-motion { transition: transform var(--sf-duration-fast) ease, box-shadow var(--sf-duration-fast) ease; }
+.sf-btn-motion:hover { box-shadow: 0 6px 16px rgba(255,106,0,.3); }
+.sf-btn-motion:active { transform: scale(.96); }
+
+.sf-pulse { animation: sfPulseRing 1.4s ease-in-out infinite; }
+
+.sf-skeleton { background: linear-gradient(90deg,#EEF1F4 25%,#F7F8F9 37%,#EEF1F4 63%); background-size: 400px 100%; animation: sfShimmer 1.4s ease infinite; border-radius: var(--radius-sf-md); }
+
+.sf-page-enter { animation: sfFadeUp var(--sf-duration-base) var(--sf-ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-reveal, .sf-pulse, .sf-skeleton, .sf-page-enter { animation: none; }
+  .sf-card-hover:hover { transform: none; }
+}

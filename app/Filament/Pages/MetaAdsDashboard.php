@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
 use Throwable;
 
@@ -187,7 +188,7 @@ class MetaAdsDashboard extends Page implements HasTable
         $isAdLevel = $this->adSetId !== null;
 
         $dailyBudgetColumn = $isAdLevel
-            ? TextColumn::make('daily_budget')->label('Daily Budget')->money('USD')->placeholder('-')->toggleable()
+            ? TextColumn::make('daily_budget')->label('Daily Budget')->moneyWithoutTrailingZeroes('USD')->placeholder('-')->toggleable()
             : TextInputColumn::make('daily_budget')
                 ->label('Daily Budget')
                 ->type('number')
@@ -209,12 +210,12 @@ class MetaAdsDashboard extends Page implements HasTable
                     })
                     ->placeholder('-'),
                 $dailyBudgetColumn,
-                TextColumn::make('lifetime_budget')->label('Lifetime Budget')->money('USD')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('spend')->money('USD')->sortable(),
+                TextColumn::make('lifetime_budget')->label('Lifetime Budget')->moneyWithoutTrailingZeroes('USD')->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('spend')->moneyWithoutTrailingZeroes('USD')->sortable(),
                 TextColumn::make('impressions')->numeric()->sortable()->toggleable(),
                 TextColumn::make('clicks')->numeric()->sortable(),
                 TextColumn::make('ctr')->label('CTR')->suffix('%')->numeric(2)->sortable(),
-                TextColumn::make('cpc')->label('CPC')->money('USD', decimalPlaces: 4)->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('cpc')->label('CPC')->moneyWithoutTrailingZeroes('USD', decimalPlaces: 4)->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('insights_synced_at')->label('Synced')->since()->placeholder('never')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
@@ -315,7 +316,7 @@ class MetaAdsDashboard extends Page implements HasTable
 
     protected function exceptionMessage(Throwable $exception): string
     {
-        return $exception instanceof \Illuminate\Validation\ValidationException
+        return $exception instanceof ValidationException
             ? collect($exception->errors())->flatten()->implode(' ')
             : $exception->getMessage();
     }

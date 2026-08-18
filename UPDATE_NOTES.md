@@ -2,6 +2,165 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-16 - WhatsApp Business App Coexistence connection + Quick Replies (Phase 2)
+
+Reason:
+
+- Follow-up to the owner's original CRM Inbox ask: connect the real, currently-used WhatsApp Business App number into the Inbox — replies, and now history/contacts sync and saved quick-reply snippets — while the phone app keeps working. The owner scoped this round explicitly (via AskUserQuestion in the planning session): build 2A (Embedded Signup connection), 2B (history/contacts sync + phone-app echoes), and 2C (Quick Replies = saved text snippets) now; defer 2D (catalog/product message sending, which needs a brand-new Facebook Commerce Catalog integration) to a future decision. Meta Business Verification/Advanced Access was already confirmed done on the owner's side, so nothing here is blocked on Meta App Review.
+- Real, sourced research on Meta's Coexistence/Embedded Signup mechanics (webhook field shapes, v4 vs the Oct 15 2026 v2 deprecation, ~180-day history/contacts sync, Labels not synced) is recorded in the plan file and `PROJECT_GUIDE.md`.
+
+What happened:
+
+- **2A — Connection**: new Filament page **CRM → Connect WhatsApp App** (super admin only) — save the Meta App ID/Secret/Embedded Signup Configuration ID/verify token once (`EmbeddedSignupSettingsService`, same encrypted-per-company pattern as `AiSettingsService`), then a "Connect via WhatsApp Business App" button loads Meta's JS SDK and runs the real Embedded Signup popup. Completion calls a new Livewire action (`Inbox`-style, no separate HTTP controller/route needed) that exchanges the popup's code for a token (`MetaGraphService::exchangeEmbeddedSignupCode()`) and creates/updates a `ConversationChannel` row (`connection_type = 'coexistence'`) via `EmbeddedSignupService::complete()`, then subscribes it the same way the existing manual flow does.
+- New `conversation_channels.connection_type` column (`cloud_api` default | `coexistence`) — a flag on the existing `whatsapp` provider, not a new provider, so the whole existing send/receive pipeline (`MetaWebhookController`, `StoreIncomingMessageJob`, `ConversationMessengerService`) keeps working unchanged for both connection types.
+- **2B — Sync**: `MetaWebhookController`/`StoreIncomingMessageJob` now also route three Coexistence-only webhook fields alongside the standard `messages` field: `smb_app_state_sync` (contacts, linked/created as Leads the same way live inbound messages are), `history` (queued to a new `ImportConversationHistoryJob` — chunked, idempotent via the existing `external_message_id` dedupe, deliberately does not bump unread counts, reopen closed conversations, or trigger `AiAutoReplyJob` since these are already-handled past messages), and `smb_message_echoes` (messages the owner sends live from the phone app, archived as outgoing with `generated_by = 'phone_app'` and shown with a phone icon + "Phone app" label in the Inbox thread).
+- **2C — Quick Replies**: new `QuickReply` model/migration (`company_quick_replies`, mirrors `CompanyFaq` exactly) + `QuickReplyResource` under CRM. The Inbox reply composer gained a bookmark-icon toggle opening a panel of the company's active quick replies; clicking one fills the composer (appends with a newline if there's already a draft, so nothing is lost).
+- Extended `tests/Feature/MultiCompanyIsolationTest.php` with `ConversationChannel` (was already covered) and `QuickReply`.
+
+Important changed files:
+
+- `database/migrations/2026_08_16_030000_add_connection_type_to_conversation_channels_table.php`, `2026_08_16_040000_create_company_quick_replies_table.php`
+- `app/Models/ConversationChannel.php` (`connection_type`, `CONNECTION_TYPES`, `isCoexistence()`), `app/Models/QuickReply.php`
+- `app/Services/Meta/MetaGraphService.php` (`exchangeEmbeddedSignupCode()`), `app/Services/Meta/EmbeddedSignupSettingsService.php`, `app/Services/Meta/EmbeddedSignupService.php`
+- `app/Filament/Pages/ConnectWhatsAppBusinessApp.php` + `resources/views/filament/pages/connect-whats-app-business-app.blade.php`
+- `app/Filament/Resources/QuickReplies/` (resource + 3 pages)
+- `app/Http/Controllers/MetaWebhookController.php`, `app/Jobs/StoreIncomingMessageJob.php`, `app/Jobs/ImportConversationHistoryJob.php` (new)
+- `app/Filament/Pages/Inbox.php` + `resources/views/filament/pages/inbox.blade.php` (quick-reply panel, phone-app bubble label)
+- `tests/Feature/EmbeddedSignupTest.php`, `tests/Feature/CoexistenceSyncTest.php`, `tests/Feature/QuickReplyTest.php` (all new), `tests/Feature/MultiCompanyIsolationTest.php`
+- `PROJECT_GUIDE.md`, `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Verification:
+
+- New targeted tests all pass: `EmbeddedSignupTest` 5/5 (19 assertions), `CoexistenceSyncTest` 8/8 (34 assertions), `QuickReplyTest` 6/6 (17 assertions), `MultiCompanyIsolationTest` 7/7 (154 assertions).
+- Re-ran existing tests that touch the same code paths to confirm zero regressions: `ConversationIngestTest` 10/10, `ChatOrderLinkTest` 6/6, `InboxPageTest` 15/15, `AdminNavigationClustersTest` 14/14 — all still pass.
+- Full `php artisan test` (no `--env` flag, 377s): **795 passed, 5 failed (4506 assertions)**. The 5 failures are the exact same pre-existing baseline failures as before this round — `ReleaseNotesTest` (3 tests) and one each in `StorefrontCustomerAdvanceAndComplaintTest`/`StorefrontIncompleteCheckoutRecoveryTest` — confirmed unrelated to this change. 776 (Phase 1 baseline) + 19 new tests (5 EmbeddedSignupTest + 8 CoexistenceSyncTest + 6 QuickReplyTest) = 795, zero regressions.
+- `npm run build`: clean, no errors — `vite build` completed in 7.42s (Inbox Blade view changed: quick-reply panel, phone-app bubble label).
+- Not browser-verified live against a real Meta Embedded Signup popup or a real Coexistence-connected number (needs the owner's real WhatsApp Business App number and a live Meta Business Manager session) — verified through the automated test suite (`Http::fake()`'d Graph API calls, synthetic webhook payloads built from Meta's documented Coexistence webhook schema). The owner should test the actual "Connect via WhatsApp Business App" button against a real number before relying on this in production.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-16 - CRM Inbox speed: Redis queue/cache, cached FAQ/delivery lookups, human-present AI pause
+
+Reason:
+
+- Owner asked how to make CRM Inbox responses faster, and separately asked whether the WhatsApp Business **App** (phone app) could be connected into the Inbox like WhatsApp Web's QR "linked device" flow. Investigation confirmed the Inbox is already a real, official Meta WhatsApp Cloud API integration (`ConversationChannel`/`MetaGraphService`), not the phone app — the QR/linked-device approach is the *unofficial* WhatsApp Web protocol (Baileys/whatsapp-web.js), which this project's own `02_LEAD_CRM_MODULE_PLAN.md:737` already evaluated once and explicitly rejected for ban risk. Real, sourced research (Meta's official "Coexistence" feature vs. plain migration, chat-history/label preservation behavior) was written into the plan doc for the owner to decide later; owner explicitly asked to build the speed work now and keep the WhatsApp-connection options documented only, decided in a separate future session. This entry covers only the speed work (plan file: Phase 1).
+- Root cause for slow AI replies: production defaults to `QUEUE_CONNECTION=sync` (per `docs/deployment.md`'s own existing warning), meaning `AiAutoReplyJob` — up to 6 sequential LLM calls, 60s timeout each — could run inline inside the Meta webhook request in the worst case. Owner specifically asked for a Redis-backed setup for fast context lookups, plus a mechanism so the AI never races a human agent who has the conversation open and is about to reply.
+
+What happened:
+
+- Added `predis/predis` (pure-PHP Redis client, no server extension to compile — matches the Nixpacks/Coolify deployment) via Composer; `config/database.php`'s `REDIS_CLIENT` now defaults to `predis`. `config/queue.php`/`config/cache.php` already had ready `redis` blocks — no scaffolding needed there.
+- `.env.production.example` updated to recommend `QUEUE_CONNECTION=redis` + `CACHE_STORE=redis` as the primary recommendation (falls back to `database` if no Redis service yet); `.env.example` (local dev) gained explanatory comments only — local defaults (`sync`/`file`) are unchanged.
+- `docs/deployment.md`: expanded "Queue Worker" into a concrete "Redis on Coolify" walkthrough (add a Redis resource, set the env values, run a supervised `queue:work` as a second persistent Coolify service) — the doc previously only said "use redis" without saying how.
+- `AiReplyService::lookupFaq()`/`lookupDeliveryCharge()` now cache their company-scoped results for 5 minutes (`Cache::remember`) instead of querying on every AI tool round; `lookupProduct()` is deliberately never cached (price/stock must always be exact). System prompt gained one line encouraging the model to request multiple lookups in the same turn when a question needs more than one — the tool-call loop already supported multiple `tool_calls` per round, so this is a pure prompt change.
+- New `Conversation::markHumanPresent()`/`hasHumanPresent()` (cache flag, 30s TTL, key `crm:human-present:{id}`). `Inbox::selectConversation()`, `updatedSelectedConversationId()`, and the `wire:poll.visible.8s` `refreshInbox()` tick all call `markHumanPresent()` while a conversation is open, so the window keeps rolling for as long as a staff member has the thread open. `AiReplyService::maybeReply()` gained an early-return guard next to the existing `human_handled_until` check: if a human currently has the conversation open, the AI silently skips this message (no escalation/status change) instead of racing them.
+- Confirmed, no change needed: the AI already fully hands off to a human for anything outside its knowledge base (handoff keywords, confidence threshold, "Never Echo" money-grounding check, tool-budget-exceeded fallback, `escalate_to_human` tool) — this was the owner's other stated requirement and was already built.
+- Extended `tests/Feature/AiAutoReplyTest.php` with 4 new tests: human-present flag suppresses the reply within its 30s window; the AI resumes normally once the window lapses (`$this->travel()`); FAQ lookup stays correctly company-scoped across two cached-back-to-back calls; delivery-charge lookup returns identical, correctly-scoped fees across two cached-back-to-back calls. One real bug caught and fixed while writing these: `Http::fake([...])` called a second time mid-loop layers a new stub on top of the previous (now-exhausted) one instead of replacing it, so both new caching tests originally queued all of both rounds' Anthropic responses in one `fakeLlm()` call up front instead of calling it again per loop iteration.
+- `PROJECT_GUIDE.md`'s Inbox/AI sections updated to describe the human-present pause, the lookup caching, and the Redis queue recommendation.
+
+Important changed files:
+
+- `composer.json`/`composer.lock` (`predis/predis`), `config/database.php` (Redis client default)
+- `app/Models/Conversation.php` (`HUMAN_PRESENCE_SECONDS`, `markHumanPresent()`, `hasHumanPresent()`)
+- `app/Filament/Pages/Inbox.php` (`selectConversation`, `updatedSelectedConversationId`, `refreshInbox`)
+- `app/Services/Crm/AiReplyService.php` (human-present guard, FAQ/delivery-charge caching, system-prompt tweak)
+- `.env.example`, `.env.production.example`, `docs/deployment.md`, `PROJECT_GUIDE.md`
+- `tests/Feature/AiAutoReplyTest.php`
+- `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Verification:
+
+- `php artisan test tests/Feature/AiAutoReplyTest.php`: all 16 passed (12 existing + 4 new), 49 assertions.
+- Full `php artisan test` (no `--env` flag, 435s): **776 passed, 5 failed (4434 assertions)**. The 5 failures are the exact same pre-existing baseline failures as before this round — `ReleaseNotesTest` (health version endpoint / release notes page / pending-release-not-shown-as-installed, 3 tests) and one each in `StorefrontCustomerAdvanceAndComplaintTest` and `StorefrontIncompleteCheckoutRecoveryTest` — confirmed unrelated to this change (Filament admin pages returning 404/missing content, nothing to do with the CRM Inbox, Redis, or AI reply code touched here). 772 baseline passed + 4 new tests = 776 passed, zero regressions.
+- `npm run build`: not run — no Blade/JS files were touched this round (backend-only change).
+- Not browser-verified live against a real Redis instance (none provisioned in this dev environment) — the human-present pause and lookup caching were verified through the automated test suite, which runs against the `array` cache driver in the testing env; the Redis-specific wiring (`predis` client, `config/database.php` default) is config/dependency-only and was verified by `composer validate` + `php artisan package:discover` succeeding, not a live Redis connection. The owner should provision Redis on Coolify per `docs/deployment.md` before relying on this in production.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-16 - Offers module: single/combo offers, AI landing pages, standalone checkout, customer reviews
+
+Reason:
+
+- Owner's own draft plan (`07_OFFERS_COMBO_LANDING_PAGE_PLAN.md`) asked for a full Offers module: single-product and combo deals sold through their own AI-drafted landing pages, a dedicated one-page checkout funnel with auto customer-account creation, and a brand-new customer review system feeding a Testimonials block. Implemented the plan end to end this session (all 10 steps), correcting two internal inconsistencies found while implementing: (1) `ProductVariant`/`Product` have no `->price` accessor usable the way the plan's pricing pseudocode assumed — fixed to use the same `effectiveSalePrice()`/`selling_price` accessors the storefront cart already uses; (2) the plan's `explodeToOrderLines()` formula divided the per-component revenue share by the *total* exploded quantity (`item_qty × ordered_qty`) instead of just `item_qty`, which silently under-priced every combo line by a factor of the ordered quantity — caught by a unit test, fixed so `orderedQuantity` correctly cancels out of the per-unit price.
+
+What happened:
+
+- New `offers`/`offer_items`/`product_reviews` tables + `Offer`/`OfferItem`/`ProductReview` models (all `BelongsToCompany`, added to `MultiCompanyIsolationTest`).
+- `OfferPricingService`: `componentsSubtotal()`, `finalPrice()` (auto-sum or manual base, then optional percent/flat discount, floored at 0), `explodeToOrderLines()` (combo → plain per-product `OrderItem` rows, price distributed proportionally so the existing stock/accounting pipeline needs zero changes), `assertInStock()`.
+- `OfferLandingPageAiGenerator`: reuses the existing per-company `AiSettingsService`/`AiLlmClient` (same credential already used by the WhatsApp assistant — no new AI settings UI) to draft Bengali landing-page blocks from the offer's real product data; strict "never invent a price/stock/delivery number" system prompt; malformed/unparseable AI output throws without touching the offer's existing blocks, unknown block types are dropped rather than failing the whole generation.
+- Filament **Offers** resource (Storefront cluster): company/type/status/title/slug, a `Repeater` of component products+quantities (relationship-backed, reorderable), a Pricing section with a **live** components-subtotal/final-price preview (pure form-state calculation, kept in sync with `OfferPricingService` by comment), a Landing Page block `Repeater` (Hero/Product Gallery/Why Buy/How To Buy/FAQ/Testimonials/Custom Text — each block's fields conditionally shown by type), and a **Generate Landing Page with AI** header action on the edit page (confirmation-gated, since it overwrites existing blocks).
+- Public storefront funnel: `/offers` (tab-filterable Single/Combo listing) and `/offers/{slug}` (renders the offer's blocks top-to-bottom via `@includeIf`, with a fixed one-product-line checkout form at the bottom — separate from the existing multi-item cart/checkout, reusing the same field set/validation shape). `OfferCheckoutController` explodes the combo into real `OrderItem` rows, auto-registers a storefront login for a new phone via the existing `CustomerAccountService::register()` (skipped for an already-registered phone), and redirects to a **signed** thank-you URL — the generated password is flashed through session (shown exactly once, never placed in the URL or sent by SMS/WhatsApp).
+- New `Order::SOURCE_OFFER` constant, added to `Order::SOURCES` and every real customer-facing "storefront order" scope (`AccountController`, `AccountOrdersController`, `OrderTrackController`, `StorefrontCheckoutPolicyService`'s order-limit check, the admin dashboard's pending-storefront-orders stat) so offer-funnel orders show up in "My Orders"/tracking/reports alongside cart-funnel orders; the Orders list's Source badge gets its own color. Left untouched (intentionally): the three Meta CAPI/Pixel dispatch checks, since offer checkout doesn't collect Meta browser-tracking context — dispatching pixel events without it would be wrong.
+- Customer review system: `/account/orders/{orderNumber}/review` (only reachable for the logged-in customer's own **completed** orders) lets them rate+comment on any not-yet-reviewed product from that order; every submission starts **pending**. New Filament **Reviews** resource (Storefront cluster) for Approve/Reject (row + bulk) and Delete; only `approved` reviews are ever shown publicly, including in an offer's Testimonials block (defaults to the offer's own component products' top-rated approved reviews when no specific reviews are picked).
+- `menuRepeater()` gained an `offers` link type (Storefront Settings → Navigation Menus), wired into the header/footer menu resolver in `layout.blade.php`.
+
+Important changed files:
+
+- `database/migrations/2026_08_16_000000_create_offers_table.php`, `..._010000_create_offer_items_table.php`, `..._020000_create_product_reviews_table.php`
+- `app/Models/Offer.php`, `app/Models/OfferItem.php`, `app/Models/ProductReview.php`, `app/Models/Order.php` (SOURCE_OFFER)
+- `app/Services/OfferPricingService.php`, `app/Services/OfferLandingPageAiGenerator.php`
+- `app/Filament/Resources/Offers/*` (Resource, `Schemas/OfferForm.php`, `Tables/OffersTable.php`, `Pages/{List,Create,Edit}Offer.php`)
+- `app/Filament/Resources/ProductReviews/*` (Resource + `Pages/ListProductReviews.php`)
+- `app/Http/Controllers/Storefront/OfferController.php`, `OfferCheckoutController.php`, `ProductReviewController.php` (all new)
+- `resources/views/storefront/offers/{index,show,thank-you}.blade.php`, `resources/views/storefront/offers/blocks/*.blade.php`, `resources/views/storefront/account/reviews/create.blade.php`, `resources/views/storefront/account/orders.blade.php` (review link)
+- `routes/web.php` (domain + preview routes for offers/offer-checkout/reviews)
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` (menu type), `resources/views/storefront/layout.blade.php` (menu resolver)
+- `app/Http/Controllers/Storefront/{AccountController,AccountOrdersController,OrderTrackController}.php`, `app/Services/StorefrontCheckoutPolicyService.php`, `app/Services/ReportService.php`, `app/Filament/Resources/Orders/Tables/OrdersTable.php` (SOURCE_OFFER wiring)
+- `tests/Unit/Services/OfferPricingServiceTest.php`, `tests/Feature/OfferCheckoutTest.php`, `tests/Feature/ProductReviewTest.php`, `tests/Feature/OfferLandingPageAiGeneratorTest.php` (all new), `tests/Feature/MultiCompanyIsolationTest.php`
+- `CHANGELOG.md`, `PROJECT_GUIDE.md`
+
+Verification:
+
+- `php artisan test tests/Unit/Services/OfferPricingServiceTest.php tests/Feature/OfferCheckoutTest.php tests/Feature/ProductReviewTest.php tests/Feature/OfferLandingPageAiGeneratorTest.php tests/Feature/MultiCompanyIsolationTest.php`: all 25 passed.
+- Full `php artisan test`: **772 passed, 5 failed** (690s). The 5 failures are the exact same pre-existing, unrelated baseline failures already known before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1 — confirmed by name and failure reason in the run output). 752 (prior baseline) + 20 new tests (`OfferPricingServiceTest` x7, `OfferCheckoutTest` x5, `ProductReviewTest` x4, `OfferLandingPageAiGeneratorTest` x4) = 772 — exact match, zero regressions.
+- `npm run build`: succeeded (Vite build in 20.86s); the separate deployment-metadata script hit one transient Windows file lock on the first attempt (`EBUSY`, unrelated to any code change) and succeeded immediately on retry.
+- Browser-verified live against the dev server (migrations applied, a temporary demo offer created via tinker then removed after): Filament **Offers** list/create/edit (company/type/status fields, the component-products repeater showing a real product, the **live** Pricing preview correctly computing "Components subtotal: BDT 3,400.00" / "Final selling price (preview): BDT 399.00" from real product + manual-price data, all 4 landing-page block types rendering their correct conditional sub-fields, the "Generate Landing Page with AI" action present); Filament **Reviews** list (empty state, correct columns); the public `/offers` listing (tab filter, price/strikethrough card); the public `/offers/{slug}` landing page (hero/usp_list/faq/rich_text blocks all rendered with the seeded content, the fixed checkout form and order-summary sidebar showing the same real product/price/total). No console errors beyond one unrelated stray 404 (browser-requested favicon, not a project asset).
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
+## 2026-08-15 - PayStation payment gateway (second storefront online-payment option)
+
+Reason:
+
+- Owner's own draft plan (`06_PAYSTATION_MULTI_COMPANY_GATEWAY_PLAN.md`) asked to add PayStation as a second, company-scoped online payment gateway alongside the existing ZiniPay integration — each company plugging in its own PayStation MID/password, no shared credential (PayStation MIDs are legally bound to one merchant + one website). The draft's endpoint shapes were explicitly marked unverified ("Step 0: verify against PayStation's real docs first"). `paystation.com.bd/documentation` itself blocked automated fetches (ECONNRESET, then 403) — instead cross-validated the real API shape from the actual source of two independent open-source integrations (`arif98741/paystation-sdk` and `Nazmul7989/laravel-paystation`, both citing PayStation's own docs), which agreed consistently on every endpoint/field name. Went through full plan mode (with a Plan agent validating the design) since this touches real payment/money handling; owner approved before implementation.
+
+What happened:
+
+- New `App\Contracts\PaymentGatewayClient` interface (`isConfigured()`, `createPayment()`, `verifyPayment()`) implemented by both `ZiniPayClient` (updated, behavior unchanged) and the new `PayStationClient`. New `PaymentGatewayResolver` (mirrors `CourierManager`'s own adapter-map idiom) resolves the right client by a new `storefront_settings.online_payment_gateway` column (default `zinipay`, so every existing company keeps working unchanged).
+- `PayStationClient`: `POST /grant-token` (headers `merchantId`/`password`, fresh token per call — mirrors the reference SDK's own no-caching behavior), `POST /create-payment` (`invoice_number, currency: 'BDT', payment_amount, reference, cust_name, cust_phone, cust_email, cust_address, callback_url`), `POST /retrive-transaction` (`invoice_number, trx_id`) — response normalized (`trx_status` "Success"/"Failed" → `status` "COMPLETED"/"FAILED", `payment_amount` → `amount`, `trx_id` → `transaction_id`) so `StorefrontPaymentService` stays gateway-agnostic. Unlike ZiniPay, PayStation has only **one** callback URL (no separate success/cancel/webhook) and never echoes back an invoice id — the app generates its own (`(string) $payment->getKey()`) and sends it as `invoice_number`.
+- **Signed-URL fix**: PayStation appends `invoice_number`/`trx_id` onto the browser's return redirect, which weren't part of the originally-signed query string — a plain `hasValidSignature()` would 403 every real PayStation return. `CheckoutController::paymentReturn()`/`paymentReturnPreview()` now use `hasValidSignatureWhileIgnoring(['invoice_number', 'trx_id'])` (a no-op for ZiniPay, which never appends those params).
+- `StorefrontPaymentService::verifyAndFinalize()` now resolves the client via `$payment->gateway` (the gateway the payment was **created** with), never the setting's currently-selected gateway, so an admin switching gateways mid-flight can't break a payment already in progress.
+- `PaymentGatewayResolver::isConfigured()` checks only the **currently selected** gateway's credentials (`$this->forSetting($setting)::isConfigured($setting)`), not "is any gateway ever configured" — fixes a real bug the draft's template would have shipped: a company that switched to PayStation but left stale ZiniPay keys in the same JSON blob would otherwise have been told payment is available when it wasn't.
+- New defensive `PayStationWebhookController` (`POST /webhooks/paystation/{payment}`, mirrors `ZiniPayWebhookController`) — no public source confirmed a real server-to-server IPN for PayStation, but it costs nothing to have in place.
+- Storefront Settings → renamed "Online Payments (ZiniPay)" section to **"Online Payments"**, added an **Active gateway** selector; PayStation's Merchant ID/Password/base-URL fields show only when selected (ZiniPay's fields likewise). Storefront Payments list/filter now labels `paystation` rows.
+
+Important changed files:
+
+- `app/Contracts/PaymentGatewayClient.php` (new)
+- `app/Services/PayStationClient.php` (new), `app/Services/PaymentGatewayResolver.php` (new), `app/Services/ZiniPayClient.php` (implements the new interface)
+- `database/migrations/2026_08_15_040000_add_online_payment_gateway_to_storefront_settings_table.php`, `app/Models/StorefrontSetting.php`
+- `app/Services/StorefrontPaymentService.php`, `app/Http/Controllers/Storefront/CheckoutController.php`
+- `app/Http/Controllers/PayStationWebhookController.php` (new), `routes/web.php`
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`, `app/Filament/Resources/StorefrontPayments/StorefrontPaymentResource.php`
+- `tests/Feature/PayStationClientTest.php` (new), `tests/Feature/StorefrontPaystationPaymentTest.php` (new)
+- `CHANGELOG.md`, `PROJECT_GUIDE.md`
+
+Verification:
+
+- `php artisan test tests/Feature/PayStationClientTest.php tests/Feature/StorefrontPaystationPaymentTest.php tests/Feature/StorefrontPreorderPaymentTest.php tests/Feature/StorefrontManualPaymentTest.php tests/Feature/AccountsAndPaymentsTest.php tests/Feature/StorefrontRiskPaymentEligibilityTest.php tests/Feature/PhaseFourAdminPagesTest.php`: 41 passed (568 assertions) — confirms the new PayStation flow works end-to-end and every existing ZiniPay/manual-payment/StorefrontSetting-form path is unaffected.
+- Full `php artisan test`: 752 passed, 5 failed — the same pre-existing, unrelated baseline failures from before this change (`ReleaseNotesTest` x3, `StorefrontCustomerAdvanceAndComplaintTest` x1, `StorefrontIncompleteCheckoutRecoveryTest` x1); the +10 passing tests are exactly this feature's new tests (`PayStationClientTest` x6, `StorefrontPaystationPaymentTest` x4), zero regressions.
+- No new model/table was introduced (only a plain column on the already-`BelongsToCompany`-scoped, already-covered `StorefrontSetting`), so `MultiCompanyIsolationTest` needed no new entry — it was re-run as part of the full suite above.
+- **Honesty caveats, stated plainly**: three specifics could not be confirmed from the two reference SDKs' source alone and are marked `// TODO: verify in sandbox` at their exact call sites in `PayStationClient` — (1) whether the request body must be JSON (assumed, matching Laravel's `Http` default) or form-encoded; (2) whether `retrive-transaction` truly requires `trx_id` or `invoice_number` alone suffices; (3) whether PayStation's redirect correctly appends `&invoice_number=...` to a `callback_url` that already carries its own `?expires=&signature=` query string, or corrupts it with a naive `?`. None of these can be tested without a real PayStation sandbox MID/password, which only the owner can obtain (PayStation account registration + compliance review) — flagged plainly, same honesty pattern used for every external-API phase in this project. Interactive browser verification (opening Storefront Settings and toggling the gateway selector live) was not completed this round — the Browser pane's per-origin approval card requires the user to be actively viewing the pane to click through it, and it wasn't open this turn; verification instead relies on the Livewire test suite above (`PhaseFourAdminPagesTest`), which fully mounts and renders the exact Create/Edit StorefrontSetting forms with the new gateway selector and conditional fields.
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
 ## 2026-08-15 - Meta Ads Manager, Phase E: Events Manager (Pixel Health + Audiences)
 
 Reason:

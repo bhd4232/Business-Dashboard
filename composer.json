@@ -14,7 +14,8 @@
         "laravel/framework": "^13.0",
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "^3.25",
-        "openspout/openspout": "~4.28.5"
+        "openspout/openspout": "~4.28.5",
+        "predis/predis": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

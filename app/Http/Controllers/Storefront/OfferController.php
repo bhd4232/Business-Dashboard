@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Http\Controllers\Storefront;
+
+use App\Http\Controllers\Controller;
+use App\Models\Company;
+use App\Models\Offer;
+use App\Models\StorefrontSetting;
+use App\Services\CompanyContext;
+use App\Services\OfferPricingService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\View\View;
+
+class OfferController extends Controller
+{
+    public function __construct(protected CompanyContext $context, protected OfferPricingService $pricing) {}
+
+    public function index(Request $request): View
+    {
+        [$company, $setting] = $this->domainStorefront($request);
+
+        return $this->indexView($request, $company, $setting);
+    }
+
+    public function indexPreview(Request $request, Company $company): View
+    {
+        $setting = $this->previewStorefront($company);
+
+        return $this->indexView($request, $company, $setting, $company->slug);
+    }
+
+    public function show(Request $request, string $slug): View
+    {
+        [$company, $setting] = $this->domainStorefront($request);
+
+        return $this->showView($this->findPublishedOffer($slug), $company, $setting);
+    }
+
+    public function showPreview(Request $request, Company $company, string $slug): View
+    {
+        $setting = $this->previewStorefront($company);
+
+        return $this->showView($this->findPublishedOffer($slug), $company, $setting, $company->slug);
+    }
+
+    protected function indexView(Request $request, Company $company, StorefrontSetting $setting, ?string $previewSlug = null): View
+    {
+        $type = $request->query('type');
+        $type = in_array($type, [Offer::TYPE_SINGLE, Offer::TYPE_COMBO], true) ? $type : null;
+
+        $offers = Offer::query()
+            ->published()
+            ->when($type, fn ($query) => $query->where('type', $type))
+            ->with('items.product')
+            ->latest()
+            ->get();
+
+        return view('storefront.offers.index', [
+            'company' => $company,
+            'setting' => $setting,
+            'previewSlug' => $previewSlug,
+            'offers' => $offers,
+            'activeType' => $type,
+            'pricing' => $this->pricing,
+        ]);
+    }
+
+    protected function showView(Offer $offer, Company $company, StorefrontSetting $setting, ?string $previewSlug = null): View
+    {
+        $offer->load(['items.product', 'items.productVariant']);
+
+        return view('storefront.offers.show', [
+            'company' => $company,
+            'setting' => $setting,
+            'previewSlug' => $previewSlug,
+            'offer' => $offer,
+            'componentsSubtotal' => $this->pricing->componentsSubtotal($offer),
+            'finalPrice' => $this->pricing->finalPrice($offer),
+            'reviews' => $this->reviewsForBlocks($offer),
+        ]);
+    }
+
+    /**
+     * @return array<string, Collection>
+     */
+    protected function reviewsForBlocks(Offer $offer): array
+    {
+        $approved = $offer->approvedReviews()->latest()->limit(50)->get();
+
+        return collect($offer->blocks ?? [])
+            ->filter(fn (array $block): bool => ($block['type'] ?? null) === 'testimonials')
+            ->mapWithKeys(function (array $block) use ($approved): array {
+                $reviewIds = (array) ($block['data']['review_ids'] ?? []);
+                $selected = $reviewIds === []
+                    ? $approved->sortByDesc('rating')->take(6)
+                    : $approved->whereIn('id', $reviewIds);
+
+                return [$block['id'] => $selected->values()];
+            })
+            ->all();
+    }
+
+    protected function findPublishedOffer(string $slug): Offer
+    {
+        return Offer::query()
+            ->where('slug', trim($slug))
+            ->where('status', Offer::STATUS_PUBLISHED)
+            ->firstOrFail();
+    }
+
+    protected function domainStorefront(Request $request): array
+    {
+        $company = $request->attributes->get('storefront_company');
+
+        abort_unless($company instanceof Company && $company->storefrontSetting?->is_published, 404);
+
+        $this->context->set($company);
+
+        return [$company, $company->storefrontSetting];
+    }
+
+    protected function previewStorefront(Company $company): StorefrontSetting
+    {
+        abort_unless(app()->environment(['local', 'testing']) || auth()->check(), 404);
+
+        $this->context->set($company);
+
+        return $company->storefrontSetting ?: new StorefrontSetting([
+            'company_id' => $company->getKey(),
+            'theme_color' => '#F59E0B',
+            'meta_title' => $company->name,
+            'is_published' => true,
+        ]);
+    }
+}

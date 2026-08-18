@@ -52,10 +52,11 @@ class StorefrontPaymentResource extends Resource
                         'manual_bkash' => 'bKash (Manual)',
                         'manual_nagad' => 'Nagad (Manual)',
                         'zinipay' => 'ZiniPay',
+                        'paystation' => 'PayStation',
                         default => ucfirst($state),
                     }),
                 TextColumn::make('amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
                 TextColumn::make('payment_method')
                     ->label('Method / sender'),
@@ -79,6 +80,7 @@ class StorefrontPaymentResource extends Resource
                     'manual_bkash' => 'bKash (Manual)',
                     'manual_nagad' => 'Nagad (Manual)',
                     'zinipay' => 'ZiniPay',
+                    'paystation' => 'PayStation',
                 ]),
             ])
             ->defaultSort('created_at', 'desc')

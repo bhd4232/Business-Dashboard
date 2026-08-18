@@ -49,19 +49,19 @@ class PurchasesTable
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('total_amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
 
                 TextColumn::make('china_to_bd_cost_total')
                     ->label('China to BD Costs')
                     ->getStateUsing(fn (Purchase $record): float => $record->chinaToBdCostTotal())
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->toggleable(),
 
                 TextColumn::make('landed_cost_total')
                     ->label('Landed Cost')
                     ->getStateUsing(fn (Purchase $record): float => $record->landedCostTotal())
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->toggleable(),
 
                 TextColumn::make('landed_unit_costs')
@@ -77,12 +77,12 @@ class PurchasesTable
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('paid_amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('due_amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
 
                 TextColumn::make('status')

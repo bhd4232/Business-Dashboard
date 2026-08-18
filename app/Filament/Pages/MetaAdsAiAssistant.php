@@ -130,7 +130,7 @@ class MetaAdsAiAssistant extends Page implements HasTable
                 IconColumn::make('is_recommended')->label('Recommended')->boolean(),
                 TextColumn::make('suggested_budget')
                     ->label('Daily Budget')
-                    ->money(fn (MetaAdProposal $record): string => $record->account?->currency ?? 'USD'),
+                    ->moneyWithoutTrailingZeroes(fn (MetaAdProposal $record): string => $record->account?->currency ?? 'USD'),
                 TextColumn::make('suggested_duration_days')->label('Duration (days)')->placeholder('-'),
                 TextColumn::make('status')
                     ->badge()

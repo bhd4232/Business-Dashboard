@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\AiAutoReplyJob;
 use App\Models\Company;
 use App\Models\CompanyFaq;
+use App\Models\CourierProvider;
 use App\Models\Conversation;
 use App\Models\ConversationChannel;
 use App\Models\ConversationMessage;
@@ -316,6 +317,134 @@ class AiAutoReplyTest extends TestCase
 
         Http::assertNothingSent();
         $this->assertSame('pending', $conversation->fresh()->status);
+    }
+
+    public function test_human_present_conversation_skips_ai(): void
+    {
+        Http::fake();
+
+        $conversation = $this->conversation('দাম কত?');
+        $conversation->markHumanPresent();
+
+        app(AiReplyService::class)->maybeReply($conversation);
+
+        Http::assertNothingSent();
+        $this->assertSame(0, $conversation->messages()->where('direction', 'outgoing')->count());
+    }
+
+    public function test_ai_resumes_after_human_presence_window_lapses(): void
+    {
+        $this->fakeLlm(
+            $this->anthropicToolUse('lookup_product', ['name' => 'Smart Bulb']),
+            $this->anthropicToolUse('submit_reply', [
+                'answer' => 'Smart Bulb-এর দাম ৪২০ টাকা।',
+                'used_product_ids' => [$this->product->getKey()],
+                'confidence' => 0.95,
+                'needs_human' => false,
+            ]),
+        );
+
+        $conversation = $this->conversation('Smart Bulb এর দাম কত?');
+        $conversation->markHumanPresent();
+
+        $this->travel(Conversation::HUMAN_PRESENCE_SECONDS + 1)->seconds();
+
+        app(AiReplyService::class)->maybeReply($conversation);
+
+        $reply = $conversation->messages()->where('direction', 'outgoing')->first();
+        $this->assertNotNull($reply);
+        $this->assertSame('ai', $reply->generated_by);
+    }
+
+    public function test_faq_lookup_tool_is_company_scoped_across_cached_calls(): void
+    {
+        CompanyFaq::query()->create([
+            'question' => 'Warranty period?',
+            'answer' => 'Six months warranty on all electronics.',
+            'keywords' => 'warranty',
+            'is_active' => true,
+        ]);
+
+        $otherCompany = Company::query()->create([
+            'name' => 'Other Co', 'slug' => 'other-co', 'invoice_prefix' => 'OC',
+            'currency' => 'BDT', 'timezone' => 'Asia/Dhaka', 'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($otherCompany);
+        CompanyFaq::query()->create([
+            'question' => 'Warranty period?',
+            'answer' => 'This must never leak into AI Co replies.',
+            'keywords' => 'warranty',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($this->company);
+
+        // Both rounds' Anthropic turns are queued up front in one Http::fake()
+        // call — calling fakeLlm() again mid-loop would layer a second stub
+        // on top instead of replacing it, so the second round could hit the
+        // first round's now-exhausted sequence and throw.
+        $this->fakeLlm(
+            $this->anthropicToolUse('lookup_faq', ['topic' => 'warranty']),
+            $this->anthropicToolUse('submit_reply', [
+                'answer' => 'রাউন্ড ১: ছয় মাস ওয়ারেন্টি।',
+                'confidence' => 0.9,
+                'needs_human' => false,
+            ]),
+            $this->anthropicToolUse('lookup_faq', ['topic' => 'warranty']),
+            $this->anthropicToolUse('submit_reply', [
+                'answer' => 'রাউন্ড ২: ছয় মাস ওয়ারেন্টি।',
+                'confidence' => 0.9,
+                'needs_human' => false,
+            ]),
+        );
+
+        // Two lookups back to back — the second hits the 5-minute cache
+        // populated by the first, and must still return this company's FAQ.
+        foreach (range(1, 2) as $attempt) {
+            // Message text avoids "warranty" so the deterministic FAQ-keyword
+            // shortcut doesn't short-circuit the LLM tool-call path under test.
+            $conversation = $this->conversation("গ্যারান্টি কতদিন থাকে? round {$attempt}");
+            app(AiReplyService::class)->maybeReply($conversation);
+
+            $reply = $conversation->messages()->where('direction', 'outgoing')->first();
+            $this->assertNotNull($reply);
+            $this->assertStringContainsString('ছয় মাস', $reply->body);
+        }
+    }
+
+    public function test_delivery_charge_lookup_tool_returns_cached_company_scoped_fees(): void
+    {
+        CourierProvider::query()->create([
+            'name' => 'Test Courier',
+            'is_active' => true,
+            'settings' => ['delivery_fees' => [60, 120]],
+        ]);
+
+        // Both rounds queued up front — see note above on why fakeLlm() must
+        // not be called again mid-loop.
+        $this->fakeLlm(
+            $this->anthropicToolUse('lookup_delivery_charge', []),
+            $this->anthropicToolUse('submit_reply', [
+                'answer' => 'রাউন্ড ১: ডেলিভারি চার্জ ৬০ টাকা অথবা ১২০ টাকা।',
+                'confidence' => 0.9,
+                'needs_human' => false,
+            ]),
+            $this->anthropicToolUse('lookup_delivery_charge', []),
+            $this->anthropicToolUse('submit_reply', [
+                'answer' => 'রাউন্ড ২: ডেলিভারি চার্জ ৬০ টাকা অথবা ১২০ টাকা।',
+                'confidence' => 0.9,
+                'needs_human' => false,
+            ]),
+        );
+
+        foreach (range(1, 2) as $attempt) {
+            $conversation = $this->conversation("ডেলিভারি চার্জ কত? round {$attempt}");
+            app(AiReplyService::class)->maybeReply($conversation);
+
+            $reply = $conversation->messages()->where('direction', 'outgoing')->first();
+            $this->assertNotNull($reply);
+            $this->assertStringContainsString('৬০', $reply->body);
+            $this->assertStringContainsString('১২০', $reply->body);
+        }
     }
 
     public function test_ai_disabled_company_never_calls_llm(): void

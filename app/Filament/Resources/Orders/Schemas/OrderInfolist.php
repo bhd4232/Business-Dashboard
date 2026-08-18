@@ -86,7 +86,7 @@ class OrderInfolist
                             ->formatStateUsing(fn (?string $state): string => CourierBooking::STATUSES[$state ?? ''] ?? 'Not booked'),
                         TextEntry::make('latestCourierBooking.cod_amount')
                             ->label('COD')
-                            ->money('BDT')
+                            ->moneyWithoutTrailingZeroes('BDT')
                             ->placeholder('BDT 0.00'),
                     ])
                     ->columns(4),
@@ -109,12 +109,12 @@ class OrderInfolist
                 Section::make('Totals')
                     ->columnSpanFull()
                     ->schema([
-                        TextEntry::make('subtotal')->money('BDT'),
-                        TextEntry::make('discount')->money('BDT'),
-                        TextEntry::make('vat')->money('BDT'),
-                        TextEntry::make('total_amount')->money('BDT'),
-                        TextEntry::make('paid_amount')->money('BDT'),
-                        TextEntry::make('due_amount')->money('BDT'),
+                        TextEntry::make('subtotal')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('discount')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('vat')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('total_amount')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('paid_amount')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('due_amount')->moneyWithoutTrailingZeroes('BDT'),
                         TextEntry::make('total_weight')
                             ->label('Total Weight')
                             ->state(fn (Order $record): string => number_format(
@@ -124,13 +124,13 @@ class OrderInfolist
                         TextEntry::make('total_cost')
                             ->label('Associated Costs')
                             ->state(fn (Order $record): float => $record->totalCost())
-                            ->money('BDT'),
+                            ->moneyWithoutTrailingZeroes('BDT'),
                         // total_amount minus per-line COGS (OrderItem::unit_cost) minus
                         // the Associated Costs ledger below — see Order::profit().
                         TextEntry::make('profit')
                             ->label('Profit')
                             ->state(fn (Order $record): float => $record->profit())
-                            ->money('BDT')
+                            ->moneyWithoutTrailingZeroes('BDT')
                             ->color(fn (Order $record): string => $record->profit() >= 0 ? 'success' : 'danger'),
                     ])
                     ->columns(4),
@@ -156,10 +156,10 @@ class OrderInfolist
                                     ->placeholder('-'),
 
                                 TextEntry::make('unit_price')
-                                    ->money('BDT'),
+                                    ->moneyWithoutTrailingZeroes('BDT'),
 
                                 TextEntry::make('subtotal')
-                                    ->money('BDT'),
+                                    ->moneyWithoutTrailingZeroes('BDT'),
                             ])
                             ->columns(6)
                             ->contained(false)

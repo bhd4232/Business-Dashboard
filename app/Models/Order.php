@@ -123,11 +123,14 @@ class Order extends Model
 
     public const SOURCE_CHAT = 'chat';
 
+    public const SOURCE_OFFER = 'offer';
+
     public const SOURCES = [
         self::SOURCE_ADMIN => 'Admin',
         self::SOURCE_STOREFRONT => 'Storefront',
         self::SOURCE_CRM => 'CRM',
         self::SOURCE_CHAT => 'Chat',
+        self::SOURCE_OFFER => 'Offer',
     ];
 
     protected $fillable = [

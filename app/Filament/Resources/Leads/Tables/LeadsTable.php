@@ -37,7 +37,7 @@ class LeadsTable
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (?string $state): string => Lead::STATUSES[$state] ?? (string) $state),
-                TextColumn::make('estimated_value')->money('BDT')->sortable()->placeholder('-'),
+                TextColumn::make('estimated_value')->moneyWithoutTrailingZeroes('BDT')->sortable()->placeholder('-'),
                 TextColumn::make('assignedUser.name')->label('Assigned To')->placeholder('-'),
                 TextColumn::make('next_follow_up_at')
                     ->label('Next Follow-up')

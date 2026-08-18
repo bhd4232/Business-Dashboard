@@ -27,7 +27,7 @@ class InvestmentRecordResource extends Resource
             Section::make('Investment')->schema([
                 TextEntry::make('project.project_code')->label('Project'),
                 TextEntry::make('investor.name'),
-                TextEntry::make('amount')->money('BDT'),
+                TextEntry::make('amount')->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('payment_method')->badge(),
                 TextEntry::make('payment_reference')->placeholder('-'),
                 TextEntry::make('invested_at')->date(),

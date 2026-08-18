@@ -31,18 +31,12 @@ class CustomerRiskOverview extends StatsOverviewWidget
 
         return [
             Stat::make('High Risk Customers', $highRisk)
-                ->description($highRisk > 0 ? 'Call confirm or manager review' : 'No high-risk customers')
-                ->descriptionIcon($highRisk > 0 ? Heroicon::OutlinedExclamationTriangle : Heroicon::OutlinedCheckCircle)
                 ->icon(Heroicon::OutlinedShieldExclamation)
                 ->color($highRisk > 0 ? 'danger' : 'success'),
             Stat::make('Blacklisted Matches', $blacklisted)
-                ->description($blacklisted > 0 ? 'Owner review required' : 'No blacklist matches')
-                ->descriptionIcon($blacklisted > 0 ? Heroicon::OutlinedNoSymbol : Heroicon::OutlinedCheckCircle)
                 ->icon(Heroicon::OutlinedNoSymbol)
                 ->color($blacklisted > 0 ? 'danger' : 'success'),
             Stat::make('Pending Risk Reviews', $pendingReviews)
-                ->description($pendingReviews > 0 ? 'Approval queue needs attention' : 'No pending approvals')
-                ->descriptionIcon($pendingReviews > 0 ? Heroicon::OutlinedClipboardDocumentCheck : Heroicon::OutlinedCheckCircle)
                 ->icon(Heroicon::OutlinedClipboardDocumentCheck)
                 ->color($pendingReviews > 0 ? 'warning' : 'success'),
         ];

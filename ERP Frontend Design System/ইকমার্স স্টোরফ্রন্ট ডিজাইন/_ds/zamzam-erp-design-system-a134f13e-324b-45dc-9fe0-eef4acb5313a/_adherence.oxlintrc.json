@@ -1,0 +1,443 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/admin/**",
+              "components/storefront/**",
+              "ui_kits/admin-dashboard/**",
+              "ui_kits/storefront-marketplace-pro/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Inter|Sora))/i]",
+        "message": "Font not provided by the design system. Available: Inter, Sora."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AdminBadge'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|color|key|ref|className|style|children)$/]",
+        "message": "<AdminBadge> doesn't accept that prop. Declared props: children, color."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AdminBadge'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:success|danger|warning|info|gray)$/]",
+        "message": "<AdminBadge> color must be one of 'success' | 'danger' | 'warning' | 'info' | 'gray'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AdminButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|variant|size|disabled|onClick|key|ref|className|style|children)$/]",
+        "message": "<AdminButton> doesn't accept that prop. Declared props: children, variant, size, disabled, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AdminButton'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:primary|secondary|danger|ghost)$/]",
+        "message": "<AdminButton> variant must be one of 'primary' | 'secondary' | 'danger' | 'ghost'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AdminButton'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md|lg)$/]",
+        "message": "<AdminButton> size must be one of 'sm' | 'md' | 'lg'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Card'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|value|delta|deltaDirection|icon|key|ref|className|style|children)$/]",
+        "message": "<Card> doesn't accept that prop. Declared props: label, value, delta, deltaDirection, icon."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Card'] > JSXAttribute[name.name='deltaDirection'] > Literal[value!=/^(?:up|down)$/]",
+        "message": "<Card> deltaDirection must be one of 'up' | 'down'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Input'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|placeholder|type|options|key|ref|className|style|children)$/]",
+        "message": "<Input> doesn't accept that prop. Declared props: label, placeholder, type, options."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='type'] > Literal[value!=/^(?:text|email|number|select)$/]",
+        "message": "<Input> type must be one of 'text' | 'email' | 'number' | 'select'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PriceTag'] > JSXAttribute > JSXIdentifier[name!=/^(?:price|oldPrice|size|key|ref|className|style|children)$/]",
+        "message": "<PriceTag> doesn't accept that prop. Declared props: price, oldPrice, size."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PriceTag'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md|lg)$/]",
+        "message": "<PriceTag> size must be one of 'sm' | 'md' | 'lg'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ProductCard'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|price|oldPrice|discount|reviews|inStock|ctaLabel|key|ref|className|style|children)$/]",
+        "message": "<ProductCard> doesn't accept that prop. Declared props: name, price, oldPrice, discount, reviews, inStock, ctaLabel."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SearchBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:placeholder|key|ref|className|style|children)$/]",
+        "message": "<SearchBar> doesn't accept that prop. Declared props: placeholder."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SidebarNavItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|icon|active|key|ref|className|style|children)$/]",
+        "message": "<SidebarNavItem> doesn't accept that prop. Declared props: label, icon, active."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StorefrontBadge'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|kind|key|ref|className|style|children)$/]",
+        "message": "<StorefrontBadge> doesn't accept that prop. Declared props: children, kind."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StorefrontBadge'] > JSXAttribute[name.name='kind'] > Literal[value!=/^(?:discount|save|inStock|tracking)$/]",
+        "message": "<StorefrontBadge> kind must be one of 'discount' | 'save' | 'inStock' | 'tracking'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StorefrontButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|variant|fullWidth|onClick|key|ref|className|style|children)$/]",
+        "message": "<StorefrontButton> doesn't accept that prop. Declared props: children, variant, fullWidth, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StorefrontButton'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:primary|secondary|outline)$/]",
+        "message": "<StorefrontButton> variant must be one of 'primary' | 'secondary' | 'outline'."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "AdminBadge": {
+        "replaces": []
+      },
+      "AdminButton": {
+        "replaces": []
+      },
+      "Card": {
+        "replaces": []
+      },
+      "Input": {
+        "replaces": []
+      },
+      "PriceTag": {
+        "replaces": []
+      },
+      "ProductCard": {
+        "replaces": []
+      },
+      "SearchBar": {
+        "replaces": []
+      },
+      "SidebarNavItem": {
+        "replaces": []
+      },
+      "StorefrontBadge": {
+        "replaces": []
+      },
+      "StorefrontButton": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--admin-bg",
+      "--admin-bg-dark",
+      "--admin-border",
+      "--admin-border-dark",
+      "--admin-border-strong",
+      "--admin-danger",
+      "--admin-danger-bg",
+      "--admin-gray",
+      "--admin-gray-bg",
+      "--admin-info",
+      "--admin-info-bg",
+      "--admin-primary-100",
+      "--admin-primary-200",
+      "--admin-primary-300",
+      "--admin-primary-400",
+      "--admin-primary-50",
+      "--admin-primary-500",
+      "--admin-primary-600",
+      "--admin-primary-700",
+      "--admin-primary-800",
+      "--admin-primary-900",
+      "--admin-primary-950",
+      "--admin-success",
+      "--admin-success-bg",
+      "--admin-surface",
+      "--admin-surface-dark",
+      "--admin-text",
+      "--admin-text-dark",
+      "--admin-text-faint",
+      "--admin-text-muted",
+      "--admin-text-secondary",
+      "--admin-warning",
+      "--admin-warning-bg",
+      "--font-admin",
+      "--font-storefront-body",
+      "--font-storefront-display",
+      "--font-weight-bold",
+      "--font-weight-extrabold",
+      "--font-weight-medium",
+      "--font-weight-semibold",
+      "--radius-admin-lg",
+      "--radius-admin-md",
+      "--radius-admin-sm",
+      "--radius-pill",
+      "--radius-sf-2xl",
+      "--radius-sf-lg",
+      "--radius-sf-md",
+      "--radius-sf-sm",
+      "--radius-sf-xl",
+      "--radius-theme-bold",
+      "--radius-theme-classic",
+      "--radius-theme-fresh",
+      "--radius-theme-industrial",
+      "--sf-accent",
+      "--sf-accent-tint",
+      "--sf-bg",
+      "--sf-border",
+      "--sf-border-soft",
+      "--sf-container-max",
+      "--sf-container-padding",
+      "--sf-deal",
+      "--sf-deal-bg",
+      "--sf-duration-base",
+      "--sf-duration-fast",
+      "--sf-ease",
+      "--sf-header-padding-y",
+      "--sf-link",
+      "--sf-navy",
+      "--sf-navy-dark",
+      "--sf-navy-gradient-end",
+      "--sf-navy-gradient-start",
+      "--sf-orange",
+      "--sf-orange-tint",
+      "--sf-star",
+      "--sf-success",
+      "--sf-surface",
+      "--sf-surface-muted",
+      "--sf-text",
+      "--sf-text-2xl",
+      "--sf-text-3xl",
+      "--sf-text-base",
+      "--sf-text-faint",
+      "--sf-text-lg",
+      "--sf-text-muted",
+      "--sf-text-secondary",
+      "--sf-text-sm",
+      "--sf-text-xl",
+      "--sf-text-xs",
+      "--shadow-admin-card",
+      "--shadow-admin-popover",
+      "--shadow-sf-none",
+      "--space-1",
+      "--space-10",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-8",
+      "--text-2xl",
+      "--text-base",
+      "--text-lg",
+      "--text-md",
+      "--text-sm",
+      "--text-xl",
+      "--text-xs",
+      "--theme-bold-bg",
+      "--theme-bold-fg",
+      "--theme-bold-hairline",
+      "--theme-bold-lime",
+      "--theme-bold-muted",
+      "--theme-bold-surface",
+      "--theme-classic-forest",
+      "--theme-classic-ghost",
+      "--theme-classic-hairline",
+      "--theme-classic-ivory",
+      "--theme-classic-maroon",
+      "--theme-classic-muted",
+      "--theme-editorial-accent",
+      "--theme-editorial-bg",
+      "--theme-editorial-surface",
+      "--theme-fresh-bg",
+      "--theme-fresh-blue",
+      "--theme-fresh-footer",
+      "--theme-fresh-green",
+      "--theme-fresh-text",
+      "--theme-fresh-yellow",
+      "--theme-industrial-amber",
+      "--theme-industrial-bg",
+      "--theme-industrial-blue",
+      "--theme-industrial-border",
+      "--theme-industrial-muted",
+      "--theme-industrial-navy",
+      "--theme-industrial-navy-dark",
+      "--theme-industrial-text",
+      "--transition-admin-icon",
+      "--transition-base"
+    ],
+    "tokenKinds": {
+      "--admin-primary-50": "color",
+      "--admin-primary-100": "color",
+      "--admin-primary-200": "color",
+      "--admin-primary-300": "color",
+      "--admin-primary-400": "color",
+      "--admin-primary-500": "color",
+      "--admin-primary-600": "color",
+      "--admin-primary-700": "color",
+      "--admin-primary-800": "color",
+      "--admin-primary-900": "color",
+      "--admin-primary-950": "color",
+      "--admin-bg": "color",
+      "--admin-surface": "color",
+      "--admin-border": "color",
+      "--admin-border-strong": "color",
+      "--admin-text": "font",
+      "--admin-text-secondary": "font",
+      "--admin-text-muted": "font",
+      "--admin-text-faint": "font",
+      "--admin-bg-dark": "color",
+      "--admin-surface-dark": "color",
+      "--admin-border-dark": "color",
+      "--admin-text-dark": "font",
+      "--admin-success": "color",
+      "--admin-success-bg": "color",
+      "--admin-danger": "color",
+      "--admin-danger-bg": "color",
+      "--admin-warning": "color",
+      "--admin-warning-bg": "color",
+      "--admin-info": "color",
+      "--admin-info-bg": "color",
+      "--admin-gray": "color",
+      "--admin-gray-bg": "color",
+      "--sf-navy": "color",
+      "--sf-navy-dark": "color",
+      "--sf-navy-gradient-start": "color",
+      "--sf-navy-gradient-end": "color",
+      "--sf-orange": "color",
+      "--sf-orange-tint": "color",
+      "--sf-bg": "color",
+      "--sf-surface": "color",
+      "--sf-surface-muted": "color",
+      "--sf-border": "color",
+      "--sf-border-soft": "color",
+      "--sf-text": "font",
+      "--sf-text-secondary": "font",
+      "--sf-text-muted": "font",
+      "--sf-text-faint": "font",
+      "--sf-link": "color",
+      "--sf-success": "color",
+      "--sf-deal": "color",
+      "--sf-deal-bg": "color",
+      "--sf-star": "color",
+      "--sf-accent": "color",
+      "--sf-accent-tint": "color",
+      "--theme-industrial-navy": "color",
+      "--theme-industrial-navy-dark": "color",
+      "--theme-industrial-amber": "color",
+      "--theme-industrial-blue": "color",
+      "--theme-industrial-bg": "color",
+      "--theme-industrial-border": "color",
+      "--theme-industrial-text": "font",
+      "--theme-industrial-muted": "color",
+      "--theme-editorial-bg": "color",
+      "--theme-editorial-accent": "color",
+      "--theme-editorial-surface": "color",
+      "--theme-fresh-blue": "color",
+      "--theme-fresh-yellow": "color",
+      "--theme-fresh-footer": "color",
+      "--theme-fresh-bg": "color",
+      "--theme-fresh-green": "color",
+      "--theme-fresh-text": "font",
+      "--theme-bold-bg": "color",
+      "--theme-bold-fg": "color",
+      "--theme-bold-lime": "color",
+      "--theme-bold-surface": "color",
+      "--theme-bold-hairline": "color",
+      "--theme-bold-muted": "color",
+      "--theme-classic-ivory": "color",
+      "--theme-classic-maroon": "color",
+      "--theme-classic-forest": "color",
+      "--theme-classic-hairline": "color",
+      "--theme-classic-muted": "color",
+      "--theme-classic-ghost": "color",
+      "--font-admin": "font",
+      "--font-storefront-display": "font",
+      "--font-storefront-body": "font",
+      "--text-xs": "font",
+      "--text-sm": "font",
+      "--text-base": "font",
+      "--text-md": "font",
+      "--text-lg": "font",
+      "--text-xl": "font",
+      "--text-2xl": "font",
+      "--sf-text-xs": "font",
+      "--sf-text-sm": "font",
+      "--sf-text-base": "font",
+      "--sf-text-lg": "font",
+      "--sf-text-xl": "font",
+      "--sf-text-2xl": "font",
+      "--sf-text-3xl": "font",
+      "--font-weight-medium": "font",
+      "--font-weight-semibold": "font",
+      "--font-weight-bold": "font",
+      "--font-weight-extrabold": "font",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-8": "spacing",
+      "--space-10": "spacing",
+      "--sf-container-max": "spacing",
+      "--sf-container-padding": "spacing",
+      "--sf-header-padding-y": "spacing",
+      "--radius-admin-sm": "radius",
+      "--radius-admin-md": "radius",
+      "--radius-admin-lg": "radius",
+      "--radius-sf-sm": "radius",
+      "--radius-sf-md": "radius",
+      "--radius-sf-lg": "radius",
+      "--radius-sf-xl": "radius",
+      "--radius-sf-2xl": "radius",
+      "--radius-pill": "radius",
+      "--radius-theme-industrial": "radius",
+      "--radius-theme-fresh": "radius",
+      "--radius-theme-bold": "radius",
+      "--radius-theme-classic": "radius",
+      "--shadow-admin-card": "shadow",
+      "--shadow-admin-popover": "shadow",
+      "--shadow-sf-none": "shadow",
+      "--transition-admin-icon": "other",
+      "--transition-base": "other",
+      "--sf-ease": "other",
+      "--sf-duration-fast": "other",
+      "--sf-duration-base": "other"
+    },
+    "fontFamilies": [
+      "Inter",
+      "Sora"
+    ]
+  }
+}

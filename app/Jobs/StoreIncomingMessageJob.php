@@ -53,12 +53,39 @@ class StoreIncomingMessageJob implements ShouldQueue
             }
 
             foreach ($entry['changes'] ?? [] as $change) {
-                if (($change['field'] ?? null) !== 'messages'
+                $field = $change['field'] ?? null;
+                $value = (array) ($change['value'] ?? []);
+
+                if (! is_array($change)
                     || (string) data_get($change, 'value.metadata.phone_number_id', '') !== (string) $channel->external_id) {
                     continue;
                 }
 
-                $value = $change['value'] ?? [];
+                if ($field === 'smb_app_state_sync') {
+                    $this->handleContactsSync($channel, $value);
+
+                    continue;
+                }
+
+                if ($field === 'history') {
+                    // Queued, not processed inline: a full ~180-day backfill
+                    // can be large and arrives across several webhook
+                    // deliveries over a few minutes.
+                    ImportConversationHistoryJob::dispatch($channel->getKey(), $value);
+
+                    continue;
+                }
+
+                if ($field === 'smb_message_echoes') {
+                    $this->handleMessageEchoes($channel, $value);
+
+                    continue;
+                }
+
+                if ($field !== 'messages') {
+                    continue;
+                }
+
                 $contacts = collect($value['contacts'] ?? [])->keyBy('wa_id');
 
                 foreach ($value['messages'] ?? [] as $message) {
@@ -109,6 +136,114 @@ class StoreIncomingMessageJob implements ShouldQueue
                     $this->applyDeliveryStatus($channel, $status, $metaGraph);
                 }
             }
+        }
+    }
+
+    /**
+     * Coexistence contacts sync ('smb_app_state_sync'): the Business App's
+     * current contacts, delivered once shortly after onboarding. Links each
+     * to an existing Customer/Lead by phone, or creates a Lead - the same
+     * matching rule as autoLink(), but standalone since there is no message
+     * or Conversation attached to a contact-sync entry.
+     */
+    protected function handleContactsSync(ConversationChannel $channel, array $value): void
+    {
+        foreach ((array) ($value['state_sync'] ?? []) as $entry) {
+            if (! is_array($entry) || ($entry['type'] ?? null) !== 'contact' || ($entry['action'] ?? 'add') === 'remove') {
+                continue;
+            }
+
+            $phone = trim((string) data_get($entry, 'contact.phone_number', ''));
+            $name = data_get($entry, 'contact.full_name') ?? data_get($entry, 'contact.first_name');
+
+            if ($phone === '') {
+                continue;
+            }
+
+            $this->linkSyncedContact($channel, $phone, is_string($name) ? $name : null);
+        }
+    }
+
+    protected function linkSyncedContact(ConversationChannel $channel, string $phone, ?string $name): void
+    {
+        $normalized = substr(preg_replace('/\D/', '', $phone), -10);
+
+        if ($normalized === '') {
+            return;
+        }
+
+        $alreadyKnown = Customer::query()->where(fn ($query) => $query
+            ->where('phone', 'like', "%{$normalized}")
+            ->orWhere('phone', $phone))->exists()
+            || Lead::query()->where(fn ($query) => $query
+                ->where('phone', 'like', "%{$normalized}")
+                ->orWhere('phone', $phone))->exists();
+
+        if ($alreadyKnown || ! $channel->auto_create_leads) {
+            return;
+        }
+
+        Lead::query()->create([
+            'company_id' => $channel->company_id,
+            'name' => $name ?: 'WhatsApp contact '.$phone,
+            'phone' => $phone,
+            'source' => 'whatsapp',
+            'status' => 'new',
+        ]);
+    }
+
+    /**
+     * Coexistence phone-app echoes ('smb_message_echoes'): messages the
+     * owner sent from the phone app after connecting, mirrored to us live.
+     * Archived as outgoing messages with generated_by = 'phone_app' so the
+     * Inbox can tell them apart from replies sent through the ERP itself.
+     * Messages the ERP itself sent are skipped via the same
+     * external_message_id dedupe used everywhere else in this pipeline.
+     */
+    protected function handleMessageEchoes(ConversationChannel $channel, array $value): void
+    {
+        foreach ((array) ($value['message_echoes'] ?? []) as $echo) {
+            if (! is_array($echo)) {
+                continue;
+            }
+
+            $externalMessageId = (string) ($echo['id'] ?? '');
+            $contactId = (string) ($echo['to'] ?? '');
+
+            if ($externalMessageId === '' || $contactId === ''
+                || ConversationMessage::query()->where('external_message_id', $externalMessageId)->exists()) {
+                continue;
+            }
+
+            $sentAt = isset($echo['timestamp']) ? Carbon::createFromTimestamp((int) $echo['timestamp']) : now();
+
+            DB::transaction(function () use ($channel, $contactId, $externalMessageId, $echo, $sentAt): void {
+                $conversation = Conversation::query()->firstOrCreate(
+                    ['channel_id' => $channel->getKey(), 'external_contact_id' => $contactId],
+                    ['company_id' => $channel->company_id, 'provider' => $channel->provider, 'status' => 'open'],
+                );
+
+                ConversationMessage::query()->firstOrCreate(
+                    ['external_message_id' => $externalMessageId],
+                    [
+                        'conversation_id' => $conversation->getKey(),
+                        'direction' => 'outgoing',
+                        'type' => $this->normalizeType((string) ($echo['type'] ?? 'text')),
+                        'body' => data_get($echo, 'text.body')
+                            ?? data_get($echo, 'image.caption')
+                            ?? data_get($echo, 'video.caption')
+                            ?? data_get($echo, 'document.caption'),
+                        'delivery_status' => 'sent',
+                        'generated_by' => 'phone_app',
+                        'raw_payload' => $echo,
+                        'sent_at' => $sentAt,
+                    ],
+                );
+
+                if (! $conversation->last_message_at || $sentAt->greaterThan($conversation->last_message_at)) {
+                    $conversation->forceFill(['last_message_at' => $sentAt])->saveQuietly();
+                }
+            });
         }
     }
 

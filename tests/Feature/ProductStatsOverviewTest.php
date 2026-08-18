@@ -64,7 +64,7 @@ class ProductStatsOverviewTest extends TestCase
         $widget = new ProductStatsOverview;
 
         $this->assertSame('৳ 2,149,140', $widget->formatCurrency(2149140.00));
-        $this->assertSame('৳ 360,175.50', $widget->formatCurrency(360175.5));
+        $this->assertSame('৳ 360,175.5', $widget->formatCurrency(360175.5));
         $this->assertSame('৳ 99.25', $widget->formatCurrency(99.254));
     }
 

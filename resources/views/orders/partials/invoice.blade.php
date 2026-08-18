@@ -16,7 +16,7 @@
     $company = $company ?? ['name' => config('app.name', 'Business Dashboard'), 'currency' => 'BDT'];
     $invoice = $invoice ?? \App\Services\CompanySettingsService::INVOICE_DEFAULTS;
     $currency = $company['currency'] ?? 'BDT';
-    $money = fn (float $amount): string => number_format($amount, 2);
+    $money = fn (float $amount): string => \App\Support\MoneyFormatter::number($amount);
     $discount = (float) $order->discount;
     $vat = (float) $order->vat;
     $shippingFee = (float) $order->shipping_fee;

@@ -29,7 +29,7 @@ class ChannelPartnerPayoutsRelationManager extends RelationManager
     {
         return $table->columns([
             TextColumn::make('investor.name')->label('Channel Partner'),
-            TextColumn::make('amount')->money('BDT'),
+            TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT'),
             TextColumn::make('payment_status')->badge(),
             TextColumn::make('paid_at')->date()->placeholder('-'),
         ])->recordActions([

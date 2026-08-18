@@ -23,7 +23,7 @@ class InvestmentsRelationManager extends RelationManager
         return $table->columns([
             TextColumn::make('project.project_code')->label('Project'),
             TextColumn::make('project.name')->label('Project Name'),
-            TextColumn::make('amount')->money('BDT'),
+            TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT'),
             TextColumn::make('invested_at')->date(),
         ])->recordActions([ViewAction::make()->url(fn ($record): string => InvestmentRecordResource::getUrl('view', ['record' => $record]))]);
     }

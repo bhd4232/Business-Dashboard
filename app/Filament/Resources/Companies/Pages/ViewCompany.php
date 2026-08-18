@@ -14,6 +14,7 @@ class ViewCompany extends ViewRecord
     {
         return [
             EditAction::make(),
+            CompanyResource::deleteAction(),
         ];
     }
 }

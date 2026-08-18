@@ -91,20 +91,20 @@
                         <td class="right">{{ $item->product?->weight_kg ? rtrim(rtrim(number_format((float) $item->product->weight_kg, 3), '0'), '.').' kg' : '—' }}</td>
                     @endif
                     <td class="right">{{ $item->quantity }}</td>
-                    <td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $item->unit_price, 2) }}</td>
-                    <td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $item->subtotal, 2) }}</td>
+                    <td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td>
+                    <td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
     <table class="totals">
-        <tr><td>Subtotal</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->subtotal, 2) }}</td></tr>
-        <tr><td>Discount</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->discount, 2) }}</td></tr>
-        <tr><td>VAT</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->vat, 2) }}</td></tr>
-        <tr class="grand"><td>Total</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->total_amount, 2) }}</td></tr>
-        <tr><td>Paid</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->paid_amount, 2) }}</td></tr>
-        <tr><td>Due</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->due_amount, 2) }}</td></tr>
+        <tr><td>Subtotal</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr><td>Discount</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr><td>VAT</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr class="grand"><td>Total</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr><td>Paid</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr><td>Due</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
     </table>
 
     <div class="footer">
@@ -128,7 +128,7 @@
             <p>Customer: {{ $order->customer?->name ?? $order->customer_name }}</p>
             <p>Phone: {{ $order->customer?->phone }}</p>
             <p>Address: {{ $order->customer?->address }}</p>
-            <p>COD: {{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->due_amount, 2) }}</p>
+            <p>COD: {{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</p>
             @if (! empty($invoice['show_barcode']))
                 <div>{!! \App\Support\Code128::svg($order->order_number, 40, 1) !!}</div>
             @endif

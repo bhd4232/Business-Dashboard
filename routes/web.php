@@ -19,6 +19,7 @@ use App\Http\Controllers\ChatOrderController;
 use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\MetaWebhookController;
+use App\Http\Controllers\PayStationWebhookController;
 use App\Http\Controllers\QuotationPublicController;
 use App\Http\Controllers\Storefront\AccountAuthController as StorefrontAccountAuthController;
 use App\Http\Controllers\Storefront\AccountController as StorefrontAccountController;
@@ -29,10 +30,13 @@ use App\Http\Controllers\Storefront\CheckoutController as StorefrontCheckoutCont
 use App\Http\Controllers\Storefront\ComplaintController as StorefrontComplaintController;
 use App\Http\Controllers\Storefront\ContactController as StorefrontContactController;
 use App\Http\Controllers\Storefront\HomeController as StorefrontHomeController;
+use App\Http\Controllers\Storefront\OfferCheckoutController as StorefrontOfferCheckoutController;
+use App\Http\Controllers\Storefront\OfferController as StorefrontOfferController;
 use App\Http\Controllers\Storefront\OrderTrackController as StorefrontOrderTrackController;
 use App\Http\Controllers\Storefront\PageController as StorefrontPageController;
 use App\Http\Controllers\Storefront\PreviewController as StorefrontPreviewController;
 use App\Http\Controllers\Storefront\ProductIndexController as StorefrontProductIndexController;
+use App\Http\Controllers\Storefront\ProductReviewController as StorefrontProductReviewController;
 use App\Http\Controllers\Storefront\ProductShowController as StorefrontProductShowController;
 use App\Http\Controllers\Storefront\ResellerController;
 use App\Http\Controllers\ZiniPayWebhookController;
@@ -133,6 +137,12 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
     Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorderPreview'])
         ->name('storefront.preview.account.reorder');
 
+    Route::get('/account/orders/{orderNo}/review', [StorefrontProductReviewController::class, 'createPreview'])
+        ->name('storefront.preview.account.reviews.create');
+
+    Route::post('/account/orders/{orderNo}/review', [StorefrontProductReviewController::class, 'storePreview'])
+        ->name('storefront.preview.account.reviews.store');
+
     Route::get('/account', [StorefrontAccountController::class, 'indexPreview'])
         ->name('storefront.preview.account.index');
     Route::get('/account/activity', [StorefrontAccountController::class, 'activityPreview'])
@@ -185,6 +195,18 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
 
     Route::get('/contact', [StorefrontContactController::class, 'showPreview'])
         ->name('storefront.preview.contact');
+
+    Route::get('/offers', [StorefrontOfferController::class, 'indexPreview'])
+        ->name('storefront.preview.offers.index');
+
+    Route::get('/offers/{slug}', [StorefrontOfferController::class, 'showPreview'])
+        ->name('storefront.preview.offers.show');
+
+    Route::post('/offers/{slug}/checkout', [StorefrontOfferCheckoutController::class, 'storePreview'])
+        ->name('storefront.preview.offers.checkout');
+
+    Route::get('/offers/{slug}/thank-you/{order}', [StorefrontOfferCheckoutController::class, 'thankYouPreview'])
+        ->name('storefront.preview.offers.thank-you');
 });
 
 Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
@@ -248,6 +270,12 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorder'])
         ->name('storefront.account.reorder');
 
+    Route::get('/account/orders/{orderNo}/review', [StorefrontProductReviewController::class, 'create'])
+        ->name('storefront.account.reviews.create');
+
+    Route::post('/account/orders/{orderNo}/review', [StorefrontProductReviewController::class, 'store'])
+        ->name('storefront.account.reviews.store');
+
     Route::middleware('throttle:10,1')->group(function (): void {
         Route::get('/account/login', [StorefrontAccountAuthController::class, 'showLogin'])
             ->name('storefront.account.login');
@@ -302,6 +330,18 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::get('/contact', [StorefrontContactController::class, 'show'])
         ->name('storefront.contact');
 
+    Route::get('/offers', [StorefrontOfferController::class, 'index'])
+        ->name('storefront.offers.index');
+
+    Route::get('/offers/{slug}', [StorefrontOfferController::class, 'show'])
+        ->name('storefront.offers.show');
+
+    Route::post('/offers/{slug}/checkout', [StorefrontOfferCheckoutController::class, 'store'])
+        ->name('storefront.offers.checkout');
+
+    Route::get('/offers/{slug}/thank-you/{order}', [StorefrontOfferCheckoutController::class, 'thankYou'])
+        ->name('storefront.offers.thank-you');
+
 });
 
 Route::view('/pricing', 'marketing.pricing')->name('marketing.pricing');
@@ -352,6 +392,10 @@ Route::post('/webhooks/couriers/{provider}', CourierWebhookController::class)
 Route::post('/webhooks/zinipay/{payment}', ZiniPayWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('zinipay.webhook');
+
+Route::post('/webhooks/paystation/{payment}', PayStationWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('paystation.webhook');
 
 Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $order, Request $request) {
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);

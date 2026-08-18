@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Services\Crm\AiLlmClient;
 use App\Services\Crm\AiSettingsService;
+use App\Support\MoneyFormatter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -196,7 +197,7 @@ class MetaAdsAiAssistantService
         }
 
         if ($primaryText === '' && $product) {
-            $price = number_format((float) ($product->sale_price ?? $product->price), 0);
+            $price = MoneyFormatter::number((float) ($product->sale_price ?? $product->price));
             $primaryText = "Get {$product->name} now for just ৳{$price}!";
         }
 

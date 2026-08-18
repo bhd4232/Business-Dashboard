@@ -79,7 +79,7 @@ class AccountController extends Controller
     {
         return Order::query()
             ->where('company_id', $company->getKey())
-            ->where('source', Order::SOURCE_STOREFRONT)
+            ->whereIn('source', [Order::SOURCE_STOREFRONT, Order::SOURCE_OFFER])
             ->where('customer_id', $customer->getKey());
     }
 

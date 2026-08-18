@@ -22,7 +22,7 @@
             ['label' => 'Total orders', 'value' => $orderCount],
             ['label' => 'Active orders', 'value' => $activeOrderCount],
             ['label' => 'Completed', 'value' => $completedOrderCount],
-            ['label' => 'Total purchased', 'value' => ($company->currency ?: 'BDT').' '.number_format((float) $totalSpent, 2)],
+            ['label' => 'Total purchased', 'value' => ($company->currency ?: 'BDT').' '.],
         ] as $stat)
             <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900 sm:p-4">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ $stat['label'] }}</p>
@@ -51,7 +51,7 @@
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ optional($order->order_date)->format('d M Y') }} &middot; {{ $order->items->sum('quantity') }} items</p>
                             </div>
                             <div class="shrink-0 text-right">
-                                <p class="text-sm font-semibold">{{ $company->currency ?: 'BDT' }} {{ number_format((float) $order->total_amount, 2) }}</p>
+                                <p class="text-sm font-semibold">{{ $company->currency ?: 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</p>
                                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ App\Models\Order::STATUSES[$order->status] ?? str($order->status)->headline() }}</p>
                             </div>
                         </a>

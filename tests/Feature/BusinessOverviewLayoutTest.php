@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Filament\Widgets\BusinessOverview;
+use App\Filament\Widgets\CourierHealthWidget;
+use App\Filament\Widgets\CustomerRiskOverview;
 use App\Models\Company;
 use App\Services\CompanyContext;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -61,5 +63,66 @@ class BusinessOverviewLayoutTest extends TestCase
             ->assertSeeHtml('zz-business-overview-stat')
             ->assertSeeHtml('--cols-default: repeat(2, minmax(0, 1fr))')
             ->assertSeeHtml('--cols-lg: repeat(5, minmax(0, 1fr))');
+    }
+
+    public function test_dashboard_stat_cards_do_not_render_secondary_descriptions(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Dashboard Stat Company',
+            'slug' => 'dashboard-stat-company',
+            'invoice_prefix' => 'DSC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+
+        app(CompanyContext::class)->set($company);
+
+        $widgets = [
+            new class extends BusinessOverview
+            {
+                public function statsForTest(): array
+                {
+                    return $this->getStats();
+                }
+            },
+            new class extends CustomerRiskOverview
+            {
+                public function statsForTest(): array
+                {
+                    return $this->getStats();
+                }
+            },
+            new class extends CourierHealthWidget
+            {
+                public function statsForTest(): array
+                {
+                    return $this->getStats();
+                }
+            },
+        ];
+
+        foreach ($widgets as $widget) {
+            foreach ($widget->statsForTest() as $stat) {
+                $this->assertNull($stat->getDescription());
+                $this->assertNull($stat->getDescriptionIcon());
+            }
+        }
+    }
+
+    public function test_business_overview_money_values_omit_trailing_decimal_zeroes(): void
+    {
+        $widget = new class extends BusinessOverview
+        {
+            public function formatMoney(float|int|string $amount): string
+            {
+                return $this->money($amount);
+            }
+        };
+
+        $this->assertSame('BDT 0', $widget->formatMoney(0));
+        $this->assertSame('BDT 1,625,000', $widget->formatMoney(1625000));
+        $this->assertSame('BDT 2,520.5', $widget->formatMoney(2520.50));
+        $this->assertSame('BDT 2,520.25', $widget->formatMoney(2520.25));
     }
 }

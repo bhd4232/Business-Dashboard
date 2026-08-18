@@ -63,6 +63,22 @@ class StorefrontSetting extends Model
     ];
 
     public const THEME_PALETTE_PRESETS = [
+        'noor_solar' => [
+            'label' => 'Noor Solar Energy',
+            'theme_color' => '#064C38',
+            'theme_secondary_color' => '#043628',
+            'theme_accent_color' => '#F5BF17',
+            'theme_background_color' => '#F7F6F2',
+            'theme_surface_color' => '#FFFFFF',
+            'theme_text_color' => '#043628',
+            'theme_muted_text_color' => '#52635D',
+            'theme_border_color' => '#E5E3DA',
+            'theme_dark_background_color' => '#031E17',
+            'theme_dark_surface_color' => '#073B2C',
+            'theme_dark_text_color' => '#F7F6F2',
+            'theme_dark_muted_text_color' => '#B9C8C1',
+            'theme_dark_border_color' => '#28604E',
+        ],
         'emerald' => [
             'label' => 'Emerald Commerce',
             'theme_color' => '#059669',
@@ -148,6 +164,7 @@ class StorefrontSetting extends Model
     public const FONT_OPTIONS = [
         'system' => ['label' => 'System UI', 'family' => "Arial, 'Helvetica Neue', Helvetica, sans-serif", 'query' => null],
         'inter' => ['label' => 'Inter', 'family' => "'Inter', Arial, sans-serif", 'query' => 'Inter:wght@400;500;600;700;800'],
+        'sora' => ['label' => 'Sora', 'family' => "'Sora', Arial, sans-serif", 'query' => 'Sora:wght@600;700;800'],
         'rubik' => ['label' => 'Rubik', 'family' => "'Rubik', Arial, sans-serif", 'query' => 'Rubik:wght@400;500;600;700;800'],
         'nunito_sans' => ['label' => 'Nunito Sans', 'family' => "'Nunito Sans', Arial, sans-serif", 'query' => 'Nunito+Sans:wght@400;500;600;700;800'],
         'hind_siliguri' => ['label' => 'Hind Siliguri', 'family' => "'Hind Siliguri', Arial, sans-serif", 'query' => 'Hind+Siliguri:wght@400;500;600;700'],
@@ -156,6 +173,7 @@ class StorefrontSetting extends Model
     ];
 
     public const TYPOGRAPHY_PRESETS = [
+        'noor_solar' => ['label' => 'Noor Solar — Sora & Inter', 'typography_heading_font' => 'sora', 'typography_body_font' => 'inter', 'typography_base_size' => 16, 'typography_heading_weight' => 800, 'typography_body_weight' => 400, 'typography_scale' => 'balanced', 'typography_line_height' => 'normal', 'typography_heading_tracking' => 'tight', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'comfortable'],
         'system' => ['label' => 'System Commerce', 'typography_heading_font' => 'system', 'typography_body_font' => 'system', 'typography_base_size' => 16, 'typography_heading_weight' => 700, 'typography_body_weight' => 400, 'typography_scale' => 'balanced', 'typography_line_height' => 'normal', 'typography_heading_tracking' => 'tight', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'comfortable'],
         'modern' => ['label' => 'Modern Inter', 'typography_heading_font' => 'inter', 'typography_body_font' => 'inter', 'typography_base_size' => 16, 'typography_heading_weight' => 700, 'typography_body_weight' => 400, 'typography_scale' => 'balanced', 'typography_line_height' => 'normal', 'typography_heading_tracking' => 'tight', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'comfortable'],
         'commerce' => ['label' => 'E-commerce Clean', 'typography_heading_font' => 'rubik', 'typography_body_font' => 'nunito_sans', 'typography_base_size' => 16, 'typography_heading_weight' => 700, 'typography_body_weight' => 400, 'typography_scale' => 'balanced', 'typography_line_height' => 'relaxed', 'typography_heading_tracking' => 'tight', 'typography_body_tracking' => 'normal', 'typography_content_width' => 'comfortable'],
@@ -306,6 +324,7 @@ class StorefrontSetting extends Model
         'offer_ends_at',
         'theme_mode',
         'online_payment_enabled',
+        'online_payment_gateway',
         'payment_credentials',
         'cod_enabled',
         'checkout_policy_mode',

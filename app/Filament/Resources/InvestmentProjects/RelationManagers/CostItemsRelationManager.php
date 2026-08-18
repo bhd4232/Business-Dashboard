@@ -45,7 +45,7 @@ class CostItemsRelationManager extends RelationManager
                 ->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('label')->searchable(),
             TextColumn::make('purchase.purchase_number')->label('Purchase')->placeholder('-'),
-            TextColumn::make('amount')->money('BDT')->summarize(Sum::make()->money('BDT')),
+            TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT')->summarize(Sum::make()->moneyWithoutTrailingZeroes('BDT')),
             TextColumn::make('remarks')->limit(40)->placeholder('-'),
         ])->groups([
             Group::make('category')

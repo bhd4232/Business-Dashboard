@@ -36,8 +36,8 @@ class FundTransfersWidget extends TableWidget
                 TextColumn::make('transfer_number')->label('Transfer #')->searchable()->sortable(),
                 TextColumn::make('fromAccount.name')->label('From'),
                 TextColumn::make('toAccount.name')->label('To'),
-                TextColumn::make('amount')->money('BDT')->sortable(),
-                TextColumn::make('transaction_cost')->label('Transaction Cost')->money('BDT')->sortable(),
+                TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT')->sortable(),
+                TextColumn::make('transaction_cost')->label('Transaction Cost')->moneyWithoutTrailingZeroes('BDT')->sortable(),
                 TextColumn::make('status')->badge()->color(fn (string $state): string => match ($state) {
                     FundTransfer::STATUS_APPROVED => 'success',
                     FundTransfer::STATUS_REJECTED => 'danger',

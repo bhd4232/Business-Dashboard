@@ -54,9 +54,9 @@
                         </div>
                         <div class="fi-wi-stats-overview-stat-value !text-[20px]">
                             @if ($stat['isCurrency'] ?? false)
-                                {{ $account?->currency ?? 'USD' }} {{ number_format($stat['value'], 2) }}
+                                {{ $account?->currency ?? 'USD' }} {{ \App\Support\MoneyFormatter::number($stat['value']) }}
                             @elseif ($stat['isPercent'] ?? false)
-                                {{ number_format($stat['value'], 2) }}%
+                                {{ \App\Support\MoneyFormatter::number($stat['value']) }}%
                             @else
                                 {{ number_format($stat['value']) }}
                             @endif

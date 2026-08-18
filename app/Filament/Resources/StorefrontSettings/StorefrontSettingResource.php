@@ -15,6 +15,7 @@ use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
 use App\Services\CompanyContext;
+use App\Services\PayStationClient;
 use App\Services\WooCommerceImportService;
 use App\Services\ZiniPayClient;
 use App\Support\CompanyMedia;
@@ -122,7 +123,7 @@ class StorefrontSettingResource extends Resource
 
             Section::make('Site Theme')
                 ->columnSpanFull()
-                ->description('Choose the storefront design and its homepage layout. Built-in Theme preserves the current storefront; Marketplace Pro adds three B2B-focused homepage templates.')
+                ->description('Choose the storefront design and its homepage layout. Built-in preserves the current storefront, Marketplace Pro serves broad B2B commerce, and Noor Solar Energy adds a dedicated solar-sales experience.')
                 ->schema([
                     Select::make('storefront_theme')
                         ->label('Active theme')
@@ -132,6 +133,18 @@ class StorefrontSettingResource extends Resource
                         ->live()
                         ->afterStateUpdated(function (Set $set, ?string $state): void {
                             $set('homepage_template', array_key_first(StorefrontThemeRegistry::templateOptions($state)));
+
+                            if ($state === StorefrontThemeRegistry::NOOR_SOLAR) {
+                                $set('theme_palette_preset', 'noor_solar');
+                                foreach (StorefrontSetting::themePalettePresetFields('noor_solar') as $field => $color) {
+                                    $set($field, $color);
+                                }
+
+                                $set('typography_preset', 'noor_solar');
+                                foreach (StorefrontSetting::typographyPresetFields('noor_solar') as $field => $value) {
+                                    $set($field, $value);
+                                }
+                            }
                         })
                         ->helperText(fn (Get $get): string => StorefrontThemeRegistry::themeDescription($get('storefront_theme'))),
                     Select::make('homepage_template')
@@ -484,7 +497,11 @@ class StorefrontSettingResource extends Resource
                         ->placeholder('Start shopping'),
                 ])
                 ->columns(2)
-                ->visible(fn (Get $get): bool => ($get('storefront_theme') ?: StorefrontThemeRegistry::BUILT_IN) === StorefrontThemeRegistry::BUILT_IN)
+                ->visible(fn (Get $get): bool => in_array(
+                    StorefrontThemeRegistry::normalizeTheme($get('storefront_theme')),
+                    [StorefrontThemeRegistry::BUILT_IN, StorefrontThemeRegistry::NOOR_SOLAR],
+                    true,
+                ))
                 ->collapsible(),
 
             Section::make('Trust Strip')
@@ -809,25 +826,56 @@ class StorefrontSettingResource extends Resource
                 ->collapsible()
                 ->collapsed(),
 
-            Section::make('Online Payments (ZiniPay)')
+            Section::make('Online Payments')
                 ->columnSpanFull()
-                ->description('Used for unified checkout advances: pre-order, new-customer delivery, and optional courier-history eligibility. Product balances can remain Cash on Delivery.')
+                ->description('Used for unified checkout advances: pre-order, new-customer delivery, and optional courier-history eligibility. Product balances can remain Cash on Delivery. Each company must use its own gateway merchant account — never reuse another company\'s or website\'s credentials (violates most BD payment gateway terms and can trigger account suspension).')
                 ->schema([
                     Toggle::make('online_payment_enabled')
                         ->label('Enable online payments')
                         ->default(false)
-                        ->helperText('Turn on only after the ZiniPay API key below is set.'),
+                        ->helperText('Turn on only after the selected gateway\'s credentials below are set.'),
+                    Select::make('online_payment_gateway')
+                        ->label('Active gateway')
+                        ->options([
+                            'zinipay' => 'ZiniPay',
+                            'paystation' => 'PayStation',
+                        ])
+                        ->default('zinipay')
+                        ->required()
+                        ->live(),
                     TextInput::make('payment_credentials.zinipay_api_key')
                         ->label('ZiniPay API key')
                         ->password()
                         ->revealable()
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'zinipay'),
                     TextInput::make('payment_credentials.zinipay_base_url')
                         ->label('ZiniPay base URL')
                         ->url()
                         ->maxLength(255)
                         ->placeholder(ZiniPayClient::DEFAULT_BASE_URL)
-                        ->helperText('Leave empty for the default. Change only if ZiniPay gives you a different API host.'),
+                        ->helperText('Leave empty for the default. Change only if ZiniPay gives you a different API host.')
+                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'zinipay'),
+                    TextInput::make('payment_credentials.paystation_merchant_id')
+                        ->label('PayStation Merchant ID')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255)
+                        ->helperText('This company\'s own PayStation MID — do not reuse another company\'s or website\'s MID.')
+                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
+                    TextInput::make('payment_credentials.paystation_password')
+                        ->label('PayStation Password / API key')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255)
+                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
+                    TextInput::make('payment_credentials.paystation_base_url')
+                        ->label('PayStation base URL')
+                        ->url()
+                        ->maxLength(255)
+                        ->placeholder(PayStationClient::DEFAULT_BASE_URL)
+                        ->helperText('Leave empty for the default. Change only if PayStation gives you a different API host.')
+                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
                 ])
                 ->columns(2)
                 ->collapsible()
@@ -1053,6 +1101,7 @@ class StorefrontSettingResource extends Resource
                         'shop' => 'Shop all products',
                         'category' => 'Category',
                         'page' => 'Content page',
+                        'offers' => 'Offers',
                         'track' => 'Track order',
                         'account' => 'My account',
                         'reseller' => 'Become a reseller',

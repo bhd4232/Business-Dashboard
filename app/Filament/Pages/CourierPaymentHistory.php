@@ -11,6 +11,7 @@ use Filament\Actions\Action;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
@@ -190,7 +191,7 @@ class CourierPaymentHistory extends Page implements HasTable
     protected const TIMELINE_FIELDS = ['created_at', 'ready_at', 'paid_at'];
 
     /**
-     * @return array<int, \Filament\Schemas\Components\Component>
+     * @return array<int, Component>
      */
     protected function paymentDetailEntries(array $record): array
     {
@@ -279,7 +280,7 @@ class CourierPaymentHistory extends Page implements HasTable
         $entry = TextEntry::make($key)->label(str($key)->headline())->state($value)->placeholder('—');
 
         return match ($type) {
-            'money' => $entry->money('BDT')->weight($key === 'total' ? 'bold' : null)->color($key === 'total' ? 'success' : null),
+            'money' => $entry->moneyWithoutTrailingZeroes('BDT')->weight($key === 'total' ? 'bold' : null)->color($key === 'total' ? 'success' : null),
             'badge' => $entry->badge()->color(fn (?string $state): string => match (true) {
                 $state === null => 'gray',
                 $key === 'status_label' && strtolower($state) === 'paid' => 'success',
@@ -312,7 +313,7 @@ class CourierPaymentHistory extends Page implements HasTable
                         'partial_delivered' => 'warning',
                         default => 'gray',
                     }),
-                TextEntry::make('cod_amount')->label('COD Amount')->money('BDT')->placeholder('—'),
+                TextEntry::make('cod_amount')->label('COD Amount')->moneyWithoutTrailingZeroes('BDT')->placeholder('—'),
                 TextEntry::make('recipient_name')->label('Recipient')->placeholder('—'),
                 TextEntry::make('recipient_phone')->label('Phone')->placeholder('—'),
                 TextEntry::make('recipient_address')->label('Address')->placeholder('—')->wrap()->columnSpanFull(),

@@ -70,8 +70,8 @@ class InvestorResource extends Resource
                 TextEntry::make('email')->placeholder('-'),
                 TextEntry::make('nid_number')->label('NID Number')->placeholder('-'),
                 TextEntry::make('channelPartner.name')->label('Channel Partner')->placeholder('Direct investor'),
-                TextEntry::make('lifetime_invested')->state(fn (Investor $record): float => $record->totalInvestedLifetime())->money('BDT'),
-                TextEntry::make('lifetime_profit')->state(fn (Investor $record): float => $record->totalProfitReceivedLifetime())->money('BDT'),
+                TextEntry::make('lifetime_invested')->state(fn (Investor $record): float => $record->totalInvestedLifetime())->moneyWithoutTrailingZeroes('BDT'),
+                TextEntry::make('lifetime_profit')->state(fn (Investor $record): float => $record->totalProfitReceivedLifetime())->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('address')->columnSpanFull()->placeholder('-'),
             ])->columns(2),
         ]);
@@ -84,7 +84,7 @@ class InvestorResource extends Resource
             TextColumn::make('phone')->searchable(),
             TextColumn::make('nid_number')->label('NID')->searchable()->placeholder('-'),
             TextColumn::make('channelPartner.name')->label('Channel Partner')->placeholder('Direct'),
-            TextColumn::make('investments_sum_amount')->label('Lifetime Invested')->money('BDT'),
+            TextColumn::make('investments_sum_amount')->label('Lifetime Invested')->moneyWithoutTrailingZeroes('BDT'),
         ])->recordActions([ViewAction::make(), EditAction::make()]);
     }
 

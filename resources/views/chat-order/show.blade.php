@@ -31,7 +31,7 @@
                                     <span class="muted">({{ $item['variant_label'] }})</span>
                                 @endif
                             </span>
-                            <br><span class="item-price">৳{{ number_format((float) $item['unit_price'], 2) }} / পিস</span>
+                            <br><span class="item-price">৳{{ \App\Support\MoneyFormatter::number((float) $item['unit_price']) }} / পিস</span>
                         </span>
                     </span>
                     <input type="number" name="quantities[{{ $index }}]" value="{{ $qty }}" min="1" max="1000" aria-label="পরিমাণ"
@@ -40,7 +40,7 @@
             @endforeach
             <div class="total">
                 <span>মোট (ডেলিভারি চার্জ ছাড়া)</span>
-                <span class="amount" id="js-total">৳{{ number_format($total, 2) }}</span>
+                <span class="amount" id="js-total">৳{{ \App\Support\MoneyFormatter::number((float) $item['unit_price']) }}</span>
             </div>
         </div>
 

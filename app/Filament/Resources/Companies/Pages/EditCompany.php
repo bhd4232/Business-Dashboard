@@ -17,6 +17,7 @@ class EditCompany extends EditRecord
     {
         return [
             ViewAction::make(),
+            CompanyResource::deleteAction(),
             $this->getStickySaveFormAction(),
         ];
     }

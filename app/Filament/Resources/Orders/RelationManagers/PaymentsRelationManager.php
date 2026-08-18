@@ -68,8 +68,8 @@ class PaymentsRelationManager extends RelationManager
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => OrderPayment::METHODS[$state] ?? str($state)->headline()->toString()),
                 TextColumn::make('amount')
-                    ->money('BDT')
-                    ->summarize(Sum::make()->money('BDT')),
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->summarize(Sum::make()->moneyWithoutTrailingZeroes('BDT')),
                 TextColumn::make('paid_at')->date(),
                 TextColumn::make('receivedBy.name')->label('Received By')->placeholder('System'),
                 TextColumn::make('note')->limit(40)->placeholder('-')->toggleable(isToggledHiddenByDefault: true),

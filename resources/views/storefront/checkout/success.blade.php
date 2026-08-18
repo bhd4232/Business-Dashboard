@@ -44,20 +44,20 @@
             <div class="rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-white/5">
                 <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-5 dark:border-white/10">
                     <div><div class="text-xs font-medium text-gray-400">Status</div><div class="mt-1 text-base font-semibold">{{ ucfirst($order->status) }}</div></div>
-                    <div class="text-right"><div class="text-xs font-medium text-gray-400">Total</div><div class="mt-1 text-xl font-semibold text-gray-950 dark:text-white">BDT {{ number_format((float) $order->total_amount, 2) }}</div></div>
+                    <div class="text-right"><div class="text-xs font-medium text-gray-400">Total</div><div class="mt-1 text-xl font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</div></div>
                 </div>
                 <div class="mt-5 space-y-3">
                     @foreach ($order->items as $item)
                         <div class="flex justify-between gap-4 text-sm">
                             <span class="text-gray-600 dark:text-gray-300">{{ $item->product?->name }}{{ $item->variant_label ? ' ('.$item->variant_label.')' : '' }} &times; {{ $item->quantity }}</span>
-                            <span class="font-semibold">BDT {{ number_format((float) $item->subtotal, 2) }}</span>
+                            <span class="font-semibold">BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</span>
                         </div>
                     @endforeach
                 </div>
                 <div class="mt-5 space-y-2 border-t border-gray-200 pt-4 text-sm dark:border-white/10">
-                    <div class="flex justify-between text-gray-600 dark:text-gray-300"><span>Subtotal</span><span>BDT {{ number_format((float) $order->subtotal, 2) }}</span></div>
-                    <div class="flex justify-between text-gray-600 dark:text-gray-300"><span>Delivery charge</span><span>BDT {{ number_format((float) $order->shipping_fee, 2) }}</span></div>
-                    <div class="flex justify-between font-semibold text-gray-950 dark:text-white"><span>Amount due on delivery</span><span>BDT {{ number_format((float) $order->due_amount, 2) }}</span></div>
+                    <div class="flex justify-between text-gray-600 dark:text-gray-300"><span>Subtotal</span><span>BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</span></div>
+                    <div class="flex justify-between text-gray-600 dark:text-gray-300"><span>Delivery charge</span><span>BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</span></div>
+                    <div class="flex justify-between font-semibold text-gray-950 dark:text-white"><span>Amount due on delivery</span><span>BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</span></div>
                 </div>
             </div>
             <aside class="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-white/10 dark:bg-white/[0.03]">
@@ -76,7 +76,7 @@
             <div class="mt-4 rounded-xl border px-5 py-4 text-left text-sm {{ $advancePayment->status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200' }}">
                 <div class="flex flex-wrap justify-between gap-2 font-semibold">
                     <span>{{ $isManualPayment ? ($advancePayment->gateway === 'manual_bkash' ? 'bKash payment' : 'Nagad payment') : ($advancePayment->purpose === \App\Models\StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY ? 'Delivery advance payment' : 'Pre-order advance payment') }}</span>
-                    <span>BDT {{ number_format((float) $advancePayment->amount, 2) }} &middot; {{ \App\Models\StorefrontPayment::STATUSES[$advancePayment->status] ?? ucfirst($advancePayment->status) }}</span>
+                    <span>BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }} &middot; {{ \App\Models\StorefrontPayment::STATUSES[$advancePayment->status] ?? ucfirst($advancePayment->status) }}</span>
                 </div>
                 @if ($advancePayment->status !== 'completed')<p class="mt-1 text-xs">{{ $isManualPayment ? 'We are verifying your payment and will contact you if needed.' : 'The payment status updates automatically after gateway verification.' }}</p>@endif
             </div>

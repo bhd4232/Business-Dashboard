@@ -60,7 +60,7 @@
                                 <div class="mt-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">{{ $variant->label() }}</div>
                             @endif
                             <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                BDT {{ number_format($item['unit_price'], 2) }} each
+                                BDT {{ \App\Support\MoneyFormatter::number($item['unit_price']) }} each
                                 &middot;
                                 @if ($isPreorderLine && $lineStock < 1)
                                     Available for pre-order
@@ -98,7 +98,7 @@
                                 @endif
                                 <button class="inline-flex min-h-11 items-center rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-600 transition hover:border-red-400 hover:text-red-600 disabled:cursor-wait disabled:opacity-60 dark:border-white/15 dark:text-gray-300" type="submit" data-pending-label="Removing&hellip;">Remove</button>
                             </form>
-                            <div class="w-full text-right text-base font-semibold text-gray-950 dark:text-white">BDT {{ number_format($item['subtotal'], 2) }}</div>
+                            <div class="w-full text-right text-base font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number($item['unit_price']) }}</div>
                         </div>
                     </div>
                 </article>
@@ -120,7 +120,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span>Subtotal</span>
-                    <span>BDT {{ number_format($subtotal, 2) }}</span>
+                    <span>BDT {{ \App\Support\MoneyFormatter::number($item['unit_price']) }}</span>
                 </div>
                 <div class="flex justify-between text-gray-400">
                     <span>Delivery</span>
@@ -130,7 +130,7 @@
             <div class="mt-5 border-t border-gray-200 pt-5 dark:border-white/10">
                 <div class="flex justify-between text-lg font-semibold">
                     <span>Total</span>
-                    <span>BDT {{ number_format($subtotal, 2) }}</span>
+                    <span>BDT {{ \App\Support\MoneyFormatter::number($item['unit_price']) }}</span>
                 </div>
                 @if ($items->isNotEmpty())
                     <a class="mt-5 flex w-full justify-center rounded-lg bg-[var(--storefront-brand)] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90" href="{{ isset($previewSlug) ? route('storefront.preview.checkout.show', $previewSlug) : route('storefront.checkout.show') }}">

@@ -28,7 +28,7 @@ class AccountInfolist
                     TextEntry::make('balance')
                         ->label('Balance')
                         ->state(fn (Account $record): float => $record->balance())
-                        ->money('BDT'),
+                        ->moneyWithoutTrailingZeroes('BDT'),
                 ]),
         ]);
     }

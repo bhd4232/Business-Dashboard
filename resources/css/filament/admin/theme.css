@@ -3,6 +3,67 @@
 @source '../../../../app/Filament/**/*';
 @source '../../../../resources/views/filament/**/*';
 
+/* Keep every Filament page title consistent from Dashboard through Release Notes. */
+.fi-header-heading {
+    font-size: 20px;
+}
+
+@media (min-width: 40rem) {
+    .fi-header-heading {
+        font-size: 22px;
+    }
+}
+
+@media (min-width: 64rem) {
+    .fi-header-heading {
+        font-size: 25px;
+    }
+}
+
+/* Keep the space above and below every Filament page header at 5px. */
+.fi-page-header-main-ctn {
+    gap: 5px;
+    padding-block: 5px;
+}
+
+/* Inbox uses the native Filament surface language in a denser workspace. */
+.zz-inbox-page .fi-page-content,
+.zz-inbox {
+    gap: 5px;
+}
+
+.zz-inbox {
+    display: flex;
+    flex-direction: column;
+}
+
+.zz-inbox .fi-section:not(.fi-section-not-contained) > .fi-section-header,
+.zz-inbox .fi-section:not(.fi-section-not-contained):not(.fi-divided) > .fi-section-content-ctn > .fi-section-content,
+.zz-inbox .fi-section:not(.fi-section-not-contained).fi-divided > .fi-section-content-ctn > .fi-section-content > *,
+.zz-inbox .fi-section:not(.fi-section-not-contained) > .fi-section-content-ctn > .fi-section-footer,
+.zz-inbox .fi-callout,
+.zz-inbox .fi-fieldset:not(.fi-fieldset-not-contained),
+.zz-inbox .fi-empty-state,
+.zz-inbox .fi-tabs,
+.zz-inbox .zz-inbox-conversation-card {
+    padding: 5px;
+}
+
+.zz-inbox .fi-callout,
+.zz-inbox .fi-callout-main,
+.zz-inbox .fi-callout-footer {
+    gap: 5px;
+}
+
+.zz-inbox-composer .fi-input-wrp-prefix {
+    padding-inline: 5px;
+}
+
+.zz-inbox-composer .fi-input-wrp-prefix > .fi-icon {
+    width: 15px;
+    height: 15px;
+}
+
 /* Compact only the main dashboard's native Business Overview stat cards. */
 .zz-business-overview-stat {
     padding: 10px;
@@ -136,13 +197,15 @@ html:not(.zz-sidebar-navigation-ready) .zz-sidebar-menu-parent.fi-sidebar-route-
 /* Keep the Products mobile action menu beside the title while using
    Filament's native header and ActionGroup components. */
 @media (max-width: 63.999rem) {
-    .fi-header:has(.zz-products-mobile-actions) {
+    .fi-header:has(.zz-products-mobile-actions),
+    .fi-header:has(.zz-inbox-channel-selector) {
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
     }
 
-    .fi-header:has(.zz-products-mobile-actions) .fi-header-actions-ctn {
+    .fi-header:has(.zz-products-mobile-actions) .fi-header-actions-ctn,
+    .fi-header:has(.zz-inbox-channel-selector) .fi-header-actions-ctn {
         margin-inline-start: auto;
     }
 }

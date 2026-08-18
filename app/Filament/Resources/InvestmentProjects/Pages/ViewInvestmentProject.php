@@ -5,6 +5,7 @@ namespace App\Filament\Resources\InvestmentProjects\Pages;
 use App\Filament\Resources\InvestmentProjects\InvestmentProjectResource;
 use App\Filament\Resources\ProjectSettlements\ProjectSettlementResource;
 use App\Services\Investment\SettlementService;
+use App\Support\MoneyFormatter;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
@@ -29,7 +30,7 @@ class ViewInvestmentProject extends ViewRecord
                 ->schema([TextInput::make('total_revenue')->numeric()->prefix('BDT')->minValue(0)->required()])
                 ->action(function (array $data): void {
                     $settlement = app(SettlementService::class)->calculateAndSettle($this->record, (float) $data['total_revenue'], (int) auth()->id());
-                    Notification::make()->success()->title('Settlement confirmed')->body('Net profit: BDT '.number_format((float) $settlement->net_profit, 2))->send();
+                    Notification::make()->success()->title('Settlement confirmed')->body('Net profit: BDT '.MoneyFormatter::number((float) $settlement->net_profit))->send();
                     $this->redirect(ProjectSettlementResource::getUrl('view', ['record' => $settlement]));
                 }),
         ];

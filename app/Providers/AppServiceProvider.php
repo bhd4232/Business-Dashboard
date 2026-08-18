@@ -42,7 +42,11 @@ use App\Observers\AuditObserver;
 use App\Services\CompanyContext;
 use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
+use App\Support\MoneyFormatter;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Livewire\Notifications;
+use Filament\Tables\Columns\Summarizers\Summarizer;
+use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
@@ -62,6 +66,87 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        TextColumn::macro('moneyWithoutTrailingZeroes', function (string|\BackedEnum|\Closure|null $currency = null, int|\Closure $divideBy = 0, string|\BackedEnum|\Closure|null $locale = null, int|\Closure|null $decimalPlaces = null): static {
+            $this->formatStateUsing(static function (TextColumn $column, $state) use ($currency, $divideBy, $decimalPlaces): ?string {
+                if (blank($state)) {
+                    return null;
+                }
+
+                if (! is_numeric($state)) {
+                    return $state;
+                }
+
+                $resolvedCurrency = $column->evaluate($currency) ?? $column->getTable()->getDefaultCurrency() ?? 'BDT';
+                $resolvedDecimals = $column->evaluate($decimalPlaces) ?? 2;
+
+                if ($resolvedCurrency instanceof \BackedEnum) {
+                    $resolvedCurrency = (string) $resolvedCurrency->value;
+                }
+
+                if ($resolvedDivideBy = $column->evaluate($divideBy)) {
+                    $state /= $resolvedDivideBy;
+                }
+
+                return MoneyFormatter::currency($state, (string) $resolvedCurrency, $resolvedDecimals);
+            });
+
+            return $this;
+        });
+
+        TextEntry::macro('moneyWithoutTrailingZeroes', function (string|\BackedEnum|\Closure|null $currency = null, int|\Closure $divideBy = 0, string|\BackedEnum|\Closure|null $locale = null, int|\Closure|null $decimalPlaces = null): static {
+            $this->formatStateUsing(static function (TextEntry $entry, $state) use ($currency, $divideBy, $decimalPlaces): ?string {
+                if (blank($state)) {
+                    return null;
+                }
+
+                if (! is_numeric($state)) {
+                    return $state;
+                }
+
+                $resolvedCurrency = $entry->evaluate($currency) ?? $entry->getContainer()->getDefaultCurrency() ?? 'BDT';
+                $resolvedDecimals = $entry->evaluate($decimalPlaces) ?? 2;
+
+                if ($resolvedCurrency instanceof \BackedEnum) {
+                    $resolvedCurrency = (string) $resolvedCurrency->value;
+                }
+
+                if ($resolvedDivideBy = $entry->evaluate($divideBy)) {
+                    $state /= $resolvedDivideBy;
+                }
+
+                return MoneyFormatter::currency($state, (string) $resolvedCurrency, $resolvedDecimals);
+            });
+
+            return $this;
+        });
+
+        Summarizer::macro('moneyWithoutTrailingZeroes', function (string|\BackedEnum|\Closure|null $currency = null, int $divideBy = 0, string|\BackedEnum|\Closure|null $locale = null, int|\Closure|null $decimalPlaces = null): static {
+            $this->formatStateUsing(static function ($state, Summarizer $summarizer) use ($currency, $divideBy, $decimalPlaces): ?string {
+                if (blank($state)) {
+                    return null;
+                }
+
+                if (! is_numeric($state)) {
+                    return $state;
+                }
+
+                $resolvedCurrency = $summarizer->evaluate($currency) ?? $summarizer->getTable()->getDefaultCurrency() ?? 'BDT';
+                $resolvedDecimals = $summarizer->evaluate($decimalPlaces) ?? 2;
+
+                if ($resolvedCurrency instanceof \BackedEnum) {
+                    $resolvedCurrency = (string) $resolvedCurrency->value;
+                }
+
+                if ($divideBy) {
+                    $state /= $divideBy;
+                }
+
+                return MoneyFormatter::currency($state, (string) $resolvedCurrency, $resolvedDecimals);
+            });
+
+            return $this;
+        });
+
         if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }

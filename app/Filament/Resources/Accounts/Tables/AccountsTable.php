@@ -27,7 +27,7 @@ class AccountsTable
                 TextColumn::make('balance')
                     ->label('Balance')
                     ->state(fn (Account $record): float => $record->balance())
-                    ->money('BDT'),
+                    ->moneyWithoutTrailingZeroes('BDT'),
                 IconColumn::make('is_active')->label('Active')->boolean(),
             ])
             ->filters([

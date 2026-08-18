@@ -28,8 +28,8 @@ class SupplierInfolist
                 Section::make('Balance')
                     ->columnSpanFull()
                     ->schema([
-                        TextEntry::make('opening_balance')->money('BDT'),
-                        TextEntry::make('current_balance')->money('BDT'),
+                        TextEntry::make('opening_balance')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('current_balance')->moneyWithoutTrailingZeroes('BDT'),
                     ])
                     ->columns(2),
 

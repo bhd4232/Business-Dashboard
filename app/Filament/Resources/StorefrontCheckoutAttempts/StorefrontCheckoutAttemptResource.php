@@ -56,7 +56,7 @@ class StorefrontCheckoutAttemptResource extends Resource
                     ->toggleable(),
                 TextColumn::make('required_advance')
                     ->label('Required advance')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable()
                     ->toggleable(),
                 TextColumn::make('advance_reasons')
@@ -64,7 +64,7 @@ class StorefrontCheckoutAttemptResource extends Resource
                     ->formatStateUsing(fn ($state): string => is_array($state) ? collect($state)->keys()->implode(', ') : '-')
                     ->wrap()
                     ->toggleable(),
-                TextColumn::make('cart_total')->label('Cart total')->money('BDT')->sortable(),
+                TextColumn::make('cart_total')->label('Cart total')->moneyWithoutTrailingZeroes('BDT')->sortable(),
                 TextColumn::make('payment_method')->label('Payment')->badge()->placeholder('-')->toggleable(),
                 TextColumn::make('order.order_number')->label('Order')->searchable()->placeholder('-'),
                 TextColumn::make('policy_mode')->label('Mode')->badge()->toggleable(),

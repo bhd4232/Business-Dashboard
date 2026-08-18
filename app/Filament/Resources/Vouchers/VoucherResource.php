@@ -236,7 +236,7 @@ class VoucherResource extends Resource
                 TextColumn::make('voucher_number')->label('Voucher #')->searchable()->sortable(),
                 TextColumn::make('type')->badge()->color(fn (string $state) => $state === 'credit' ? 'success' : 'danger'),
                 TextColumn::make('transaction_type')->badge()->formatStateUsing(fn (string $state) => Voucher::TRANSACTION_TYPES[$state] ?? $state),
-                TextColumn::make('amount')->money('BDT')->sortable(),
+                TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT')->sortable(),
                 TextColumn::make('status')->badge()->color(fn (string $state) => match ($state) {
                     'approved' => 'success',
                     'rejected', 'cancelled' => 'danger',

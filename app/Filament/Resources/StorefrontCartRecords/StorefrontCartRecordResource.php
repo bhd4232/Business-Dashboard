@@ -55,7 +55,7 @@ class StorefrontCartRecordResource extends Resource
                     ->label('Items')
                     ->state(fn (StorefrontCartRecord $record): int => $record->itemCount())
                     ->numeric(),
-                TextColumn::make('subtotal')->money('BDT')->sortable(),
+                TextColumn::make('subtotal')->moneyWithoutTrailingZeroes('BDT')->sortable(),
                 TextColumn::make('reminder_count')->label('Reminders')->numeric()->toggleable(),
                 TextColumn::make('recoveredOrder.order_number')->label('Order')->placeholder('-')->searchable(),
                 TextColumn::make('recovered_at')->label('Recovered')->dateTime()->placeholder('-')->sortable()->toggleable(),
@@ -85,7 +85,7 @@ class StorefrontCartRecordResource extends Resource
                             ->label('Items')
                             ->state(fn (StorefrontCartRecord $record): string => static::itemSummary($record))
                             ->columnSpanFull(),
-                        TextEntry::make('subtotal')->money('BDT'),
+                        TextEntry::make('subtotal')->moneyWithoutTrailingZeroes('BDT'),
                     ])
                     ->columns(2),
                 Section::make('Recovery lifecycle')

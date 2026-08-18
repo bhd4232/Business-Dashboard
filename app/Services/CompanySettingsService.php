@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AppSetting;
 use App\Models\Company;
+use App\Support\MoneyFormatter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -297,7 +298,7 @@ class CompanySettingsService
 
     public function formatMoney(float|int|string|null $amount): string
     {
-        return $this->profile()['currency'].' '.number_format((float) $amount, 2);
+        return $this->profile()['currency'].' '.MoneyFormatter::number($amount);
     }
 
     public function formatDate($date): string

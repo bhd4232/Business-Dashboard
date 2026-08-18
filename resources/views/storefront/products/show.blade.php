@@ -93,7 +93,7 @@
 
         <div>
             <h1>{{ $product->name }}</h1>
-            <div data-price class="mt-3 text-2xl font-semibold text-gray-950 dark:text-white">BDT {{ number_format($product->selling_price, 2) }}</div>
+            <div data-price class="mt-3 text-2xl font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number($product->selling_price) }}</div>
             @if ($tiers !== [] && ! $isVariableProduct)
                 <div class="mt-4 max-w-xl overflow-hidden rounded-lg border border-gray-200 dark:border-white/15">
                     <div class="border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
@@ -103,14 +103,14 @@
                         <tbody class="divide-y divide-gray-200 dark:divide-white/10">
                             <tr>
                                 <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">{{ $moq }}{{ ($tiers[0]['min_qty'] ?? 0) > $moq ? ' - '.($tiers[0]['min_qty'] - 1) : '+' }} {{ $product->unit ?: 'pcs' }}</td>
-                                <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">BDT {{ number_format($product->selling_price, 2) }}</td>
+                                <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number($product->selling_price) }}</td>
                             </tr>
                             @foreach ($tiers as $index => $tier)
                                 <tr>
                                     <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">
                                         {{ $tier['min_qty'] }}{{ isset($tiers[$index + 1]) ? ' - '.($tiers[$index + 1]['min_qty'] - 1) : '+' }} {{ $product->unit ?: 'pcs' }}
                                     </td>
-                                    <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">BDT {{ number_format($tier['price'], 2) }}</td>
+                                    <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number($product->selling_price) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -160,7 +160,7 @@
                                         <button type="button" data-variant-preview class="min-w-0 flex-1 text-left">
                                             <div class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ $variant['label'] }}</div>
                                             <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                                BDT {{ number_format($variant['price'], 2) }}
+                                                BDT {{ \App\Support\MoneyFormatter::number($product->selling_price) }}
                                                 &middot;
                                                 @if ($variant['stock'] > 0)
                                                     {{ $variant['stock'] }} in stock

@@ -16,6 +16,7 @@ use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
@@ -231,7 +232,7 @@ class CourierMerchantDashboard extends Page implements HasTable
                 TextColumn::make('provider.name')->label('Courier')->badge()->color('gray'),
                 TextColumn::make('order.order_number')->label('Invoice')->searchable(),
                 TextColumn::make('recipient_name')->searchable(),
-                TextColumn::make('cod_amount')->money('BDT'),
+                TextColumn::make('cod_amount')->moneyWithoutTrailingZeroes('BDT'),
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => CourierBooking::STATUSES[$state ?? ''] ?? str($state)->headline()->toString())
@@ -378,7 +379,7 @@ class CourierMerchantDashboard extends Page implements HasTable
     }
 
     /**
-     * @return array<int, \Filament\Schemas\Components\Component>
+     * @return array<int, Component>
      */
     protected function bookingStatusEntries(string $key): array
     {
@@ -424,7 +425,7 @@ class CourierMerchantDashboard extends Page implements HasTable
                             CourierBooking::STATUS_BOOKED, CourierBooking::STATUS_PICKED_UP, CourierBooking::STATUS_IN_TRANSIT => 'warning',
                             default => 'gray',
                         }),
-                    TextEntry::make('cod_amount')->label('COD Amount')->money('BDT')->placeholder('—'),
+                    TextEntry::make('cod_amount')->label('COD Amount')->moneyWithoutTrailingZeroes('BDT')->placeholder('—'),
                     TextEntry::make('recipient_name')->label('Recipient')->placeholder('—'),
                     TextEntry::make('recipient_phone')->label('Phone')->placeholder('—'),
                     TextEntry::make('booked_at')->label('Booked At')->dateTime()->placeholder('—'),

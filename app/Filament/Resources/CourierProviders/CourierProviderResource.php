@@ -9,14 +9,20 @@ use App\Filament\Resources\CourierProviders\Pages\ListCourierProviders;
 use App\Models\Company;
 use App\Models\CourierProvider;
 use App\Services\CompanyContext;
+use App\Services\ECourierClient;
+use App\Services\PathaoCourierClient;
+use App\Services\RedxCourierClient;
 use App\Services\SteadfastCourierClient;
+use App\Support\MoneyFormatter;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -30,6 +36,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CourierProviderResource extends Resource
 {
@@ -178,15 +185,15 @@ class CourierProviderResource extends Resource
                         ->label('Base URL')
                         ->url()
                         ->placeholder(fn (Get $get): string => match ($get('driver')) {
-                            CourierProvider::DRIVER_PATHAO => \App\Services\PathaoCourierClient::DEFAULT_BASE_URL,
-                            CourierProvider::DRIVER_REDX => \App\Services\RedxCourierClient::DEFAULT_BASE_URL,
-                            CourierProvider::DRIVER_ECOURIER => \App\Services\ECourierClient::DEFAULT_BASE_URL,
+                            CourierProvider::DRIVER_PATHAO => PathaoCourierClient::DEFAULT_BASE_URL,
+                            CourierProvider::DRIVER_REDX => RedxCourierClient::DEFAULT_BASE_URL,
+                            CourierProvider::DRIVER_ECOURIER => ECourierClient::DEFAULT_BASE_URL,
                             default => SteadfastCourierClient::DEFAULT_BASE_URL,
                         })
                         ->helperText(fn (Get $get): string => match ($get('driver')) {
-                            CourierProvider::DRIVER_PATHAO => 'Leave blank for live. Sandbox: '.\App\Services\PathaoCourierClient::SANDBOX_BASE_URL,
-                            CourierProvider::DRIVER_REDX => 'Leave blank for live. Sandbox: '.\App\Services\RedxCourierClient::SANDBOX_BASE_URL,
-                            CourierProvider::DRIVER_ECOURIER => 'Leave blank for live. Staging: '.\App\Services\ECourierClient::STAGING_BASE_URL,
+                            CourierProvider::DRIVER_PATHAO => 'Leave blank for live. Sandbox: '.PathaoCourierClient::SANDBOX_BASE_URL,
+                            CourierProvider::DRIVER_REDX => 'Leave blank for live. Sandbox: '.RedxCourierClient::SANDBOX_BASE_URL,
+                            CourierProvider::DRIVER_ECOURIER => 'Leave blank for live. Staging: '.ECourierClient::STAGING_BASE_URL,
                             default => 'Leave blank for the live default: '.SteadfastCourierClient::DEFAULT_BASE_URL,
                         }),
                     TextInput::make('credentials.api_key')
@@ -377,7 +384,7 @@ class CourierProviderResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
-                \Filament\Actions\Action::make('checkBalance')
+                Action::make('checkBalance')
                     ->label('Balance')
                     ->icon(Heroicon::OutlinedBanknotes)
                     ->visible(fn (CourierProvider $record): bool => $record->driver === CourierProvider::DRIVER_STEADFAST
@@ -392,15 +399,15 @@ class CourierProviderResource extends Resource
                                 throw new \RuntimeException($response['message'] ?? 'Steadfast did not return a balance.');
                             }
 
-                            \Filament\Notifications\Notification::make()
+                            Notification::make()
                                 ->title('Steadfast balance')
-                                ->body('Current balance: BDT '.number_format((float) $balance, 2))
+                                ->body('Current balance: BDT '.MoneyFormatter::number((float) $balance))
                                 ->success()
                                 ->send();
                         } catch (\Throwable $exception) {
-                            \Filament\Notifications\Notification::make()
+                            Notification::make()
                                 ->title('Balance check failed')
-                                ->body($exception instanceof \Illuminate\Validation\ValidationException
+                                ->body($exception instanceof ValidationException
                                     ? collect($exception->errors())->flatten()->implode(' ')
                                     : $exception->getMessage())
                                 ->danger()

@@ -16,6 +16,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -26,6 +27,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
+use Illuminate\Validation\ValidationException;
 
 class CourierBookingResource extends Resource
 {
@@ -64,25 +66,25 @@ class CourierBookingResource extends Resource
                 TextColumn::make('provider.name')
                     ->label('Provider'),
                 TextColumn::make('cod_amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
                 TextColumn::make('delivery_fee_charged')
                     ->label('Delivery Fee')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('delivery_cost')
                     ->label('Courier Cost')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('cod_charge_amount')
                     ->label('COD Charge')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('margin')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->placeholder('-')
                     ->color(fn (?string $state): ?string => $state === null ? null : ((float) $state >= 0 ? 'success' : 'danger'))
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -130,18 +132,18 @@ class CourierBookingResource extends Resource
                     TextEntry::make('recipient_name'),
                     TextEntry::make('recipient_phone'),
                     TextEntry::make('recipient_address'),
-                    TextEntry::make('cod_amount')->money('BDT'),
+                    TextEntry::make('cod_amount')->moneyWithoutTrailingZeroes('BDT'),
                 ])
                 ->columns(2),
 
             Section::make('Delivery Economics')
                 ->columnSpanFull()
                 ->schema([
-                    TextEntry::make('delivery_fee_charged')->label('Delivery Fee')->money('BDT')->placeholder('Not configured'),
-                    TextEntry::make('delivery_cost')->label('Courier Cost')->money('BDT')->placeholder('Not configured'),
-                    TextEntry::make('cod_charge_amount')->label('COD Charge')->money('BDT')->placeholder('Not configured'),
+                    TextEntry::make('delivery_fee_charged')->label('Delivery Fee')->moneyWithoutTrailingZeroes('BDT')->placeholder('Not configured'),
+                    TextEntry::make('delivery_cost')->label('Courier Cost')->moneyWithoutTrailingZeroes('BDT')->placeholder('Not configured'),
+                    TextEntry::make('cod_charge_amount')->label('COD Charge')->moneyWithoutTrailingZeroes('BDT')->placeholder('Not configured'),
                     TextEntry::make('margin')
-                        ->money('BDT')
+                        ->moneyWithoutTrailingZeroes('BDT')
                         ->placeholder('Not configured')
                         ->color(fn (?string $state): ?string => $state === null ? null : ((float) $state >= 0 ? 'success' : 'danger')),
                 ])
@@ -233,14 +235,14 @@ class CourierBookingResource extends Resource
                 try {
                     app(CourierService::class)->requestReturn($record, $data);
 
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('Return requested')
                         ->success()
                         ->send();
                 } catch (\Throwable $exception) {
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('Return request failed')
-                        ->body($exception instanceof \Illuminate\Validation\ValidationException
+                        ->body($exception instanceof ValidationException
                             ? collect($exception->errors())->flatten()->implode(' ')
                             : $exception->getMessage())
                         ->danger()

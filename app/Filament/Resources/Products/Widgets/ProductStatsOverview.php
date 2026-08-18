@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\PurchaseItem;
 use App\Models\StockMovement;
+use App\Support\MoneyFormatter;
 use Filament\Widgets\Widget;
 
 /**
@@ -59,10 +60,7 @@ class ProductStatsOverview extends Widget
 
     public function formatCurrency(int|float $value): string
     {
-        $roundedValue = round((float) $value, 2);
-        $decimalPlaces = $roundedValue === round($roundedValue) ? 0 : 2;
-
-        return '৳ '.number_format($roundedValue, $decimalPlaces);
+        return html_entity_decode('&#2547;').' '.MoneyFormatter::number($value);
     }
 
     /**

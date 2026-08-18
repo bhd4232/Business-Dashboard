@@ -14,6 +14,11 @@ It helps teams manage products, stock movements, customers, suppliers, sales ord
 - Cash/bank accounts, expenses, and transaction ledger
 - Role-based access control with custom roles
 - Company profile, logo, currency, timezone, and date-format settings
+- Multi-company administration with safe deletion of unused companies
+- Storefront themes, including the Noor Solar Energy catalog and project-quotation experience
+- Native CRM Inbox with channel filtering, quick replies, and AI-assistant safeguards
+- Offers, combo offers, customer reviews, online-payment gateway selection, and delivery-rate rules
+- Consistent money display across the app: insignificant decimal zeroes are removed while meaningful fractions remain
 - Audit logs for sensitive business changes
 - CSV import/export for products, customers, and suppliers
 - CSV/PDF business reports
@@ -22,17 +27,17 @@ It helps teams manage products, stock movements, customers, suppliers, sales ord
 
 ## Tech Stack
 
-- Laravel 12
-- PHP 8.2+
-- Filament 4
-- Vite 6
+- Laravel 13
+- PHP 8.4+
+- Filament 5
+- Vite 7
 - Tailwind CSS 4
 - Node 20
 - PHPUnit
 
 ## Requirements
 
-- PHP 8.2 or newer
+- PHP 8.4 or newer
 - Composer
 - Node.js 20
 - MySQL, MariaDB, or SQLite for local development
@@ -135,6 +140,10 @@ php artisan up
 ```
 
 Do not run destructive migration commands or broad seeders against a live database after real business data exists. See [Production Update Safety](docs/update-safety.md).
+
+## Latest Development Update
+
+The current unreleased work adds the Noor Solar Energy storefront theme, PayStation/ZiniPay gateway selection, offers and reviews, WhatsApp Business App Coexistence support, CRM quick replies, compact responsive admin headers and inbox layout, and an app-wide monetary formatter. See [CHANGELOG.md](CHANGELOG.md) for the complete release notes.
 
 Required GitHub Actions secrets for the included deploy workflow:
 

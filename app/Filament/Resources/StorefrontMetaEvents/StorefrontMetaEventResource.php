@@ -48,7 +48,7 @@ class StorefrontMetaEventResource extends Resource
                     }),
                 TextColumn::make('order.order_number')->label('Order')->searchable()->placeholder('-'),
                 TextColumn::make('event_id')->label('Deduplication ID')->copyable()->searchable()->toggleable(),
-                TextColumn::make('payload_summary.value')->label('Value')->money('BDT')->placeholder('-'),
+                TextColumn::make('payload_summary.value')->label('Value')->moneyWithoutTrailingZeroes('BDT')->placeholder('-'),
                 TextColumn::make('payload_summary.workflow_stage')->label('Workflow Stage')->badge()->placeholder('-')->toggleable(),
                 TextColumn::make('attempts')->numeric()->sortable(),
                 TextColumn::make('sent_at')->dateTime()->placeholder('-')->sortable(),

@@ -58,11 +58,11 @@ class ProductsTable
                 TextColumn::make('sale_price')
                     ->label('Sale Price')
                     ->getStateUsing(fn ($record) => $record->selling_price)
-                    ->money('BDT'),
+                    ->moneyWithoutTrailingZeroes('BDT'),
 
                 TextColumn::make('cost_price')
                     ->label('Cost Price')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('stock')

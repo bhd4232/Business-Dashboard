@@ -60,20 +60,20 @@ class PurchaseInfolist
                 Section::make('Totals')
                     ->columnSpanFull()
                     ->schema([
-                        TextEntry::make('subtotal')->money('BDT'),
+                        TextEntry::make('subtotal')->moneyWithoutTrailingZeroes('BDT'),
                         TextEntry::make('china_to_bd_cost_total')
                             ->label('China to BD Costs')
                             ->state(fn (Purchase $record): float => $record->chinaToBdCostTotal())
-                            ->money('BDT'),
+                            ->moneyWithoutTrailingZeroes('BDT'),
                         TextEntry::make('landed_cost_total')
                             ->label('Landed Cost Total')
                             ->state(fn (Purchase $record): float => $record->landedCostTotal())
-                            ->money('BDT'),
-                        TextEntry::make('discount')->money('BDT'),
-                        TextEntry::make('vat')->money('BDT'),
-                        TextEntry::make('total_amount')->money('BDT'),
-                        TextEntry::make('paid_amount')->money('BDT'),
-                        TextEntry::make('due_amount')->money('BDT'),
+                            ->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('discount')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('vat')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('total_amount')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('paid_amount')->moneyWithoutTrailingZeroes('BDT'),
+                        TextEntry::make('due_amount')->moneyWithoutTrailingZeroes('BDT'),
                     ])
                     ->columns(3),
 
@@ -90,18 +90,18 @@ class PurchaseInfolist
                                     ->badge(),
 
                                 TextEntry::make('unit_cost')
-                                    ->money('BDT'),
+                                    ->moneyWithoutTrailingZeroes('BDT'),
 
                                 TextEntry::make('subtotal')
-                                    ->money('BDT'),
+                                    ->moneyWithoutTrailingZeroes('BDT'),
 
                                 TextEntry::make('allocated_cost')
                                     ->label('Allocated Cost')
-                                    ->money('BDT'),
+                                    ->moneyWithoutTrailingZeroes('BDT'),
 
                                 TextEntry::make('landed_unit_cost')
                                     ->label('Landed Unit Cost')
-                                    ->money('BDT'),
+                                    ->moneyWithoutTrailingZeroes('BDT'),
                             ])
                             ->columns(6)
                             ->contained(false)
@@ -116,10 +116,10 @@ class PurchaseInfolist
     {
         return [
             ...collect(Purchase::CHINA_TO_BD_COST_FIELDS)
-            ->map(fn (string $label, string $field): TextEntry => TextEntry::make($field)
-                ->label($label)
-                ->money('BDT'))
-            ->all(),
+                ->map(fn (string $label, string $field): TextEntry => TextEntry::make($field)
+                    ->label($label)
+                    ->moneyWithoutTrailingZeroes('BDT'))
+                ->all(),
             RepeatableEntry::make('custom_costs')
                 ->label('Custom Fields')
                 ->schema([
@@ -127,7 +127,7 @@ class PurchaseInfolist
                         ->label('Field Name'),
                     TextEntry::make('amount')
                         ->label('Amount')
-                        ->money('BDT'),
+                        ->moneyWithoutTrailingZeroes('BDT'),
                 ])
                 ->columns(2)
                 ->contained(false)

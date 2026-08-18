@@ -93,6 +93,11 @@
                                     : route('storefront.account.reorder', $order->order_number);
                                 $statusLabel = App\Models\Order::STATUSES[$order->status] ?? str($order->status)->headline();
                                 $itemCount = $order->items->sum('quantity');
+                                $reviewUrl = ! $isPreview && $order->status === App\Models\Order::STATUS_COMPLETED
+                                    ? (isset($previewSlug)
+                                        ? route('storefront.preview.account.reviews.create', [$previewSlug, $order->order_number])
+                                        : route('storefront.account.reviews.create', $order->order_number))
+                                    : null;
                             @endphp
 
                             <article class="rounded-xl border border-gray-200 bg-gray-50 p-4 transition hover:border-[var(--storefront-brand)] hover:bg-white hover:shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:hover:bg-gray-800 sm:p-5">
@@ -106,7 +111,7 @@
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs font-medium text-gray-400">Total</div>
-                                        <div class="mt-1 text-lg font-semibold text-gray-950 dark:text-white">{{ $currency }} {{ number_format((float) $order->total_amount, 2) }}</div>
+                                        <div class="mt-1 text-lg font-semibold text-gray-950 dark:text-white">{{ $currency }} {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</div>
                                     </div>
                                 </div>
 
@@ -127,6 +132,11 @@
                                         <a class="inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--storefront-brand)] px-4 text-sm font-medium text-white transition hover:opacity-90" href="{{ $trackUrl }}">
                                             Track order
                                         </a>
+                                        @if ($reviewUrl)
+                                            <a class="col-span-2 inline-flex min-h-11 items-center justify-center rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-900 transition hover:border-[var(--storefront-brand)] dark:border-gray-700 dark:text-white" href="{{ $reviewUrl }}">
+                                                Write a review
+                                            </a>
+                                        @endif
                                     </div>
                                 </div>
                             </article>

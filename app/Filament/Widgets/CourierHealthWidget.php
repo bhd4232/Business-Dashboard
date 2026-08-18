@@ -47,22 +47,15 @@ class CourierHealthWidget extends StatsOverviewWidget
 
         return [
             Stat::make('Active Deliveries', $active)
-                ->description('Bookings awaiting a final courier status')
                 ->icon(Heroicon::OutlinedTruck)
                 ->color('info'),
             Stat::make('Stale Bookings', $stale)
-                ->description($stale > 0 ? 'No final status for days — follow up' : 'Nothing stuck')
-                ->descriptionIcon($stale > 0 ? Heroicon::OutlinedExclamationTriangle : Heroicon::OutlinedCheckCircle)
                 ->icon(Heroicon::OutlinedClock)
                 ->color($stale > 0 ? 'warning' : 'success'),
             Stat::make('Failed Webhooks (24h)', $failedWebhooks)
-                ->description($failedWebhooks > 0 ? 'Check Courier Webhook Logs' : 'All webhooks processed')
-                ->descriptionIcon($failedWebhooks > 0 ? Heroicon::OutlinedExclamationTriangle : Heroicon::OutlinedCheckCircle)
                 ->icon(Heroicon::OutlinedBolt)
                 ->color($failedWebhooks > 0 ? 'danger' : 'success'),
             Stat::make('Providers With Sync Errors', $failingProviders)
-                ->description($failingProviders > 0 ? 'Status sync is failing — check credentials' : 'All providers syncing')
-                ->descriptionIcon($failingProviders > 0 ? Heroicon::OutlinedExclamationTriangle : Heroicon::OutlinedCheckCircle)
                 ->icon(Heroicon::OutlinedSignal)
                 ->color($failingProviders > 0 ? 'danger' : 'success'),
         ];

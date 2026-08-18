@@ -8,11 +8,12 @@ use App\Models\MetaAdProposal;
 use App\Models\Product;
 use App\Services\CompanyContext;
 use App\Services\MetaAdsCreationService;
+use App\Support\MoneyFormatter;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
@@ -183,7 +184,7 @@ class CreateMetaAdCampaign extends Page
                                 }
 
                                 $set('headline', str($product->name)->limit(40, '')->toString());
-                                $price = number_format((float) ($product->sale_price ?? $product->price), 0);
+                                $price = MoneyFormatter::number((float) ($product->sale_price ?? $product->price));
                                 $set('primary_text', "Get {$product->name} now for just ৳{$price}!");
                             }),
                         Select::make('call_to_action')

@@ -1,0 +1,113 @@
+:root {
+  /* ---- Admin panel (ZamZam ERP, Filament 4) ---- */
+  /* Amber primary — Tailwind/Filament Amber scale. Company-scoped installs
+     override --primary-* at runtime via DynamicColorService from a single
+     hex (default #F59E0B); the ladder below is that default. */
+  --admin-primary-50: #FFFBEB;
+  --admin-primary-100: #FEF3C7;
+  --admin-primary-200: #FDE68A;
+  --admin-primary-300: #FCD34D;
+  --admin-primary-400: #FBBF24;
+  --admin-primary-500: #F59E0B;
+  --admin-primary-600: #D97706;
+  --admin-primary-700: #B45309;
+  --admin-primary-800: #92400E;
+  --admin-primary-900: #78350F;
+  --admin-primary-950: #451A03;
+
+  --admin-bg: #F9FAFB;
+  --admin-surface: #FFFFFF;
+  --admin-border: #E5E7EB;
+  --admin-border-strong: #D4D4D8;
+  --admin-text: #18181B;
+  --admin-text-secondary: #3F3F46;
+  --admin-text-muted: #71717A;
+  --admin-text-faint: #A1A1AA;
+
+  --admin-bg-dark: #111827;
+  --admin-surface-dark: #1F2937;
+  --admin-border-dark: rgba(255,255,255,0.1);
+  --admin-text-dark: #F4F4F5;
+
+  /* Semantic status (Filament default badge colors) */
+  --admin-success: #16A34A;
+  --admin-success-bg: #DCFCE7;
+  --admin-danger: #DC2626;
+  --admin-danger-bg: #FEE2E2;
+  --admin-warning: #D97706;
+  --admin-warning-bg: #FEF3C7;
+  --admin-info: #2563EB;
+  --admin-info-bg: #DBEAFE;
+  --admin-gray: #71717A;
+  --admin-gray-bg: #F4F4F5;
+
+  /* ---- Storefront — Marketplace Pro (default/flagship theme) ---- */
+  --sf-navy: #0F2A43;
+  --sf-navy-dark: #071A2C;
+  --sf-navy-gradient-start: #16385A;
+  --sf-navy-gradient-end: #0B2036;
+  --sf-orange: #FF6A00;
+  --sf-orange-tint: #FFF1E6;
+  --sf-bg: #F5F6F8;
+  --sf-surface: #FFFFFF;
+  --sf-surface-muted: #EEF1F4;
+  --sf-border: #DDE3E9;
+  --sf-border-soft: #E5E8EB;
+  --sf-text: #14181F;
+  --sf-text-secondary: #3D4952;
+  --sf-text-muted: #6B7885;
+  --sf-text-faint: #96A2AC;
+  --sf-link: #0D9488;
+  --sf-success: #1A7F37;
+  --sf-deal: #C4001D;
+  --sf-deal-bg: #FEE7E9;
+  --sf-star: #FF9A00;
+  /* 2026 modernization accent — supports navy/orange, used for links,
+     hover rings, sticky-header accent bar, skeleton shimmer tint. */
+  --sf-accent: #0D9488;
+  --sf-accent-tint: #E6F5F3;
+
+  /* ---- Other 5 storefront themes — reference tokens only ----
+     Each is a distinct, fully-tokenized alternative theme a company can
+     apply instead of Marketplace Pro; see README for full descriptions.
+     Only Marketplace Pro ships a built UI kit in this project. */
+
+  /* Industrial B2B */
+  --theme-industrial-navy: #0B2036;
+  --theme-industrial-navy-dark: #05131F;
+  --theme-industrial-amber: #F2A93B;
+  --theme-industrial-blue: #3E7CB1;
+  --theme-industrial-bg: #FAF9F6;
+  --theme-industrial-border: #E4E1D8;
+  --theme-industrial-text: #10161C;
+  --theme-industrial-muted: #5B6770;
+
+  /* Editorial Premium (partially specified in source — colors only) */
+  --theme-editorial-bg: #FAFAF8;
+  --theme-editorial-accent: #111111;
+  --theme-editorial-surface: #EDEBE4;
+
+  /* Fresh Value */
+  --theme-fresh-blue: #0071CE;
+  --theme-fresh-yellow: #FFC220;
+  --theme-fresh-footer: #10233A;
+  --theme-fresh-bg: #F3F7FC;
+  --theme-fresh-green: #00913C;
+  --theme-fresh-text: #14202B;
+
+  /* Bold Studio */
+  --theme-bold-bg: #0A0A0A;
+  --theme-bold-fg: #F5F5F0;
+  --theme-bold-lime: #C6FF3D;
+  --theme-bold-surface: #151515;
+  --theme-bold-hairline: #232323;
+  --theme-bold-muted: #8A8A85;
+
+  /* Corporate Classic */
+  --theme-classic-ivory: #FBFAF7;
+  --theme-classic-maroon: #7A1F2B;
+  --theme-classic-forest: #1C2A1F;
+  --theme-classic-hairline: #E3E0D6;
+  --theme-classic-muted: #5C5C56;
+  --theme-classic-ghost: #D9D4C4;
+}

@@ -8,10 +8,14 @@ use App\Models\Conversation;
 use App\Models\ConversationChannel;
 use App\Models\ConversationMessage;
 use App\Models\Product;
+use App\Models\QuickReply;
 use App\Services\CompanyContext;
 use App\Services\Crm\ConversationMessengerService;
 use App\Support\CompanyMedia;
+use App\Support\MoneyFormatter;
 use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -76,6 +80,8 @@ class Inbox extends Page
 
     public bool $showCatalogPanel = false;
 
+    public bool $showQuickReplyPanel = false;
+
     public static function getNavigationBadge(): ?string
     {
         $unread = (int) Conversation::query()->sum('unread_count');
@@ -86,6 +92,72 @@ class Inbox extends Page
     public static function canAccess(): bool
     {
         return Auth::user()?->hasPermission('crm.view') ?? false;
+    }
+
+    protected function getHeaderActions(): array
+    {
+        $channels = $this->channels;
+        $channelNameCounts = $channels->countBy('display_name');
+        $channelActions = [
+            Action::make('filterAllChannels')
+                ->label('All channels')
+                ->icon(Heroicon::OutlinedSquares2x2)
+                ->badge(fn (): ?string => $this->allUnreadCount > 0 ? (string) $this->allUnreadCount : null)
+                ->color(fn (): string => $this->channelId === null ? 'primary' : 'gray')
+                ->action(function (): void {
+                    $this->setChannelFilter(null);
+                }),
+        ];
+
+        foreach ($channels as $channel) {
+            $label = $channel->display_name;
+
+            if (($channelNameCounts[$channel->display_name] ?? 0) > 1 && $channel->company?->name) {
+                $label .= ' · '.$channel->company->name;
+            }
+
+            $channelActions[] = Action::make('filterChannel'.$channel->getKey())
+                ->label($label)
+                ->icon(match ($channel->provider) {
+                    'whatsapp' => Heroicon::OutlinedDevicePhoneMobile,
+                    'messenger' => Heroicon::OutlinedChatBubbleOvalLeftEllipsis,
+                    'phone' => Heroicon::OutlinedPhone,
+                    default => Heroicon::OutlinedPencilSquare,
+                })
+                ->badge($channel->unread_total > 0 ? (string) $channel->unread_total : null)
+                ->color(fn (): string => $this->channelId === $channel->getKey() ? 'primary' : 'gray')
+                ->action(function () use ($channel): void {
+                    $this->setChannelFilter((int) $channel->getKey());
+                });
+        }
+
+        return [
+            ActionGroup::make($channelActions)
+                ->label(function () use ($channels): string {
+                    if ($this->channelId === null) {
+                        return 'All channels';
+                    }
+
+                    return $channels->firstWhere('id', $this->channelId)?->display_name ?? 'All channels';
+                })
+                ->icon(function () use ($channels): string|BackedEnum {
+                    $provider = $channels->firstWhere('id', $this->channelId)?->provider;
+
+                    return match ($provider) {
+                        'whatsapp' => Heroicon::OutlinedDevicePhoneMobile,
+                        'messenger' => Heroicon::OutlinedChatBubbleOvalLeftEllipsis,
+                        'phone' => Heroicon::OutlinedPhone,
+                        'manual' => Heroicon::OutlinedPencilSquare,
+                        default => Heroicon::OutlinedSquares2x2,
+                    };
+                })
+                ->button()
+                ->dropdownPlacement('bottom-end')
+                ->tooltip('Select conversation channel')
+                ->extraAttributes([
+                    'class' => 'zz-inbox-channel-selector',
+                ]),
+        ];
     }
 
     public function getCanManageConversationsProperty(): bool
@@ -218,6 +290,51 @@ class Inbox extends Page
             : null;
     }
 
+    public function getQuickRepliesProperty(): Collection
+    {
+        $conversation = $this->selectedConversation;
+
+        if (! $this->showQuickReplyPanel || ! $conversation) {
+            return collect();
+        }
+
+        return QuickReply::withoutGlobalScopes()
+            ->where('company_id', $conversation->company_id)
+            ->where('is_active', true)
+            ->orderBy('shortcut')
+            ->get(['id', 'shortcut', 'body']);
+    }
+
+    /**
+     * Fills the reply composer from a saved snippet - the WhatsApp Business
+     * App's own "Quick Replies" feature, reimplemented here. Appends rather
+     * than overwrites when the composer already has text, so a partial draft
+     * isn't lost.
+     */
+    public function insertQuickReply(int $quickReplyId): void
+    {
+        $conversation = $this->selectedConversation;
+
+        if (! $conversation) {
+            return;
+        }
+
+        $quickReply = QuickReply::withoutGlobalScopes()
+            ->where('company_id', $conversation->company_id)
+            ->where('is_active', true)
+            ->find($quickReplyId);
+
+        if (! $quickReply) {
+            return;
+        }
+
+        $this->replyBody = trim($this->replyBody) === ''
+            ? $quickReply->body
+            : rtrim($this->replyBody)."\n".$quickReply->body;
+
+        $this->showQuickReplyPanel = false;
+    }
+
     public function updatedSearch(): void
     {
         $this->resetPage(pageName: 'inboxPage');
@@ -256,6 +373,7 @@ class Inbox extends Page
 
         if ($conversation) {
             $conversation->markRead();
+            $conversation->markHumanPresent();
             app(ConversationMessengerService::class)->dispatchLatestIncomingRead($conversation);
             $this->dispatch('inbox-conversation-selected');
             $this->dispatch('inbox-scroll-bottom');
@@ -325,6 +443,7 @@ class Inbox extends Page
         $this->resetManualDraftState();
         $this->selectedConversationId = (int) $conversation->getKey();
         $conversation->markRead();
+        $conversation->markHumanPresent();
         app(ConversationMessengerService::class)->dispatchLatestIncomingRead($conversation);
         $this->forgetInboxComputedProperties();
         $this->dispatch('inbox-conversation-selected');
@@ -343,6 +462,9 @@ class Inbox extends Page
     public function refreshInbox(): void
     {
         $this->selectedConversation?->markRead();
+        // Renew the human-present window each visible poll tick so it keeps
+        // rolling for as long as an agent has this thread open.
+        $this->selectedConversation?->markHumanPresent();
         $this->forgetInboxComputedProperties();
     }
 
@@ -580,7 +702,7 @@ class Inbox extends Page
 
         $currency = $conversation->company?->currency ?: 'BDT';
         $body = "🛍️ {$product->name}\n"
-            .$currency.' '.number_format((float) $product->sale_price, 2)."\n\n"
+            .$currency.' '.MoneyFormatter::number((float) $product->sale_price)."\n\n"
             ."অর্ডার করতে এই লিংকে ক্লিক করুন: {$link->publicUrl()}";
 
         try {
@@ -656,6 +778,7 @@ class Inbox extends Page
         $this->orderFormQuantity = 1;
         $this->productSearch = '';
         $this->showCatalogPanel = false;
+        $this->showQuickReplyPanel = false;
         $this->resetValidation();
     }
 
@@ -675,6 +798,7 @@ class Inbox extends Page
             $this->allUnreadCount,
             $this->products,
             $this->selectedProduct,
+            $this->quickReplies,
         );
     }
 }

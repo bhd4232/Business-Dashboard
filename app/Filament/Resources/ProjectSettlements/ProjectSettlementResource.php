@@ -36,20 +36,20 @@ class ProjectSettlementResource extends Resource
             Section::make('Settlement Summary')->schema([
                 TextEntry::make('project.project_code')->label('Project Code'),
                 TextEntry::make('project.name')->label('Project'),
-                TextEntry::make('total_revenue')->money('BDT'),
+                TextEntry::make('total_revenue')->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('landed_cost')
                     ->label('Total Landed Cost')
                     ->state(fn (ProjectSettlement $record): float => $record->project->totalLandedCost())
-                    ->money('BDT'),
+                    ->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('local_expense')
                     ->label('Total Local Expense')
                     ->state(fn (ProjectSettlement $record): float => $record->project->totalLocalExpense())
-                    ->money('BDT'),
-                TextEntry::make('total_cost')->label('Total Direct Cost')->money('BDT'),
-                TextEntry::make('net_profit')->money('BDT')->badge()->color('success'),
-                TextEntry::make('investor_pool_amount')->money('BDT')->label(fn (ProjectSettlement $record): string => "Investor Pool ({$record->project->investor_share_percent}%)"),
-                TextEntry::make('channel_partner_amount')->money('BDT')->label(fn (ProjectSettlement $record): string => "Channel Partner ({$record->project->channel_partner_share_percent}% eligible share)"),
-                TextEntry::make('company_net_amount')->money('BDT')->label('Company Net (includes unallocated channel share)'),
+                    ->moneyWithoutTrailingZeroes('BDT'),
+                TextEntry::make('total_cost')->label('Total Direct Cost')->moneyWithoutTrailingZeroes('BDT'),
+                TextEntry::make('net_profit')->moneyWithoutTrailingZeroes('BDT')->badge()->color('success'),
+                TextEntry::make('investor_pool_amount')->moneyWithoutTrailingZeroes('BDT')->label(fn (ProjectSettlement $record): string => "Investor Pool ({$record->project->investor_share_percent}%)"),
+                TextEntry::make('channel_partner_amount')->moneyWithoutTrailingZeroes('BDT')->label(fn (ProjectSettlement $record): string => "Channel Partner ({$record->project->channel_partner_share_percent}% eligible share)"),
+                TextEntry::make('company_net_amount')->moneyWithoutTrailingZeroes('BDT')->label('Company Net (includes unallocated channel share)'),
                 TextEntry::make('annualized_return_percent')->suffix('%')->badge()->placeholder('Not available'),
                 TextEntry::make('status')->badge(),
                 TextEntry::make('settledBy.name')->label('Settled By'),
@@ -63,9 +63,9 @@ class ProjectSettlementResource extends Resource
         return $table->columns([
             TextColumn::make('project.project_code')->label('Project')->searchable(),
             TextColumn::make('project.name')->searchable(),
-            TextColumn::make('net_profit')->money('BDT')->sortable(),
-            TextColumn::make('investor_pool_amount')->money('BDT'),
-            TextColumn::make('company_net_amount')->money('BDT'),
+            TextColumn::make('net_profit')->moneyWithoutTrailingZeroes('BDT')->sortable(),
+            TextColumn::make('investor_pool_amount')->moneyWithoutTrailingZeroes('BDT'),
+            TextColumn::make('company_net_amount')->moneyWithoutTrailingZeroes('BDT'),
             TextColumn::make('status')->badge(),
             TextColumn::make('settled_at')->dateTime()->sortable(),
         ])->recordActions([ViewAction::make()]);

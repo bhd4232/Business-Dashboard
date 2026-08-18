@@ -16,8 +16,15 @@ class ConversationChannel extends Model
         'messenger' => 'Facebook Messenger',
     ];
 
+    // 'cloud_api' (manual credential-entry, today's default) | 'coexistence'
+    // (connected via Meta Embedded Signup - phone app keeps working too).
+    public const CONNECTION_TYPES = [
+        'cloud_api' => 'Cloud API (manual)',
+        'coexistence' => 'WhatsApp Business App (Coexistence)',
+    ];
+
     protected $fillable = [
-        'company_id', 'provider', 'external_id', 'waba_id', 'display_name',
+        'company_id', 'provider', 'connection_type', 'external_id', 'waba_id', 'display_name',
         'access_token', 'app_secret', 'verify_token',
         'auto_create_leads', 'is_active',
         'webhook_verified_at', 'webhook_subscribed_at', 'last_webhook_at',
@@ -71,6 +78,11 @@ class ConversationChannel extends Model
     public function conversations(): HasMany
     {
         return $this->hasMany(Conversation::class, 'channel_id');
+    }
+
+    public function isCoexistence(): bool
+    {
+        return $this->connection_type === 'coexistence';
     }
 
     public function verifySignature(string $payload, ?string $signatureHeader): bool

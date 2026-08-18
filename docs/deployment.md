@@ -18,10 +18,13 @@ production**, or the app is either insecure or unreliable under load:
    courier webhooks, and scheduled jobs write concurrently and will hit
    `database is locked` errors. Use MySQL 8+ or PostgreSQL.
 3. **Do not use the `sync` queue driver.** With `sync`, queued jobs run inside
-   the web request — courier webhook processing and the external courier fraud
-   check (which logs into merchant panels) would block checkout/webhook
-   responses, and retry/backoff never fires. Set `QUEUE_CONNECTION=database`
-   (or `redis`) and run `php artisan queue:work` as a supervised process.
+   the web request — courier webhook processing, the external courier fraud
+   check (which logs into merchant panels), and the CRM Inbox's AI auto-reply
+   agent (up to 6 sequential LLM calls) would all block checkout/webhook
+   responses, and retry/backoff never fires. Set `QUEUE_CONNECTION=redis`
+   (recommended — see "Redis on Coolify" under Queue Worker below) or
+   `QUEUE_CONNECTION=database` if a Redis service isn't available yet, and run
+   `php artisan queue:work` as a supervised process either way.
 
 ## Server Requirements
 
@@ -434,15 +437,57 @@ Add this cron entry:
 
 ## Queue Worker
 
-If `QUEUE_CONNECTION=sync`, no queue worker is required.
-
-For database queues:
+If `QUEUE_CONNECTION=sync`, no queue worker is required — but see the
+Production Hardening warning above; `sync` should not be used in production.
 
 ```bash
-php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+php artisan queue:work --sleep=1 --tries=3 --max-time=3600
 ```
 
 Use Supervisor or your hosting panel to keep the worker alive.
+
+### Redis on Coolify (recommended queue + cache backend)
+
+The app ships with `predis/predis` (a pure-PHP Redis client — no server
+extension to compile, so it works on any Nixpacks build) and `config/queue.php`
+/ `config/cache.php` already have ready-to-use `redis` connection blocks. Two
+things it speeds up directly: the CRM Inbox's `AiAutoReplyJob` (moves the AI
+agent's LLM calls off the request/webhook thread and onto a real background
+worker) and `AiReplyService`'s FAQ/delivery-charge lookups (cached 5 minutes
+per company via `CACHE_STORE=redis`, instead of re-queried on every AI tool
+round).
+
+1. **Add a Redis resource in Coolify** — same "one-click resource" flow
+   already used for the MySQL database (Coolify project → Resources → New
+   Resource → Redis). Note the internal host/port and the generated password
+   Coolify shows you.
+2. **Set these in the app's Coolify environment variables** (not committed —
+   `.env.production.example` documents them as a template only):
+   ```env
+   QUEUE_CONNECTION=redis
+   CACHE_STORE=redis
+   REDIS_CLIENT=predis
+   REDIS_HOST=<the Redis resource's internal hostname from Coolify>
+   REDIS_PASSWORD=<the generated password>
+   REDIS_PORT=6379
+   ```
+3. **Run a supervised queue worker as a second persistent Coolify service**
+   (New Resource → a second app pointed at the same repo/image, or a
+   Coolify "Docker Compose" service) whose start command is:
+   ```bash
+   php artisan queue:work --sleep=1 --tries=3 --max-time=3600
+   ```
+   Coolify restarts a crashed/redeployed service automatically, which is
+   what "supervised" means here — a separate systemd/Supervisor config isn't
+   needed on a Coolify-managed container.
+4. Redeploy the main app so the new env values take effect, then confirm
+   with `php artisan queue:work --once` (from a one-off Coolify command
+   execution) that a queued job actually completes.
+
+If a Redis resource isn't available yet, `QUEUE_CONNECTION=database` (needs
+only the existing `jobs` table + a running worker, no extra service) still
+works — the AI auto-reply pipeline just won't get the FAQ/delivery-charge
+caching speed-up, which only applies to `CACHE_STORE=redis`.
 
 ## Production Checklist
 

@@ -61,22 +61,26 @@ class OrdersTable
                     ->label('Source')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => Order::SOURCES[$state ?? Order::SOURCE_ADMIN] ?? str($state)->headline()->toString())
-                    ->color(fn (?string $state): string => $state === Order::SOURCE_STOREFRONT ? 'warning' : 'gray')
+                    ->color(fn (?string $state): string => match ($state) {
+                        Order::SOURCE_STOREFRONT => 'warning',
+                        Order::SOURCE_OFFER => 'success',
+                        default => 'gray',
+                    })
                     ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('total_amount')
                     ->label('Total Amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
 
                 TextColumn::make('paid_amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('due_amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
 
                 TextColumn::make('status')

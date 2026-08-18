@@ -181,7 +181,7 @@ class StorefrontCheckoutPolicyService
         $violations = [];
         $orders = Order::withoutGlobalScopes()
             ->where('company_id', $company->getKey())
-            ->where('source', Order::SOURCE_STOREFRONT)
+            ->whereIn('source', [Order::SOURCE_STOREFRONT, Order::SOURCE_OFFER])
             ->where('status', '!=', 'cancelled')
             ->where('created_at', '>=', $since);
 

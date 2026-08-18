@@ -23,7 +23,7 @@ class SupplierPaymentsTable
                 TextColumn::make('supplier.name')->searchable()->sortable(),
                 TextColumn::make('account.name')->label('Account')->searchable()->sortable(),
                 TextColumn::make('payment_date')->date()->sortable(),
-                TextColumn::make('amount')->money('BDT')->sortable(),
+                TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT')->sortable(),
                 TextColumn::make('method')->badge(),
             ])
             ->filters([

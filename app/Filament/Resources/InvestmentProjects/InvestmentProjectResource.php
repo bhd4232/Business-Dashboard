@@ -10,6 +10,7 @@ use App\Filament\Resources\InvestmentProjects\Pages\ViewInvestmentProject;
 use App\Filament\Resources\InvestmentProjects\RelationManagers\CostItemsRelationManager;
 use App\Filament\Resources\InvestmentProjects\RelationManagers\InvestmentsRelationManager;
 use App\Models\InvestmentProject;
+use App\Support\MoneyFormatter;
 use BackedEnum;
 use Closure;
 use Filament\Actions\Action;
@@ -101,7 +102,7 @@ class InvestmentProjectResource extends Resource
                     Callout::make(fn (Get $get): string => static::hasValidProfitSplit($get)
                         ? 'Profit split is valid'
                         : 'Profit split needs correction')
-                        ->description(fn (Get $get): string => 'Current total: '.number_format(static::profitSplitTotal($get), 2).'%. Investor, channel partner, and company shares must total exactly 100.00%.')
+                        ->description(fn (Get $get): string => 'Current total: '.MoneyFormatter::number(static::profitSplitTotal($get)).'%. Investor, channel partner, and company shares must total exactly 100.00%.')
                         ->status(fn (Get $get): string => static::hasValidProfitSplit($get) ? 'success' : 'danger')
                         ->columnSpanFull(),
                 ])->columns(3),
@@ -153,8 +154,8 @@ class InvestmentProjectResource extends Resource
                 TextEntry::make('status')->badge(),
                 TextEntry::make('start_date')->date(),
                 TextEntry::make('end_date')->date()->placeholder('-'),
-                TextEntry::make('target_amount')->money('BDT')->placeholder('-'),
-                TextEntry::make('total_invested')->state(fn (InvestmentProject $record): float => $record->totalInvested())->money('BDT'),
+                TextEntry::make('target_amount')->moneyWithoutTrailingZeroes('BDT')->placeholder('-'),
+                TextEntry::make('total_invested')->state(fn (InvestmentProject $record): float => $record->totalInvested())->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('funding_progress')
                     ->label('Funding Progress')
                     ->state(fn (InvestmentProject $record): ?float => static::fundingProgress($record))
@@ -169,15 +170,15 @@ class InvestmentProjectResource extends Resource
                 TextEntry::make('total_landed_cost')
                     ->label('Total Landed Cost')
                     ->state(fn (InvestmentProject $record): float => $record->totalLandedCost())
-                    ->money('BDT'),
+                    ->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('total_local_expense')
                     ->label('Total Local Expense')
                     ->state(fn (InvestmentProject $record): float => $record->totalLocalExpense())
-                    ->money('BDT'),
+                    ->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('total_direct_cost')
                     ->label('Total Direct Cost')
                     ->state(fn (InvestmentProject $record): float => $record->totalCostItems())
-                    ->money('BDT'),
+                    ->moneyWithoutTrailingZeroes('BDT'),
             ])->columns(3),
         ]);
     }
@@ -188,8 +189,8 @@ class InvestmentProjectResource extends Resource
             TextColumn::make('project_code')->searchable()->sortable(),
             TextColumn::make('name')->searchable()->sortable(),
             TextColumn::make('deal_reference')->limit(30)->placeholder('-'),
-            TextColumn::make('investments_sum_amount')->label('Invested')->money('BDT')->sortable(),
-            TextColumn::make('target_amount')->money('BDT')->placeholder('-'),
+            TextColumn::make('investments_sum_amount')->label('Invested')->moneyWithoutTrailingZeroes('BDT')->sortable(),
+            TextColumn::make('target_amount')->moneyWithoutTrailingZeroes('BDT')->placeholder('-'),
             TextColumn::make('funding_progress')
                 ->label('Funding')
                 ->state(fn (InvestmentProject $record): ?float => static::fundingProgress($record))
@@ -198,7 +199,7 @@ class InvestmentProjectResource extends Resource
                 ->color(fn (?float $state): string => static::fundingProgressColor($state))
                 ->icon(Heroicon::OutlinedChartBar)
                 ->description(fn (InvestmentProject $record): ?string => (float) $record->target_amount > 0
-                    ? 'BDT '.number_format((float) ($record->investments_sum_amount ?? 0), 2).' of BDT '.number_format((float) $record->target_amount, 2)
+                    ? 'BDT '.MoneyFormatter::number((float) ($record->investments_sum_amount ?? 0)).' of BDT '.MoneyFormatter::number((float) $record->target_amount)
                     : null)
                 ->placeholder('No target'),
             TextColumn::make('status')->badge()->sortable(),

@@ -30,7 +30,7 @@ class QuotationsTable
                         'rejected', 'expired' => 'danger',
                         default => 'gray',
                     }),
-                TextColumn::make('total_amount')->money('BDT')->sortable(),
+                TextColumn::make('total_amount')->moneyWithoutTrailingZeroes('BDT')->sortable(),
                 TextColumn::make('valid_until')->date()->placeholder('-')->sortable(),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])

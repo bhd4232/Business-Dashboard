@@ -52,7 +52,7 @@ class OrderTrashTable extends Component implements HasActions, HasSchemas, HasTa
                     ->searchable(),
                 TextColumn::make('total_amount')
                     ->label('Total Amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
                 TextColumn::make('deleted_at')
                     ->label('Moved to Trash')

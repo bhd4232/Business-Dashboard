@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Clusters\Reports as ReportsCluster;
 use App\Services\ReportService;
+use App\Support\MoneyFormatter;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
@@ -235,7 +236,7 @@ class Reports extends Page implements HasTable
 
     public function money(float|int|string|null $amount): string
     {
-        return 'BDT '.number_format((float) $amount, 2);
+        return MoneyFormatter::currency($amount);
     }
 
     public function table(Table $table): Table

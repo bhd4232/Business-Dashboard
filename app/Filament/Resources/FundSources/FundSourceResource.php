@@ -63,7 +63,7 @@ class FundSourceResource extends Resource
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('type')->badge()->formatStateUsing(fn (string $state) => FundSource::TYPES[$state] ?? $state),
                 TextColumn::make('account.name')->label('Linked Account')->placeholder('—'),
-                TextColumn::make('balance')->label('Balance')->state(fn (FundSource $record) => $record->balance())->money('BDT'),
+                TextColumn::make('balance')->label('Balance')->state(fn (FundSource $record) => $record->balance())->moneyWithoutTrailingZeroes('BDT'),
                 IconColumn::make('is_active')->label('Active')->boolean(),
             ])
             ->filters([SelectFilter::make('type')->options(FundSource::TYPES)])

@@ -56,8 +56,8 @@ class CostsRelationManager extends RelationManager
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => OrderCost::HEADS[$state] ?? str($state)->headline()->toString()),
                 TextColumn::make('amount')
-                    ->money('BDT')
-                    ->summarize(Sum::make()->money('BDT')),
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->summarize(Sum::make()->moneyWithoutTrailingZeroes('BDT')),
                 TextColumn::make('note')->limit(40)->placeholder('-'),
                 TextColumn::make('updated_at')->dateTime()->label('Updated At'),
             ])

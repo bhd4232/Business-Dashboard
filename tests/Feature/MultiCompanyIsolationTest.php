@@ -39,18 +39,22 @@ use App\Models\MetaAdCampaign;
 use App\Models\MetaAdProposal;
 use App\Models\MetaAudience;
 use App\Models\MetaAdSet;
+use App\Models\Offer;
+use App\Models\OfferItem;
 use App\Models\Order;
 use App\Models\OrderCost;
 use App\Models\OrderItem;
 use App\Models\OrderPayment;
 use App\Models\Product;
 use App\Models\ProductCarousel;
+use App\Models\ProductReview;
 use App\Models\ProjectCostItem;
 use App\Models\ProjectSettlement;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Models\QuickReply;
 use App\Models\SettlementPayout;
 use App\Models\Shipment;
 use App\Models\StockMovement;
@@ -98,12 +102,13 @@ class MultiCompanyIsolationTest extends TestCase
             StorefrontSlide::class,
             Lead::class, Quotation::class, QuotationItem::class,
             Conversation::class, ConversationChannel::class,
-            ChatOrderLink::class, CompanyFaq::class,
+            ChatOrderLink::class, CompanyFaq::class, QuickReply::class,
             InvestmentProject::class, Investor::class,
             Investment::class, ProjectCostItem::class,
             InvestorSecurityInstrument::class, ProjectSettlement::class,
             SettlementPayout::class, ChannelPartnerPayout::class,
             MetaAdAccount::class, MetaAdCampaign::class, MetaAdSet::class, MetaAd::class, MetaAdProposal::class, MetaAudience::class,
+            Offer::class, OfferItem::class, ProductReview::class,
         ];
 
         foreach ($models as $modelClass) {
