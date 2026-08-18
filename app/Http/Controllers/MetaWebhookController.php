@@ -14,6 +14,14 @@ use Throwable;
 
 class MetaWebhookController extends Controller
 {
+    /**
+     * 'messages' is the standard live-message flow; the other three only
+     * ever arrive for a channel connected via Coexistence Embedded Signup -
+     * contacts sync, historical message backfill, and phone-app message
+     * echoes, respectively. All four route/verify identically.
+     */
+    protected const WHATSAPP_FIELDS = ['messages', 'smb_app_state_sync', 'history', 'smb_message_echoes'];
+
     /** Meta webhook subscription handshake (hub.challenge). */
     public function verify(Request $request): Response
     {
@@ -122,7 +130,7 @@ class MetaWebhookController extends Controller
             foreach ((array) data_get($entry, 'changes', []) as $change) {
                 $hasChange = true;
 
-                if (($change['field'] ?? null) === 'messages') {
+                if (in_array($change['field'] ?? null, self::WHATSAPP_FIELDS, true)) {
                     return false;
                 }
             }
@@ -144,7 +152,7 @@ class MetaWebhookController extends Controller
             $wabaId = (string) ($entry['id'] ?? '');
 
             foreach ((array) ($entry['changes'] ?? []) as $change) {
-                if (! is_array($change) || ($change['field'] ?? null) !== 'messages') {
+                if (! is_array($change) || ! in_array($change['field'] ?? null, self::WHATSAPP_FIELDS, true)) {
                     continue;
                 }
 

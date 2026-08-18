@@ -27,3 +27,7 @@ Alpine.directive('reveal', (el) => {
 });
 
 Alpine.start();
+
+if (document.body.dataset.storefrontTheme === 'noor_solar') {
+    import('./storefront/noor-solar').then(({ initNoorSolarTheme }) => initNoorSolarTheme());
+}

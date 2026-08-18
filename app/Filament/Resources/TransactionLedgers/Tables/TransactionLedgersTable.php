@@ -20,7 +20,7 @@ class TransactionLedgersTable
                 TextColumn::make('account.name')->label('Account')->searchable()->sortable(),
                 TextColumn::make('type')->badge(),
                 TextColumn::make('direction')->badge()->color(fn (string $state): string => $state === 'in' ? 'success' : 'danger'),
-                TextColumn::make('amount')->money('BDT')->sortable(),
+                TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT')->sortable(),
                 TextColumn::make('reference_type')->label('Reference')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('reference_id')->label('Reference ID')->toggleable(isToggledHiddenByDefault: true),
             ])

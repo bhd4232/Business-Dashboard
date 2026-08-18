@@ -42,8 +42,26 @@ abstract class AbstractCourierAdapter implements CourierProviderInterface
         return null;
     }
 
+    public function returns(CourierBooking $booking, array $data = []): array
+    {
+        $this->unsupported('return request');
+    }
+
+    public function paymentHistory(CourierProvider $provider, array $filters = []): array
+    {
+        $this->unsupported('payment history');
+    }
+
     public function verifyWebhook(CourierProvider $provider, string $payload, ?string $signature): bool
     {
+        // Some couriers' real webhook delivery doesn't sign requests at all
+        // (confirm this per-provider once live webhooks are observed).
+        // Providers can opt out of signature enforcement via this setting
+        // rather than needing a code change once that's confirmed.
+        if (($provider->settings['webhook_signature_required'] ?? true) === false) {
+            return true;
+        }
+
         $secret = $provider->credentials['webhook_secret'] ?? null;
 
         return filled($secret) && filled($signature)

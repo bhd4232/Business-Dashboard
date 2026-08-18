@@ -10,7 +10,7 @@ use RuntimeException;
 class StorefrontPaymentService
 {
     public function __construct(
-        protected ZiniPayClient $zinipay,
+        protected PaymentGatewayResolver $gateways,
         protected StorefrontOrderPlacementService $orders,
     ) {}
 
@@ -18,6 +18,7 @@ class StorefrontPaymentService
         StorefrontPayment $payment,
         StorefrontSetting $setting,
         ?string $invoiceId = null,
+        ?string $transactionId = null,
     ): ?Order {
         if ($payment->order_id && $payment->status === StorefrontPayment::STATUS_COMPLETED) {
             return $payment->order()->withoutGlobalScopes()->first();
@@ -30,7 +31,11 @@ class StorefrontPaymentService
         }
 
         if ($payment->status !== StorefrontPayment::STATUS_COMPLETED) {
-            $verified = $this->zinipay->verifyPayment($setting, $invoiceId);
+            // Verify with the gateway this payment was actually created
+            // with ($payment->gateway) — never the setting's *currently*
+            // selected gateway, so an admin switching gateways mid-flight
+            // can't break a payment already in progress.
+            $verified = $this->gateways->byKey($payment->gateway)->verifyPayment($setting, $invoiceId, $transactionId);
             $status = strtoupper((string) ($verified['status'] ?? ''));
             $amountMatches = abs(((float) ($verified['amount'] ?? 0)) - (float) $payment->amount) < 0.01;
 

@@ -60,6 +60,10 @@ class CourierBooking extends Model
         'recipient_phone',
         'recipient_address',
         'cod_amount',
+        'delivery_fee_charged',
+        'delivery_cost',
+        'cod_charge_amount',
+        'margin',
         'status',
         'booked_at',
         'last_synced_at',
@@ -70,6 +74,10 @@ class CourierBooking extends Model
 
     protected $casts = [
         'cod_amount' => 'decimal:2',
+        'delivery_fee_charged' => 'decimal:2',
+        'delivery_cost' => 'decimal:2',
+        'cod_charge_amount' => 'decimal:2',
+        'margin' => 'decimal:2',
         'booked_at' => 'datetime',
         'last_synced_at' => 'datetime',
         'delivered_at' => 'datetime',
@@ -97,5 +105,10 @@ class CourierBooking extends Model
     public function statusLogs(): HasMany
     {
         return $this->hasMany(CourierStatusLog::class);
+    }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(CourierReturn::class);
     }
 }

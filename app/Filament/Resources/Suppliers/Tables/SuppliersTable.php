@@ -30,7 +30,7 @@ class SuppliersTable
                     ->searchable(),
 
                 TextColumn::make('current_balance')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
 
                 IconColumn::make('is_active')

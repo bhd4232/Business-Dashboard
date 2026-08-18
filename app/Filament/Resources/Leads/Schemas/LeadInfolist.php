@@ -34,7 +34,7 @@ class LeadInfolist
                                 default => 'gray',
                             })
                             ->formatStateUsing(fn (?string $state): string => Lead::STATUSES[$state] ?? (string) $state),
-                        TextEntry::make('estimated_value')->money('BDT')->placeholder('-'),
+                        TextEntry::make('estimated_value')->moneyWithoutTrailingZeroes('BDT')->placeholder('-'),
                         TextEntry::make('assignedUser.name')->label('Assigned To')->placeholder('-'),
                         TextEntry::make('next_follow_up_at')
                             ->label('Next Follow-up')

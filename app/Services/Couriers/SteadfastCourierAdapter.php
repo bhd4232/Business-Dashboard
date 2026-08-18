@@ -30,6 +30,16 @@ class SteadfastCourierAdapter extends AbstractCourierAdapter
         return app(SteadfastCourierClient::class)->balance($provider);
     }
 
+    public function returns(CourierBooking $booking, array $data = []): array
+    {
+        return app(CourierService::class)->requestReturn($booking, $data);
+    }
+
+    public function paymentHistory(CourierProvider $provider, array $filters = []): array
+    {
+        return app(SteadfastCourierClient::class)->payments($provider, $filters);
+    }
+
     public function webhookStatus(array $payload): ?string
     {
         $status = $payload['delivery_status'] ?? $payload['status'] ?? null;

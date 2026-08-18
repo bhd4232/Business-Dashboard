@@ -50,11 +50,11 @@
     };
 @endphp
 
-<x-filament-panels::page>
+<x-filament-panels::page class="zz-inbox-page">
     <div
         data-zz-no-reload
         wire:poll.visible.8s="refreshInbox"
-        class="space-y-4"
+        class="zz-inbox"
         x-data="{
             observer: null,
             scrollAnchor: null,
@@ -164,74 +164,35 @@
         x-on:inbox-list-focused.window="$nextTick(() => $refs.conversationSearch?.focus())"
         x-on:inbox-preserve-scroll.window="$nextTick(() => preserveScrollPosition())"
     >
-        <x-filament::section
-            compact
-            icon="heroicon-o-inbox-stack"
-            heading="Channels"
-            description="View every company conversation together or focus on one connected channel."
-        >
-            <div class="overflow-x-auto pb-1">
-                <x-filament::tabs contained label="Conversation channels" class="min-w-max">
-                    <x-filament::tabs.item
-                        :active="$channelId === null"
-                        :badge="$this->allUnreadCount ?: null"
-                        badge-color="danger"
-                        icon="heroicon-o-squares-2x2"
-                        wire:click="setChannelFilter(null)"
-                    >
-                        All channels
-                    </x-filament::tabs.item>
-
-                    @foreach ($channels as $channel)
-                        <x-filament::tabs.item
-                            :active="$channelId === $channel->getKey()"
-                            :badge="$channel->unread_total ?: null"
-                            badge-color="danger"
-                            :icon="$providerIcons[$channel->provider] ?? 'heroicon-o-chat-bubble-left-right'"
-                            wire:click="setChannelFilter({{ $channel->getKey() }})"
-                            wire:key="channel-tab-{{ $channel->getKey() }}"
+        @if ($selectedChannel?->last_error)
+            <x-filament::callout
+                color="danger"
+                icon="heroicon-o-exclamation-triangle"
+                heading="This channel needs attention"
+                :description="$selectedChannel->last_error"
+            >
+                @if ($isSuperAdmin)
+                    <x-slot:footer>
+                        <x-filament::link
+                            :href="\App\Filament\Resources\ConversationChannels\ConversationChannelResource::getUrl('edit', ['record' => $selectedChannel])"
+                            icon="heroicon-o-wrench-screwdriver"
                         >
-                            {{ $channel->display_name }}
-                            @if ($channels->where('display_name', $channel->display_name)->count() > 1)
-                                · {{ $channel->company?->name }}
-                            @endif
-                        </x-filament::tabs.item>
-                    @endforeach
-                </x-filament::tabs>
-            </div>
-
-            @if ($selectedChannel?->last_error)
-                <x-filament::callout
-                    class="mt-4"
-                    color="danger"
-                    icon="heroicon-o-exclamation-triangle"
-                    heading="This channel needs attention"
-                    :description="$selectedChannel->last_error"
-                >
-                    @if ($isSuperAdmin)
-                        <x-slot:footer>
-                            <x-filament::link
-                                :href="\App\Filament\Resources\ConversationChannels\ConversationChannelResource::getUrl('edit', ['record' => $selectedChannel])"
-                                icon="heroicon-o-wrench-screwdriver"
-                            >
-                                Open channel setup
-                            </x-filament::link>
-                        </x-slot:footer>
-                    @endif
-                </x-filament::callout>
-            @elseif ($selectedChannel && $selectedChannel->provider === 'whatsapp' && $selectedChannel->diagnosticStatus() !== 'Inbound confirmed')
-                <x-filament::callout
-                    class="mt-4"
-                    color="warning"
-                    icon="heroicon-o-exclamation-circle"
-                    heading="Inbound setup is not complete"
-                    :description="$selectedChannel->diagnosticStatus().'. Verify the callback, enable the messages webhook field in Meta, and run Test & Subscribe.'"
-                />
-            @endif
-        </x-filament::section>
+                            Open channel setup
+                        </x-filament::link>
+                    </x-slot:footer>
+                @endif
+            </x-filament::callout>
+        @elseif ($selectedChannel && $selectedChannel->provider === 'whatsapp' && $selectedChannel->diagnosticStatus() !== 'Inbound confirmed')
+            <x-filament::callout
+                color="warning"
+                icon="heroicon-o-exclamation-circle"
+                heading="Inbound setup is not complete"
+                :description="$selectedChannel->diagnosticStatus().'. Verify the callback, enable the messages webhook field in Meta, and run Test & Subscribe.'"
+            />
+        @endif
 
         <div
-            class="grid min-h-[42rem] grid-cols-1 gap-4 transition-[grid-template-columns] duration-200 motion-reduce:transition-none xl:h-[calc(100dvh-17rem)]"
+            class="grid h-[calc(100dvh-9rem)] min-h-0 grid-cols-1 gap-[5px] transition-[grid-template-columns] duration-200 motion-reduce:transition-none"
             x-bind:style="conversationGridStyle()"
         >
             <div
@@ -287,8 +248,8 @@
                         </div>
                     </x-slot:afterHeader>
 
-                    <div id="inbox-conversations-content" class="flex h-full min-h-0 flex-col gap-4">
-                        <div x-show="! railCollapsed()" class="space-y-4">
+                    <div id="inbox-conversations-content" class="flex h-full min-h-0 flex-col gap-[5px]">
+                        <div x-show="! railCollapsed()" class="space-y-[5px]">
                             <div>
                                 <label for="inbox-search" class="sr-only">Search conversations</label>
                                 <x-filament::input.wrapper prefix-icon="heroicon-o-magnifying-glass">
@@ -304,7 +265,7 @@
                                 </x-filament::input.wrapper>
                             </div>
 
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-2 gap-[5px]">
                                 <div>
                                     <label for="inbox-status" class="mb-1 block text-sm font-medium">Status</label>
                                     <x-filament::input.wrapper>
@@ -399,7 +360,7 @@
                         </div>
 
                         <div class="min-h-0 flex-1 overflow-y-auto pe-1" wire:loading.class="opacity-60" wire:target="search,setStatusFilter,assignedFilter,unreadOnly,setChannelFilter">
-                            <ul class="space-y-2" aria-label="Conversation list">
+                            <ul class="space-y-[5px]" aria-label="Conversation list">
                                 @forelse ($conversations as $item)
                                     @php
                                         $itemName = $item->contact_name ?: $item->contact_phone ?: 'Contact '.$item->external_contact_id;
@@ -413,13 +374,13 @@
                                     <li wire:key="conversation-{{ $item->getKey() }}">
                                         <div x-show="! railCollapsed()">
                                             <x-filament::button
-                                                class="w-full justify-start text-left"
+                                                class="zz-inbox-conversation-card w-full justify-start text-left"
                                                 :color="$isSelected ? 'primary' : 'gray'"
                                                 :outlined="! $isSelected"
                                                 wire:click="selectConversation({{ $item->getKey() }})"
                                                 :aria-current="$isSelected ? 'true' : 'false'"
                                             >
-                                                <span class="flex w-full min-w-0 items-start gap-3 py-1">
+                                                <span class="flex w-full min-w-0 items-start gap-[5px]">
                                                     <x-filament::icon
                                                         :icon="$providerIcons[$item->provider] ?? 'heroicon-o-user-circle'"
                                                         class="h-9 w-9 shrink-0"
@@ -560,8 +521,8 @@
                             heading="Conversation Tools"
                             :description="$conversation->assignedUser?->name ? 'Owned by '.$conversation->assignedUser->name : 'Unassigned'"
                         >
-                            <div class="space-y-4">
-                                <dl class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+                            <div class="space-y-[5px]">
+                                <dl class="grid grid-cols-1 gap-[5px] text-sm sm:grid-cols-3">
                                     @if ($conversation->contact_phone)
                                         <div class="min-w-0">
                                             <dt class="text-gray-500 dark:text-gray-400">Phone</dt>
@@ -677,9 +638,15 @@
                             aria-relevant="additions text"
                             aria-label="Messages with {{ $displayName }}"
                             x-on:scroll.passive="stickToBottom = nearBottom()"
-                            class="max-h-[52vh] min-h-[26rem] min-w-0 overflow-x-hidden overflow-y-auto pe-1 xl:max-h-none xl:flex-1"
+                            class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pe-1"
                         >
-                            <div class="flex min-h-full min-w-0 flex-col justify-end gap-3">
+                            <div
+                                @class([
+                                    'flex min-h-full min-w-0 flex-col gap-[5px]',
+                                    'justify-center' => $conversation->messages->isEmpty(),
+                                    'justify-end' => $conversation->messages->isNotEmpty(),
+                                ])
+                            >
                             @if ($conversation->hasOlderMessages && $messageLimit < 500)
                                 <div class="flex justify-center">
                                     <x-filament::button
@@ -783,6 +750,11 @@
                                                 <div class="flex flex-wrap items-center justify-end gap-2 text-xs opacity-80">
                                                     @if ($message->generated_by === 'ai')
                                                         <span>AI assistant</span>
+                                                    @elseif ($message->generated_by === 'phone_app')
+                                                        <span class="inline-flex items-center gap-1" title="Sent from the WhatsApp Business App on the phone, synced in via Coexistence">
+                                                            <x-filament::icon icon="heroicon-o-device-phone-mobile" class="h-3 w-3" />
+                                                            Phone app
+                                                        </span>
                                                     @elseif ($message->sender)
                                                         <span>{{ $message->sender->name }}</span>
                                                     @endif
@@ -836,7 +808,7 @@
                         </div>
 
                         @if ($canManage)
-                            <div class="mt-4 space-y-3 border-t border-gray-200 pt-4 dark:border-white/10">
+                            <div class="mt-[5px] space-y-[5px] border-t border-gray-200 pt-[5px] dark:border-white/10">
                             @if ($isExternalConversation && ! $replyWindowOpen)
                                 <x-filament::callout
                                     color="warning"
@@ -897,7 +869,7 @@
                                                     <option value="">Select a product…</option>
                                                     @foreach ($this->products as $product)
                                                         <option value="{{ $product->getKey() }}">
-                                                            {{ $product->name }} — {{ $conversationCurrency }} {{ number_format((float) $product->sale_price, 2) }}
+                                                            {{ $product->name }} — {{ $conversationCurrency }} {{ \App\Support\MoneyFormatter::number((float) $product->sale_price) }}
                                                         </option>
                                                     @endforeach
                                                 </x-filament::input.select>
@@ -932,7 +904,7 @@
                                             color="info"
                                             icon="heroicon-o-shopping-bag"
                                             :heading="$selectedProduct->name"
-                                            :description="$conversationCurrency.' '.number_format((float) $selectedProduct->sale_price, 2).' · A secure order link will be added to the thread.'"
+                                            :description="$conversationCurrency.' '.\App\Support\MoneyFormatter::number((float) $selectedProduct->sale_price).' � A secure order link will be added to the thread.'"
                                         />
                                     @endif
 
@@ -957,7 +929,26 @@
                                 </x-filament::fieldset>
                             @endif
 
-                            <form wire:submit="sendReply" class="space-y-2">
+                            @if ($showQuickReplyPanel && $composerMode === 'reply')
+                                <x-filament::fieldset id="inbox-quick-reply-panel" label="Insert a quick reply" class="space-y-2">
+                                    @forelse ($this->quickReplies as $quickReply)
+                                        <button
+                                            type="button"
+                                            wire:click="insertQuickReply({{ $quickReply->getKey() }})"
+                                            class="block w-full rounded-lg border border-gray-200 p-[5px] text-left text-sm hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5"
+                                        >
+                                            <span class="block font-medium">{{ $quickReply->shortcut }}</span>
+                                            <span class="block truncate text-xs text-gray-500 dark:text-gray-400">{{ $quickReply->body }}</span>
+                                        </button>
+                                    @empty
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                                            No quick replies saved yet. Add some from CRM → Quick Replies.
+                                        </p>
+                                    @endforelse
+                                </x-filament::fieldset>
+                            @endif
+
+                            <form wire:submit="sendReply" class="zz-inbox-composer space-y-[5px]">
                                 <label for="reply-body" class="sr-only">
                                     {{ $composerMode === 'note' || ! $isExternalConversation ? 'Internal note' : 'Message reply' }}
                                 </label>
@@ -969,7 +960,7 @@
                                         id="reply-body"
                                         name="message"
                                         wire:model="replyBody"
-                                        rows="3"
+                                        rows="1"
                                         maxlength="4096"
                                         autocomplete="off"
                                         aria-describedby="reply-help @error('replyBody') reply-error @enderror"
@@ -977,7 +968,7 @@
                                         placeholder="{{ $composerMode === 'note' || ! $isExternalConversation ? 'Add a private note for your team…' : 'Write a reply…' }}"
                                         @disabled($composerMode === 'reply' && ! $replyWindowOpen)
                                         x-on:keydown.enter="if (! $event.shiftKey && ! $event.isComposing) { $event.preventDefault(); $el.form.requestSubmit(); }"
-                                        class="block w-full resize-y border-0 bg-transparent px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                        class="block h-[40px] min-h-[40px] w-full resize-y border-0 bg-transparent px-[5px] py-0 text-sm leading-[40px] disabled:cursor-not-allowed disabled:opacity-60"
                                     ></textarea>
                                 </x-filament::input.wrapper>
                                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -994,16 +985,34 @@
                                                 :aria-expanded="$showCatalogPanel ? 'true' : 'false'"
                                                 aria-controls="inbox-catalog-panel"
                                             />
+                                            <x-filament::icon-button
+                                                icon="heroicon-o-bookmark"
+                                                wire:click="$toggle('showQuickReplyPanel')"
+                                                label="Insert a quick reply"
+                                                color="gray"
+                                                :aria-expanded="$showQuickReplyPanel ? 'true' : 'false'"
+                                                aria-controls="inbox-quick-reply-panel"
+                                            />
                                         @endif
-                                        <x-filament::button
-                                            type="submit"
-                                            icon="heroicon-o-paper-airplane"
-                                            :color="$composerMode === 'note' || ! $isExternalConversation ? 'warning' : 'primary'"
-                                            :disabled="$composerMode === 'reply' && ! $replyWindowOpen"
-                                            wire:target="sendReply"
-                                        >
-                                            {{ $composerMode === 'note' || ! $isExternalConversation ? 'Add note' : 'Send' }}
-                                        </x-filament::button>
+                                        @if ($composerMode === 'note' || ! $isExternalConversation)
+                                            <x-filament::icon-button
+                                                type="submit"
+                                                icon="heroicon-o-document-plus"
+                                                color="primary"
+                                                label="Add note"
+                                                wire:target="sendReply"
+                                            />
+                                        @else
+                                            <x-filament::button
+                                                type="submit"
+                                                icon="heroicon-o-paper-airplane"
+                                                color="primary"
+                                                :disabled="! $replyWindowOpen"
+                                                wire:target="sendReply"
+                                            >
+                                                Send
+                                            </x-filament::button>
+                                        @endif
                                     </div>
                                 </div>
                                 @error('replyBody')
@@ -1034,7 +1043,7 @@
 
             <aside class="hidden min-h-0 min-w-0 xl:block" aria-label="Conversation details">
                 @if ($conversation)
-                    <div class="h-full space-y-4 overflow-y-auto pe-1">
+                    <div class="h-full space-y-[5px] overflow-y-auto pe-1">
                         <x-filament::section
                             compact
                             icon="heroicon-o-user-circle"

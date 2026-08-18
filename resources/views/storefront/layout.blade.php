@@ -16,6 +16,7 @@
     $cartUrl = isset($previewSlug) ? route('storefront.preview.cart.show', $previewSlug) : route('storefront.cart.show');
     $trackUrl = isset($previewSlug) ? route('storefront.preview.track.index', $previewSlug) : route('storefront.track.index');
     $accountOrdersUrl = isset($previewSlug) ? route('storefront.preview.account.orders', $previewSlug) : route('storefront.account.orders');
+    $offersUrl = isset($previewSlug) ? route('storefront.preview.offers.index', $previewSlug) : route('storefront.offers.index');
     $cartCount = app(\App\Services\StorefrontCart::class)->count($company);
     $footerPages = \Illuminate\Support\Facades\Schema::hasTable('storefront_pages')
         ? \App\Models\StorefrontPage::query()
@@ -91,14 +92,15 @@
     $menuPageSlugs = collect([$setting->header_menu, $setting->footer_menu])->flatten(1)->filter()->where('type', 'page')->pluck('page_id')->filter()->unique();
     $menuCategorySlugs = $menuCategorySlugs->isEmpty() ? collect() : \App\Models\Category::withoutGlobalScopes()->where('company_id', $company->getKey())->whereIn('id', $menuCategorySlugs)->where('is_active', true)->pluck('slug', 'id');
     $menuPageSlugs = $menuPageSlugs->isEmpty() ? collect() : \App\Models\StorefrontPage::withoutGlobalScopes()->where('company_id', $company->getKey())->whereIn('id', $menuPageSlugs)->where('is_published', true)->pluck('slug', 'id');
-    $resolveMenu = function (?array $items) use ($productsUrl, $trackUrl, $accountOrdersUrl, $resellerUrl, $previewSlug, $menuCategorySlugs, $menuPageSlugs, $pageUrl) {
-        return collect($items ?? [])->map(function ($item) use ($productsUrl, $trackUrl, $accountOrdersUrl, $resellerUrl, $previewSlug, $menuCategorySlugs, $menuPageSlugs, $pageUrl) {
+    $resolveMenu = function (?array $items) use ($productsUrl, $trackUrl, $accountOrdersUrl, $resellerUrl, $offersUrl, $previewSlug, $menuCategorySlugs, $menuPageSlugs, $pageUrl) {
+        return collect($items ?? [])->map(function ($item) use ($productsUrl, $trackUrl, $accountOrdersUrl, $resellerUrl, $offersUrl, $previewSlug, $menuCategorySlugs, $menuPageSlugs, $pageUrl) {
             $label = trim((string) ($item['label'] ?? ''));
             $url = match ($item['type'] ?? null) {
                 'shop' => $productsUrl,
                 'track' => $trackUrl,
                 'account' => $accountOrdersUrl,
                 'reseller' => $resellerUrl,
+                'offers' => $offersUrl,
                 'category' => ($slug = $menuCategorySlugs->get($item['category_id'] ?? null))
                     ? (isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $slug]) : route('storefront.categories.show', $slug))
                     : null,

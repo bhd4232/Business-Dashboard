@@ -41,7 +41,7 @@ class CustomerDueAlertService
     public function message(): string
     {
         $count = $this->count();
-        $total = number_format($this->totalDue(), 2);
+        $total = \App\Support\MoneyFormatter::number($this->totalDue());
 
         return $count === 1
             ? "1 customer has BDT {$total} due."

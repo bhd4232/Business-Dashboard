@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Company;
 use App\Models\CourierBooking;
 use App\Models\CourierProvider;
+use App\Models\CourierReturn;
 use App\Models\CourierStatusLog;
 use App\Models\Order;
 use Illuminate\Support\Facades\Auth;
@@ -85,6 +86,7 @@ class CourierService
 
         $this->logStatus($booking, null, $status, $data['note'] ?? 'Manual courier booking created.');
         $this->syncOrderDeliveryStatus($order, $status, $data['note'] ?? 'Manual courier booking created.');
+        $this->applyMargin($booking, $order, $provider);
 
         return $booking;
     }
@@ -134,6 +136,7 @@ class CourierService
 
         $this->logStatus($booking, null, $status, $response['message'] ?? 'Steadfast consignment created.');
         $this->syncOrderDeliveryStatus($order, $status, $response['message'] ?? 'Steadfast consignment created.');
+        $this->applyMargin($booking, $order, $provider);
 
         return $booking;
     }
@@ -448,8 +451,46 @@ class CourierService
 
         $this->logStatus($booking, null, $status, $logNote);
         $this->syncOrderDeliveryStatus($order, $status, $logNote);
+        $this->applyMargin($booking, $order, $provider);
 
         return $booking;
+    }
+
+    /**
+     * Records what we charge the customer for delivery versus what the
+     * courier actually costs us, so bookings carry their own profit margin
+     * instead of that only being visible inside the provider's settings.
+     * Reads settings.delivery_fees / settings.delivery_costs (both keyed by
+     * the same inside/outside/suburb zones as ShippingFeeService::ZONES)
+     * plus settings.cod_charge_percent, all optional — bookings for
+     * providers that haven't configured these simply keep null margin
+     * fields rather than failing.
+     */
+    protected function applyMargin(CourierBooking $booking, Order $order, CourierProvider $provider): void
+    {
+        $zone = in_array($order->shipping_zone, ShippingFeeService::ZONES, true) ? $order->shipping_zone : 'outside';
+        $settings = $provider->settings ?? [];
+
+        $deliveryFee = data_get($settings, "delivery_fees.{$zone}");
+        $deliveryCost = data_get($settings, "delivery_costs.{$zone}");
+        $codPercent = data_get($settings, 'cod_charge_percent');
+
+        if ($deliveryFee === null && $deliveryCost === null && $codPercent === null) {
+            return;
+        }
+
+        $codAmount = (float) $booking->cod_amount;
+        $codChargeAmount = $codPercent !== null ? round($codAmount * ((float) $codPercent / 100), 2) : null;
+        $margin = $deliveryFee !== null
+            ? round((float) $deliveryFee - (float) ($deliveryCost ?? 0) - (float) ($codChargeAmount ?? 0), 2)
+            : null;
+
+        $booking->forceFill([
+            'delivery_fee_charged' => $deliveryFee !== null ? (float) $deliveryFee : null,
+            'delivery_cost' => $deliveryCost !== null ? (float) $deliveryCost : null,
+            'cod_charge_amount' => $codChargeAmount,
+            'margin' => $margin,
+        ])->save();
     }
 
     protected function itemDescription(Order $order): string
@@ -458,6 +499,47 @@ class CourierService
             ->map(fn ($item): string => trim(($item->product?->name ?? 'Item').' x '.$item->quantity))
             ->filter()
             ->implode(', ');
+    }
+
+    /**
+     * Requests a return/reverse-pickup for a Steadfast booking through the
+     * live API and records the request locally so staff can browse/filter
+     * return history without leaving the ERP. Returns the created record.
+     */
+    public function requestReturn(CourierBooking $booking, array $data = []): CourierReturn
+    {
+        $booking->loadMissing('provider', 'order');
+
+        if ($booking->provider?->driver !== CourierProvider::DRIVER_STEADFAST) {
+            throw ValidationException::withMessages([
+                'provider' => 'Return requests are currently only supported for Steadfast bookings.',
+            ]);
+        }
+
+        $response = app(SteadfastCourierClient::class)->createReturnRequest($booking->provider, array_filter([
+            'consignment_id' => $booking->provider_reference,
+            'tracking_code' => $booking->tracking_id,
+            'reason' => $data['reason'] ?? null,
+        ], fn ($value): bool => $value !== null && $value !== ''));
+
+        if (($response['status'] ?? null) !== 200) {
+            throw ValidationException::withMessages([
+                'steadfast' => $response['message'] ?? 'Steadfast return request failed.',
+            ]);
+        }
+
+        $return = CourierReturn::query()->create([
+            'company_id' => $booking->company_id,
+            'courier_provider_id' => $booking->courier_provider_id,
+            'courier_booking_id' => $booking->getKey(),
+            'provider_reference' => (string) (data_get($response, 'return.id') ?? data_get($response, 'return_id') ?? ''),
+            'reason' => $data['reason'] ?? null,
+            'note' => $response['message'] ?? 'Return requested from ERP.',
+        ]);
+
+        $this->logStatus($booking, $booking->status, $booking->status, 'Return requested: '.($response['message'] ?? 'submitted to Steadfast.'));
+
+        return $return;
     }
 
     public function updateStatus(CourierBooking $booking, string $status, ?string $note = null, bool $syncOrder = true): CourierBooking

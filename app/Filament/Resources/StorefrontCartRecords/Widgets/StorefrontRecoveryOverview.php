@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\StorefrontCartRecords\Widgets;
 
 use App\Models\StorefrontCartRecord;
+use App\Support\MoneyFormatter;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -33,7 +34,7 @@ class StorefrontRecoveryOverview extends StatsOverviewWidget
                 ->description($rate.'% recovery rate')
                 ->icon(Heroicon::OutlinedArrowPath)
                 ->color('success'),
-            Stat::make('Recovered revenue', 'BDT '.number_format($revenue, 2))
+            Stat::make('Recovered revenue', 'BDT '.MoneyFormatter::number($revenue))
                 ->icon(Heroicon::OutlinedBanknotes)
                 ->color('success'),
         ];

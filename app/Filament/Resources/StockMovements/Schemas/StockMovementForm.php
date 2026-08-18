@@ -37,17 +37,21 @@ class StockMovementForm
                             ->integer()
                             ->required()
                             ->minValue(fn (Get $get): ?int => $get('type') === 'adjustment' ? null : 1)
-                            ->helperText(fn (Get $get): string => $get('type') === 'adjustment'
-                                ? 'Use a signed non-zero value: positive adds stock, negative removes stock.'
-                                : 'Use a positive quantity. Sales are automatically counted as outgoing stock.'),
+                            ->helperText(fn (Get $get): string => match ($get('type')) {
+                                'adjustment' => 'Use a signed non-zero value: positive adds stock, negative removes stock.',
+                                'damage' => 'Use a positive quantity — the pieces damaged/written off.',
+                                default => 'Use a positive quantity. Sales are automatically counted as outgoing stock.',
+                            }),
 
                         TextInput::make('reason')
                             ->label('Reason')
                             ->maxLength(255)
-                            ->required(fn (Get $get): bool => $get('type') === 'adjustment')
-                            ->helperText(fn (Get $get): string => $get('type') === 'adjustment'
-                                ? 'Required when stock is manually adjusted.'
-                                : 'Optional context for this stock movement.'),
+                            ->required(fn (Get $get): bool => in_array($get('type'), ['adjustment', 'damage'], true))
+                            ->helperText(fn (Get $get): string => match ($get('type')) {
+                                'adjustment' => 'Required when stock is manually adjusted.',
+                                'damage' => 'Required — explain how the stock was damaged.',
+                                default => 'Optional context for this stock movement.',
+                            }),
 
                         TextInput::make('reference_type')
                             ->label('Reference Type')

@@ -116,5 +116,6 @@ class ProductCsvTest extends TestCase
 
         $this->actingAs($user)->get(route('products.export.csv'))->assertForbidden();
         $this->actingAs($user)->get(route('products.import.sample'))->assertForbidden();
+        $this->actingAs($user)->get(route('products.stock.sample'))->assertForbidden();
     }
 }

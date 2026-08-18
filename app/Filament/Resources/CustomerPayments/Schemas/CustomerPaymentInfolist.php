@@ -16,7 +16,7 @@ class CustomerPaymentInfolist
                 TextEntry::make('customer.name')->label('Customer'),
                 TextEntry::make('account.name')->label('Account'),
                 TextEntry::make('payment_date')->date(),
-                TextEntry::make('amount')->money('BDT'),
+                TextEntry::make('amount')->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('method')->badge(),
                 TextEntry::make('reference'),
             ])->columns(2),

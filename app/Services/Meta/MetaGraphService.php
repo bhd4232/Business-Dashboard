@@ -114,6 +114,40 @@ class MetaGraphService
         return ['health' => $health, 'subscription' => $subscription];
     }
 
+    /**
+     * Exchanges an Embedded Signup authorization code for a long-lived access
+     * token. Called once, right after the owner completes the Meta popup, so
+     * there is no ConversationChannel yet - the app credentials come from the
+     * admin-configurable Embedded Signup settings instead of a channel token.
+     */
+    public function exchangeEmbeddedSignupCode(string $appId, string $appSecret, string $code): string
+    {
+        try {
+            $response = Http::acceptJson()
+                ->connectTimeout(5)
+                ->timeout(20)
+                ->get($this->url('oauth/access_token'), [
+                    'client_id' => $appId,
+                    'client_secret' => $appSecret,
+                    'code' => $code,
+                ]);
+        } catch (Throwable $exception) {
+            throw new MetaGraphException('Could not reach Meta to exchange the Embedded Signup code. Check the server network and retry.');
+        }
+
+        if (! $response->successful()) {
+            throw $this->exceptionFromResponse($response);
+        }
+
+        $token = (string) $response->json('access_token', '');
+
+        if ($token === '') {
+            throw new MetaGraphException('Meta accepted the Embedded Signup code but returned no access token.');
+        }
+
+        return $token;
+    }
+
     public function sendWhatsApp(ConversationChannel $channel, string $to, string $body, ?string $mediaUrl = null): string
     {
         $this->requireToken($channel);

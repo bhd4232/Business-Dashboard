@@ -71,6 +71,14 @@ class ProductVariant extends Model
         return (float) ($this->sale_price ?? $this->product?->sale_price ?? 0);
     }
 
+    /**
+     * Effective cost price — falls back to the parent product's cost price.
+     */
+    public function effectiveCostPrice(): float
+    {
+        return (float) ($this->cost_price ?? $this->product?->cost_price ?? 0);
+    }
+
     public function syncProductStock(): void
     {
         $product = $this->product()->withoutGlobalScopes()->first();

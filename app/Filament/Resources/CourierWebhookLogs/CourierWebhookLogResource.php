@@ -25,6 +25,8 @@ class CourierWebhookLogResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function table(Table $table): Table
     {
         return $table->defaultSort('created_at', 'desc')->columns([

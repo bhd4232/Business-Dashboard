@@ -66,19 +66,19 @@
                             @endif
                         </td>
                         <td class="num">{{ $item->quantity }}</td>
-                        <td class="num">৳{{ number_format((float) $item->unit_price, 2) }}</td>
-                        <td class="num">৳{{ number_format((float) $item->subtotal, 2) }}</td>
+                        <td class="num">৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td>
+                        <td class="num">৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
 
         <div class="totals">
-            <div><span>Subtotal</span><span>৳{{ number_format((float) $quotation->items->sum('subtotal'), 2) }}</span></div>
+            <div><span>Subtotal</span><span>৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</span></div>
             @if ((float) $quotation->discount_amount > 0)
-                <div><span>Discount</span><span>-৳{{ number_format((float) $quotation->discount_amount, 2) }}</span></div>
+                <div><span>Discount</span><span>-৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</span></div>
             @endif
-            <div class="grand"><span>Total</span><span>৳{{ number_format((float) $quotation->total_amount, 2) }}</span></div>
+            <div class="grand"><span>Total</span><span>৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</span></div>
         </div>
     </div>
 </body>

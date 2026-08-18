@@ -9,9 +9,11 @@ use App\Filament\Resources\Companies\Pages\EditCompany;
 use App\Filament\Resources\Companies\Pages\ListCompanies;
 use App\Filament\Resources\Companies\Pages\ViewCompany;
 use App\Models\Company;
+use App\Services\CompanyDeletionService;
 use App\Support\CompanyMedia;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -192,12 +194,37 @@ class CompanyResource extends Resource
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                static::deleteAction(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    static::deleteBulkAction(),
                 ]),
             ]);
+    }
+
+    public static function deleteAction(): DeleteAction
+    {
+        return DeleteAction::make()
+            ->modalDescription('This permanently deletes the company, its audit metadata, and its automatic system accounts. If business records still belong to it, deletion will be blocked so no operational data is lost.')
+            ->using(fn (Company $record): bool => app(CompanyDeletionService::class)->delete($record))
+            ->failureNotificationTitle('Company was not deleted')
+            ->failureNotificationBody('This company still owns business records. Move or delete those records first, then try again.');
+    }
+
+    public static function deleteBulkAction(): DeleteBulkAction
+    {
+        return DeleteBulkAction::make()
+            ->using(function (DeleteBulkAction $action, $records): void {
+                foreach ($records as $record) {
+                    if (! app(CompanyDeletionService::class)->delete($record)) {
+                        $action->reportBulkProcessingFailure(
+                            'company-has-records',
+                            'One or more companies still own business records and were kept.',
+                        );
+                    }
+                }
+            });
     }
 
     public static function infolist(Schema $schema): Schema

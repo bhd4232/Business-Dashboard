@@ -12,9 +12,11 @@ use App\Models\Product;
 use App\Models\User;
 use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
+use App\Services\CompanyStorageService;
 use App\Support\Code128;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
 
@@ -141,6 +143,65 @@ class InvoiceDesignTest extends TestCase
         $this->assertStringNotContainsString('<svg', $response->getContent());
     }
 
+    public function test_mobile_layout_does_not_override_the_a4_print_layout(): void
+    {
+        $order = $this->makeOrder();
+
+        $this->actingAs($this->admin())
+            ->get(route('orders.print', $order))
+            ->assertOk()
+            ->assertSee('@media screen and (max-width: 720px)', false)
+            ->assertSee('-webkit-print-color-adjust: exact', false)
+            ->assertSee('print-color-adjust: exact', false)
+            ->assertDontSee('@media (max-width: 720px)', false);
+    }
+
+    public function test_print_typography_matches_the_compact_reference_scale(): void
+    {
+        $order = $this->makeOrder();
+
+        $this->actingAs($this->admin())
+            ->get(route('orders.print', $order))
+            ->assertOk()
+            ->assertSee('font-size: 10px;', false)
+            ->assertSee('font-size: 28px;', false)
+            ->assertSee('font-size: 12px;', false)
+            ->assertSee('height: 34px;', false)
+            ->assertSee('width: 34px;', false);
+    }
+
+    public function test_company_logo_is_rendered_in_the_invoice_header_and_courier_footer(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::defaultCompany();
+        $logo = app(CompanyStorageService::class)->putPublic(
+            $company,
+            'company',
+            'invoice-logo.png',
+            'invoice-logo-bytes',
+        );
+        $company->forceFill(['logo' => $logo])->save();
+
+        $order = $this->makeOrder();
+        $response = $this->actingAs($this->admin())
+            ->get(route('orders.print', $order))
+            ->assertOk()
+            ->assertSee('data-invoice-logo="main"', false)
+            ->assertSee('data-invoice-logo="slip"', false)
+            ->assertSee('loading="eager"', false)
+            ->assertSee('object-position: left center', false)
+            ->assertSee('max-width: 31.8mm', false)
+            ->assertSee('max-height: 17.2mm', false)
+            ->assertSee('max-width: 16.9mm', false)
+            ->assertSee('max-height: 9.2mm', false);
+
+        $logoUrl = app(CompanySettingsService::class)->profile($company->fresh())['logo_url'];
+
+        $this->assertNotEmpty($logoUrl);
+        $this->assertSame(2, substr_count($response->getContent(), 'src="'.$logoUrl.'"'));
+    }
+
     public function test_code128_generator_produces_valid_svg(): void
     {
         $svg = Code128::svg('SO-1119');
@@ -216,7 +277,7 @@ class InvoiceDesignTest extends TestCase
         $order = $this->makeOrder();
 
         $this->actingAs($this->admin())
-            ->withSession(['current_company_id' => 'all'])
+            ->withSession(['current_company_id' => 'all', 'current_company_selection_explicit' => true])
             ->get(route('orders.print', $order))
             ->assertOk()
             ->assertSee('OTHER-HOTLINE')
@@ -243,7 +304,7 @@ class InvoiceDesignTest extends TestCase
         app(CompanyContext::class)->set($default);
 
         $this->actingAs($this->admin())
-            ->withSession(['current_company_id' => 'all'])
+            ->withSession(['current_company_id' => 'all', 'current_company_selection_explicit' => true])
             ->get(route('orders.pdf', $order))
             ->assertOk()
             ->assertSee('PDF-CONTENT');

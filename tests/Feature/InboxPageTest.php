@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\CompanyContext;
 use App\Support\CompanyMedia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -155,7 +156,7 @@ class InboxPageTest extends TestCase
         $this->assertNull($empty->mediaImageUrl());
     }
 
-    public function test_channel_tabs_filter_conversations_without_hiding_the_real_channel_names(): void
+    public function test_header_channel_selector_filters_conversations_without_hiding_the_real_channel_names(): void
     {
         $whatsApp = ConversationChannel::query()->create([
             'provider' => 'whatsapp',
@@ -195,14 +196,39 @@ class InboxPageTest extends TestCase
         ]);
 
         Livewire::test(Inbox::class)
+            ->assertSeeHtml('zz-inbox-channel-selector')
+            ->assertDontSee('View every company conversation together or focus on one connected channel.')
             ->assertSee('Sales WhatsApp')
             ->assertSee('Support Messenger')
             ->assertSee('WhatsApp Contact')
             ->assertSee('Messenger Contact')
-            ->call('setChannelFilter', $whatsApp->getKey())
+            ->callAction('filterChannel'.$whatsApp->getKey())
             ->assertSet('channelId', $whatsApp->getKey())
             ->assertSee('WhatsApp Contact')
             ->assertDontSee('Messenger Contact');
+    }
+
+    public function test_inbox_density_and_compact_composer_markup_remain_scoped(): void
+    {
+        $view = File::get(resource_path('views/filament/pages/inbox.blade.php'));
+        $theme = File::get(resource_path('css/filament/admin/theme.css'));
+
+        $this->assertStringContainsString('class="zz-inbox-page"', $view);
+        $this->assertStringContainsString('class="zz-inbox"', $view);
+        $this->assertStringNotContainsString('heading="Channels"', $view);
+        $this->assertStringNotContainsString('View every company conversation together or focus on one connected channel.', $view);
+        $this->assertStringContainsString('rows="1"', $view);
+        $this->assertStringContainsString('h-[40px] min-h-[40px]', $view);
+        $this->assertStringContainsString('h-[calc(100dvh-9rem)] min-h-0', $view);
+        $this->assertStringContainsString('class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pe-1"', $view);
+        $this->assertStringContainsString("'justify-center' => \$conversation->messages->isEmpty()", $view);
+        $this->assertStringContainsString("'justify-end' => \$conversation->messages->isNotEmpty()", $view);
+        $this->assertStringContainsString('icon="heroicon-o-document-plus"', $view);
+        $this->assertStringContainsString('label="Add note"', $view);
+        $this->assertStringContainsString('.fi-page-header-main-ctn {', $theme);
+        $this->assertStringContainsString('padding-block: 5px;', $theme);
+        $this->assertStringNotContainsString('.zz-inbox-page > .fi-page-header-main-ctn', $theme);
+        $this->assertStringContainsString('padding: 5px;', $theme);
     }
 
     public function test_unread_and_assignment_filters_are_applied_server_side(): void

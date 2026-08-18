@@ -62,9 +62,9 @@
         </a>
         <div class="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-1 pt-2">
             <div class="flex items-baseline gap-2">
-                <span class="text-base font-semibold text-gray-950 dark:text-white">BDT {{ number_format($sellingPrice, 2) }}</span>
+                <span class="text-base font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number($sellingPrice) }}</span>
                 @if ($discountPercent > 0)
-                    <span class="text-xs text-gray-400 line-through dark:text-gray-500">BDT {{ number_format($comparePrice, 2) }}</span>
+                    <span class="text-xs text-gray-400 line-through dark:text-gray-500">BDT {{ \App\Support\MoneyFormatter::number($sellingPrice) }}</span>
                 @endif
             </div>
             @if ($product->stock > 0 && $product->stock <= 5)

@@ -81,7 +81,7 @@
                         </div>
                         <div class="text-right">
                             <div class="text-xs font-medium text-gray-400">Total due</div>
-                            <div class="mt-1 text-xl font-semibold text-gray-950 dark:text-white">{{ $currency }} {{ number_format((float) $order->due_amount, 2) }}</div>
+                            <div class="mt-1 text-xl font-semibold text-gray-950 dark:text-white">{{ $currency }} {{ \App\Support\MoneyFormatter::number((float) $order->due_amount) }}</div>
                         </div>
                     </div>
 
@@ -212,7 +212,7 @@
                                         <div class="font-medium">{{ $item->product?->name ?? 'Product' }}</div>
                                         <div class="mt-1 text-gray-500">Qty {{ $item->quantity }}</div>
                                     </div>
-                                    <div class="font-semibold">{{ $currency }} {{ number_format((float) $item->subtotal, 2) }}</div>
+                                    <div class="font-semibold">{{ $currency }} {{ \App\Support\MoneyFormatter::number((float) $order->due_amount) }}</div>
                                 </div>
                             @endforeach
                         </div>

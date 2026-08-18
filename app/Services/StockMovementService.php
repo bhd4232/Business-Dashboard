@@ -12,15 +12,16 @@ class StockMovementService
 {
     /**
      * Signed on-hand stock for the movements matched by $query, summed in SQL.
-     * Mirrors signedQuantityFor(): sales subtract, adjustments keep their sign,
-     * everything else adds. Aggregating in the database avoids loading a
-     * product's entire movement history into memory on every recompute.
+     * Mirrors signedQuantityFor(): sales and damage subtract, adjustments
+     * keep their sign, everything else adds. Aggregating in the database
+     * avoids loading a product's entire movement history into memory on
+     * every recompute.
      */
     protected function signedStockSum(Builder $query): int
     {
         return (int) $query
             ->selectRaw(
-                "COALESCE(SUM(CASE WHEN type = 'sale' THEN -ABS(quantity) "
+                "COALESCE(SUM(CASE WHEN type IN ('sale', 'damage') THEN -ABS(quantity) "
                 ."WHEN type = 'adjustment' THEN quantity ELSE ABS(quantity) END), 0) as signed_stock"
             )
             ->value('signed_stock');
@@ -83,7 +84,7 @@ class StockMovementService
     {
         return match ($type) {
             'adjustment' => $quantity,
-            'sale', 'opening', 'purchase', 'return' => abs($quantity),
+            'sale', 'damage', 'opening', 'purchase', 'return' => abs($quantity),
             default => $quantity,
         };
     }
@@ -91,7 +92,7 @@ class StockMovementService
     public function signedQuantityFor(?string $type, int $quantity): int
     {
         return match ($type) {
-            'sale' => -abs($quantity),
+            'sale', 'damage' => -abs($quantity),
             'adjustment' => $quantity,
             default => abs($quantity),
         };
@@ -153,15 +154,19 @@ class StockMovementService
                     'quantity' => 'Adjustment quantity must be a non-zero signed value.',
                 ]);
             }
-
-            if (blank($movement->reason)) {
-                throw ValidationException::withMessages([
-                    'reason' => 'Please enter a reason for this stock adjustment.',
-                ]);
-            }
         } elseif ((int) $movement->quantity <= 0) {
             throw ValidationException::withMessages([
                 'quantity' => 'Quantity must be greater than zero.',
+            ]);
+        }
+
+        // Adjustments and damage both need a paper trail explaining why
+        // stock changed outside the normal sale/purchase/return flow.
+        if (in_array($movement->type, ['adjustment', 'damage'], true) && blank($movement->reason)) {
+            throw ValidationException::withMessages([
+                'reason' => $movement->type === 'adjustment'
+                    ? 'Please enter a reason for this stock adjustment.'
+                    : 'Please enter a reason for this damage.',
             ]);
         }
 
@@ -175,9 +180,11 @@ class StockMovementService
             );
 
         if ($projectedStock < 0) {
-            $message = $movement->type === 'sale'
-                ? 'Insufficient stock for this sale quantity.'
-                : 'This stock movement would make product stock negative.';
+            $message = match ($movement->type) {
+                'sale' => 'Insufficient stock for this sale quantity.',
+                'damage' => 'Insufficient stock to record this much damage.',
+                default => 'This stock movement would make product stock negative.',
+            };
 
             throw ValidationException::withMessages([
                 'quantity' => $message,

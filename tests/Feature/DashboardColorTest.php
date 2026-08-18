@@ -81,7 +81,7 @@ class DashboardColorTest extends TestCase
         $purple = app(DynamicColorService::class)->generateShades('#7C3AED');
 
         $this->actingAs($admin)
-            ->withSession(['current_company_id' => 'all'])
+            ->withSession(['current_company_id' => 'all', 'current_company_selection_explicit' => true])
             ->get('/admin')
             ->assertOk()
             ->assertSee($default[500], false)

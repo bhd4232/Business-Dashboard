@@ -1,0 +1,33 @@
+:root {
+  /* Spacing scale (admin, 4px base — Filament/Tailwind convention) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Storefront layout constants (from source handoff) */
+  --sf-container-max: 1360px;
+  --sf-container-padding: 32px;
+  --sf-header-padding-y: 18px;
+
+  /* Radius */
+  --radius-admin-sm: 6px;
+  --radius-admin-md: 8px;
+  --radius-admin-lg: 12px;
+  --radius-sf-sm: 7px;
+  --radius-sf-md: 10px;
+  --radius-sf-lg: 14px;
+  --radius-sf-xl: 18px;
+  --radius-sf-2xl: 24px;
+  --radius-pill: 999px;
+
+  /* Other themes' radius language (reference) */
+  --radius-theme-industrial: 4px;
+  --radius-theme-fresh: 16px;
+  --radius-theme-bold: 3px;
+  --radius-theme-classic: 0px;
+}

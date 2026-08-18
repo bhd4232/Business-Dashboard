@@ -62,7 +62,7 @@ class CustomersTable
                     ->toggleable(),
 
                 TextColumn::make('current_balance')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
 
                 TextColumn::make('riskProfile.risk_level')

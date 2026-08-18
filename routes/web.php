@@ -19,6 +19,7 @@ use App\Http\Controllers\ChatOrderController;
 use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\MetaWebhookController;
+use App\Http\Controllers\PayStationWebhookController;
 use App\Http\Controllers\QuotationPublicController;
 use App\Http\Controllers\Storefront\AccountAuthController as StorefrontAccountAuthController;
 use App\Http\Controllers\Storefront\AccountController as StorefrontAccountController;
@@ -29,10 +30,13 @@ use App\Http\Controllers\Storefront\CheckoutController as StorefrontCheckoutCont
 use App\Http\Controllers\Storefront\ComplaintController as StorefrontComplaintController;
 use App\Http\Controllers\Storefront\ContactController as StorefrontContactController;
 use App\Http\Controllers\Storefront\HomeController as StorefrontHomeController;
+use App\Http\Controllers\Storefront\OfferCheckoutController as StorefrontOfferCheckoutController;
+use App\Http\Controllers\Storefront\OfferController as StorefrontOfferController;
 use App\Http\Controllers\Storefront\OrderTrackController as StorefrontOrderTrackController;
 use App\Http\Controllers\Storefront\PageController as StorefrontPageController;
 use App\Http\Controllers\Storefront\PreviewController as StorefrontPreviewController;
 use App\Http\Controllers\Storefront\ProductIndexController as StorefrontProductIndexController;
+use App\Http\Controllers\Storefront\ProductReviewController as StorefrontProductReviewController;
 use App\Http\Controllers\Storefront\ProductShowController as StorefrontProductShowController;
 use App\Http\Controllers\Storefront\ResellerController;
 use App\Http\Controllers\ZiniPayWebhookController;
@@ -40,6 +44,7 @@ use App\Http\Middleware\ResolveCompanyFromDomain;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\AppUpdateService;
+use App\Services\AuditLogService;
 use App\Services\CompanySettingsService;
 use App\Support\AppDeployment;
 use App\Support\AppRelease;
@@ -132,6 +137,12 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
     Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorderPreview'])
         ->name('storefront.preview.account.reorder');
 
+    Route::get('/account/orders/{orderNo}/review', [StorefrontProductReviewController::class, 'createPreview'])
+        ->name('storefront.preview.account.reviews.create');
+
+    Route::post('/account/orders/{orderNo}/review', [StorefrontProductReviewController::class, 'storePreview'])
+        ->name('storefront.preview.account.reviews.store');
+
     Route::get('/account', [StorefrontAccountController::class, 'indexPreview'])
         ->name('storefront.preview.account.index');
     Route::get('/account/activity', [StorefrontAccountController::class, 'activityPreview'])
@@ -184,6 +195,18 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
 
     Route::get('/contact', [StorefrontContactController::class, 'showPreview'])
         ->name('storefront.preview.contact');
+
+    Route::get('/offers', [StorefrontOfferController::class, 'indexPreview'])
+        ->name('storefront.preview.offers.index');
+
+    Route::get('/offers/{slug}', [StorefrontOfferController::class, 'showPreview'])
+        ->name('storefront.preview.offers.show');
+
+    Route::post('/offers/{slug}/checkout', [StorefrontOfferCheckoutController::class, 'storePreview'])
+        ->name('storefront.preview.offers.checkout');
+
+    Route::get('/offers/{slug}/thank-you/{order}', [StorefrontOfferCheckoutController::class, 'thankYouPreview'])
+        ->name('storefront.preview.offers.thank-you');
 });
 
 Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
@@ -247,6 +270,12 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::post('/account/orders/{orderNo}/reorder', [StorefrontAccountOrdersController::class, 'reorder'])
         ->name('storefront.account.reorder');
 
+    Route::get('/account/orders/{orderNo}/review', [StorefrontProductReviewController::class, 'create'])
+        ->name('storefront.account.reviews.create');
+
+    Route::post('/account/orders/{orderNo}/review', [StorefrontProductReviewController::class, 'store'])
+        ->name('storefront.account.reviews.store');
+
     Route::middleware('throttle:10,1')->group(function (): void {
         Route::get('/account/login', [StorefrontAccountAuthController::class, 'showLogin'])
             ->name('storefront.account.login');
@@ -301,6 +330,18 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
     Route::get('/contact', [StorefrontContactController::class, 'show'])
         ->name('storefront.contact');
 
+    Route::get('/offers', [StorefrontOfferController::class, 'index'])
+        ->name('storefront.offers.index');
+
+    Route::get('/offers/{slug}', [StorefrontOfferController::class, 'show'])
+        ->name('storefront.offers.show');
+
+    Route::post('/offers/{slug}/checkout', [StorefrontOfferCheckoutController::class, 'store'])
+        ->name('storefront.offers.checkout');
+
+    Route::get('/offers/{slug}/thank-you/{order}', [StorefrontOfferCheckoutController::class, 'thankYou'])
+        ->name('storefront.offers.thank-you');
+
 });
 
 Route::view('/pricing', 'marketing.pricing')->name('marketing.pricing');
@@ -352,8 +393,20 @@ Route::post('/webhooks/zinipay/{payment}', ZiniPayWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('zinipay.webhook');
 
+Route::post('/webhooks/paystation/{payment}', PayStationWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('paystation.webhook');
+
 Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $order, Request $request) {
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);
+
+    // Feeds OrderActivityFeedService's narrated "Order printed by X" line
+    // on the order's Activity section — see AuditLogService::record()'s
+    // arbitrary-action support, no schema change needed. Every hit of
+    // this route is a genuine print/print-preview open (the page always
+    // triggers window.print() on load via ?print=1 or the Print button),
+    // so this isn't deduped the way the ViewOrder 'viewed' log is.
+    app(AuditLogService::class)->record('printed', $order);
 
     return view('orders.print', [
         'order' => $order->load(['company', 'customer', 'items.product', 'latestCourierBooking.provider']),
@@ -361,6 +414,45 @@ Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $o
         'invoice' => app(CompanySettingsService::class)->invoice($order->company),
     ]);
 })->name('orders.print');
+
+// Bulk invoice print for the Orders list's "Print invoices" bulk action —
+// takes a comma-separated list of order IDs (built from the selected
+// table rows) instead of a single {order} binding. `Order::query()` is
+// still scoped by CompanyScope (BelongsToCompany), so IDs belonging to
+// another company are silently dropped rather than leaking across
+// companies.
+Route::middleware('auth')->get('/admin/orders/print-bulk', function (Request $request) {
+    abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);
+
+    $orderIds = collect(explode(',', (string) $request->query('orders')))
+        ->map(fn (string $id): int => (int) trim($id))
+        ->filter()
+        ->unique();
+
+    abort_if($orderIds->isEmpty(), 404);
+
+    $ordersById = Order::query()
+        ->whereIn('id', $orderIds)
+        ->with(['company', 'customer', 'items.product', 'latestCourierBooking.provider'])
+        ->get()
+        ->keyBy('id');
+
+    $orders = $orderIds->map(fn (int $id) => $ordersById->get($id))->filter()->values();
+
+    abort_if($orders->isEmpty(), 404);
+
+    $company = $orders->first()->company;
+
+    // Same 'printed' narration as the single-order route, once per order
+    // in the batch.
+    $orders->each(fn (Order $order) => app(AuditLogService::class)->record('printed', $order));
+
+    return view('orders.print-bulk', [
+        'orders' => $orders,
+        'company' => app(CompanySettingsService::class)->profile($company),
+        'invoice' => app(CompanySettingsService::class)->invoice($company),
+    ]);
+})->name('orders.print.bulk');
 
 Route::middleware('auth')
     ->get('/admin/orders/{order}/pdf', OrderPdfController::class)
@@ -405,6 +497,9 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/admin/products/import/sample', [ProductCsvController::class, 'sample'])
         ->name('products.import.sample');
+
+    Route::get('/admin/products/stock/sample', [ProductCsvController::class, 'stockSample'])
+        ->name('products.stock.sample');
 
     Route::get('/admin/customers/export/csv', [CustomerCsvController::class, 'export'])
         ->name('customers.export.csv');

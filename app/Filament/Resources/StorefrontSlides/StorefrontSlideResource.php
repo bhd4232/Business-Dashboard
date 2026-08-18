@@ -62,7 +62,7 @@ class StorefrontSlideResource extends Resource
                         ->default(true),
                     FileUpload::make('image')
                         ->label('Image (desktop)')
-                        ->helperText('Recommended: wide banner, at least 1600x600px. Automatically compressed to WebP on upload.')
+                        ->helperText('Recommended: extra-wide banner, at least 1920x640px. It fills the viewport width and is cropped to one-third of the desktop screen height. Automatically compressed to WebP on upload.')
                         ->image()
                         ->maxSize(2048)
                         ->tap(static::browserImagePrecompression())
@@ -76,7 +76,7 @@ class StorefrontSlideResource extends Resource
                         ->required(),
                     FileUpload::make('image_mobile')
                         ->label('Image (mobile)')
-                        ->helperText('Optional. Vertical/square image shown on phones instead of the desktop image. Automatically compressed to WebP on upload.')
+                        ->helperText('Optional. Use a wide mobile banner, at least 900x320px. It is cropped to one-sixth of the mobile screen height. Automatically compressed to WebP on upload.')
                         ->image()
                         ->maxSize(2048)
                         ->tap(static::browserImagePrecompression())
@@ -86,16 +86,11 @@ class StorefrontSlideResource extends Resource
                         ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
                         ->disabled(fn (Get $get, ?StorefrontSlide $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->saveUploadedFileUsing(static::optimizeImageUpload()),
-                    TextInput::make('heading')
-                        ->maxLength(120),
-                    TextInput::make('subheading')
-                        ->maxLength(200),
-                    TextInput::make('cta_label')
-                        ->maxLength(40),
                     TextInput::make('cta_url')
+                        ->label('Banner link (optional)')
                         ->url()
                         ->maxLength(255)
-                        ->helperText('Full URL or a relative path such as /products.'),
+                        ->helperText('Clicking the clean banner image opens this URL. Full URL or a relative path such as /products.'),
                     Select::make('product_id')
                         ->label('Link to product (optional)')
                         ->helperText('Clicking the slide image sends visitors to this product\'s page. The CTA URL above wins if both are set.')
@@ -135,8 +130,11 @@ class StorefrontSlideResource extends Resource
                 ImageColumn::make('image')
                     ->label('Image')
                     ->state(fn (StorefrontSlide $record): ?string => CompanyMedia::publicUrl($record->image, $record)),
-                TextColumn::make('heading')
-                    ->searchable(),
+                TextColumn::make('destination')
+                    ->label('Opens')
+                    ->state(fn (StorefrontSlide $record): string => $record->cta_url
+                        ?: ($record->product_id ? "Linked product #{$record->product_id}" : 'Image only'))
+                    ->limit(40),
                 TextColumn::make('company.name')
                     ->label('Company')
                     ->searchable()

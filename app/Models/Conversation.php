@@ -6,10 +6,22 @@ use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Cache;
 
 class Conversation extends Model
 {
     use BelongsToCompany;
+
+    /**
+     * How long a staff member having this conversation open in the Inbox
+     * silences the AI auto-reply for it — a short, rolling window (renewed
+     * on every 8s poll tick while the thread stays open) so the AI never
+     * races a human who is about to type, without needing the 24h
+     * `human_handled_until` lock that only starts after a human actually
+     * sends something.
+     */
+    public const HUMAN_PRESENCE_SECONDS = 30;
 
     public const PROVIDERS = [
         'whatsapp' => 'WhatsApp',
@@ -48,7 +60,7 @@ class Conversation extends Model
         return $this->hasMany(ConversationMessage::class);
     }
 
-    public function latestMessage(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function latestMessage(): HasOne
     {
         return $this->hasOne(ConversationMessage::class)->latestOfMany('id');
     }
@@ -73,6 +85,23 @@ class Conversation extends Model
         if ($this->unread_count > 0) {
             $this->forceFill(['unread_count' => 0])->saveQuietly();
         }
+    }
+
+    /** Mark a staff member as currently viewing this conversation (Inbox open). */
+    public function markHumanPresent(): void
+    {
+        Cache::put($this->humanPresenceCacheKey(), true, self::HUMAN_PRESENCE_SECONDS);
+    }
+
+    /** True while a staff member has this conversation open in the Inbox. */
+    public function hasHumanPresent(): bool
+    {
+        return Cache::has($this->humanPresenceCacheKey());
+    }
+
+    protected function humanPresenceCacheKey(): string
+    {
+        return "crm:human-present:{$this->getKey()}";
     }
 
     /**

@@ -35,11 +35,11 @@ class ReportService
         return [
             'sales_today' => $this->salesQuery($from, $to)->sum('total_amount'),
             'storefront_pending_orders' => Order::query()
-                ->where('source', Order::SOURCE_STOREFRONT)
+                ->whereIn('source', [Order::SOURCE_STOREFRONT, Order::SOURCE_OFFER])
                 ->where('status', 'draft')
                 ->count(),
             'storefront_pending_amount' => Order::query()
-                ->where('source', Order::SOURCE_STOREFRONT)
+                ->whereIn('source', [Order::SOURCE_STOREFRONT, Order::SOURCE_OFFER])
                 ->where('status', 'draft')
                 ->sum('total_amount'),
             'purchases_today' => $this->purchasesQuery($from, $to)->sum('total_amount'),

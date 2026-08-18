@@ -22,6 +22,20 @@ interface CourierProviderInterface
 
     public function balance(CourierProvider $provider): ?array;
 
+    /**
+     * Request a return/reverse pickup for a booking. Returns the raw
+     * provider response array (e.g. an assigned return reference/status).
+     * Providers without a return API should throw via unsupported().
+     */
+    public function returns(CourierBooking $booking, array $data = []): array;
+
+    /**
+     * Fetch payment/settlement history for a provider. Returns the raw
+     * provider response array. Providers without a payment API should
+     * throw via unsupported().
+     */
+    public function paymentHistory(CourierProvider $provider, array $filters = []): array;
+
     public function verifyWebhook(CourierProvider $provider, string $payload, ?string $signature): bool;
 
     public function webhookStatus(array $payload): ?string;

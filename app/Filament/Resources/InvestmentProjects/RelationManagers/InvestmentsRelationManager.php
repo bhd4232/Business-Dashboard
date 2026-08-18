@@ -48,7 +48,7 @@ class InvestmentsRelationManager extends RelationManager
         return $table->modifyQueryUsing(fn ($query) => $query->withCount('securityInstruments'))->columns([
             TextColumn::make('investor.name')->searchable(),
             TextColumn::make('investor.channelPartner.name')->label('Channel Partner')->placeholder('Direct'),
-            TextColumn::make('amount')->money('BDT')->summarize(Sum::make()->money('BDT')),
+            TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT')->summarize(Sum::make()->moneyWithoutTrailingZeroes('BDT')),
             TextColumn::make('payment_method')->badge(),
             TextColumn::make('invested_at')->date(),
             TextColumn::make('security_instruments_count')->label('Security')->badge(),

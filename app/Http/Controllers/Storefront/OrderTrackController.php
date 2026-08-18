@@ -167,7 +167,7 @@ class OrderTrackController extends Controller
 
         return Order::query()
             ->where('company_id', $company->getKey())
-            ->where('source', Order::SOURCE_STOREFRONT)
+            ->whereIn('source', [Order::SOURCE_STOREFRONT, Order::SOURCE_OFFER])
             ->where('order_number', $orderNo)
             ->tap(fn ($query) => $this->whereCustomerPhoneMatches($query, $phone))
             ->first();
@@ -192,7 +192,7 @@ class OrderTrackController extends Controller
 
         $query = Order::query()
             ->where('company_id', $company->getKey())
-            ->where('source', Order::SOURCE_STOREFRONT)
+            ->whereIn('source', [Order::SOURCE_STOREFRONT, Order::SOURCE_OFFER])
             ->where('order_number', $orderNo);
 
         if ($request->hasValidSignature()) {

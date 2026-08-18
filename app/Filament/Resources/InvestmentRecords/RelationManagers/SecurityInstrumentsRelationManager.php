@@ -46,7 +46,7 @@ class SecurityInstrumentsRelationManager extends RelationManager
         return $table->columns([
             TextColumn::make('cheque_number')->placeholder('-'),
             TextColumn::make('cheque_bank_name')->label('Bank')->placeholder('-'),
-            TextColumn::make('cheque_amount')->money('BDT')->placeholder('-'),
+            TextColumn::make('cheque_amount')->moneyWithoutTrailingZeroes('BDT')->placeholder('-'),
             TextColumn::make('cheque_status')->badge(),
             TextColumn::make('guarantor_name')->placeholder('-'),
             TextColumn::make('contract_document_path')->label('Contract')->formatStateUsing(fn (?string $state): string => $state ? 'Uploaded' : 'Not uploaded')->badge(),

@@ -15,6 +15,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\CompanyContext;
+use App\Services\CompanyDeletionService;
 use App\Services\CompanySettingsService;
 use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
@@ -29,6 +30,61 @@ use Tests\TestCase;
 class CompanySettingsTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_main_company_can_be_deleted_without_being_recreated(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $mainCompany = $admin->defaultCompany();
+        $replacement = Company::query()->create([
+            'name' => 'Live Company',
+            'slug' => 'live-company',
+            'invoice_prefix' => 'LIVE',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        $this->actingAs($admin);
+
+        Livewire::test(EditCompany::class, ['record' => $mainCompany->getKey()])
+            ->assertActionExists('delete')
+            ->callAction('delete');
+
+        $this->assertDatabaseMissing('companies', ['id' => $mainCompany->getKey()]);
+        $this->assertSame($replacement->getKey(), Company::defaultCompany()?->getKey());
+        $this->assertDatabaseMissing('companies', ['slug' => 'main-company']);
+    }
+
+    public function test_company_deletion_is_blocked_while_business_records_remain(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Company With Data',
+            'slug' => 'company-with-data',
+            'invoice_prefix' => 'CWD',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        Product::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => 'Protected Product',
+            'sku' => 'PROTECTED-001',
+            'price' => 100,
+            'cost_price' => 50,
+            'stock' => 1,
+            'unit' => 'pcs',
+            'reorder_level' => 0,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+
+        $this->assertFalse(app(CompanyDeletionService::class)->delete($company));
+        $this->assertDatabaseHas('companies', ['id' => $company->getKey()]);
+        $this->assertDatabaseCount('accounts', 6);
+    }
 
     public function test_company_management_uses_a_top_cluster_page_selector(): void
     {
@@ -103,7 +159,7 @@ class CompanySettingsTest extends TestCase
 
         $headerActions = collect($component->instance()->getCachedHeaderActions());
 
-        $this->assertSame(['view', 'saveChanges'], $headerActions->map->getName()->all());
+        $this->assertSame(['view', 'delete', 'saveChanges'], $headerActions->map->getName()->all());
         $this->assertSame('Save changes', $headerActions->last()->getLabel());
         $this->assertSame(['mod+s'], $headerActions->last()->getKeyBindings());
         $this->assertSame('save', $headerActions->last()->getLivewireClickHandler());
@@ -171,7 +227,7 @@ class CompanySettingsTest extends TestCase
             ->assertSee('position: sticky;', escape: false);
 
         $this->actingAs($admin)
-            ->withSession(['current_company_id' => 'all'])
+            ->withSession(['current_company_id' => 'all', 'current_company_selection_explicit' => true])
             ->get('/admin/company-management/company-settings')
             ->assertOk()
             ->assertSee('Select a company to edit settings')
@@ -234,7 +290,7 @@ class CompanySettingsTest extends TestCase
             ->assertSee('Company Settings');
 
         $this->actingAs($admin)
-            ->withSession(['current_company_id' => 'all'])
+            ->withSession(['current_company_id' => 'all', 'current_company_selection_explicit' => true])
             ->get('/admin/company-management/companies')
             ->assertOk()
             ->assertSee('Companies')
@@ -272,17 +328,18 @@ class CompanySettingsTest extends TestCase
 
     public function test_admin_panel_uses_company_name_as_brand(): void
     {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $company = $admin->defaultCompany();
+
         app(CompanySettingsService::class)->save([
             'name' => 'ZamZam ERP',
             'currency' => 'BDT',
             'timezone' => 'Asia/Dhaka',
             'date_format' => 'd M Y',
-        ]);
-
-        $admin = User::factory()->create([
-            'role' => 'super_admin',
-            'is_active' => true,
-        ]);
+        ], $company);
 
         $this->actingAs($admin)
             ->get('/admin')
@@ -294,28 +351,55 @@ class CompanySettingsTest extends TestCase
     public function test_admin_panel_uses_light_and_dark_company_logos(): void
     {
         Storage::fake('public');
-        Storage::disk('public')->put('company/light-logo.png', 'light-logo');
-        Storage::disk('public')->put('company/dark-logo.png', 'dark-logo');
-
-        app(CompanySettingsService::class)->save([
-            'name' => 'ZamZam ERP',
-            'logo' => 'company/light-logo.png',
-            'dark_logo' => 'company/dark-logo.png',
-            'currency' => 'BDT',
-            'timezone' => 'Asia/Dhaka',
-            'date_format' => 'd M Y',
-        ]);
 
         $admin = User::factory()->create([
             'role' => 'super_admin',
             'is_active' => true,
         ]);
+        $company = $admin->defaultCompany();
+        $storage = app(CompanyStorageService::class);
+        $lightLogo = $storage->putPublic($company, 'company', 'light-logo.png', 'light-logo');
+        $darkLogo = $storage->putPublic($company, 'company', 'dark-logo.png', 'dark-logo');
+
+        app(CompanySettingsService::class)->save([
+            'name' => 'ZamZam ERP',
+            'logo' => $lightLogo,
+            'dark_logo' => $darkLogo,
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'date_format' => 'd M Y',
+        ], $company);
 
         $this->actingAs($admin)
             ->get('/admin')
             ->assertOk()
-            ->assertSee('/storage/company/light-logo.png')
-            ->assertSee('/storage/company/dark-logo.png');
+            ->assertSee(Storage::disk('public')->url($lightLogo))
+            ->assertSee(Storage::disk('public')->url($darkLogo));
+    }
+
+    public function test_admin_login_uses_the_active_default_company_logos_without_authentication(): void
+    {
+        Storage::fake('public');
+
+        $company = Company::defaultCompany();
+        $storage = app(CompanyStorageService::class);
+        $lightLogo = $storage->putPublic($company, 'company', 'login-light-logo.png', 'login-light-logo');
+        $darkLogo = $storage->putPublic($company, 'company', 'login-dark-logo.png', 'login-dark-logo');
+
+        app(CompanySettingsService::class)->save([
+            'name' => 'Login Brand Company',
+            'logo' => $lightLogo,
+            'dark_logo' => $darkLogo,
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'date_format' => 'd M Y',
+        ], $company);
+
+        $this->get('/admin/login')
+            ->assertOk()
+            ->assertSee('Login Brand Company')
+            ->assertSee(Storage::disk('public')->url($lightLogo))
+            ->assertSee(Storage::disk('public')->url($darkLogo));
     }
 
     public function test_invoice_print_uses_company_settings(): void
@@ -361,7 +445,7 @@ class CompanySettingsTest extends TestCase
             ->assertSee('ZamZam Trading')
             ->assertSee('Dhaka, Bangladesh')
             ->assertSee('Unit Price (USD)')
-            ->assertSee('100.00')
+            ->assertSee('100')
             ->assertDontSee('Discount')
             ->assertDontSee('VAT')
             ->assertDontSee('>Paid<', false)
@@ -412,8 +496,8 @@ class CompanySettingsTest extends TestCase
             ->assertSee('Discount')
             ->assertSee('VAT')
             ->assertSee('<td class="t-label">Paid</td>', false)
-            ->assertSee('-20.00')
-            ->assertSee('75.00');
+            ->assertSee('-20')
+            ->assertSee('75');
     }
 
     public function test_company_settings_livewire_save_updates_profile(): void

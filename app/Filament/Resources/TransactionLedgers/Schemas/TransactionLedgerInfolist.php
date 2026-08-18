@@ -15,7 +15,7 @@ class TransactionLedgerInfolist
                 TextEntry::make('account.name')->label('Account'),
                 TextEntry::make('type')->badge(),
                 TextEntry::make('direction')->badge(),
-                TextEntry::make('amount')->money('BDT'),
+                TextEntry::make('amount')->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('transaction_date')->date(),
                 TextEntry::make('reference_type')->label('Reference Type'),
                 TextEntry::make('reference_id')->label('Reference ID'),

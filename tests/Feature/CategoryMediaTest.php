@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\Categories\Pages\CreateCategory;
+use App\Filament\Resources\Categories\Pages\EditCategory;
 use App\Filament\Resources\Categories\Schemas\CategoryForm;
 use App\Filament\Resources\Products\Schemas\ProductForm;
 use App\Models\Category;
@@ -41,9 +42,14 @@ class CategoryMediaTest extends TestCase
             ->assertFormFieldExists('image')
             ->assertFormFieldExists('icon')
             ->assertSee('Choose a category icon')
+            ->assertSee('Add Icon')
             ->assertSee('Search icons by name or style')
             ->assertSee('data-zz-category-icon-search-input', false)
-            ->assertSee('data-zz-category-icon-option', false);
+            ->assertSee('data-zz-category-icon-option', false)
+            ->assertSee('data-zz-category-icon-value="heroicon-o-wifi"', false)
+            ->assertSee('choose($el.dataset.zzCategoryIconValue)', false)
+            ->assertDontSee('@js($icon', false)
+            ->assertSee('data-zz-category-icon-add', false);
 
         $this->assertSame(
             ['image', 'icon'],
@@ -57,11 +63,19 @@ class CategoryMediaTest extends TestCase
         $pickerView = File::get(resource_path('views/filament/forms/components/category-icon-picker.blade.php'));
         $searchScript = File::get(resource_path('views/filament/partials/category-icon-search.blade.php'));
 
-        $this->assertSame(2, substr_count($pickerView, '$entangle'));
+        $this->assertSame(1, substr_count($pickerView, '$entangle'));
+        $this->assertStringContainsString('pendingIcon: null', $pickerView);
+        $this->assertStringContainsString('this.state = this.pendingIcon', $pickerView);
+        $this->assertStringNotContainsString('this.state = value', $pickerView);
+        $this->assertStringContainsString('Add Icon', $pickerView);
+        $this->assertStringContainsString('choose($el.dataset.zzCategoryIconValue)', $pickerView);
+        $this->assertStringNotContainsString("@js(\$icon['value'])", $pickerView);
         $this->assertStringContainsString('data-zz-category-icon-search-input', $pickerView);
         $this->assertStringContainsString('data-zz-category-icon-search', $pickerView);
         $this->assertStringContainsString("document.addEventListener('input'", $searchScript);
         $this->assertStringContainsString("document.addEventListener('keydown'", $searchScript);
+        $this->assertStringContainsString("document.addEventListener('zz-reset-category-icon-search'", $searchScript);
+        $this->assertStringNotContainsString('`${optionSelector}, [data-zz-category-icon-reset]`', $searchScript);
         $this->assertStringContainsString("option.style.display = isMatch ? '' : 'none'", $searchScript);
     }
 
@@ -93,6 +107,25 @@ class CategoryMediaTest extends TestCase
             80,
             collect(StorefrontCategoryIcons::catalog())->max(fn (array $icon): int => strlen($icon['value'])),
         );
+    }
+
+    public function test_selected_category_icon_is_persisted_when_editing(): void
+    {
+        $company = $this->createCompany('category-icon-edit.example.test');
+        app(CompanyContext::class)->set($company);
+
+        $category = Category::query()->create([
+            'name' => 'Electronics',
+            'slug' => 'electronics',
+            'is_active' => true,
+        ]);
+
+        Livewire::test(EditCategory::class, ['record' => $category->getRouteKey()])
+            ->fillForm(['icon' => 'heroicon-o-cpu-chip'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('heroicon-o-cpu-chip', $category->fresh()->icon);
     }
 
     public function test_storefront_uses_category_image_then_icon_then_initial(): void

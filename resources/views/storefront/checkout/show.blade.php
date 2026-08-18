@@ -240,14 +240,14 @@
                 @foreach ($items as $item)
                     <div class="flex justify-between gap-4 text-sm">
                         <span class="min-w-0 flex-1 truncate text-gray-600 dark:text-gray-300">{{ $item['product']->name }}{{ ($item['variant'] ?? null) ? ' ('.$item['variant']->label().')' : '' }} &times; {{ $item['quantity'] }}</span>
-                        <span class="shrink-0 font-semibold">BDT {{ number_format($item['subtotal'], 2) }}</span>
+                        <span class="shrink-0 font-semibold">BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }}</span>
                     </div>
                 @endforeach
             </div>
             <div class="mt-5 space-y-2 border-t border-gray-200 pt-5 text-sm dark:border-white/10">
                 <div class="flex justify-between text-gray-600 dark:text-gray-300">
                     <span>Subtotal</span>
-                    <span>BDT {{ number_format($subtotal, 2) }}</span>
+                    <span>BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }}</span>
                 </div>
                 <div class="flex justify-between text-gray-600 dark:text-gray-300">
                     <span>Parcel weight</span>
@@ -266,7 +266,7 @@
                 <div class="mt-4 rounded-lg border border-[var(--storefront-brand)]/30 bg-[var(--storefront-brand)]/5 px-4 py-3 text-sm leading-6 text-gray-700 dark:text-gray-200">
                     <div class="flex justify-between font-semibold">
                         <span>Advance payable online now</span>
-                        <span>BDT {{ number_format($advanceDue, 2) }}</span>
+                        <span>BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }}</span>
                     </div>
                     @if ($onlinePaymentAvailable ?? false)
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -283,7 +283,7 @@
             @if ($setting->new_customer_delivery_advance_enabled ?? true)
                 <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs leading-5 text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
                     <span class="font-semibold text-gray-900 dark:text-white">Weight-based rate:</span>
-                    first 1 kg BDT {{ number_format((float) $insideQuote['first_kg'], 2) }} inside Dhaka / BDT {{ number_format((float) $outsideQuote['first_kg'], 2) }} outside Dhaka, then BDT {{ number_format((float) $insideQuote['additional_rate'], 2) }} per additional started kg.
+                    first 1 kg BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }} inside Dhaka / BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }} outside Dhaka, then BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }} per additional started kg.
                 </div>
             @endif
 

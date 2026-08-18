@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -127,6 +128,69 @@ class StorefrontBannerTest extends TestCase
             ->assertOk()
             ->assertSee('storefront/slides/desktop.jpg', false)
             ->assertSee('storefront/slides/mobile.jpg', false);
+    }
+
+    public function test_multiple_banners_render_as_a_smooth_image_only_carousel(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banners-carousel.example.test');
+
+        foreach (['first', 'second'] as $index => $name) {
+            StorefrontSlide::query()->create([
+                'company_id' => $company->getKey(),
+                'image' => "storefront/slides/{$name}.jpg",
+                'heading' => "{$name} visible heading",
+                'subheading' => "{$name} visible subheading",
+                'cta_label' => "{$name} visible CTA",
+                'sort_order' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        $this->get('http://banners-carousel.example.test/')
+            ->assertOk()
+            ->assertSee('storefront/slides/first.jpg', false)
+            ->assertSee('storefront/slides/second.jpg', false)
+            ->assertSee('transform 700ms cubic-bezier(0.22, 1, 0.36, 1)', false)
+            ->assertSee('Pause banners')
+            ->assertDontSee('first visible heading')
+            ->assertDontSee('first visible subheading')
+            ->assertDontSee('first visible CTA');
+    }
+
+    public function test_marketplace_pro_uses_the_same_full_width_image_only_banner(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Marketplace Store', 'marketplace-banner.example.test');
+
+        StorefrontSetting::query()
+            ->where('company_id', $company->getKey())
+            ->update([
+                'storefront_theme' => StorefrontThemeRegistry::MARKETPLACE_PRO,
+                'homepage_template' => StorefrontThemeRegistry::MARKETPLACE_HERO,
+            ]);
+
+        StorefrontSlide::query()->create([
+            'company_id' => $company->getKey(),
+            'image' => 'storefront/slides/marketplace.jpg',
+            'heading' => 'Do not overlay this heading',
+            'cta_label' => 'Do not overlay this CTA',
+            'is_active' => true,
+        ]);
+
+        $this->get('http://marketplace-banner.example.test/')
+            ->assertOk()
+            ->assertSee('storefront/slides/marketplace.jpg', false)
+            ->assertSee('storefront-image-banner', false)
+            ->assertDontSee('Do not overlay this heading')
+            ->assertDontSee('Do not overlay this CTA')
+            ->assertDontSee('Better value on dependable products for your business');
+    }
+
+    public function test_banner_height_uses_the_requested_viewport_ratios(): void
+    {
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString('height: calc(100svh / 6);', $css);
+        $this->assertStringContainsString('height: calc(100svh / 3);', $css);
     }
 
     private function createPublishedStorefrontCompany(string $name, string $domain): Company

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Contracts\PaymentGatewayClient;
 use App\Models\StorefrontSetting;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -13,7 +14,7 @@ use RuntimeException;
  * - POST {base}/v1/payment/create  header "zini-api-key" -> {status, message, payment_url}
  * - POST {base}/v1/payment/verify  {invoice_id} -> {amount, invoice_id, payment_method, transaction_id, status}
  */
-class ZiniPayClient
+class ZiniPayClient implements PaymentGatewayClient
 {
     public const DEFAULT_BASE_URL = 'https://api.zinipay.com';
 
@@ -33,11 +34,19 @@ class ZiniPayClient
         float $amount,
         string $customerName,
         ?string $customerEmail,
+        string $customerPhone,
+        string $customerAddress,
         string $redirectUrl,
         string $cancelUrl,
         string $webhookUrl,
+        string $merchantReference,
         array $metadata = [],
     ): array {
+        // ZiniPay derives its own invoice id from the returned payment_url
+        // and needs no phone/address on the create call — $customerPhone,
+        // $customerAddress, and $merchantReference exist only because
+        // PayStation (the other PaymentGatewayClient implementation) needs
+        // them; ignored here to keep this interface shared.
         $response = Http::timeout(30)
             ->withHeaders(['zini-api-key' => $this->apiKey($setting)])
             ->post($this->baseUrl($setting).'/v1/payment/create', [
@@ -65,8 +74,10 @@ class ZiniPayClient
     /**
      * Server-side verification of an invoice. Returns the raw verify payload.
      */
-    public function verifyPayment(StorefrontSetting $setting, string $invoiceId): array
+    public function verifyPayment(StorefrontSetting $setting, string $invoiceId, ?string $transactionId = null): array
     {
+        // $transactionId is unused — ZiniPay's verify call only needs the
+        // invoice id; PayStation's retrive-transaction needs both.
         $response = Http::timeout(30)
             ->withHeaders(['zini-api-key' => $this->apiKey($setting)])
             ->post($this->baseUrl($setting).'/v1/payment/verify', [

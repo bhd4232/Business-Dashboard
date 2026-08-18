@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap');
+
+:root {
+  /* Admin (ZamZam ERP / Filament panel) */
+  --font-admin: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Storefront — Marketplace Pro (2026 modernization: Sora display + Inter body,
+     replacing the original Manrope + Source Sans 3 pairing) */
+  --font-storefront-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+  --font-storefront-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Type scale (admin) */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+
+  /* Type scale (storefront) */
+  --sf-text-xs: 12.5px;
+  --sf-text-sm: 13.5px;
+  --sf-text-base: 14.5px;
+  --sf-text-lg: 17px;
+  --sf-text-xl: 22px;
+  --sf-text-2xl: 26px;
+  --sf-text-3xl: 38px;
+
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+}
+
+/* The other 5 storefront themes each specify their own font pairing
+   (Space Grotesk/IBM Plex, Poppins/Nunito Sans, Archivo/Work Sans,
+   Source Serif 4/Source Sans 3) — see README "Storefront Theme System".
+   Not loaded here since only Marketplace Pro ships a built UI kit; a
+   theme's own specimen card links its fonts locally when needed. */

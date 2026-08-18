@@ -20,7 +20,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('slug');
             $table->string('driver')->default('manual');
-            $table->json('credentials')->nullable();
+            // Encrypted array casts persist an opaque base64 ciphertext, not JSON.
+            $table->text('credentials')->nullable();
             $table->json('settings')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

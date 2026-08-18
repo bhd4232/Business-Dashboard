@@ -72,12 +72,12 @@
             filterIcons(event.target);
         });
 
-        document.addEventListener('click', (event) => {
-            const selectedOption = event.target.closest(`${optionSelector}, [data-zz-category-icon-reset]`);
-
-            if (selectedOption) {
-                resetSearch(selectedOption.closest('[data-zz-category-icon-browser]'));
+        document.addEventListener('zz-reset-category-icon-search', (event) => {
+            if (! event.detail?.id) {
+                return;
             }
+
+            resetSearch(document.getElementById(event.detail.id));
         });
     })();
 </script>

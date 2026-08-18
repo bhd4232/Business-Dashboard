@@ -22,7 +22,7 @@ class ExpensesTable
                 TextColumn::make('category.name')->label('Category')->searchable()->sortable(),
                 TextColumn::make('account.name')->label('Account')->searchable()->sortable(),
                 TextColumn::make('expense_date')->date()->sortable(),
-                TextColumn::make('amount')->money('BDT')->sortable(),
+                TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT')->sortable(),
             ])
             ->filters([
                 SelectFilter::make('expense_category_id')->label('Category')->relationship('category', 'name')->searchable(),

@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Auth;
 
 class CustomerDueNotifications extends TableWidget
 {
-    protected int | string | array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 'full';
 
     protected static bool $isLazy = false;
 
@@ -55,7 +55,7 @@ class CustomerDueNotifications extends TableWidget
 
                 TextColumn::make('current_balance')
                     ->label('Due Amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->badge()
                     ->color('warning')
                     ->sortable(),

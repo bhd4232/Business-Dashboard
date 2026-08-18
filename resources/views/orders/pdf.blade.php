@@ -23,6 +23,8 @@
         .barcode { margin-top: 10px; text-align: right; }
         .footer { border-top: 1px solid #d1d5db; margin-top: 28px; padding-top: 12px; text-align: center; }
         .cut-slip { page-break-before: always; }
+        .cut-slip-brand { margin-bottom: 18px; }
+        .cut-slip-brand img { display: block; margin-bottom: 6px; max-height: 26.2pt; max-width: 48pt; object-fit: contain; }
     </style>
 </head>
 <body>
@@ -30,10 +32,11 @@
     @php($invoice = $invoice ?? \App\Services\CompanySettingsService::INVOICE_DEFAULTS)
     @php($showImages = (bool) ($invoice['show_images'] ?? true))
     @php($showWeight = (bool) ($invoice['show_weight'] ?? true))
+    @php($invoiceLogoPath = $company['logo_path'] ?? $company['dark_logo_path'] ?? null)
     <div class="top">
         <div class="brand">
-            @if (! empty($company['logo_path']))
-                <img src="{{ $company['logo_path'] }}" alt="{{ $company['name'] }}" style="max-height: 52px; max-width: 170px; margin-bottom: 8px;">
+            @if (filled($invoiceLogoPath))
+                <img src="{{ $invoiceLogoPath }}" alt="{{ $company['name'] }} logo" data-invoice-logo="main" style="max-height: 48.7pt; max-width: 90pt; margin-bottom: 8px; object-fit: contain;">
             @endif
             <h1>{{ $company['name'] }}</h1>
             <div class="muted">
@@ -88,20 +91,20 @@
                         <td class="right">{{ $item->product?->weight_kg ? rtrim(rtrim(number_format((float) $item->product->weight_kg, 3), '0'), '.').' kg' : '—' }}</td>
                     @endif
                     <td class="right">{{ $item->quantity }}</td>
-                    <td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $item->unit_price, 2) }}</td>
-                    <td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $item->subtotal, 2) }}</td>
+                    <td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td>
+                    <td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
     <table class="totals">
-        <tr><td>Subtotal</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->subtotal, 2) }}</td></tr>
-        <tr><td>Discount</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->discount, 2) }}</td></tr>
-        <tr><td>VAT</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->vat, 2) }}</td></tr>
-        <tr class="grand"><td>Total</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->total_amount, 2) }}</td></tr>
-        <tr><td>Paid</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->paid_amount, 2) }}</td></tr>
-        <tr><td>Due</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->due_amount, 2) }}</td></tr>
+        <tr><td>Subtotal</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr><td>Discount</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr><td>VAT</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr class="grand"><td>Total</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr><td>Paid</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
+        <tr><td>Due</td><td class="right">{{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td></tr>
     </table>
 
     <div class="footer">
@@ -114,13 +117,18 @@
 
     @if (! empty($invoice['show_slip']))
         <div class="cut-slip">
+            <div class="cut-slip-brand">
+                @if (filled($invoiceLogoPath))
+                    <img src="{{ $invoiceLogoPath }}" alt="{{ $company['name'] }} logo" data-invoice-logo="slip">
+                @endif
+                <strong>{{ $company['name'] }}</strong>
+            </div>
             <h2>Courier Cut-Slip</h2>
-            <p><strong>{{ $company['name'] }}</strong></p>
             <p>Invoice: {{ $order->order_number }}</p>
             <p>Customer: {{ $order->customer?->name ?? $order->customer_name }}</p>
             <p>Phone: {{ $order->customer?->phone }}</p>
             <p>Address: {{ $order->customer?->address }}</p>
-            <p>COD: {{ $company['currency'] ?? 'BDT' }} {{ number_format((float) $order->due_amount, 2) }}</p>
+            <p>COD: {{ $company['currency'] ?? 'BDT' }} {{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</p>
             @if (! empty($invoice['show_barcode']))
                 <div>{!! \App\Support\Code128::svg($order->order_number, 40, 1) !!}</div>
             @endif

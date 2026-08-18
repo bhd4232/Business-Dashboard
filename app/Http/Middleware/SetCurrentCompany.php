@@ -27,8 +27,9 @@ class SetCurrentCompany
         }
 
         $selectedCompany = $request->session()->get('current_company_id');
+        $selectionIsExplicit = (bool) $request->session()->get('current_company_selection_explicit', false);
 
-        if ($user->isSuperAdmin() && ($selectedCompany === null || $selectedCompany === 'all')) {
+        if ($user->isSuperAdmin() && $selectedCompany === 'all' && $selectionIsExplicit) {
             $request->session()->put('current_company_id', 'all');
             $context->all();
 
@@ -39,7 +40,16 @@ class SetCurrentCompany
 
         if ($company) {
             $request->session()->put('current_company_id', $company->getKey());
+
+            if (! is_numeric($selectedCompany) || (int) $selectedCompany !== (int) $company->getKey()) {
+                $request->session()->put('current_company_selection_explicit', false);
+            }
+
             $context->set($company);
+        } elseif ($user->isSuperAdmin()) {
+            $request->session()->put('current_company_id', 'all');
+            $request->session()->put('current_company_selection_explicit', false);
+            $context->all();
         } else {
             $context->none();
         }
@@ -59,15 +69,12 @@ class SetCurrentCompany
             }
         }
 
-        if (! $user->isSuperAdmin()) {
-            $defaultCompany = $user->companies()
-                ->wherePivot('is_default', true)
-                ->where('companies.is_active', true)
-                ->first();
+        $defaultCompany = $user->defaultCompany();
 
-            return $defaultCompany ?: $query->first();
+        if ($defaultCompany) {
+            return $defaultCompany;
         }
 
-        return Company::query()->where('is_active', true)->orderBy('name')->first();
+        return $user->isSuperAdmin() ? null : $query->first();
     }
 }

@@ -16,7 +16,7 @@ class ExpenseInfolist
                 TextEntry::make('category.name')->label('Category'),
                 TextEntry::make('account.name')->label('Account'),
                 TextEntry::make('expense_date')->date(),
-                TextEntry::make('amount')->money('BDT'),
+                TextEntry::make('amount')->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('reference'),
             ])->columns(2),
             TextEntry::make('note')->columnSpanFull(),

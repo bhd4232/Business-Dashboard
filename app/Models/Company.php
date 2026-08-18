@@ -150,18 +150,11 @@ class Company extends Model
             return null;
         }
 
-        return static::query()->firstOrCreate(
-            ['slug' => 'main-company'],
-            [
-                'name' => 'Main Company',
-                'business_type' => 'general',
-                'currency' => 'BDT',
-                'timezone' => config('app.timezone', 'Asia/Dhaka'),
-                'invoice_prefix' => 'MAIN',
-                'is_active' => true,
-                'settings' => [],
-            ],
-        );
+        return static::query()
+            ->where('is_active', true)
+            ->oldest('id')
+            ->first()
+            ?? static::query()->oldest('id')->first();
     }
 
     public static function defaultCompanyId(): ?int

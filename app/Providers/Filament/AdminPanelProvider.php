@@ -11,6 +11,7 @@ use App\Filament\Widgets\SalesPurchaseTrend;
 use App\Filament\Widgets\TopBusinessPerformers;
 use App\Http\Middleware\SetCurrentCompany;
 use App\Http\Middleware\SyncAppUpdates;
+use App\Models\Company;
 use App\Services\AppUpdateService;
 use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
@@ -79,9 +80,9 @@ class AdminPanelProvider extends PanelProvider
                             ]),
                     ]),
             ])
-            ->brandName(fn (): string => app(CompanySettingsService::class)->name())
-            ->brandLogo(fn (): ?string => app(CompanySettingsService::class)->logoUrl())
-            ->darkModeBrandLogo(fn (): ?string => app(CompanySettingsService::class)->darkLogoUrl())
+            ->brandName(fn (): string => app(CompanySettingsService::class)->name($this->brandCompany()))
+            ->brandLogo(fn (): ?string => app(CompanySettingsService::class)->logoUrl($this->brandCompany()))
+            ->darkModeBrandLogo(fn (): ?string => app(CompanySettingsService::class)->darkLogoUrl(company: $this->brandCompany()))
             ->brandLogoHeight('2.25rem')
             ->colors([
                 // Base/fallback palette — used for "All Companies" (no single
@@ -127,6 +128,24 @@ class AdminPanelProvider extends PanelProvider
                         }
 
                         .dark .fi-page-header-main-ctn > .fi-header {
+                            background-color: rgb(17 24 39 / 0.94);
+                            border-bottom-color: rgb(255 255 255 / 0.1);
+                        }
+
+                        .zz-storefront-settings-custom-header,
+                        .zz-meta-custom-header {
+                            position: sticky;
+                            top: 4rem;
+                            z-index: 20;
+                            margin-inline: -1rem;
+                            padding: 1rem;
+                            background-color: rgb(249 250 251 / 0.94);
+                            backdrop-filter: blur(10px);
+                            border-bottom: 1px solid rgb(229 231 235 / 0.75);
+                        }
+
+                        .dark .zz-storefront-settings-custom-header,
+                        .dark .zz-meta-custom-header {
                             background-color: rgb(17 24 39 / 0.94);
                             border-bottom-color: rgb(255 255 255 / 0.1);
                         }
@@ -201,6 +220,11 @@ class AdminPanelProvider extends PanelProvider
                         }
 
                         @media (max-width: 640px) {
+                            .zz-storefront-settings-custom-header,
+                            .zz-meta-custom-header {
+                                padding: 0.625rem 1rem 1rem;
+                            }
+
                             .zz-company-switcher {
                                 width: min(12rem, 46vw);
                             }
@@ -415,5 +439,16 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
                 SyncAppUpdates::class,
             ]);
+    }
+
+    protected function brandCompany(): ?Company
+    {
+        $context = app(CompanyContext::class);
+
+        if ($context->hasCompany() && ! $context->isAllCompanies()) {
+            return $context->company();
+        }
+
+        return auth()->guest() ? Company::defaultCompany() : null;
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\GeneratesSequentialNumber;
 use App\Services\PurchaseWorkflowService;
+use App\Support\MoneyFormatter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -184,7 +185,7 @@ class Purchase extends Model
     {
         return collect($this->custom_costs ?? [])
             ->filter(fn (array $cost): bool => filled($cost['label'] ?? null))
-            ->map(fn (array $cost): string => ($cost['label'] ?? '').': BDT '.number_format((float) ($cost['amount'] ?? 0), 2))
+            ->map(fn (array $cost): string => ($cost['label'] ?? '').': BDT '.MoneyFormatter::number((float) ($cost['amount'] ?? 0)))
             ->implode('; ') ?: '-';
     }
 
@@ -198,7 +199,7 @@ class Purchase extends Model
         return $this->items()
             ->with('product')
             ->get()
-            ->map(fn (PurchaseItem $item): string => ($item->product?->name ?? 'Product').': BDT '.number_format((float) $item->landed_unit_cost, 2))
+            ->map(fn (PurchaseItem $item): string => ($item->product?->name ?? 'Product').': BDT '.MoneyFormatter::number((float) $item->landed_unit_cost))
             ->implode('; ') ?: '-';
     }
 

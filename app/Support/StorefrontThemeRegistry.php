@@ -8,6 +8,8 @@ final class StorefrontThemeRegistry
 
     public const MARKETPLACE_PRO = 'marketplace_pro';
 
+    public const NOOR_SOLAR = 'noor_solar';
+
     public const BUILT_IN_DEFAULT = 'default';
 
     public const MARKETPLACE_HERO = 'hero_driven';
@@ -15,6 +17,8 @@ final class StorefrontThemeRegistry
     public const MARKETPLACE_CAMPAIGN = 'campaign_driven';
 
     public const MARKETPLACE_COMPACT = 'compact_dense';
+
+    public const NOOR_SOLAR_ENGINEERED = 'solar_engineered';
 
     public static function themes(): array
     {
@@ -43,6 +47,17 @@ final class StorefrontThemeRegistry
                     self::MARKETPLACE_HERO => 'storefront.themes.marketplace-pro.home',
                     self::MARKETPLACE_CAMPAIGN => 'storefront.themes.marketplace-pro.home',
                     self::MARKETPLACE_COMPACT => 'storefront.themes.marketplace-pro.home',
+                ],
+            ],
+            self::NOOR_SOLAR => [
+                'label' => 'Noor Solar Energy',
+                'description' => 'A premium solar commerce theme with application-led discovery, ERP stock signals, project quotation paths, and an interactive module lab.',
+                'templates' => [
+                    self::NOOR_SOLAR_ENGINEERED => 'Solar engineered',
+                ],
+                'default_template' => self::NOOR_SOLAR_ENGINEERED,
+                'views' => [
+                    self::NOOR_SOLAR_ENGINEERED => 'storefront.themes.noor-solar.home',
                 ],
             ],
         ];

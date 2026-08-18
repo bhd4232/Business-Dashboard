@@ -3,10 +3,9 @@
 namespace App\Filament\Resources\StorefrontSettings\Pages;
 
 use App\Filament\Concerns\HasStickyHeaderFormActions;
-use App\Filament\Resources\StorefrontPages\StorefrontPageResource;
+use App\Filament\Resources\StorefrontSettings\Pages\Concerns\HasStorefrontSettingsNavigation;
 use App\Filament\Resources\StorefrontSettings\StorefrontSettingResource;
 use App\Models\Company;
-use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
@@ -14,10 +13,20 @@ use Illuminate\Validation\ValidationException;
 class EditStorefrontSetting extends EditRecord
 {
     use HasStickyHeaderFormActions;
+    use HasStorefrontSettingsNavigation;
 
     protected static string $resource = StorefrontSettingResource::class;
 
+    protected string $view = 'filament.resources.storefront-settings.settings-page';
+
     protected ?bool $hasDatabaseTransactions = true;
+
+    public function mount(int|string $record): void
+    {
+        parent::mount($record);
+
+        $this->normalizeActiveSection();
+    }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -86,15 +95,6 @@ class EditStorefrontSetting extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            StorefrontSettingResource::syncWooCommerceAction(),
-            Action::make('managePages')
-                ->label('Manage Pages')
-                ->icon('heroicon-o-document-text')
-                ->url(StorefrontPageResource::getUrl('index')),
-            Action::make('createPage')
-                ->label('New Page')
-                ->icon('heroicon-o-plus')
-                ->url(StorefrontPageResource::getUrl('create')),
             $this->getStickySaveFormAction(),
         ];
     }

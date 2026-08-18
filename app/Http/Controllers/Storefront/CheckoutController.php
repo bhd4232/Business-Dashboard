@@ -13,6 +13,7 @@ use App\Models\StorefrontCustomerActivity;
 use App\Models\StorefrontPayment;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
+use App\Services\PaymentGatewayResolver;
 use App\Services\StorefrontCart;
 use App\Services\StorefrontCheckoutPolicyService;
 use App\Services\StorefrontCustomerActivityService;
@@ -22,7 +23,6 @@ use App\Services\StorefrontMetaDispatchService;
 use App\Services\StorefrontMetaTrackingService;
 use App\Services\StorefrontPaymentEligibilityService;
 use App\Services\StorefrontPaymentService;
-use App\Services\ZiniPayClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -37,7 +37,7 @@ class CheckoutController extends Controller
     public function __construct(
         protected CompanyContext $context,
         protected StorefrontCart $cart,
-        protected ZiniPayClient $zinipay,
+        protected PaymentGatewayResolver $gateways,
         protected StorefrontCustomerActivityService $activities,
         protected StorefrontCheckoutPolicyService $checkoutPolicies,
         protected StorefrontDeliveryService $delivery,
@@ -210,7 +210,7 @@ class CheckoutController extends Controller
 
     protected function assertOnlinePaymentAvailable(StorefrontSetting $setting, string $message): void
     {
-        if (! ZiniPayClient::isConfigured($setting)) {
+        if (! $this->gateways->isConfigured($setting)) {
             throw ValidationException::withMessages(['payment' => $message.' No active online payment gateway is available right now.']);
         }
     }
@@ -235,7 +235,7 @@ class CheckoutController extends Controller
         $payment = StorefrontPayment::query()->create([
             'company_id' => $company->getKey(),
             'order_id' => null,
-            'gateway' => 'zinipay',
+            'gateway' => $setting->online_payment_gateway ?: 'zinipay',
             'purpose' => StorefrontPayment::PURPOSE_CHECKOUT_ADVANCE,
             'amount' => $decision['required_advance'],
             'status' => StorefrontPayment::STATUS_PENDING,
@@ -267,15 +267,24 @@ class CheckoutController extends Controller
             ? route('storefront.preview.checkout.show', $previewSlug)
             : route('storefront.checkout.show');
 
+        $gateway = $setting->online_payment_gateway ?: 'zinipay';
+        // Guaranteed unique per payment; used as PayStation's own
+        // invoice_number since PayStation never echoes one back (ZiniPay
+        // ignores this and derives its own invoice id instead).
+        $merchantReference = (string) $payment->getKey();
+
         try {
-            $created = $this->zinipay->createPayment(
+            $created = $this->gateways->forSetting($setting)->createPayment(
                 $setting,
                 $decision['required_advance'],
                 $data['name'],
                 $data['email'],
+                $data['phone'],
+                $data['address'],
                 $redirectUrl,
                 $cancelUrl,
-                webhookUrl: route('zinipay.webhook', $payment),
+                webhookUrl: route($gateway.'.webhook', $payment),
+                merchantReference: $merchantReference,
                 metadata: ['payment_id' => $payment->getKey(), 'purpose' => StorefrontPayment::PURPOSE_CHECKOUT_ADVANCE],
             );
         } catch (\Throwable $exception) {
@@ -336,18 +345,23 @@ class CheckoutController extends Controller
 
     public function paymentReturn(Request $request, StorefrontPayment $payment): RedirectResponse
     {
-        abort_unless($request->hasValidSignature(), 403);
+        // PayStation appends invoice_number/trx_id onto this signed URL
+        // when it redirects the browser back — those weren't part of the
+        // originally-signed query string, so a plain hasValidSignature()
+        // would reject every real PayStation return. Ignoring just those
+        // two param names is a no-op for ZiniPay (which never appends them).
+        abort_unless($request->hasValidSignatureWhileIgnoring(['invoice_number', 'trx_id']), 403);
         [$company, $setting] = $this->domainStorefront($request);
 
-        return $this->completePaymentReturn($payment, $company, $setting);
+        return $this->completePaymentReturn($payment, $company, $setting, transactionId: $request->query('trx_id'));
     }
 
     public function paymentReturnPreview(Request $request, Company $company, StorefrontPayment $payment): RedirectResponse
     {
-        abort_unless($request->hasValidSignature(), 403);
+        abort_unless($request->hasValidSignatureWhileIgnoring(['invoice_number', 'trx_id']), 403);
         $setting = $this->previewStorefront($company);
 
-        return $this->completePaymentReturn($payment, $company, $setting, $company->slug);
+        return $this->completePaymentReturn($payment, $company, $setting, $company->slug, $request->query('trx_id'));
     }
 
     protected function completePaymentReturn(
@@ -355,11 +369,12 @@ class CheckoutController extends Controller
         Company $company,
         StorefrontSetting $setting,
         ?string $previewSlug = null,
+        ?string $transactionId = null,
     ): RedirectResponse {
         abort_unless($payment->company_id === $company->getKey(), 404);
 
         try {
-            $order = $this->payments->verifyAndFinalize($payment, $setting);
+            $order = $this->payments->verifyAndFinalize($payment, $setting, transactionId: $transactionId);
         } catch (\Throwable $exception) {
             Log::warning('Storefront payment return could not be finalized', [
                 'payment' => $payment->getKey(),
@@ -413,7 +428,7 @@ class CheckoutController extends Controller
             'items' => $items,
             'subtotal' => $this->cart->subtotal($company),
             'advanceDue' => self::advanceDue($items),
-            'onlinePaymentAvailable' => ZiniPayClient::isConfigured($setting),
+            'onlinePaymentAvailable' => $this->gateways->isConfigured($setting),
             'insideQuote' => $insideQuote,
             'outsideQuote' => $outsideQuote,
             'insideDhakaKeywords' => $this->deliveryAreas->keywords($setting),

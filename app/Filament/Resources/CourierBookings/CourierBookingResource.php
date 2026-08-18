@@ -16,6 +16,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -26,6 +27,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema as SchemaFacade;
+use Illuminate\Validation\ValidationException;
 
 class CourierBookingResource extends Resource
 {
@@ -38,6 +40,8 @@ class CourierBookingResource extends Resource
     protected static ?string $navigationLabel = 'Bookings';
 
     protected static ?int $navigationSort = 2;
+
+    protected static bool $shouldRegisterNavigation = false;
 
     protected static ?string $recordTitleAttribute = 'tracking_id';
 
@@ -62,8 +66,28 @@ class CourierBookingResource extends Resource
                 TextColumn::make('provider.name')
                     ->label('Provider'),
                 TextColumn::make('cod_amount')
-                    ->money('BDT')
+                    ->moneyWithoutTrailingZeroes('BDT')
                     ->sortable(),
+                TextColumn::make('delivery_fee_charged')
+                    ->label('Delivery Fee')
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('delivery_cost')
+                    ->label('Courier Cost')
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('cod_charge_amount')
+                    ->label('COD Charge')
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('margin')
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->placeholder('-')
+                    ->color(fn (?string $state): ?string => $state === null ? null : ((float) $state >= 0 ? 'success' : 'danger'))
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => CourierBooking::STATUSES[$state ?? ''] ?? str($state)->headline()->toString())
@@ -75,12 +99,17 @@ class CourierBookingResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('status')
-                    ->options(CourierBooking::STATUSES),
+                    ->options(CourierBooking::STATUSES)
+                    ->multiple(),
+                SelectFilter::make('courier_provider_id')
+                    ->label('Provider')
+                    ->relationship('provider', 'name'),
             ])
             ->recordActions([
                 ViewAction::make(),
                 self::statusAction(),
                 self::syncSteadfastAction(),
+                self::requestReturnAction(),
                 self::trackAction(),
                 self::labelAction(),
                 self::cancelAction(),
@@ -103,9 +132,23 @@ class CourierBookingResource extends Resource
                     TextEntry::make('recipient_name'),
                     TextEntry::make('recipient_phone'),
                     TextEntry::make('recipient_address'),
-                    TextEntry::make('cod_amount')->money('BDT'),
+                    TextEntry::make('cod_amount')->moneyWithoutTrailingZeroes('BDT'),
                 ])
                 ->columns(2),
+
+            Section::make('Delivery Economics')
+                ->columnSpanFull()
+                ->schema([
+                    TextEntry::make('delivery_fee_charged')->label('Delivery Fee')->moneyWithoutTrailingZeroes('BDT')->placeholder('Not configured'),
+                    TextEntry::make('delivery_cost')->label('Courier Cost')->moneyWithoutTrailingZeroes('BDT')->placeholder('Not configured'),
+                    TextEntry::make('cod_charge_amount')->label('COD Charge')->moneyWithoutTrailingZeroes('BDT')->placeholder('Not configured'),
+                    TextEntry::make('margin')
+                        ->moneyWithoutTrailingZeroes('BDT')
+                        ->placeholder('Not configured')
+                        ->color(fn (?string $state): ?string => $state === null ? null : ((float) $state >= 0 ? 'success' : 'danger')),
+                ])
+                ->columns(4)
+                ->collapsible(),
 
             Section::make('Status Logs')
                 ->columnSpanFull()
@@ -172,6 +215,39 @@ class CourierBookingResource extends Resource
             ->visible(fn (CourierBooking $record): bool => in_array($record->provider?->driver, CourierProvider::API_DRIVERS, true))
             ->action(function (CourierBooking $record): void {
                 app(CourierManager::class)->sync($record);
+            });
+    }
+
+    public static function requestReturnAction(): Action
+    {
+        return Action::make('requestReturn')
+            ->label('Request return')
+            ->icon('heroicon-o-arrow-uturn-left')
+            ->color('warning')
+            ->schema([
+                Textarea::make('reason')
+                    ->rows(3)
+                    ->helperText('Optional — why this parcel is being returned.'),
+            ])
+            ->visible(fn (CourierBooking $record): bool => $record->provider?->driver === CourierProvider::DRIVER_STEADFAST
+                && ! in_array($record->status, [CourierBooking::STATUS_RETURNED, CourierBooking::STATUS_CANCELLED], true))
+            ->action(function (CourierBooking $record, array $data): void {
+                try {
+                    app(CourierService::class)->requestReturn($record, $data);
+
+                    Notification::make()
+                        ->title('Return requested')
+                        ->success()
+                        ->send();
+                } catch (\Throwable $exception) {
+                    Notification::make()
+                        ->title('Return request failed')
+                        ->body($exception instanceof ValidationException
+                            ? collect($exception->errors())->flatten()->implode(' ')
+                            : $exception->getMessage())
+                        ->danger()
+                        ->send();
+                }
             });
     }
 

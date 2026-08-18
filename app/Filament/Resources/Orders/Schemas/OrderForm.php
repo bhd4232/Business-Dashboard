@@ -6,6 +6,7 @@ use App\Filament\Forms\Components\CustomerSourceSelect;
 use App\Filament\Forms\Components\CustomerTypeSelect;
 use App\Filament\Forms\Components\EmailInput;
 use App\Filament\Forms\Components\PhoneInput;
+use App\Models\CourierProvider;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -96,6 +97,7 @@ class OrderForm
                                 }
 
                                 self::setShippingFee($get, $set, $customer);
+                                self::runExternalCourierFraudCheck($set, $customer, bypassCache: false);
                             }),
 
                         Hidden::make('customer_name'),
@@ -118,14 +120,7 @@ class OrderForm
                                             return;
                                         }
 
-                                        $result = app(ExternalCourierFraudService::class)->checkByPhone(
-                                            $customer->phone,
-                                            app(CompanyContext::class)->id() ?? $customer->company_id,
-                                            $customer->getKey(),
-                                            bypassCache: true,
-                                        );
-
-                                        $set('external_fraud_result', $result);
+                                        self::runExternalCourierFraudCheck($set, $customer, bypassCache: true);
                                     }),
                             ])->grow(false),
 
@@ -146,15 +141,37 @@ class OrderForm
                                     default => ['#22c55e', "Good — {$ratio}% success"],
                                 };
 
-                                $lines = collect($result)
+                                $rows = collect($result)
                                     ->except('overall_success_ratio')
-                                    ->map(fn (array $stats, string $driver): string => e(ucfirst($driver).": {$stats['success']} success / {$stats['cancel']} cancel (of {$stats['total']})"))
-                                    ->implode('<br>');
+                                    ->map(function (array $stats, string $driver): string {
+                                        $total = max(1, (int) $stats['total']);
+                                        $successRate = round(($stats['success'] / $total) * 100, 1);
+
+                                        return '<tr>'
+                                            .'<td style="padding:2px 10px 2px 0;font-weight:600;">'.e(ucfirst($driver)).'</td>'
+                                            .'<td style="padding:2px 10px;text-align:right;">'.e((string) $stats['total']).'</td>'
+                                            .'<td style="padding:2px 10px;text-align:right;color:#22c55e;">'.e((string) $stats['success']).'</td>'
+                                            .'<td style="padding:2px 10px;text-align:right;color:#ef4444;">'.e((string) $stats['cancel']).'</td>'
+                                            .'<td style="padding:2px 0;text-align:right;">'.e((string) $successRate).'%</td>'
+                                            .'</tr>';
+                                    })
+                                    ->implode('');
+
+                                $table = $rows !== ''
+                                    ? '<table style="font-size:0.8125rem;opacity:0.85;border-collapse:collapse;">'
+                                        .'<thead><tr style="opacity:0.6;">'
+                                        .'<th style="text-align:left;padding:2px 10px 2px 0;">Courier</th>'
+                                        .'<th style="padding:2px 10px;text-align:right;">Total</th>'
+                                        .'<th style="padding:2px 10px;text-align:right;">Delivered</th>'
+                                        .'<th style="padding:2px 10px;text-align:right;">Undelivered</th>'
+                                        .'<th style="padding:2px 0;text-align:right;">Confidence</th>'
+                                        .'</tr></thead><tbody>'.$rows.'</tbody></table>'
+                                    : '';
 
                                 return new HtmlString(
-                                    '<div style="display:flex;flex-direction:column;gap:2px;font-size:0.875rem;">'
+                                    '<div style="display:flex;flex-direction:column;gap:4px;font-size:0.875rem;">'
                                     .'<span style="color:'.$color.';font-weight:600;">'.e($label).'</span>'
-                                    .($lines !== '' ? '<span style="opacity:0.75;">'.$lines.'</span>' : '')
+                                    .$table
                                     .'</div>'
                                 );
                             }),
@@ -190,6 +207,21 @@ class OrderForm
                             ->helperText(fn (?Order $record): string => $record?->exists
                                 ? 'Use Change status or courier actions to update delivery progress.'
                                 : 'Controls courier progress shown on storefront tracking.'),
+
+                        Select::make('courier_provider_id')
+                            ->label('Courier')
+                            ->options(fn (): array => CourierProvider::query()
+                                ->where('company_id', app(CompanyContext::class)->id())
+                                ->where('is_active', true)
+                                ->orderBy('name')
+                                ->get()
+                                ->mapWithKeys(fn (CourierProvider $provider): array => [
+                                    $provider->getKey() => $provider->name.($provider->is_default ? ' (Default)' : ''),
+                                ])
+                                ->all())
+                            ->placeholder('None')
+                            ->native(false)
+                            ->helperText('Pre-selects which courier "Book courier" defaults to. Pre-filled from the default courier on new orders; change it anytime before booking.'),
                     ])
                     ->columns(2)
                     ->collapsible()
@@ -356,7 +388,19 @@ class OrderForm
                             ->minValue(0)
                             ->required()
                             ->live(onBlur: true)
-                            ->afterStateUpdated(fn (Get $get, Set $set) => self::setOrderTotals($get, $set)),
+                            ->afterStateUpdated(fn (Get $get, Set $set) => self::setOrderTotals($get, $set))
+                            // Once the order exists, paid_amount is derived from the
+                            // Payments History ledger (OrderPayment rows, recomputed by
+                            // Order::recalculatePaidAmount()) shown on the order's view
+                            // page — corrections go through that ledger (add/edit/delete
+                            // a payment row) instead of typing a new total here, so the
+                            // two write paths can't silently disagree. Still a normal
+                            // editable field at creation time, which auto-seeds the first
+                            // ledger row (see Order::booted()'s `created` hook).
+                            ->readOnly(fn (string $operation): bool => $operation === 'edit')
+                            ->helperText(fn (string $operation): ?string => $operation === 'edit'
+                                ? 'Managed from Payments History on the order view page.'
+                                : null),
 
                         TextInput::make('due_amount')
                             ->numeric()
@@ -421,5 +465,27 @@ class OrderForm
         $set('shipping_zone', $result['zone']);
         $set('shipping_fee', $result['fee']);
         self::setOrderTotals($get, $set);
+    }
+
+    /**
+     * Shared by both the manual "Courier Fraud Check" button and the
+     * automatic check that runs when a customer is selected. The automatic
+     * path uses the 24h cache (bypassCache: false) so switching between
+     * customers while building an order never spams the courier portals.
+     */
+    protected static function runExternalCourierFraudCheck(Set $set, ?Customer $customer, bool $bypassCache): void
+    {
+        if (! $customer?->phone) {
+            return;
+        }
+
+        $result = app(ExternalCourierFraudService::class)->checkByPhone(
+            $customer->phone,
+            app(CompanyContext::class)->id() ?? $customer->company_id,
+            $customer->getKey(),
+            bypassCache: $bypassCache,
+        );
+
+        $set('external_fraud_result', $result);
     }
 }

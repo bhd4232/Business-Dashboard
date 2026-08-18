@@ -34,9 +34,9 @@ class PayoutsRelationManager extends RelationManager
     {
         return $table->columns([
             TextColumn::make('investor.name'),
-            TextColumn::make('investment_amount')->money('BDT'),
-            TextColumn::make('profit_share_amount')->money('BDT'),
-            TextColumn::make('total_payout')->money('BDT'),
+            TextColumn::make('investment_amount')->moneyWithoutTrailingZeroes('BDT'),
+            TextColumn::make('profit_share_amount')->moneyWithoutTrailingZeroes('BDT'),
+            TextColumn::make('total_payout')->moneyWithoutTrailingZeroes('BDT'),
             TextColumn::make('recipient_name'),
             TextColumn::make('payment_status')->badge(),
             TextColumn::make('paid_at')->date()->placeholder('-'),

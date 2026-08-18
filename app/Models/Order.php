@@ -11,12 +11,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
 class Order extends Model
 {
-    use BelongsToCompany, GeneratesSequentialNumber;
+    use BelongsToCompany, GeneratesSequentialNumber, SoftDeletes;
 
     public const STATUS_DRAFT = 'draft';
 
@@ -122,11 +123,14 @@ class Order extends Model
 
     public const SOURCE_CHAT = 'chat';
 
+    public const SOURCE_OFFER = 'offer';
+
     public const SOURCES = [
         self::SOURCE_ADMIN => 'Admin',
         self::SOURCE_STOREFRONT => 'Storefront',
         self::SOURCE_CRM => 'CRM',
         self::SOURCE_CHAT => 'Chat',
+        self::SOURCE_OFFER => 'Offer',
     ];
 
     protected $fillable = [
@@ -145,6 +149,7 @@ class Order extends Model
         'due_amount',
         'status',
         'delivery_status',
+        'courier_provider_id',
         'source',
         'note',
     ];
@@ -170,6 +175,17 @@ class Order extends Model
             $order->source ??= self::SOURCE_ADMIN;
             $order->customer_name = $order->customer?->name ?? $order->customer_name;
 
+            // Pre-assigns the company's default courier (Courier Providers →
+            // "Set as default") to every new order regardless of where it
+            // was created — storefront checkout and admin-created orders
+            // both go through Order::create(), so this one hook covers
+            // both. Purely a preference for whoever books the courier
+            // later; it doesn't book anything by itself, and can still be
+            // changed on the order's Delivery Status section before booking.
+            if ($order->courier_provider_id === null) {
+                $order->courier_provider_id = CourierProvider::defaultForCompany($order->company_id)?->getKey();
+            }
+
             if ($order->shipping_zone === null && $order->company) {
                 $fee = app(ShippingFeeService::class)->feeFor($order->customer?->address, $order->company);
                 $order->shipping_zone = $fee['zone'];
@@ -179,6 +195,26 @@ class Order extends Model
 
         static::saving(function (Order $order): void {
             $order->customer_name = $order->customer?->name ?? $order->customer_name;
+        });
+
+        static::created(function (Order $order): void {
+            // Seeds one OrderPayment row from whatever was typed into the
+            // one-field "Paid Amount" input at creation time, so the new
+            // Payments History ledger has a starting entry instead of
+            // showing an empty history next to a non-zero paid_amount.
+            // OrderPayment::saved() calls recalculatePaidAmount() right
+            // back, which is a harmless no-op here since the sum already
+            // matches what was just submitted.
+            if ((float) $order->paid_amount > 0 && Schema::hasTable('order_payments')) {
+                $order->payments()->create([
+                    'company_id' => $order->company_id,
+                    'type' => OrderPayment::TYPE_ADVANCE,
+                    'method' => 'cash',
+                    'amount' => $order->paid_amount,
+                    'note' => 'Recorded at order creation.',
+                    'paid_at' => $order->order_date ?? now()->toDateString(),
+                ]);
+            }
         });
 
         static::updated(function (Order $order): void {
@@ -214,11 +250,38 @@ class Order extends Model
             app(OrderWorkflowService::class)->deleteStockMovements($order);
             app(OrderWorkflowService::class)->syncCustomerBalance($order);
         });
+
+        static::restored(function (Order $order): void {
+            // Moving an accounted order to trash releases its stock and due
+            // contribution in the deleted hook above. Restoring must rebuild
+            // those business effects, not only clear the deleted_at column.
+            $order->syncTotalsStockAndCustomerBalance();
+        });
+
+        static::forceDeleting(function (Order $order): void {
+            // Courier bookings intentionally use a restrictive foreign key so
+            // they cannot be orphaned accidentally. A confirmed permanent
+            // deletion owns that cleanup and lets the booking's child logs and
+            // returns follow their existing cascade rules.
+            $order->courierBookings()
+                ->withoutGlobalScopes()
+                ->eachById(fn (CourierBooking $booking): bool => $booking->delete());
+        });
     }
 
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(OrderPayment::class);
+    }
+
+    public function costs(): HasMany
+    {
+        return $this->hasMany(OrderCost::class);
     }
 
     public function storefrontPayments(): HasMany
@@ -239,6 +302,17 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * The courier this order is assigned to book through — pre-filled from
+     * the company's default courier on creation, editable until the order
+     * is actually booked. Distinct from `latestCourierBooking()->provider`,
+     * which only exists once a booking has actually been made.
+     */
+    public function courierProvider(): BelongsTo
+    {
+        return $this->belongsTo(CourierProvider::class);
     }
 
     public function vouchers(): BelongsToMany
@@ -306,6 +380,52 @@ class Order extends Model
     public function syncCustomerBalance(): void
     {
         app(OrderWorkflowService::class)->syncCustomerBalance($this);
+    }
+
+    /**
+     * Keeps paid_amount/due_amount in sync with the sum of this order's
+     * OrderPayment ledger rows — the same forceFill+saveQuietly pattern
+     * OrderWorkflowService::sync() and Customer::syncCurrentBalance()
+     * already use, so this never re-triggers the `saved` observer above.
+     * Called from OrderPayment's own booted() hooks whenever a payment row
+     * is added, edited, or deleted.
+     */
+    public function recalculatePaidAmount(): void
+    {
+        $paid = (float) $this->payments()->sum('amount');
+        $due = max((float) $this->total_amount - $paid, 0);
+
+        if ((float) $this->paid_amount != $paid || (float) $this->due_amount != $due) {
+            $this->forceFill([
+                'paid_amount' => $paid,
+                'due_amount' => $due,
+            ])->saveQuietly();
+        }
+    }
+
+    /**
+     * Order-level cost total from the manual Associated Costs ledger
+     * (OrderCost — courier delivery cost, COD charge, purchase cost,
+     * other). Does not include OrderItem::unit_cost (per-line COGS),
+     * which profit() sums separately.
+     */
+    public function totalCost(): float
+    {
+        return (float) $this->costs()->sum('amount');
+    }
+
+    /**
+     * total_amount minus both cost layers: per-line COGS
+     * (OrderItem::unit_cost x quantity, the product's own cost basis) and
+     * the manual Associated Costs ledger. Mirrors Nuport's order-level
+     * profitability view, which this app didn't otherwise surface.
+     */
+    public function profit(): float
+    {
+        $cogs = $this->items()->get()
+            ->sum(fn (OrderItem $item): float => (int) $item->quantity * (float) $item->unit_cost);
+
+        return (float) $this->total_amount - $cogs - $this->totalCost();
     }
 
     public function isAccounted(): bool

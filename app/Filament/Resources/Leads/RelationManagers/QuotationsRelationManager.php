@@ -28,7 +28,7 @@ class QuotationsRelationManager extends RelationManager
                         'rejected', 'expired' => 'danger',
                         default => 'gray',
                     }),
-                TextColumn::make('total_amount')->money('BDT'),
+                TextColumn::make('total_amount')->moneyWithoutTrailingZeroes('BDT'),
                 TextColumn::make('valid_until')->date()->placeholder('-'),
                 TextColumn::make('created_at')->dateTime()->sortable(),
             ])
