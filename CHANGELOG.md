@@ -4,6 +4,14 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Storefront Settings now commits native Filament Color Picker values when the picker loses focus, so changing one color and then moving to another field no longer restores a stale black value. The same reliable blur-save behavior also applies to the company dashboard color picker. Shared sticky **Save changes** actions now use Filament's native form-submit flow and explicitly target the page form, restoring save behavior on all affected resource create/edit pages, including Storefront Settings and Company pages.
+
+## [2.1.0] - 2026-08-18
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - Added a selectable **Noor Solar Energy** storefront theme with its approved deep-green/solar-gold palette, Sora/Inter typography, application-led shopping, ERP product and stock signals, project quotation paths, an interactive system builder, and an accessible viewport-lazy Three.js solar-module lab with a WebGL fallback. The theme extends through the shared catalog, product, cart, checkout, tracking, contact, and account surfaces; its design decisions are persisted in `design-system/noor-solar-energy/MASTER.md`.

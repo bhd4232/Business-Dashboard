@@ -141,9 +141,9 @@ php artisan up
 
 Do not run destructive migration commands or broad seeders against a live database after real business data exists. See [Production Update Safety](docs/update-safety.md).
 
-## Latest Development Update
+## Latest Release: 2.1.0
 
-The current unreleased work adds the Noor Solar Energy storefront theme, PayStation/ZiniPay gateway selection, offers and reviews, WhatsApp Business App Coexistence support, CRM quick replies, compact responsive admin headers and inbox layout, and an app-wide monetary formatter. See [CHANGELOG.md](CHANGELOG.md) for the complete release notes.
+Release 2.1.0 adds the Noor Solar Energy storefront theme, PayStation/ZiniPay gateway selection, offers and reviews, WhatsApp Business App Coexistence support, CRM quick replies, compact responsive admin headers and inbox layout, and an app-wide monetary formatter. See [CHANGELOG.md](CHANGELOG.md) for the complete release notes.
 
 Required GitHub Actions secrets for the included deploy workflow:
 
