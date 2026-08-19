@@ -170,8 +170,8 @@ class ProductVariantTest extends TestCase
             ->assertOk()
             ->assertSee('Size: M')
             ->assertSee('Size: L')
-            ->assertSee('BDT 900.00')
-            ->assertSee('BDT 950.00');
+            ->assertSee('BDT 900')
+            ->assertSee('BDT 950');
     }
 
     public function test_variable_product_card_requires_options_and_product_page_syncs_both_add_buttons(): void

@@ -7,6 +7,12 @@ All notable production changes to Business Dashboard are documented here.
 ### Fixed
 
 - Storefront Settings now commits native Filament Color Picker values when the picker loses focus, so changing one color and then moving to another field no longer restores a stale black value. The same reliable blur-save behavior also applies to the company dashboard color picker. Shared sticky **Save changes** actions now use Filament's native form-submit flow and explicitly target the page form, restoring save behavior on all affected resource create/edit pages, including Storefront Settings and Company pages.
+- Storefront cart page's Subtotal and Total rows no longer crash with a 500 error. They referenced an out-of-scope loop variable (`$item`) instead of the cart's actual subtotal, so any customer opening the cart page hit "Undefined variable $item" on every request.
+- Storefront checkout page's Subtotal, "Advance payable online now", and weight-based delivery rate note now show the actual cart subtotal, advance-due amount, and configured delivery rates instead of a leftover per-item loop value (a copy of the cart bug above, same root cause).
+- Order PDF/invoice download (`/admin/orders/{order}/pdf`) no longer shows the last line item's unit price repeated for Subtotal, Discount, VAT, Total, Paid, Due, and the courier cut-slip's COD amount. Each row now reads its actual order-level field, and orders with no items no longer crash the download with "Undefined variable $item".
+- Storefront offer pages (`/offers` and an individual offer's page) no longer 500. They called a non-existent `Offer::finalPrice()`/`Offer::componentsSubtotal()` model method instead of using the already-computed pricing values passed in from `OfferPricingService`.
+- Storefront customer account dashboard (`/account`) no longer 500s with a PHP parse error — a stat card's "Total purchased" value had an incomplete expression that never included the actual amount.
+- A product's Wholesale pricing table on its storefront page now shows each quantity tier's actual configured price instead of repeating the product's regular selling price on every row.
 
 ### Technical Notes
 

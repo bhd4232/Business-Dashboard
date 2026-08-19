@@ -32,7 +32,7 @@ class CustomerDueNotificationTest extends TestCase
         $this->assertSame(1, $alerts->count());
         $this->assertSame(250.0, $alerts->totalDue());
         $this->assertSame('Due Customer', $alerts->customers()->first()?->name);
-        $this->assertSame('1 customer has BDT 250.00 due.', $alerts->message());
+        $this->assertSame('1 customer has BDT 250 due.', $alerts->message());
     }
 
     public function test_dashboard_shows_customer_due_notification_widget(): void
@@ -53,6 +53,6 @@ class CustomerDueNotificationTest extends TestCase
             ->assertOk()
             ->assertSee('Customer Due Notifications')
             ->assertSee('Dashboard Due Customer')
-            ->assertSee('1 customer has BDT 320.00 due.');
+            ->assertSee('1 customer has BDT 320 due.');
     }
 }

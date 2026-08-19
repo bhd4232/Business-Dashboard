@@ -120,7 +120,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span>Subtotal</span>
-                    <span>BDT {{ \App\Support\MoneyFormatter::number($item['unit_price']) }}</span>
+                    <span>BDT {{ \App\Support\MoneyFormatter::number($subtotal) }}</span>
                 </div>
                 <div class="flex justify-between text-gray-400">
                     <span>Delivery</span>
@@ -130,7 +130,7 @@
             <div class="mt-5 border-t border-gray-200 pt-5 dark:border-white/10">
                 <div class="flex justify-between text-lg font-semibold">
                     <span>Total</span>
-                    <span>BDT {{ \App\Support\MoneyFormatter::number($item['unit_price']) }}</span>
+                    <span>BDT {{ \App\Support\MoneyFormatter::number($subtotal) }}</span>
                 </div>
                 @if ($items->isNotEmpty())
                     <a class="mt-5 flex w-full justify-center rounded-lg bg-[var(--storefront-brand)] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90" href="{{ isset($previewSlug) ? route('storefront.preview.checkout.show', $previewSlug) : route('storefront.checkout.show') }}">

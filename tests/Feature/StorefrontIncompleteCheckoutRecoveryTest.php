@@ -146,12 +146,14 @@ class StorefrontIncompleteCheckoutRecoveryTest extends TestCase
         $admin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
         $this->actingAs($admin)
+            ->withSession(['current_company_id' => $company->id])
             ->get('/admin/storefront/storefront-cart-records')
             ->assertOk()
             ->assertSee('Checkout Recovery')
             ->assertSee('Still incomplete');
 
         $this->actingAs($admin)
+            ->withSession(['current_company_id' => $company->id])
             ->get('/admin/storefront/storefront-cart-records/'.$record->getKey())
             ->assertOk()
             ->assertSee('Recovery lifecycle')

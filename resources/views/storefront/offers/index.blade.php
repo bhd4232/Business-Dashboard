@@ -48,9 +48,9 @@
                         <div class="flex flex-1 flex-col p-4">
                             <h3 class="line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-gray-900 dark:text-white">{{ $offer->title }}</h3>
                             <div class="mt-auto flex items-baseline gap-2 pt-2">
-                                <span class="text-base font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number((float) $offer->finalPrice()) }}</span>
+                                <span class="text-base font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number((float) $finalPrice) }}</span>
                                 @if ($subtotal > $finalPrice)
-                                    <span class="text-xs text-gray-400 line-through dark:text-gray-500">BDT {{ \App\Support\MoneyFormatter::number((float) $offer->finalPrice()) }}</span>
+                                    <span class="text-xs text-gray-400 line-through dark:text-gray-500">BDT {{ \App\Support\MoneyFormatter::number((float) $subtotal) }}</span>
                                 @endif
                             </div>
                         </div>

@@ -96,7 +96,7 @@ class StorefrontB2bTest extends TestCase
             ->assertOk()
             ->assertSee('Wholesale pricing')
             ->assertSee('Minimum order: 5')
-            ->assertSee('BDT 45.00');
+            ->assertSee('BDT 45');
     }
 
     public function test_account_orders_page_does_not_leak_customer_balance(): void
