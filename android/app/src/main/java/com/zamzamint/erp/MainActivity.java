@@ -27,6 +27,12 @@ public class MainActivity extends BridgeActivity {
         );
         getBridge().setWebViewClient(resilientWebViewClient);
 
+        // Lets the web app check isPushNotificationsAvailable() before
+        // calling the Capacitor Push Notifications plugin's register(),
+        // which otherwise crashes the app when Firebase isn't configured
+        // (no google-services.json) -- see PushAvailabilityBridge.
+        webView.addJavascriptInterface(new PushAvailabilityBridge(this), "ZzNativeBridge");
+
         networkMonitor = new NetworkMonitor(this, this::onNetworkAvailable);
         networkMonitor.register();
     }

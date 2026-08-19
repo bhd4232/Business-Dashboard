@@ -13,10 +13,8 @@ All notable production changes to Business Dashboard are documented here.
 - Storefront offer pages (`/offers` and an individual offer's page) no longer 500. They called a non-existent `Offer::finalPrice()`/`Offer::componentsSubtotal()` model method instead of using the already-computed pricing values passed in from `OfferPricingService`.
 - Storefront customer account dashboard (`/account`) no longer 500s with a PHP parse error — a stat card's "Total purchased" value had an incomplete expression that never included the actual amount.
 - A product's Wholesale pricing table on its storefront page now shows each quantity tier's actual configured price instead of repeating the product's regular selling price on every row.
-
-### Fixed
-
 - Android app: when the WebView briefly fails to reach the server (Wi-Fi/mobile-data switching, a dropped connection), the raw Android "Web page not available / net::ERR_..." error page no longer flashes on screen during each automatic retry — the app's own friendly "Connection Problem" page now shows immediately on the first failure and stays up while retries continue silently underneath it. Also made retries more persistent (up to 6 attempts, 1.5s apart, was 3 attempts 2.5s apart) so a flaky connection gets more chances to recover before the user has to tap "Try Again" themselves.
+- Android app: granting the notification permission (or already having granted it on a previous launch) no longer closes the app 1-2 seconds after opening. The app's Push Notifications setup was calling into Firebase before Firebase was actually configured for this build (no `google-services.json` yet — that's an owner-provided Firebase project file, not something invented here), which crashed the whole app the instant it ran. The app now checks with the native side first and skips push setup entirely until a real Firebase config is in place, so opening the app and signing in works normally either way; push notifications themselves will start working with no further code changes once that file is added.
 
 ### Technical Notes
 

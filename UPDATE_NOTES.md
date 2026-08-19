@@ -2,6 +2,31 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-19 - Android: granting the notification permission was crashing the app (Firebase never configured)
+
+Reason:
+
+- Owner reported, after testing the previous entry's build, that the *real* driver of the repeated app-closing seen in the earlier screen recording was granting the notification permission: after tapping Allow, the app closes; on every subsequent launch it now closes again about 2 seconds in, before login is even possible.
+- Traced it to a real, 100%-reproducible native crash, unrelated to server/network flakiness: `resources/js/push-notifications.js` calls `pushNotifications.register()` (via `@capacitor/push-notifications`) the moment the permission is granted. That plugin's Android `register()` method (`node_modules/@capacitor/push-notifications/android/.../PushNotificationsPlugin.java:101-116`) calls `FirebaseMessaging.getInstance()` with no try/catch. `android/app/` has no `google-services.json` — confirmed missing, and `android/app/build.gradle` already silently skips applying the `google-services` Gradle plugin when it's absent (with just a log line, "Push Notifications won't work") — so `FirebaseApp` is never initialized. `FirebaseMessaging.getInstance()` then throws `IllegalStateException: Default FirebaseApp is not initialized...` synchronously and uncaught, which crashes the whole app process. Since `checkPermissions()` returns `'granted'` on every later launch once granted once, this fires again on every single app open, before the user can do anything (including log in) — matches the owner's description exactly.
+
+Changed files:
+
+- `android/app/src/main/java/com/zamzamint/erp/PushAvailabilityBridge.java` (new) — a tiny `@JavascriptInterface` class exposing one read-only method, `isPushNotificationsAvailable()`, which returns `!FirebaseApp.getApps(context).isEmpty()`. `firebase-messaging` (and its `FirebaseApp` dependency) is already on the classpath via `@capacitor/push-notifications`'s own `build.gradle` — no new Gradle dependency needed.
+- `android/app/src/main/java/com/zamzamint/erp/MainActivity.java` — registers the bridge on the WebView as `window.ZzNativeBridge` in `load()`, alongside the existing resilient WebViewClient/NetworkMonitor wiring.
+- `resources/js/push-notifications.js` — new exported `isPushNotificationsAvailable(capacitor, windowObject)`: on non-Android platforms (unaffected by this crash) it's always `true`; on Android, it trusts `window.ZzNativeBridge.isPushNotificationsAvailable()` when present, and falls back to `true` (old behavior) only when the bridge itself is absent — i.e. an already-installed APK built before this fix, so this doesn't newly disable push there (it was already crash-prone; nothing regresses). `initializeNativePushNotifications()` now checks this immediately after the existing `isNativeAndroid` guard and returns `false` before ever calling `checkPermissions()`/`requestPermissions()`/`register()` when it's `false` — the crash-triggering call is never reached.
+- `tests/Node/push-notifications.test.mjs` — new test covering `isPushNotificationsAvailable()`'s branches (web platform, no bridge / old APK, bridge says available, bridge says unavailable, bridge throws) and an integration test proving `initializeNativePushNotifications()` never touches the `pushNotifications` plugin object at all when the bridge reports unavailable.
+- `CHANGELOG.md` — added a Fixed entry under `[Unreleased]` (and merged in a duplicate `### Fixed` heading left over from the previous entry in this file).
+
+Notes:
+
+- **This does not add real push notification support** — it only stops the crash. To actually receive push notifications, the owner needs to create a Firebase project for `com.zamzamint.erp`, download its `google-services.json`, and provide it to be placed at `android/app/google-services.json` (an external credential/config file — not something to fabricate here, same principle as the project's other external-credential rules). Once that file is real and present, `FirebaseApp.getApps()` stops being empty automatically at app startup and `isPushNotificationsAvailable()` starts returning `true` with no further code changes needed anywhere in this diff.
+- `npm run test:push-notifications` — all 11 tests pass (was 9; added 2).
+- `npm run build` — clean, no errors (`push-notifications.js` chunk rebuilt).
+- `php artisan test` — full suite, no `--env` flag: **810 passed, 0 failed** (unchanged — Android/JS-only change, no PHP touched).
+- After this commit is pushed, `build-android` CI should be triggered again so a fresh debug APK with this fix is available for the owner to reinstall and re-test — this time they should be able to grant the notification permission and actually reach the login screen without the app closing.
+
+Commit status: Not committed yet — awaiting owner's approval.
+
 ## 2026-08-19 - Android: friendly error page shows immediately instead of Android's raw error page flashing on each retry
 
 Reason:
