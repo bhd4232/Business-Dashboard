@@ -13,4 +13,11 @@ ext {
     androidxJunitVersion = '1.2.1'
     androidxEspressoCoreVersion = '3.6.1'
     cordovaAndroidVersion = '10.1.1'
+    // Matches @capacitor/push-notifications' own fallback
+    // (node_modules/@capacitor/push-notifications/android/build.gradle),
+    // pinned here so the app module's own FirebaseApp reference (in
+    // PushAvailabilityBridge.java, needed at compile time -- the plugin
+    // module's own "implementation" dependency isn't exposed to the app
+    // module's compile classpath) resolves the identical version.
+    firebaseMessagingVersion = '24.1.0'
 }

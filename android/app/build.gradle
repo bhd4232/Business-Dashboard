@@ -36,6 +36,12 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // capacitor-push-notifications depends on this as "implementation",
+    // which isn't exposed to this module's compile classpath -- needed
+    // here directly so PushAvailabilityBridge.java can reference
+    // com.google.firebase.FirebaseApp. Runtime copy is already provided by
+    // that plugin module regardless; this only affects compilation.
+    implementation "com.google.firebase:firebase-messaging:$firebaseMessagingVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
