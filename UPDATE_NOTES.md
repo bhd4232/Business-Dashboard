@@ -2,6 +2,28 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-19 - Android: friendly error page shows immediately instead of Android's raw error page flashing on each retry
+
+Reason:
+
+- Owner sent a screen recording of the freshly-installed APK (from the run #80 build covering the previous two entries below) still showing `net::ERR_SOCKET_NOT_CONNECTED`, and now also `net::ERR_CONNECTION_RESET`, several times within a ~90s test session — despite strong, stable 4G signal the entire time (ruled out weak cellular signal on the phone's side).
+- Frame-by-frame analysis of the video found the actual bug: the error screen shown throughout the recording was **Android's own raw "Web page not available" page** (green robot icon, raw `net::ERR_*` text), not this app's friendly `error.html` (dark theme, wifi icon, "Try Again" button). Reading `ResilientBridgeWebViewClient` explained why: it only ever loads `error.html` **after** all `MAX_RETRIES` are exhausted. Android's WebView renders its own raw error page automatically the instant *any* main-frame load fails — including every individual retry attempt in between — and nothing in the existing code suppressed that. So on a flaky connection that fails, briefly recovers (resetting the retry counter), then fails again, the user could see the scary raw page repeatedly and might rarely ever reach the friendly fallback at all. This is a real UX bug in this repo's Android code, not solely a server-side connectivity issue (the underlying connection flakiness itself is still most likely server/hosting-side and outside this repo — see the note below).
+
+Changed files:
+
+- `android/app/src/main/java/com/zamzamint/erp/ResilientBridgeWebViewClient.java` — `onReceivedError` now loads the friendly `error.html` immediately on the first retryable failure (a `showingFriendlyError` flag prevents redundant reloads of it on subsequent retries within the same failure streak), instead of waiting until retries are exhausted. Retries then continue silently underneath it via `view.loadUrl(targetUrl)` (changed from `view.reload()`, since the WebView's current URL is now `error.html`, not the failed target — `reload()` would just reload the error page instead of retrying the app). Also bumped `MAX_RETRIES` 3 → 6 and shortened `RETRY_DELAY_MS` 2500 → 1500, since hiding the raw page removes any UX cost to retrying more/longer. `resetAndReload()` (called by `NetworkMonitor` when connectivity returns) and the retry-exhausted notification were both updated to reset/track the new `showingFriendlyError` state correctly.
+- `CHANGELOG.md` — added a Fixed entry under `[Unreleased]`.
+
+Notes:
+
+- **This does not fix the underlying connection flakiness** (why the app server is failing/resetting connections so often in the first place) — that remains most likely a Coolify/Traefik edge-proxy or hosting-infrastructure issue outside this repo (see the `[Unreleased]` Technical Notes entry above), which the owner still needs to check server-side (Coolify deployment logs / VPS resource usage around the time of the recording). What this change fixes is that the user now always sees the app's own calm "Connection Problem — Try Again" page instead of Android's raw error text, and the app retries harder automatically before asking the user to tap anything.
+- No Java unit tests exist for this class in the repo (only Android's default boilerplate `ExampleUnitTest`/`ExampleInstrumentedTest`, neither touching this code) and no PHP file was changed, so no test file needed updating; this was verified by re-reading the modified class's control flow line by line (WebView SDK is not exercisable via `php artisan test`, and this sandbox has no Android SDK/emulator to run an instrumented test).
+- `php artisan test` — full suite, no `--env` flag: **810 passed, 0 failed** (unchanged from before this entry — confirms no regression, as expected for an Android-only change).
+- `npm run build` not run — no frontend asset changes.
+- After this commit is pushed, `build-android` CI should be triggered again (manual `workflow_dispatch` against this branch) so a fresh debug APK with this fix is available for the owner to reinstall and re-test.
+
+Commit status: Not committed yet — awaiting owner's approval.
+
 ## 2026-08-18 - Android net::ERR_SOCKET_NOT_CONNECTED follow-up: app-server keep-alive tuning
 
 Reason:
