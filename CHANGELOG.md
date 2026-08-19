@@ -8,6 +8,10 @@ All notable production changes to Business Dashboard are documented here.
 
 - Storefront Settings now commits native Filament Color Picker values when the picker loses focus, so changing one color and then moving to another field no longer restores a stale black value. The same reliable blur-save behavior also applies to the company dashboard color picker. Shared sticky **Save changes** actions now use Filament's native form-submit flow and explicitly target the page form, restoring save behavior on all affected resource create/edit pages, including Storefront Settings and Company pages.
 
+### Technical Notes
+
+- Applied the server-side follow-up deferred in `[1.8.1]`'s Android `net::ERR_SOCKET_NOT_CONNECTED` fix: the Nixpacks-managed app-server Nginx (`nginx.template.conf`) now sets an explicit `keepalive_timeout 120s` (was relying on Nginx's implicit 75s default), giving a kept-alive connection from the Android WebView more headroom across a Wi-Fi/mobile-data switch or a backgrounded app before this Nginx closes it. This only covers the Nixpacks Nginx in front of PHP-FPM inside the app container — the Coolify/Traefik edge reverse proxy sitting in front of it is configured in the Coolify dashboard, outside this repo, and its own idle-timeout is not changed by this entry. If the error still recurs after this change and reinstalling a freshly built APK, that edge timeout is the next thing to check.
+
 ## [2.1.0] - 2026-08-18
 
 **Release type:** Minor Feature Update

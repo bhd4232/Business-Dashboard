@@ -2,6 +2,27 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-18 - Android net::ERR_SOCKET_NOT_CONNECTED follow-up: app-server keep-alive tuning
+
+Reason:
+
+- Owner reported still occasionally seeing "Web page not available — net::ERR_SOCKET_NOT_CONNECTED" in the Android app. Investigation confirmed the app-side fix from `[1.8.1]` (`ResilientBridgeWebViewClient` retry/fallback, `NetworkMonitor` auto-reload) is already present in the current codebase, but the owner wasn't certain whether the APK installed on the affected phone predates that fix, and asked to also apply the server-side follow-up that `[1.8.1]` had deliberately deferred (Coolify/Traefik `keepalive_timeout` tuning).
+
+Changed files:
+
+- `nginx.template.conf` — added an explicit `keepalive_timeout 120s;` (Nginx's implicit default is 75s) next to the existing `client_body_timeout 120s;`, so a kept-alive connection from the Android WebView has more headroom across a Wi-Fi/mobile-data switch or a backgrounded app before this app-server Nginx closes it.
+- `CHANGELOG.md` — added a Technical Notes entry under `[Unreleased]` (deployment-only change, no user-facing behavior, so no new version number cut for it alone).
+
+Notes:
+
+- This only covers the Nixpacks-managed Nginx sitting in front of PHP-FPM inside the app container. The actual Coolify/Traefik edge reverse proxy in front of that is configured in the Coolify dashboard, not in this repo, and is unchanged by this commit — if the error still recurs after this change and after the owner installs a freshly built APK (to rule out running a pre-`[1.8.1]` build), that edge proxy's own idle-timeout is the next thing to check, outside what a repo change can control.
+- Confirmed no test ties `android/app/build.gradle`'s `versionCode`/`versionName` (currently `1` / `"1.0"`, unchanged since the project started) to `CHANGELOG.md`'s version — left as-is; the app loads the live site from `capacitor.config.json`'s `server.url`, so app behavior changes ship the moment the web deploy goes out, independent of the native package version.
+- `php artisan test` — full suite re-run (see commit status below for count), no `--env` flag per project rules; confirms `LivewireTemporaryUploadConfigurationTest`'s Nixpacks-template checks still pass with the added line.
+- `npm run build` not run — no frontend asset changes.
+- After this commit is pushed, `build-android` CI is triggered manually via `workflow_dispatch` against this branch (its `on:` block only fires on `push` to `main` or manual dispatch — a branch push alone would not run it) so a fresh debug APK is available without waiting on a merge.
+
+Commit status: Committed and pushed to `claude/android-app-issue-6ed2hc` (owner approved via plan).
+
 ## 2026-08-16 - WhatsApp Business App Coexistence connection + Quick Replies (Phase 2)
 
 Reason:
