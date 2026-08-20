@@ -39,6 +39,8 @@ use App\Models\SupplierPayment;
 use App\Models\TransactionLedger;
 use App\Models\User;
 use App\Observers\AuditObserver;
+use App\Observers\CompanyNotificationObserver;
+use App\Observers\OrderNotificationObserver;
 use App\Services\CompanyContext;
 use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
@@ -213,6 +215,9 @@ class AppServiceProvider extends ServiceProvider
         ] as $model) {
             $model::observe(AuditObserver::class);
         }
+
+        Order::observe(OrderNotificationObserver::class);
+        Company::observe(CompanyNotificationObserver::class);
 
         Livewire::component('app.filament.resources.products.pages.list-products', ListProducts::class);
         Livewire::component('app.filament.resources.products.pages.create-product', CreateProduct::class);

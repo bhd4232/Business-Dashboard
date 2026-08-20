@@ -11,6 +11,7 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/js/app-updater.js',
                 'resources/js/push-notifications.js',
+                'resources/js/web-push.js',
             ],
             refresh: true,
         }),

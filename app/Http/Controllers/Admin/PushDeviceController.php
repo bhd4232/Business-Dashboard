@@ -24,7 +24,7 @@ class PushDeviceController extends Controller
         $data = $request->validate([
             'token' => ['required', 'string', 'max:4096'],
             'device_id' => ['nullable', 'string', 'max:191'],
-            'platform' => ['required', Rule::in(['android', 'ios'])],
+            'platform' => ['required', Rule::in(['android', 'ios', 'web'])],
             'app_version' => ['nullable', 'string', 'max:64'],
         ]);
         $token = trim($data['token']);

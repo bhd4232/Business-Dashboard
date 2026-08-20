@@ -19,6 +19,7 @@ use App\Http\Controllers\ChatOrderController;
 use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\MetaWebhookController;
+use App\Http\Controllers\FirebaseServiceWorkerController;
 use App\Http\Controllers\MobileCrashReportController;
 use App\Http\Controllers\PayStationWebhookController;
 use App\Http\Controllers\QuotationPublicController;
@@ -405,6 +406,15 @@ Route::post('/webhooks/paystation/{payment}', PayStationWebhookController::class
 Route::post('/webhooks/mobile-crash-reports', [MobileCrashReportController::class, 'store'])
     ->middleware('throttle:20,1')
     ->name('mobile-crash-reports.store');
+
+// Public and unauthenticated on purpose: a service worker script is fetched
+// directly by the browser (including background update checks that may not
+// carry a session), and its Firebase Web config is not a secret -- Firebase
+// projects are protected server-side, not by hiding this value. It must be
+// served at the site root so its scope covers the whole origin, which is
+// why it's rendered dynamically here instead of being a normal Vite asset.
+Route::get('/firebase-messaging-sw.js', FirebaseServiceWorkerController::class)
+    ->name('firebase-messaging-sw');
 
 Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $order, Request $request) {
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);

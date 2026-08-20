@@ -2,6 +2,52 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-20 - Real-time push notifications for business events (Android + desktop browser)
+
+Reason:
+
+- After the crash reporter fix, the owner confirmed Android push notifications were disabled entirely (no crash, but also no notifications, since Firebase was never configured). Owner explained the real need: staff must know immediately when an order arrives, without keeping the dashboard open, on both the Android app and desktop browser (running in the background, not just the active tab) — and asked about new orders, order status changes, new staff, and company events, all while strictly keeping one company's alerts from ever reaching another company's dashboard, and gated per-user by permission (a staff member shouldn't see root-level events they have no permission for). Owner then created a real Firebase project (zamzam-erp-app) and supplied its Android `google-services.json`, Web SDK config, VAPID Web Push key, and server-side service-account JSON.
+
+What happened:
+
+- **`App\Support\FirebaseSettings`** + a new **Settings → Push Notification Settings** page (super-admin only): admin-configurable, encrypted Firebase credentials (Web SDK config, VAPID key, service-account JSON) stored via the existing `AppSetting` key/value store, not `.env`. `FirebaseHttpV1Sender` now prefers these over `.env` when present. Secrets are never round-tripped back to the browser after saving (same pattern as `AiAssistantSettings`/`ConnectWhatsAppBusinessApp`).
+- **Web push (desktop/browser, background-capable)**: `firebase` npm package; a dynamically-rendered `GET /firebase-messaging-sw.js` service worker (must be served at the site root so its scope covers the whole origin, so it can't be a normal Vite asset); `resources/js/web-push.js` registers it, requests notification permission, and posts the FCM Web token to the existing `/admin/push-devices` endpoint with a new `platform: 'web'` (widened from `android`/`ios` only). Guarded to never run inside the Android WebView.
+- **Four new permissions** on `App\Models\User` (`notifications.orders`, `notifications.order_status`, `notifications.staff`, `notifications.company`), selectable wherever permissions already are (Settings → User Roles, and each user's Custom Permissions), with sensible defaults added to the built-in roles.
+- **`App\Services\BusinessNotificationService`**: `notifyCompany()` (permission-gated, strictly scoped to one company's active users — this is the only place a company's recipients are ever resolved, so cross-company leakage is structurally impossible) and `notifySuperAdmins()` (unconditional, for "new company" only, per the owner's explicit instruction). Delivers both an in-app/bell record (`App\Notifications\BusinessAlert`, reusing the standard Laravel `notifications` table — no new company-scoped model needed) and a push (`kind: business-alert`, new `business-alerts` Android channel, separate from `app-updates`).
+- New observers wire the five events: `OrderNotificationObserver` (created/status changed — every transition, not a curated subset), `CompanyNotificationObserver` (created → super admins only; updated → that company's permitted users), and a hook in `CreateUser::syncCompanyAccess()` for new staff (fires after the company pivot is actually synced, so the target company is known).
+- Android/CI needed **zero code changes** for any of this: `push-notifications.js` already ignores any push `kind` other than `app-update`, and the CI `build-android` job already decodes a `FIREBASE_ANDROID_GOOGLE_SERVICES_JSON_BASE64` GitHub secret into `google-services.json`, which `android/app/build.gradle` already conditionally wires up the `google-services` Gradle plugin for. Only added a second `createChannel()` call in `push-notifications.js` for the new `business-alerts` channel.
+- Fixed two pre-existing tests that legitimately changed behavior under the new feature (not bugs): `PushDeviceRegistrationTest` expected `platform: 'web'` to be rejected (now correctly accepted); `CourierMonitoringTest`'s manager-isolation test's fixture incidentally creates an `Order`, which now also fires a real "new order" alert to that same manager — narrowed its assertion to the courier-specific alert it's actually testing.
+
+Important changed/added files:
+
+- `app/Support/FirebaseSettings.php`, `app/Filament/Pages/PushNotificationSettings.php`, `resources/views/filament/pages/push-notification-settings.blade.php`
+- `app/Services/FirebaseHttpV1Sender.php` (credential source + configurable Android notification channel id)
+- `app/Http/Controllers/FirebaseServiceWorkerController.php`, `resources/views/firebase-messaging-sw.blade.php`, `routes/web.php`
+- `resources/js/web-push.js`, `resources/js/push-notifications.js`, `resources/views/filament/partials/app-updater.blade.php`, `vite.config.js`, `package.json`
+- `app/Models/User.php` (new permission keys + role defaults)
+- `app/Services/BusinessNotificationService.php`, `app/Notifications/BusinessAlert.php`
+- `app/Observers/OrderNotificationObserver.php`, `app/Observers/CompanyNotificationObserver.php`, `app/Providers/AppServiceProvider.php`
+- `app/Filament/Resources/Users/Pages/CreateUser.php`
+- `app/Http/Controllers/Admin/PushDeviceController.php` (`platform` now accepts `web`)
+- `.github/workflows/deploy.yml` (new `test:web-push` CI step)
+- `tests/Feature/BusinessNotificationServiceTest.php`, `tests/Feature/PushNotificationSettingsTest.php`, `tests/Node/web-push.test.mjs`, plus updates to `tests/Feature/PushDeviceRegistrationTest.php`, `tests/Feature/CourierMonitoringTest.php`, `tests/Node/push-notifications.test.mjs`
+- `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Notes:
+
+- Not yet live: the owner's real Firebase credentials still need to be pasted into the new Settings page in production (not this sandbox, which has no path to the live database), and the Android `google-services.json` needs to be added as the `FIREBASE_ANDROID_GOOGLE_SERVICES_JSON_BASE64` GitHub secret, before either push channel actually delivers anything.
+- Not addressed here (flagged, not fixed): `OrderNotificationObserver`/`CompanyNotificationObserver` have no seeding guard, matching the existing `AuditObserver`'s precedent of firing unconditionally during seeding — a large `demo:refresh` run would currently create a proportional number of real (harmless, DB-only unless Firebase is configured) bell notifications. Worth revisiting if that becomes noisy in practice.
+
+Verification:
+
+- `php artisan test` (plain, no `--env`) — 829/829 passed, 0 regressions.
+- `npm run test:push-notifications`, `npm run test:web-push`, `npm run test:app-updater`, `npm run test:deployment-metadata` — all green.
+- `npm run build` — succeeds; `web-push.js`'s dynamic `import('firebase/...')` confirmed code-split into a separate chunk (not bundled into the Android WebView's JS at all).
+
+Commit status:
+
+- Not committed. Commit and push require explicit owner approval.
+
 ## 2026-08-20 - Connect WhatsApp App: fix silent save failure on Configuration ID
 
 Reason:

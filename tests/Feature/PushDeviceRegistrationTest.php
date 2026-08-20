@@ -136,7 +136,7 @@ class PushDeviceRegistrationTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->postJson(route('admin.push-devices.store'), [
                 'token' => 'token',
-                'platform' => 'web',
+                'platform' => 'windows-desktop',
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('platform');
@@ -148,6 +148,19 @@ class PushDeviceRegistrationTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('token');
+    }
+
+    public function test_a_desktop_browser_can_register_a_web_platform_device(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->postJson(route('admin.push-devices.store'), [
+                'token' => 'web-push-token',
+                'platform' => 'web',
+            ])
+            ->assertCreated()
+            ->assertJson(['status' => 'registered']);
+
+        $this->assertSame('web', PushDevice::query()->sole()->platform);
     }
 
     public function test_a_user_can_disable_only_their_own_registered_device(): void

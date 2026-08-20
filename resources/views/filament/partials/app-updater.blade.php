@@ -2,10 +2,12 @@
     use App\Services\AppUpdateService;
     use App\Support\AppDeployment;
     use App\Support\AppRelease;
+    use App\Support\FirebaseSettings;
 
     $deployment = AppDeployment::current();
     $release = AppRelease::latestPublished();
     $upgradeAvailable = app(AppUpdateService::class)->isAvailable(auth()->user());
+    $firebaseWebConfigured = FirebaseSettings::isWebConfigured();
 @endphp
 
 <div
@@ -17,6 +19,15 @@
     data-sync-url="{{ route('admin.app-updates.sync') }}"
     data-push-register-url="{{ route('admin.push-devices.store') }}"
     data-poll-interval="15000"
+    data-firebase-web-configured="{{ $firebaseWebConfigured ? 'true' : 'false' }}"
+    data-firebase-vapid-key="{{ $firebaseWebConfigured ? FirebaseSettings::vapidKey() : '' }}"
+    data-firebase-api-key="{{ $firebaseWebConfigured ? FirebaseSettings::webConfig()['apiKey'] : '' }}"
+    data-firebase-auth-domain="{{ $firebaseWebConfigured ? FirebaseSettings::webConfig()['authDomain'] : '' }}"
+    data-firebase-project-id="{{ $firebaseWebConfigured ? FirebaseSettings::webConfig()['projectId'] : '' }}"
+    data-firebase-storage-bucket="{{ $firebaseWebConfigured ? FirebaseSettings::webConfig()['storageBucket'] : '' }}"
+    data-firebase-messaging-sender-id="{{ $firebaseWebConfigured ? FirebaseSettings::webConfig()['messagingSenderId'] : '' }}"
+    data-firebase-app-id="{{ $firebaseWebConfigured ? FirebaseSettings::webConfig()['appId'] : '' }}"
+    data-service-worker-url="{{ route('firebase-messaging-sw') }}"
     hidden
     aria-hidden="true"
 ></div>
@@ -97,4 +108,4 @@
     </div>
 </x-filament::modal>
 
-@vite(['resources/js/app-updater.js', 'resources/js/push-notifications.js'])
+@vite(['resources/js/app-updater.js', 'resources/js/push-notifications.js', 'resources/js/web-push.js'])

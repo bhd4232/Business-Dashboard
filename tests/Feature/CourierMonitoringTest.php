@@ -168,7 +168,17 @@ class CourierMonitoringTest extends TestCase
 
         $this->artisan('couriers:sync-statuses')->assertSuccessful();
 
-        $this->assertSame(1, $managerA->notifications()->count());
+        // managerA also receives a separate "new order" business alert as a
+        // side effect of booking()'s fixture creating the underlying Order
+        // (see App\Observers\OrderNotificationObserver) -- scope this
+        // assertion to the courier-specific alert this test is actually
+        // about, same title match as test_stale_bookings_trigger_an_aggregated_alert.
+        $this->assertSame(
+            1,
+            $managerA->notifications
+                ->filter(fn ($notification) => ($notification->data['title'] ?? null) === 'Stale courier bookings: RedX')
+                ->count(),
+        );
         $this->assertSame(0, $managerB->notifications()->count());
     }
 

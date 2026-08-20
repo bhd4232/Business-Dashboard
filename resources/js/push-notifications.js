@@ -4,6 +4,8 @@ import { PushNotifications } from '@capacitor/push-notifications';
 
 export const APP_UPDATE_PUSH_KIND = 'app-update';
 export const APP_UPDATE_CHANNEL_ID = 'app-updates';
+export const BUSINESS_ALERT_PUSH_KIND = 'business-alert';
+export const BUSINESS_ALERT_CHANNEL_ID = 'business-alerts';
 export const PUSH_INSTALLATION_STORAGE_KEY = 'zz-native-push-installation-id';
 
 let initializationPromise = null;
@@ -198,6 +200,45 @@ export function deliverAppUpdatePush(payload, targetWindow = globalThis.window) 
     return true;
 }
 
+// Business-alert pushes (new order, order status change, new staff,
+// company events) already have a persistent record in the Filament
+// notification bell (App\Notifications\BusinessAlert, delivered via the
+// standard `database` channel) -- this only needs to let the app react to
+// a tap (e.g. navigate to the order/company page), it never has to render
+// the alert itself.
+export function isBusinessAlertPush(payload) {
+    return extractPushData(payload).kind === BUSINESS_ALERT_PUSH_KIND;
+}
+
+export function deliverBusinessAlertPush(payload, targetWindow = globalThis.window, { navigate = false } = {}) {
+    const data = extractPushData(payload);
+
+    if (data.kind !== BUSINESS_ALERT_PUSH_KIND || !targetWindow) {
+        return false;
+    }
+
+    const CustomEventConstructor = targetWindow.CustomEvent;
+
+    if (
+        typeof CustomEventConstructor === 'function'
+        && typeof targetWindow.dispatchEvent === 'function'
+    ) {
+        targetWindow.dispatchEvent(new CustomEventConstructor(
+            'zz:business-alert',
+            { detail: data },
+        ));
+    }
+
+    // Only navigate when the user explicitly tapped the notification
+    // (pushNotificationActionPerformed) -- never on a foreground receive,
+    // which would otherwise yank them off whatever page they're looking at.
+    if (navigate && typeof data.action_url === 'string' && data.action_url && targetWindow.location) {
+        targetWindow.location.href = data.action_url;
+    }
+
+    return true;
+}
+
 async function registerToken({
     token,
     platform,
@@ -354,10 +395,12 @@ export async function initializeNativePushNotifications({
 
     await pushNotifications.addListener('pushNotificationReceived', (notification) => {
         deliverAppUpdatePush(notification, windowObject);
+        deliverBusinessAlertPush(notification, windowObject);
     });
 
     await pushNotifications.addListener('pushNotificationActionPerformed', (action) => {
         deliverAppUpdatePush(action, windowObject);
+        deliverBusinessAlertPush(action, windowObject, { navigate: true });
     });
 
     windowObject.addEventListener('online', () => void attemptRegistration());
@@ -367,6 +410,19 @@ export async function initializeNativePushNotifications({
         id: APP_UPDATE_CHANNEL_ID,
         name: 'App updates',
         description: 'New ZamZam ERP versions that are ready to install',
+        importance: 4,
+        visibility: 1,
+        sound: 'default',
+        vibration: true,
+    });
+
+    // Business events (new order, order status change, new staff, company
+    // updates) use a separate channel so a user can mute/tune it in Android
+    // settings independently of app-update notifications.
+    await pushNotifications.createChannel({
+        id: BUSINESS_ALERT_CHANNEL_ID,
+        name: 'Business alerts',
+        description: 'Orders, staff, and company updates for companies you have access to',
         importance: 4,
         visibility: 1,
         sound: 'default',

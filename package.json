@@ -10,6 +10,7 @@
         "test:app-updater": "node --test tests/Node/app-updater.test.mjs",
         "test:deployment-metadata": "node --test tests/Node/deployment-metadata.test.mjs",
         "test:push-notifications": "node --test tests/Node/push-notifications.test.mjs",
+        "test:web-push": "node --test tests/Node/web-push.test.mjs",
         "mobile:sync": "cap sync android",
         "mobile:open": "cap open android",
         "mobile:build": "cap sync android && cd android && gradlew.bat assembleDebug"
@@ -35,6 +36,7 @@
         "@capacitor/splash-screen": "^7.0.5",
         "@capacitor/status-bar": "^7.0.6",
         "alpinejs": "^3.15.12",
+        "firebase": "^12.18.0",
         "three": "^0.185.1"
     }
 }
