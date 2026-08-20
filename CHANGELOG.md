@@ -4,9 +4,26 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Android app: crashes are now saved on-device and automatically uploaded to the server the next time the app launches with connectivity, so a device-only crash the owner hits can be diagnosed from real data instead of guesswork. Super admins can review them under **Settings → Mobile Crash Reports** in the Filament admin panel (exception, message, full stack trace, app/Android version, device model, and when it happened).
+
 ### Fixed
 
 - Storefront Settings now commits native Filament Color Picker values when the picker loses focus, so changing one color and then moving to another field no longer restores a stale black value. The same reliable blur-save behavior also applies to the company dashboard color picker. Shared sticky **Save changes** actions now use Filament's native form-submit flow and explicitly target the page form, restoring save behavior on all affected resource create/edit pages, including Storefront Settings and Company pages.
+- Storefront cart page's Subtotal and Total rows no longer crash with a 500 error. They referenced an out-of-scope loop variable (`$item`) instead of the cart's actual subtotal, so any customer opening the cart page hit "Undefined variable $item" on every request.
+- Storefront checkout page's Subtotal, "Advance payable online now", and weight-based delivery rate note now show the actual cart subtotal, advance-due amount, and configured delivery rates instead of a leftover per-item loop value (a copy of the cart bug above, same root cause).
+- Order PDF/invoice download (`/admin/orders/{order}/pdf`) no longer shows the last line item's unit price repeated for Subtotal, Discount, VAT, Total, Paid, Due, and the courier cut-slip's COD amount. Each row now reads its actual order-level field, and orders with no items no longer crash the download with "Undefined variable $item".
+- Storefront offer pages (`/offers` and an individual offer's page) no longer 500. They called a non-existent `Offer::finalPrice()`/`Offer::componentsSubtotal()` model method instead of using the already-computed pricing values passed in from `OfferPricingService`.
+- Storefront customer account dashboard (`/account`) no longer 500s with a PHP parse error — a stat card's "Total purchased" value had an incomplete expression that never included the actual amount.
+- A product's Wholesale pricing table on its storefront page now shows each quantity tier's actual configured price instead of repeating the product's regular selling price on every row.
+- Android app: when the WebView briefly fails to reach the server (Wi-Fi/mobile-data switching, a dropped connection), the raw Android "Web page not available / net::ERR_..." error page no longer flashes on screen during each automatic retry — the app's own friendly "Connection Problem" page now shows immediately on the first failure and stays up while retries continue silently underneath it. Also made retries more persistent (up to 6 attempts, 1.5s apart, was 3 attempts 2.5s apart) so a flaky connection gets more chances to recover before the user has to tap "Try Again" themselves.
+- Android app: granting the notification permission (or already having granted it on a previous launch) no longer closes the app 1-2 seconds after opening. The app's Push Notifications setup was calling into Firebase before Firebase was actually configured for this build (no `google-services.json` yet — that's an owner-provided Firebase project file, not something invented here), which crashed the whole app the instant it ran. The app now checks with the native side first and skips push setup entirely until a real Firebase config is in place, so opening the app and signing in works normally either way; push notifications themselves will start working with no further code changes once that file is added.
+- Android build: fixed a `build-android` CI failure (`cannot find symbol: FirebaseApp`) introduced by the fix above, caused by a Gradle module-visibility gap (the Firebase dependency existed but wasn't visible for compilation in the app's own module).
+
+### Technical Notes
+
+- Applied the server-side follow-up deferred in `[1.8.1]`'s Android `net::ERR_SOCKET_NOT_CONNECTED` fix: the Nixpacks-managed app-server Nginx (`nginx.template.conf`) now sets an explicit `keepalive_timeout 120s` (was relying on Nginx's implicit 75s default), giving a kept-alive connection from the Android WebView more headroom across a Wi-Fi/mobile-data switch or a backgrounded app before this Nginx closes it. This only covers the Nixpacks Nginx in front of PHP-FPM inside the app container — the Coolify/Traefik edge reverse proxy sitting in front of it is configured in the Coolify dashboard, outside this repo, and its own idle-timeout is not changed by this entry. If the error still recurs after this change and reinstalling a freshly built APK, that edge timeout is the next thing to check.
 
 ## [2.1.0] - 2026-08-18
 

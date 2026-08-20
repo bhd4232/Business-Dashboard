@@ -144,12 +144,12 @@
                 @if ($componentsSubtotal > $finalPrice)
                     <div class="flex justify-between text-gray-500 line-through dark:text-gray-500">
                         <span>Regular price</span>
-                        <span>BDT {{ \App\Support\MoneyFormatter::number((float) $offer->componentsSubtotal()) }}</span>
+                        <span>BDT {{ \App\Support\MoneyFormatter::number((float) $componentsSubtotal) }}</span>
                     </div>
                 @endif
                 <div class="flex justify-between font-medium text-gray-900 dark:text-white">
                     <span>Offer price</span>
-                    <span>BDT {{ \App\Support\MoneyFormatter::number((float) $offer->componentsSubtotal()) }}</span>
+                    <span>BDT {{ \App\Support\MoneyFormatter::number((float) $finalPrice) }}</span>
                 </div>
                 <div class="flex justify-between border-t border-gray-200 pt-2 text-lg font-semibold text-gray-950 dark:border-white/10 dark:text-white">
                     <span>Total (&times; <span x-text="Math.max(1, quantity)"></span>)</span>

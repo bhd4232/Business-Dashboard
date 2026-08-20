@@ -10,10 +10,16 @@ import {
     installationId,
     isAppUpdatePush,
     isNativeAndroid,
+    isPushNotificationsAvailable,
     nativeAppVersion,
     permissionAction,
     sameOriginUrl,
 } from '../../resources/js/push-notifications.js';
+
+const androidCapacitor = {
+    isNativePlatform: () => true,
+    getPlatform: () => 'android',
+};
 
 test('native push initializes only for the Android Capacitor runtime', () => {
     assert.equal(isNativeAndroid({
@@ -27,6 +33,43 @@ test('native push initializes only for the Android Capacitor runtime', () => {
     assert.equal(isNativeAndroid({
         isNativePlatform: () => true,
         getPlatform: () => 'web',
+    }), false);
+});
+
+test('push availability is proven false only when the native bridge says so', () => {
+    // Non-Android platforms never had this crash risk (the guard is
+    // Android-only) -- always available, bridge or not.
+    assert.equal(isPushNotificationsAvailable(
+        { isNativePlatform: () => true, getPlatform: () => 'web' },
+        {},
+    ), true);
+
+    // An APK built before PushAvailabilityBridge existed has no bridge --
+    // fall back to the old (unguarded) behavior rather than disabling push
+    // on every already-installed device.
+    assert.equal(isPushNotificationsAvailable(androidCapacitor, {}), true);
+    assert.equal(isPushNotificationsAvailable(androidCapacitor, undefined), true);
+
+    // The bridge is present (current APK) and proves Firebase initialized.
+    assert.equal(isPushNotificationsAvailable(androidCapacitor, {
+        ZzNativeBridge: { isPushNotificationsAvailable: () => true },
+    }), true);
+
+    // The bridge is present and proves Firebase was NOT initialized (no
+    // google-services.json) -- this is the crash this guard exists to avoid.
+    assert.equal(isPushNotificationsAvailable(androidCapacitor, {
+        ZzNativeBridge: { isPushNotificationsAvailable: () => false },
+    }), false);
+
+    // A bridge call that itself throws is treated as unavailable, not as
+    // "fall back to old behavior" -- an unexpected native error is not proof
+    // Firebase is safe to use.
+    assert.equal(isPushNotificationsAvailable(androidCapacitor, {
+        ZzNativeBridge: {
+            isPushNotificationsAvailable: () => {
+                throw new Error('native bridge error');
+            },
+        },
     }), false);
 });
 
@@ -251,4 +294,57 @@ test('native initialization registers a stable installation and app version', as
     assert.equal(requests[0].options.headers['X-CSRF-TOKEN'], 'csrf-token');
     assert.equal(windowListeners.has('online'), true);
     assert.equal(windowListeners.has('focus'), true);
+});
+
+test('initialization skips entirely when the native bridge reports Firebase is not configured', async () => {
+    let pluginTouched = false;
+    const pushNotifications = {
+        addListener: async () => {
+            pluginTouched = true;
+        },
+        createChannel: async () => {
+            pluginTouched = true;
+        },
+        checkPermissions: async () => {
+            pluginTouched = true;
+
+            return { receive: 'granted' };
+        },
+        register: async () => {
+            // This is the exact call that crashes the app natively when
+            // Firebase isn't configured -- it must never be reached.
+            pluginTouched = true;
+        },
+    };
+    const documentObject = {
+        querySelector: (selector) => {
+            if (selector === '#zz-app-updater-config') {
+                return { dataset: { pushRegisterUrl: '/admin/push-devices' } };
+            }
+
+            if (selector === 'meta[name="csrf-token"]') {
+                return { content: 'csrf-token' };
+            }
+
+            return null;
+        },
+    };
+    const windowObject = {
+        location: { origin: 'https://app.example.com' },
+        addEventListener: () => {},
+        ZzNativeBridge: { isPushNotificationsAvailable: () => false },
+    };
+
+    assert.equal(await initializeNativePushNotifications({
+        capacitor: androidCapacitor,
+        app: { getInfo: async () => ({ version: '1.22.0', build: '22' }) },
+        pushNotifications,
+        documentObject,
+        windowObject,
+        fetchImplementation: async () => ({ ok: true, status: 201 }),
+        storage: { getItem: () => null, setItem: () => {} },
+        cryptoImplementation: { randomUUID: () => '7fcfa20f-3a3d-4b52-8d90-5ca0eb86f7f2' },
+    }), false);
+
+    assert.equal(pluginTouched, false);
 });

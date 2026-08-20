@@ -110,7 +110,7 @@
                                     <td class="px-4 py-2.5 text-gray-600 dark:text-gray-300">
                                         {{ $tier['min_qty'] }}{{ isset($tiers[$index + 1]) ? ' - '.($tiers[$index + 1]['min_qty'] - 1) : '+' }} {{ $product->unit ?: 'pcs' }}
                                     </td>
-                                    <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number($product->selling_price) }}</td>
+                                    <td class="px-4 py-2.5 text-right font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number($tier['price']) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
