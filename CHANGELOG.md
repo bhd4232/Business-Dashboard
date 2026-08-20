@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Android app: crashes are now saved on-device and automatically uploaded to the server the next time the app launches with connectivity, so a device-only crash the owner hits can be diagnosed from real data instead of guesswork. Super admins can review them under **Settings → Mobile Crash Reports** in the Filament admin panel (exception, message, full stack trace, app/Android version, device model, and when it happened).
+
 ### Fixed
 
 - Storefront Settings now commits native Filament Color Picker values when the picker loses focus, so changing one color and then moving to another field no longer restores a stale black value. The same reliable blur-save behavior also applies to the company dashboard color picker. Shared sticky **Save changes** actions now use Filament's native form-submit flow and explicitly target the page form, restoring save behavior on all affected resource create/edit pages, including Storefront Settings and Company pages.

@@ -2,6 +2,40 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-20 - Android: on-device crash reporting (upload to server on next launch)
+
+Reason:
+
+- After installing the build from the previous two entries, the owner sent a second screen recording. Analysis showed both earlier fixes actually working (no more raw Android error page, no crash tied to the notification permission itself) — but the app was still failing to connect almost the entire session, while Chrome on the same phone loaded the site fine. The owner then reported a further detail: the app still closes specifically once the login page finishes loading, after the notification permission had been granted. Checked Settings → Apps → Business Dashboard → App info on the owner's phone for a crash log — nothing shown there; this phone/Android version has no built-in crash viewer.
+- Without a real device crash log, further "guess and ship another build" cycles risked repeating the same trial-and-error loop that produced the previous two builds. The owner agreed (asked with no further preference, so proceeding on the recommended option) to add a lightweight, self-hosted crash reporter instead of guessing again: the app now saves any uncaught exception on-device and uploads it to this server the next time it launches with connectivity, native networking only (not through the WebView, since a broken WebView is exactly the scenario this needs to survive). This does not fix the underlying crash by itself — it exists purely to get a real stack trace so the *next* fix is evidence-based, not another guess.
+
+Changed files (Android):
+
+- `android/app/src/main/java/com/zamzamint/erp/CrashReporter.java` (new) — `install(Context)` wraps `Thread.setDefaultUncaughtExceptionHandler`, saving exception class/message/stack trace + app version/Android version/device manufacturer+model/timestamp to `SharedPreferences` (synchronous `commit()`, since the process is about to die) before always chaining to the previously-installed handler, so normal Android crash/ANR behavior (the OS's own dialog, process death) is unchanged — this only adds a side effect. `uploadPendingReportIfAny(Context, targetUrl)` runs on a background thread using plain `HttpURLConnection` (no new dependency) to POST any saved report to `{targetUrl}/webhooks/mobile-crash-reports`, clearing it only on a 2xx response; a failed upload (no connectivity, server still down) leaves it saved to retry on the next launch.
+- `android/app/src/main/java/com/zamzamint/erp/ZamZamApplication.java` (new) — a custom `Application` subclass that calls `CrashReporter.install()` in `onCreate()`, so it's active before any Activity (including MainActivity's own bootstrap) can crash.
+- `android/app/src/main/AndroidManifest.xml` — `<application android:name=".ZamZamApplication" ...>`.
+- `android/app/src/main/java/com/zamzamint/erp/MainActivity.java` — calls `CrashReporter.uploadPendingReportIfAny(this, targetUrl)` in `load()`, alongside the existing WebViewClient/NetworkMonitor wiring.
+
+Changed files (server):
+
+- `database/migrations/2026_08_20_000000_create_mobile_crash_reports_table.php` (new) — `mobile_crash_reports` table. Deliberately no `company_id`: a crash can happen before login, so there is no company context to attach it to at all.
+- `app/Models/MobileCrashReport.php` (new) — plain model, no `BelongsToCompany`/`CompanyScope` (documented in the class doc comment, same pattern as `CustomerBlacklist`) and intentionally not added to `MultiCompanyIsolationTest`'s model list, since it is never company-owned.
+- `app/Http/Controllers/MobileCrashReportController.php` (new) — `store()`: public, unauthenticated (no session/CSRF token exists when a pre-login crash uploads), validates and caps every field's length, records the requester's IP, returns 201.
+- `routes/web.php` — `POST /webhooks/mobile-crash-reports`, throttled `20,1`.
+- `bootstrap/app.php` — added `webhooks/mobile-crash-reports` to the CSRF-exempt list (same reason as the existing `webhooks/*` entries: no browser session/CSRF token available on this route).
+- `app/Filament/Resources/MobileCrashReports/` (new) — `MobileCrashReportResource` (List + View pages, no create/edit, delete allowed for cleanup), under the **Settings** cluster, gated to `isSuperAdmin()` only (`canViewAny()`/`canDelete()`), same pattern as `AuditLogResource`/`CustomerBlacklistResource`.
+- `tests/Feature/MobileCrashReportTest.php` (new) — unauthenticated upload succeeds; required fields enforced; oversized fields rejected; rate limit (20/min) enforced; only a super admin can view the Filament resource (a `manager` gets 403).
+- `CHANGELOG.md` — added an Added entry under `[Unreleased]`.
+
+Notes:
+
+- This is diagnostics infrastructure, not a fix for the still-open crash-on-login-page-load issue itself. Next step once the owner reinstalls this build and hits the crash again: the crash report should appear under **Settings → Mobile Crash Reports** in the admin panel with the real exception/stack trace, which will drive the actual fix.
+- `php artisan test` — full suite, no `--env` flag: **815 passed, 0 failed** (was 810; +5 new `MobileCrashReportTest` cases, no regressions).
+- `npm run build` not run — no frontend JS/Blade changes this round (Android/PHP only).
+- After this commit is pushed, `build-android` CI should be triggered again so a fresh debug APK with the crash reporter is available for the owner to reinstall.
+
+Commit status: Not committed yet — awaiting owner's approval.
+
 ## 2026-08-19 - Android: granting the notification permission was crashing the app (Firebase never configured)
 
 Reason:

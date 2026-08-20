@@ -35,6 +35,12 @@ public class MainActivity extends BridgeActivity {
 
         networkMonitor = new NetworkMonitor(this, this::onNetworkAvailable);
         networkMonitor.register();
+
+        // Uploads a crash saved by CrashReporter (installed in
+        // ZamZamApplication) on a previous run, if any -- native networking,
+        // independent of the WebView, so it isn't blocked by whatever the
+        // WebView itself might be failing on.
+        CrashReporter.uploadPendingReportIfAny(this, targetUrl);
     }
 
     private void onRetryExhausted() {
