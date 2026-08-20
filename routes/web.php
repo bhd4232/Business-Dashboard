@@ -19,6 +19,7 @@ use App\Http\Controllers\ChatOrderController;
 use App\Http\Controllers\CourierWebhookController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\MetaWebhookController;
+use App\Http\Controllers\MobileCrashReportController;
 use App\Http\Controllers\PayStationWebhookController;
 use App\Http\Controllers\QuotationPublicController;
 use App\Http\Controllers\Storefront\AccountAuthController as StorefrontAccountAuthController;
@@ -396,6 +397,14 @@ Route::post('/webhooks/zinipay/{payment}', ZiniPayWebhookController::class)
 Route::post('/webhooks/paystation/{payment}', PayStationWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('paystation.webhook');
+
+// Public and unauthenticated on purpose: the Android app uploads a saved
+// crash report on its next successful launch, which can be before login
+// (no session/CSRF token available at that point). See
+// MobileCrashReportController and CrashReporter.java.
+Route::post('/webhooks/mobile-crash-reports', [MobileCrashReportController::class, 'store'])
+    ->middleware('throttle:20,1')
+    ->name('mobile-crash-reports.store');
 
 Route::middleware('auth')->get('/admin/orders/{order}/print', function (Order $order, Request $request) {
     abort_unless($request->user()?->canPerformModelAbility('view', Order::class), 403);

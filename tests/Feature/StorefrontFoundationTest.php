@@ -71,7 +71,7 @@ class StorefrontFoundationTest extends TestCase
         $this->get('http://shop.example.test/product/'.$product->slug)
             ->assertOk()
             ->assertSee('Fast Charger')
-            ->assertSee('BDT 1,100.00');
+            ->assertSee('BDT 1,100');
     }
 
     public function test_storefront_only_shows_current_domain_company_products(): void
@@ -221,14 +221,14 @@ class StorefrontFoundationTest extends TestCase
         $this->get('http://cart.example.test/cart')
             ->assertOk()
             ->assertSee('Cart Product')
-            ->assertSee('BDT 1,800.00');
+            ->assertSee('BDT 1,800');
 
         $this->patch('http://cart.example.test/cart/items/'.$product->slug, ['quantity' => 10])
             ->assertRedirect();
 
         $this->get('http://cart.example.test/cart')
             ->assertOk()
-            ->assertSee('BDT 4,500.00')
+            ->assertSee('BDT 4,500')
             ->assertSee('value="5"', false);
 
         $this->delete('http://cart.example.test/cart/items/'.$product->slug)
@@ -314,7 +314,7 @@ class StorefrontFoundationTest extends TestCase
         $this->get("http://127.0.0.1/storefront/{$company->slug}/cart")
             ->assertOk()
             ->assertSee('Preview Cart Product')
-            ->assertSee('BDT 2,100.00');
+            ->assertSee('BDT 2,100');
     }
 
     public function test_storefront_checkout_creates_draft_erp_order_and_clears_cart(): void
@@ -565,7 +565,7 @@ class StorefrontFoundationTest extends TestCase
             ->assertDontSee('Failed')
             ->assertSee('Manual Courier')
             ->assertSee('TRK-123456')
-            ->assertSee('BDT 1,100.00');
+            ->assertSee('BDT 1,100');
     }
 
     public function test_storefront_order_tracking_does_not_leak_other_company_or_admin_orders(): void
@@ -788,7 +788,7 @@ class StorefrontFoundationTest extends TestCase
             ->assertSee('Your order history.')
             ->assertSee($order->order_number)
             ->assertSee('Draft')
-            ->assertSee('BDT 2,000.00')
+            ->assertSee('BDT 2,000')
             ->assertSee('Track order')
             ->assertSee('http://account.example.test/track/'.$order->order_number, false)
             ->assertDontSee('phone=01728174614', false);

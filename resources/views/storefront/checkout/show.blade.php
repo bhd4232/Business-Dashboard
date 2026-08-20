@@ -247,7 +247,7 @@
             <div class="mt-5 space-y-2 border-t border-gray-200 pt-5 text-sm dark:border-white/10">
                 <div class="flex justify-between text-gray-600 dark:text-gray-300">
                     <span>Subtotal</span>
-                    <span>BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }}</span>
+                    <span>BDT {{ \App\Support\MoneyFormatter::number($subtotal) }}</span>
                 </div>
                 <div class="flex justify-between text-gray-600 dark:text-gray-300">
                     <span>Parcel weight</span>
@@ -266,7 +266,7 @@
                 <div class="mt-4 rounded-lg border border-[var(--storefront-brand)]/30 bg-[var(--storefront-brand)]/5 px-4 py-3 text-sm leading-6 text-gray-700 dark:text-gray-200">
                     <div class="flex justify-between font-semibold">
                         <span>Advance payable online now</span>
-                        <span>BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }}</span>
+                        <span>BDT {{ \App\Support\MoneyFormatter::number($advanceDue) }}</span>
                     </div>
                     @if ($onlinePaymentAvailable ?? false)
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -283,7 +283,7 @@
             @if ($setting->new_customer_delivery_advance_enabled ?? true)
                 <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs leading-5 text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
                     <span class="font-semibold text-gray-900 dark:text-white">Weight-based rate:</span>
-                    first 1 kg BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }} inside Dhaka / BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }} outside Dhaka, then BDT {{ \App\Support\MoneyFormatter::number($item['subtotal']) }} per additional started kg.
+                    first 1 kg BDT {{ \App\Support\MoneyFormatter::number($setting->delivery_first_kg_inside) }} inside Dhaka / BDT {{ \App\Support\MoneyFormatter::number($setting->delivery_first_kg_outside) }} outside Dhaka, then BDT {{ \App\Support\MoneyFormatter::number($setting->delivery_additional_per_kg) }} per additional started kg.
                 </div>
             @endif
 

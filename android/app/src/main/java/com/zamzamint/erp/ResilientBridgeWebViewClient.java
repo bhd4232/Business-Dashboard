@@ -14,10 +14,22 @@ import java.util.Set;
 
 /**
  * Retries transient network errors (Wi-Fi/mobile data switching, brief
- * disconnects) a few times before giving up and showing a local friendly
- * error page. Extends Capacitor's own BridgeWebViewClient (not plain
- * WebViewClient) so plugin bridging, local-server interception, and
- * external-link handling keep working exactly as before.
+ * disconnects, a server-side connection reset) several times before giving
+ * up and leaving the user on a local friendly error page. Extends
+ * Capacitor's own BridgeWebViewClient (not plain WebViewClient) so plugin
+ * bridging, local-server interception, and external-link handling keep
+ * working exactly as before.
+ *
+ * IMPORTANT: on a retryable failure this shows the friendly error.html
+ * IMMEDIATELY (first failure, not after retries are exhausted). Android's
+ * WebView renders its own raw "Web page not available / net::ERR_..." page
+ * automatically the instant a main-frame load fails, and there is no public
+ * API to suppress that render after the fact -- the only way to keep the
+ * user from ever seeing it is to win the race by loading our own content
+ * right here in onReceivedError. Retries then continue silently underneath
+ * this friendly page; if a retry itself fails, the raw page would flash
+ * again for an instant before we're notified, so `showingFriendlyError`
+ * avoids reloading error.html on every single retry (it's already showing).
  */
 public class ResilientBridgeWebViewClient extends BridgeWebViewClient {
 
@@ -25,8 +37,13 @@ public class ResilientBridgeWebViewClient extends BridgeWebViewClient {
         void onRetryExhausted();
     }
 
-    private static final int MAX_RETRIES = 3;
-    private static final long RETRY_DELAY_MS = 2500L;
+    // Bumped from 3/2500ms: since the friendly page now shows immediately
+    // (see class doc), retrying more often/longer has no UX cost -- it just
+    // gives a flaky connection (e.g. the app server resetting connections
+    // under load) more chances to recover before the user has to tap
+    // "Try Again" themselves.
+    private static final int MAX_RETRIES = 6;
+    private static final long RETRY_DELAY_MS = 1500L;
 
     // net::ERR_* codes that are worth retrying — anything else (e.g. a real
     // 404/500 from the app, or an SSL cert problem) is left alone.
@@ -51,6 +68,8 @@ public class ResilientBridgeWebViewClient extends BridgeWebViewClient {
 
     private int retryCount = 0;
     private boolean retryScheduled = false;
+    private boolean showingFriendlyError = false;
+    private boolean retryExhaustedNotified = false;
 
     public ResilientBridgeWebViewClient(Bridge bridge, String targetUrl, RetryExhaustedListener retryExhaustedListener) {
         super(bridge);
@@ -74,8 +93,18 @@ public class ResilientBridgeWebViewClient extends BridgeWebViewClient {
             return;
         }
 
+        // Win the race against Android's own raw error page on the very
+        // first failure — see class doc. A no-op on the 2nd..Nth failure
+        // since it's already showing.
+        showFriendlyErrorPage(view);
+
         if (retryCount >= MAX_RETRIES) {
-            showConnectionError(view);
+            if (!retryExhaustedNotified) {
+                retryExhaustedNotified = true;
+                if (retryExhaustedListener != null) {
+                    retryExhaustedListener.onRetryExhausted();
+                }
+            }
             return;
         }
 
@@ -88,7 +117,10 @@ public class ResilientBridgeWebViewClient extends BridgeWebViewClient {
 
         handler.postDelayed(() -> {
             retryScheduled = false;
-            view.reload();
+            // loadUrl(targetUrl), not view.reload(): once the friendly page
+            // is showing, the WebView's "current" URL is error.html, and
+            // reload() would just reload that instead of retrying the app.
+            view.loadUrl(targetUrl);
         }, RETRY_DELAY_MS);
     }
 
@@ -100,16 +132,19 @@ public class ResilientBridgeWebViewClient extends BridgeWebViewClient {
         // successfully — the connection is healthy again.
         if (url != null && url.startsWith(targetUrl)) {
             retryCount = 0;
+            retryExhaustedNotified = false;
+            showingFriendlyError = false;
         }
     }
 
-    private void showConnectionError(WebView view) {
+    private void showFriendlyErrorPage(WebView view) {
+        if (showingFriendlyError) {
+            return;
+        }
+        showingFriendlyError = true;
+
         String errorPageUrl = "file:///android_asset/error.html?target=" + Uri.encode(targetUrl);
         view.loadUrl(errorPageUrl);
-
-        if (retryExhaustedListener != null) {
-            retryExhaustedListener.onRetryExhausted();
-        }
     }
 
     /**
@@ -118,6 +153,8 @@ public class ResilientBridgeWebViewClient extends BridgeWebViewClient {
      */
     public void resetAndReload(WebView view) {
         retryCount = 0;
+        retryExhaustedNotified = false;
+        showingFriendlyError = false;
         view.loadUrl(targetUrl);
     }
 }

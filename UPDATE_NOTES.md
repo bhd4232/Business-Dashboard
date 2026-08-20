@@ -32,6 +32,157 @@ Commit status:
 
 - Not committed yet - awaiting owner's approval.
 
+## 2026-08-20 - Android: on-device crash reporting (upload to server on next launch)
+
+Reason:
+
+- After installing the build from the previous two entries, the owner sent a second screen recording. Analysis showed both earlier fixes actually working (no more raw Android error page, no crash tied to the notification permission itself) — but the app was still failing to connect almost the entire session, while Chrome on the same phone loaded the site fine. The owner then reported a further detail: the app still closes specifically once the login page finishes loading, after the notification permission had been granted. Checked Settings → Apps → Business Dashboard → App info on the owner's phone for a crash log — nothing shown there; this phone/Android version has no built-in crash viewer.
+- Without a real device crash log, further "guess and ship another build" cycles risked repeating the same trial-and-error loop that produced the previous two builds. The owner agreed (asked with no further preference, so proceeding on the recommended option) to add a lightweight, self-hosted crash reporter instead of guessing again: the app now saves any uncaught exception on-device and uploads it to this server the next time it launches with connectivity, native networking only (not through the WebView, since a broken WebView is exactly the scenario this needs to survive). This does not fix the underlying crash by itself — it exists purely to get a real stack trace so the *next* fix is evidence-based, not another guess.
+
+Changed files (Android):
+
+- `android/app/src/main/java/com/zamzamint/erp/CrashReporter.java` (new) — `install(Context)` wraps `Thread.setDefaultUncaughtExceptionHandler`, saving exception class/message/stack trace + app version/Android version/device manufacturer+model/timestamp to `SharedPreferences` (synchronous `commit()`, since the process is about to die) before always chaining to the previously-installed handler, so normal Android crash/ANR behavior (the OS's own dialog, process death) is unchanged — this only adds a side effect. `uploadPendingReportIfAny(Context, targetUrl)` runs on a background thread using plain `HttpURLConnection` (no new dependency) to POST any saved report to `{targetUrl}/webhooks/mobile-crash-reports`, clearing it only on a 2xx response; a failed upload (no connectivity, server still down) leaves it saved to retry on the next launch.
+- `android/app/src/main/java/com/zamzamint/erp/ZamZamApplication.java` (new) — a custom `Application` subclass that calls `CrashReporter.install()` in `onCreate()`, so it's active before any Activity (including MainActivity's own bootstrap) can crash.
+- `android/app/src/main/AndroidManifest.xml` — `<application android:name=".ZamZamApplication" ...>`.
+- `android/app/src/main/java/com/zamzamint/erp/MainActivity.java` — calls `CrashReporter.uploadPendingReportIfAny(this, targetUrl)` in `load()`, alongside the existing WebViewClient/NetworkMonitor wiring.
+
+Changed files (server):
+
+- `database/migrations/2026_08_20_000000_create_mobile_crash_reports_table.php` (new) — `mobile_crash_reports` table. Deliberately no `company_id`: a crash can happen before login, so there is no company context to attach it to at all.
+- `app/Models/MobileCrashReport.php` (new) — plain model, no `BelongsToCompany`/`CompanyScope` (documented in the class doc comment, same pattern as `CustomerBlacklist`) and intentionally not added to `MultiCompanyIsolationTest`'s model list, since it is never company-owned.
+- `app/Http/Controllers/MobileCrashReportController.php` (new) — `store()`: public, unauthenticated (no session/CSRF token exists when a pre-login crash uploads), validates and caps every field's length, records the requester's IP, returns 201.
+- `routes/web.php` — `POST /webhooks/mobile-crash-reports`, throttled `20,1`.
+- `bootstrap/app.php` — added `webhooks/mobile-crash-reports` to the CSRF-exempt list (same reason as the existing `webhooks/*` entries: no browser session/CSRF token available on this route).
+- `app/Filament/Resources/MobileCrashReports/` (new) — `MobileCrashReportResource` (List + View pages, no create/edit, delete allowed for cleanup), under the **Settings** cluster, gated to `isSuperAdmin()` only (`canViewAny()`/`canDelete()`), same pattern as `AuditLogResource`/`CustomerBlacklistResource`.
+- `tests/Feature/MobileCrashReportTest.php` (new) — unauthenticated upload succeeds; required fields enforced; oversized fields rejected; rate limit (20/min) enforced; only a super admin can view the Filament resource (a `manager` gets 403).
+- `CHANGELOG.md` — added an Added entry under `[Unreleased]`.
+
+Notes:
+
+- This is diagnostics infrastructure, not a fix for the still-open crash-on-login-page-load issue itself. Next step once the owner reinstalls this build and hits the crash again: the crash report should appear under **Settings → Mobile Crash Reports** in the admin panel with the real exception/stack trace, which will drive the actual fix.
+- `php artisan test` — full suite, no `--env` flag: **815 passed, 0 failed** (was 810; +5 new `MobileCrashReportTest` cases, no regressions).
+- `npm run build` not run — no frontend JS/Blade changes this round (Android/PHP only).
+- After this commit is pushed, `build-android` CI should be triggered again so a fresh debug APK with the crash reporter is available for the owner to reinstall.
+
+Commit status: Not committed yet — awaiting owner's approval.
+
+## 2026-08-19 - Android: granting the notification permission was crashing the app (Firebase never configured)
+
+Reason:
+
+- Owner reported, after testing the previous entry's build, that the *real* driver of the repeated app-closing seen in the earlier screen recording was granting the notification permission: after tapping Allow, the app closes; on every subsequent launch it now closes again about 2 seconds in, before login is even possible.
+- Traced it to a real, 100%-reproducible native crash, unrelated to server/network flakiness: `resources/js/push-notifications.js` calls `pushNotifications.register()` (via `@capacitor/push-notifications`) the moment the permission is granted. That plugin's Android `register()` method (`node_modules/@capacitor/push-notifications/android/.../PushNotificationsPlugin.java:101-116`) calls `FirebaseMessaging.getInstance()` with no try/catch. `android/app/` has no `google-services.json` — confirmed missing, and `android/app/build.gradle` already silently skips applying the `google-services` Gradle plugin when it's absent (with just a log line, "Push Notifications won't work") — so `FirebaseApp` is never initialized. `FirebaseMessaging.getInstance()` then throws `IllegalStateException: Default FirebaseApp is not initialized...` synchronously and uncaught, which crashes the whole app process. Since `checkPermissions()` returns `'granted'` on every later launch once granted once, this fires again on every single app open, before the user can do anything (including log in) — matches the owner's description exactly.
+
+Changed files:
+
+- `android/app/src/main/java/com/zamzamint/erp/PushAvailabilityBridge.java` (new) — a tiny `@JavascriptInterface` class exposing one read-only method, `isPushNotificationsAvailable()`, which returns `!FirebaseApp.getApps(context).isEmpty()`. `firebase-messaging` (and its `FirebaseApp` dependency) is already on the classpath via `@capacitor/push-notifications`'s own `build.gradle` — no new Gradle dependency needed.
+- `android/app/src/main/java/com/zamzamint/erp/MainActivity.java` — registers the bridge on the WebView as `window.ZzNativeBridge` in `load()`, alongside the existing resilient WebViewClient/NetworkMonitor wiring.
+- `resources/js/push-notifications.js` — new exported `isPushNotificationsAvailable(capacitor, windowObject)`: on non-Android platforms (unaffected by this crash) it's always `true`; on Android, it trusts `window.ZzNativeBridge.isPushNotificationsAvailable()` when present, and falls back to `true` (old behavior) only when the bridge itself is absent — i.e. an already-installed APK built before this fix, so this doesn't newly disable push there (it was already crash-prone; nothing regresses). `initializeNativePushNotifications()` now checks this immediately after the existing `isNativeAndroid` guard and returns `false` before ever calling `checkPermissions()`/`requestPermissions()`/`register()` when it's `false` — the crash-triggering call is never reached.
+- `tests/Node/push-notifications.test.mjs` — new test covering `isPushNotificationsAvailable()`'s branches (web platform, no bridge / old APK, bridge says available, bridge says unavailable, bridge throws) and an integration test proving `initializeNativePushNotifications()` never touches the `pushNotifications` plugin object at all when the bridge reports unavailable.
+- `CHANGELOG.md` — added a Fixed entry under `[Unreleased]` (and merged in a duplicate `### Fixed` heading left over from the previous entry in this file).
+
+Notes:
+
+- **This does not add real push notification support** — it only stops the crash. To actually receive push notifications, the owner needs to create a Firebase project for `com.zamzamint.erp`, download its `google-services.json`, and provide it to be placed at `android/app/google-services.json` (an external credential/config file — not something to fabricate here, same principle as the project's other external-credential rules). Once that file is real and present, `FirebaseApp.getApps()` stops being empty automatically at app startup and `isPushNotificationsAvailable()` starts returning `true` with no further code changes needed anywhere in this diff.
+- `npm run test:push-notifications` — all 11 tests pass (was 9; added 2).
+- `npm run build` — clean, no errors (`push-notifications.js` chunk rebuilt).
+- `php artisan test` — full suite, no `--env` flag: **810 passed, 0 failed** (unchanged — Android/JS-only change, no PHP touched).
+- After this commit is pushed, `build-android` CI should be triggered again so a fresh debug APK with this fix is available for the owner to reinstall and re-test — this time they should be able to grant the notification permission and actually reach the login screen without the app closing.
+- **Addendum (same day, before the owner could test):** the triggered `build-android` run (#82) failed at `:app:compileDebugJavaWithJavac` — `cannot find symbol: class FirebaseApp`. Root cause: `capacitor-push-notifications`'s own `firebase-messaging` dependency is declared `implementation`, which Gradle does not expose to a *different* module's (`app`'s) compile classpath — only to `capacitor-push-notifications`'s own compilation and to the final APK's runtime/packaging classpath. `PushAvailabilityBridge.java` lives in the `app` module, so it couldn't see the class at compile time even though the same class is already present in the built app. Fixed by adding the same `com.google.firebase:firebase-messaging` dependency directly to `android/app/build.gradle` (version pinned via a new `firebaseMessagingVersion` in `android/variables.gradle`, matching the plugin's own fallback value so nothing changes at runtime — just makes the already-present class visible for compilation too). This sandbox has no Android SDK (`dl.google.com` is blocked by this session's outbound proxy — confirmed via a direct `./gradlew compileDebugJavaWithJavac` attempt, 403 Forbidden), so this was reasoned through Gradle's `implementation` vs `api` visibility rules rather than locally verified; CI is the actual verification for this one, watched closely on the next run.
+
+Commit status: Committed and pushed to `claude/android-app-issue-6ed2hc` (owner approved this fix; the Gradle classpath addendum is a correction within that same approved change, needed to make it actually compile).
+
+## 2026-08-19 - Android: friendly error page shows immediately instead of Android's raw error page flashing on each retry
+
+Reason:
+
+- Owner sent a screen recording of the freshly-installed APK (from the run #80 build covering the previous two entries below) still showing `net::ERR_SOCKET_NOT_CONNECTED`, and now also `net::ERR_CONNECTION_RESET`, several times within a ~90s test session — despite strong, stable 4G signal the entire time (ruled out weak cellular signal on the phone's side).
+- Frame-by-frame analysis of the video found the actual bug: the error screen shown throughout the recording was **Android's own raw "Web page not available" page** (green robot icon, raw `net::ERR_*` text), not this app's friendly `error.html` (dark theme, wifi icon, "Try Again" button). Reading `ResilientBridgeWebViewClient` explained why: it only ever loads `error.html` **after** all `MAX_RETRIES` are exhausted. Android's WebView renders its own raw error page automatically the instant *any* main-frame load fails — including every individual retry attempt in between — and nothing in the existing code suppressed that. So on a flaky connection that fails, briefly recovers (resetting the retry counter), then fails again, the user could see the scary raw page repeatedly and might rarely ever reach the friendly fallback at all. This is a real UX bug in this repo's Android code, not solely a server-side connectivity issue (the underlying connection flakiness itself is still most likely server/hosting-side and outside this repo — see the note below).
+
+Changed files:
+
+- `android/app/src/main/java/com/zamzamint/erp/ResilientBridgeWebViewClient.java` — `onReceivedError` now loads the friendly `error.html` immediately on the first retryable failure (a `showingFriendlyError` flag prevents redundant reloads of it on subsequent retries within the same failure streak), instead of waiting until retries are exhausted. Retries then continue silently underneath it via `view.loadUrl(targetUrl)` (changed from `view.reload()`, since the WebView's current URL is now `error.html`, not the failed target — `reload()` would just reload the error page instead of retrying the app). Also bumped `MAX_RETRIES` 3 → 6 and shortened `RETRY_DELAY_MS` 2500 → 1500, since hiding the raw page removes any UX cost to retrying more/longer. `resetAndReload()` (called by `NetworkMonitor` when connectivity returns) and the retry-exhausted notification were both updated to reset/track the new `showingFriendlyError` state correctly.
+- `CHANGELOG.md` — added a Fixed entry under `[Unreleased]`.
+
+Notes:
+
+- **This does not fix the underlying connection flakiness** (why the app server is failing/resetting connections so often in the first place) — that remains most likely a Coolify/Traefik edge-proxy or hosting-infrastructure issue outside this repo (see the `[Unreleased]` Technical Notes entry above), which the owner still needs to check server-side (Coolify deployment logs / VPS resource usage around the time of the recording). What this change fixes is that the user now always sees the app's own calm "Connection Problem — Try Again" page instead of Android's raw error text, and the app retries harder automatically before asking the user to tap anything.
+- No Java unit tests exist for this class in the repo (only Android's default boilerplate `ExampleUnitTest`/`ExampleInstrumentedTest`, neither touching this code) and no PHP file was changed, so no test file needed updating; this was verified by re-reading the modified class's control flow line by line (WebView SDK is not exercisable via `php artisan test`, and this sandbox has no Android SDK/emulator to run an instrumented test).
+- `php artisan test` — full suite, no `--env` flag: **810 passed, 0 failed** (unchanged from before this entry — confirms no regression, as expected for an Android-only change).
+- `npm run build` not run — no frontend asset changes.
+- After this commit is pushed, `build-android` CI should be triggered again (manual `workflow_dispatch` against this branch) so a fresh debug APK with this fix is available for the owner to reinstall and re-test.
+
+Commit status: Not committed yet — awaiting owner's approval.
+
+## 2026-08-18 - Android net::ERR_SOCKET_NOT_CONNECTED follow-up: app-server keep-alive tuning
+
+Reason:
+
+- Owner reported still occasionally seeing "Web page not available — net::ERR_SOCKET_NOT_CONNECTED" in the Android app. Investigation confirmed the app-side fix from `[1.8.1]` (`ResilientBridgeWebViewClient` retry/fallback, `NetworkMonitor` auto-reload) is already present in the current codebase, but the owner wasn't certain whether the APK installed on the affected phone predates that fix, and asked to also apply the server-side follow-up that `[1.8.1]` had deliberately deferred (Coolify/Traefik `keepalive_timeout` tuning).
+
+Changed files:
+
+- `nginx.template.conf` — added an explicit `keepalive_timeout 120s;` (Nginx's implicit default is 75s) next to the existing `client_body_timeout 120s;`, so a kept-alive connection from the Android WebView has more headroom across a Wi-Fi/mobile-data switch or a backgrounded app before this app-server Nginx closes it.
+- `CHANGELOG.md` — added a Technical Notes entry under `[Unreleased]` (deployment-only change, no user-facing behavior, so no new version number cut for it alone).
+
+Notes:
+
+- This only covers the Nixpacks-managed Nginx sitting in front of PHP-FPM inside the app container. The actual Coolify/Traefik edge reverse proxy in front of that is configured in the Coolify dashboard, not in this repo, and is unchanged by this commit — if the error still recurs after this change and after the owner installs a freshly built APK (to rule out running a pre-`[1.8.1]` build), that edge proxy's own idle-timeout is the next thing to check, outside what a repo change can control.
+- Confirmed no test ties `android/app/build.gradle`'s `versionCode`/`versionName` (currently `1` / `"1.0"`, unchanged since the project started) to `CHANGELOG.md`'s version — left as-is; the app loads the live site from `capacitor.config.json`'s `server.url`, so app behavior changes ship the moment the web deploy goes out, independent of the native package version.
+- `php artisan test` — full suite re-run (see commit status below for count), no `--env` flag per project rules; confirms `LivewireTemporaryUploadConfigurationTest`'s Nixpacks-template checks still pass with the added line.
+- `npm run build` not run — no frontend asset changes.
+- After this commit is pushed, `build-android` CI is triggered manually via `workflow_dispatch` against this branch (its `on:` block only fires on `push` to `main` or manual dispatch — a branch push alone would not run it) so a fresh debug APK is available without waiting on a merge.
+
+Commit status: Committed and pushed to `claude/android-app-issue-6ed2hc` (owner approved via plan).
+
+## 2026-08-19 - Fix storefront cart page 500 (Subtotal/Total used undefined `$item`)
+
+Reason:
+
+- Triggering `build-android` CI (see previous entry) surfaced that the `tests` job it depends on was failing — not because of the nginx change, but because of a pre-existing bug: `resources/views/storefront/cart/show.blade.php`'s Subtotal (line 123) and Total (line 133) rows referenced `$item['unit_price']`, a variable scoped only to the `@forelse ($items as $item)` loop above them. Outside that loop it's undefined, throwing on every storefront cart page view — a live production bug, not a test artifact, unrelated to Android/nginx. It predates this session (introduced in `3ab35b5`, already on this branch before this session started) and cascaded into ~60 other test failures that touch the cart page indirectly. Owner explicitly approved fixing it as its own change so `build-android` can actually run.
+
+Changed files:
+
+- `resources/views/storefront/cart/show.blade.php` — both rows now use the `$subtotal` variable the controller already computes and passes in (`App\Http\Controllers\Storefront\CartController::cartView()`, `'subtotal' => $this->cart->subtotal($company)`), formatted the same way the rest of the page already does (`\App\Support\MoneyFormatter::number(...)`). No controller or business-logic change — just pointing the view at data it was already given.
+- `CHANGELOG.md` — added a Fixed entry under `[Unreleased]`.
+
+Notes:
+
+- `php artisan test` — full suite re-run, no `--env` flag; confirms the ~60 previously-failing tests that hit the cart page now pass.
+- `npm run build` not run — no frontend asset (JS/CSS) changes, Blade-only.
+- Kept as its own commit, separate from the Android/nginx change, since it's an unrelated storefront correctness fix.
+
+Commit status: Committed and pushed to `claude/android-app-issue-6ed2hc` (owner approved).
+
+## 2026-08-19 - Fix remaining pre-existing bugs blocking CI (checkout, order PDF, offers, account dashboard, wholesale pricing) + update outdated money-format test assertions
+
+Reason:
+
+- After the previous entry's cart-page fix, `build-android` CI was still blocked: `php artisan test` had ~14-17 more failures (once frontend assets were actually built locally — see Notes), none related to Android/nginx. Owner explicitly asked to fix all of them so CI can go green and produce an APK. Traced each to its root cause and fixed the app code; separately, owner clarified `MoneyFormatter::number()`'s trailing-zero trimming (e.g. "BDT 900" instead of "BDT 900.00") is intentional, not a bug — so tests asserting the old zero-padded format were updated to match, not the formatter.
+
+Changed files (app code):
+
+- `resources/views/storefront/checkout/show.blade.php` — Subtotal, "Advance payable online now", and the weight-based delivery rate note used `$item['subtotal']`, the loop variable leaked past `@foreach ($items as $item)`. Now use the controller's `$subtotal`, `$advanceDue`, and `$setting->delivery_first_kg_inside`/`delivery_first_kg_outside`/`delivery_additional_per_kg` respectively.
+- `resources/views/orders/pdf.blade.php` — Subtotal/Discount/VAT/Total/Paid/Due rows and the courier cut-slip's COD line all used `$item->unit_price` (leaked from `@foreach ($order->items as $item)`, and undefined outright for an order with no items). Now use `$order->subtotal`/`discount`/`vat`/`total_amount`/`paid_amount`/`due_amount`. The per-item row's own Subtotal column now uses `$item->subtotal` instead of repeating `$item->unit_price`.
+- `resources/views/storefront/offers/index.blade.php` and `.../offers/show.blade.php` — called `$offer->finalPrice()`/`$offer->componentsSubtotal()`, methods that only exist on `OfferPricingService`, not the `Offer` model. Both views already had the correctly-computed `$finalPrice`/`$componentsSubtotal`/`$subtotal` variables in scope from their controllers; swapped the calls for those.
+- `resources/views/storefront/account/index.blade.php` — the "Total purchased" stat's value expression ended `...'BDT').' '.]` — a dangling concatenation operator with nothing after it, a PHP parse error that 500'd every `/account` request. Completed it with the controller's already-computed `$totalSpent`, formatted via `MoneyFormatter::number()`.
+- `resources/views/storefront/products/show.blade.php` — the Wholesale pricing table's per-tier row showed `$product->selling_price` (the regular price) instead of `$tier['price']` (that row's actual tier price), so every tier row displayed the same non-wholesale price.
+
+Changed files (tests):
+
+- `tests/Feature/StorefrontIncompleteCheckoutRecoveryTest.php` and `tests/Feature/StorefrontCustomerAdvanceAndComplaintTest.php` — each had one test hitting an admin Filament resource's list + detail routes via `actingAs($admin)` without setting `current_company_id` in session. A `super_admin` with no company assignment defaults to `current_company_id session = 1` (the suite's incidental first-created company), not the company the test itself created (id 2) — so the list page rendered (only static widget labels asserted) but the detail route's route-model-bound record lookup came up empty and 404'd. Added `->withSession(['current_company_id' => $company->id])`, matching the pattern already used elsewhere (e.g. `CustomerRiskTest`).
+- `tests/Feature/ReportsTest.php`, `tests/Feature/ProductVariantTest.php`, `tests/Feature/StorefrontB2bTest.php`, `tests/Feature/CustomerDueNotificationTest.php`, `tests/Feature/CourierIntegrationTest.php`, `tests/Feature/StorefrontFoundationTest.php` — updated `assertSee('BDT X.00')`-style assertions (and one non-breaking-space Filament modal assertion) to the trimmed format the app already renders (`BDT X`), per owner confirmation this trimming is deliberate.
+
+Notes:
+
+- Also discovered and fixed en route: `php artisan test` had never actually been run against built frontend assets in this sandbox this session — `npm install && npm run build` had not been run, so every Filament/Livewire page 500'd with "Vite manifest not found," which is what made the failure count look far larger (60+) than the real pre-existing bug count. Running `npm run build` first dropped that to the ~14-17 real, unrelated bugs fixed above. This is an environment-setup gap in this sandbox, not a repo bug — CI's own `build-android`/`tests` jobs already run `npm ci`/asset build steps.
+- `php artisan test` — full suite, no `--env` flag: **810 passed, 0 failed** (was 743 passed / 67 failed at the start of this session, before the missing local asset build was discovered and before any of these fixes).
+- `npm run build` — run once (assets unaffected by these Blade/PHP-only changes; re-verified the existing build still succeeds).
+- Confirmed `main` itself has been CI-red since 2026-08-11 (checked via workflow run history) — none of this was introduced by the Android/nginx work in this session; it predates this branch.
+- A verified-working APK from a green CI run on 2026-07-31 (commit `ff05e059`, before these bugs were introduced) is still available as a GitHub Actions artifact (expires 2026-10-29) and was already offered to the owner as an immediate stand-in while this fix lands.
+
+Commit status: Committed and pushed to `claude/android-app-issue-6ed2hc` (owner approved).
+
 ## 2026-08-16 - WhatsApp Business App Coexistence connection + Quick Replies (Phase 2)
 
 Reason:

@@ -13,6 +13,38 @@ export function isNativeAndroid(capacitor = Capacitor) {
         && capacitor?.getPlatform?.() === 'android';
 }
 
+// The native side (MainActivity.java) exposes window.ZzNativeBridge only
+// when it can prove Firebase actually initialized (a real google-services.json
+// was present at build time). @capacitor/push-notifications' register() calls
+// FirebaseMessaging.getInstance() with no guard, which crashes the whole app
+// the instant it's called without Firebase configured -- so on Android this
+// must be checked BEFORE ever calling checkPermissions()/requestPermissions()/
+// register(), not just register() itself, since checkPermissions() already
+// exercises native Firebase-adjacent plugin code on some OEM builds. An
+// older installed APK without this bridge, or a non-Android platform where
+// it never exists, both fail the "not proven available" check below and
+// keep the previous (unguarded) behavior there.
+export function isPushNotificationsAvailable(capacitor = Capacitor, windowObject = globalThis.window) {
+    if (!isNativeAndroid(capacitor)) {
+        return true;
+    }
+
+    const bridge = windowObject?.ZzNativeBridge;
+
+    if (!bridge || typeof bridge.isPushNotificationsAvailable !== 'function') {
+        // No bridge means an APK built before this guard existed -- fall
+        // back to the old (crash-prone) behavior rather than silently
+        // disabling push on every already-installed device.
+        return true;
+    }
+
+    try {
+        return bridge.isPushNotificationsAvailable() === true;
+    } catch {
+        return false;
+    }
+}
+
 export function permissionAction(receive) {
     if (receive === 'granted') {
         return 'register';
@@ -222,6 +254,12 @@ export async function initializeNativePushNotifications({
         || !windowObject
         || typeof fetchImplementation !== 'function'
     ) {
+        return false;
+    }
+
+    if (!isPushNotificationsAvailable(capacitor, windowObject)) {
+        console.warn('Native push notifications are unavailable on this build (Firebase not configured) -- skipping to avoid a native crash.');
+
         return false;
     }
 

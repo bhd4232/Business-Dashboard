@@ -22,7 +22,7 @@
             ['label' => 'Total orders', 'value' => $orderCount],
             ['label' => 'Active orders', 'value' => $activeOrderCount],
             ['label' => 'Completed', 'value' => $completedOrderCount],
-            ['label' => 'Total purchased', 'value' => ($company->currency ?: 'BDT').' '.],
+            ['label' => 'Total purchased', 'value' => ($company->currency ?: 'BDT').' '.\App\Support\MoneyFormatter::number((float) $totalSpent)],
         ] as $stat)
             <div class="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900 sm:p-4">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ $stat['label'] }}</p>

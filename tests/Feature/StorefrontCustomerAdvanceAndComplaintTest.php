@@ -158,11 +158,13 @@ class StorefrontCustomerAdvanceAndComplaintTest extends TestCase
         $admin = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
         $this->actingAs($admin)
+            ->withSession(['current_company_id' => $company->id])
             ->get('/admin/storefront/storefront-complaints')
             ->assertOk()
             ->assertSee($complaint->complaint_number);
 
         $this->actingAs($admin)
+            ->withSession(['current_company_id' => $company->id])
             ->get('/admin/storefront/storefront-complaints/'.$complaint->getKey().'/edit')
             ->assertOk()
             ->assertSee('Resolution');
