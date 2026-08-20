@@ -2,6 +2,36 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-20 - Race-condition audit + fixes: stock oversell, variant lost-update, voucher/purchase overfunding
+
+Reason:
+
+- Owner pasted an educational post about race conditions (stock/balance errors, duplicate payments/orders, duplicate serials, financial mismatches) and asked to deeply check whether this app has the same problems ("দেখতো আমাদের অ্যাপে এইরকম কোন সমস্যা আছে কিনা ডিপলি দেখবে"). A read-only audit of the stock ledger, sequential numbering, voucher/fund approval, and storefront checkout code paths found four real, unlocked check-then-write races and two already-solid protections (sequential document numbering via `GeneratesSequentialNumber` + a UNIQUE column; storefront paid-checkout idempotency via `lockForUpdate()` on `StorefrontPayment`). Owner asked to fix the four races ("ওকে ঠিক করে দেও").
+
+What happened:
+
+- **Stock oversell** (`App\Services\StockMovementService::validate()`): the ledger-sum "would this go negative?" check ran with no lock between it and the `StockMovement` insert, so two concurrent sales for the last unit could both pass and both go through. Fixed by overriding `StockMovement::save()`/`delete()` to run inside `DB::transaction()` with `lockForUpdate()` on the movement's Product (and variant, if any) row, acquired *before* the `saving` hook's validation runs — so a second concurrent movement for the same product now blocks until the first commits, then validates against its committed effect.
+- **Variant stock lost-update** (`StockMovement::applyVariantStockDelta()`/`restoreVariantStock()`): the same product/variant lock now also covers this read-modify-write, so two concurrent movements against one variant can no longer overwrite each other's stock update.
+- **Purchase overfunding** (`App\Services\VoucherService::approve()`): `assertFundingDoesNotExceedPurchaseTotal()`'s "already-funded" sum ran before the transaction and with no lock, so two vouchers approved for the same purchase near-simultaneously could jointly exceed its total. Fixed by moving the whole status check + funding check + accounting-effect + status update inside one `DB::transaction()`, locking the target Voucher row first and, for `inventory_purchase` vouchers, the related Purchase row too (locked in that order everywhere to avoid deadlocks).
+- **Voucher double-processing** (`verify()`/`reject()`/`cancel()`): each now re-fetches and locks the voucher row inside its own transaction before checking/changing status, closing the same class of TOCTOU gap for the narrower double-verify/double-reject/double-cancel case.
+- Storefront checkout's `CheckoutController::assertCartStock()` remains an unlocked read (it's a UX pre-check only) — the actual authoritative stock gate is `StockMovementService::validate()` at order-acceptance time via `OrderWorkflowService::syncStockMovements()` → `StockMovement::updateOrCreate()`, which now goes through the fixed, locked `save()` path above.
+
+Important changed files:
+
+- `app/Models/StockMovement.php` (`save()`/`delete()` overrides, `lockAffectedRows()`)
+- `app/Services/VoucherService.php` (`verify()`, `approve()`, `reject()`, `cancel()`, `assertFundingDoesNotExceedPurchaseTotal()`)
+- `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Verification:
+
+- Targeted tests: `php artisan test --filter=Stock` — 45/45 passed (179 assertions). `php artisan test --filter=Voucher` — 22/22 passed (137 assertions).
+- Full `php artisan test` (no `--env` flag): 798 passed, 13 failed (4598 assertions). Confirmed via `git stash`/re-run that all 13 failures pre-exist on `main` without these changes (unrelated storefront-view bugs, e.g. `Undefined variable $item` in `storefront/cart/show.blade.php`) — zero regressions from this change.
+- No schema changes; `npm run build` not needed (no frontend assets touched).
+
+Commit status:
+
+- Not committed yet - awaiting owner's approval.
+
 ## 2026-08-16 - WhatsApp Business App Coexistence connection + Quick Replies (Phase 2)
 
 Reason:

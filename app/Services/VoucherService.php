@@ -120,17 +120,23 @@ class VoucherService
 
     public function verify(Voucher $voucher, User $user): void
     {
-        if (! $voucher->isPending()) {
-            throw ValidationException::withMessages([
-                'status' => 'Only a pending voucher can be verified.',
-            ]);
-        }
+        DB::transaction(function () use ($voucher, $user): void {
+            $lockedVoucher = Voucher::query()->withoutGlobalScopes()->lockForUpdate()->findOrFail($voucher->getKey());
 
-        $voucher->update([
-            'status' => Voucher::STATUS_VERIFIED,
-            'verified_by' => $user->getKey(),
-            'verified_at' => now(),
-        ]);
+            if (! $lockedVoucher->isPending()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Only a pending voucher can be verified.',
+                ]);
+            }
+
+            $lockedVoucher->update([
+                'status' => Voucher::STATUS_VERIFIED,
+                'verified_by' => $user->getKey(),
+                'verified_at' => now(),
+            ]);
+
+            $voucher->setRawAttributes($lockedVoucher->getAttributes());
+        });
     }
 
     /**
@@ -141,66 +147,90 @@ class VoucherService
      */
     public function approve(Voucher $voucher, User $user): void
     {
-        $allowedFrom = $voucher->isCredit()
-            ? [Voucher::STATUS_VERIFIED]
-            : [Voucher::STATUS_PENDING, Voucher::STATUS_VERIFIED];
-
-        if (! in_array($voucher->status, $allowedFrom, true)) {
-            throw ValidationException::withMessages([
-                'status' => $voucher->isCredit()
-                    ? 'A credit voucher must be verified before it can be approved.'
-                    : 'This voucher cannot be approved from its current status.',
-            ]);
-        }
-
-        if ($voucher->transaction_type === 'inventory_purchase') {
-            $this->assertFundingDoesNotExceedPurchaseTotal($voucher);
-        }
-
+        // The status check and, for purchase funding, the "does this push
+        // total funding over the purchase total" sum-check both need to run
+        // against a row that cannot change under us between the check and
+        // the write. Re-fetch the voucher (and, when relevant, lock the
+        // Purchase row) *inside* the transaction so two vouchers approved
+        // for the same voucher/purchase at nearly the same time serialize
+        // instead of both reading a stale "not yet approved" / "not yet
+        // fully funded" state and both going through.
         DB::transaction(function () use ($voucher, $user): void {
-            $resulting = $this->applyAccountingEffect($voucher);
+            $lockedVoucher = Voucher::query()->withoutGlobalScopes()->lockForUpdate()->findOrFail($voucher->getKey());
 
-            $voucher->update([
+            $allowedFrom = $lockedVoucher->isCredit()
+                ? [Voucher::STATUS_VERIFIED]
+                : [Voucher::STATUS_PENDING, Voucher::STATUS_VERIFIED];
+
+            if (! in_array($lockedVoucher->status, $allowedFrom, true)) {
+                throw ValidationException::withMessages([
+                    'status' => $lockedVoucher->isCredit()
+                        ? 'A credit voucher must be verified before it can be approved.'
+                        : 'This voucher cannot be approved from its current status.',
+                ]);
+            }
+
+            if ($lockedVoucher->transaction_type === 'inventory_purchase') {
+                $this->assertFundingDoesNotExceedPurchaseTotal($lockedVoucher);
+            }
+
+            $resulting = $this->applyAccountingEffect($lockedVoucher);
+
+            $lockedVoucher->update([
                 'status' => Voucher::STATUS_APPROVED,
                 'approved_by' => $user->getKey(),
                 'approved_at' => now(),
                 'resulting_model_type' => $resulting ? $resulting::class : null,
                 'resulting_model_id' => $resulting?->getKey(),
             ]);
+
+            $voucher->setRawAttributes($lockedVoucher->getAttributes());
         });
     }
 
     public function reject(Voucher $voucher, string $reason, User $user): void
     {
-        if (in_array($voucher->status, [Voucher::STATUS_APPROVED, Voucher::STATUS_REJECTED, Voucher::STATUS_CANCELLED], true)) {
-            throw ValidationException::withMessages([
-                'status' => 'This voucher has already reached a final status.',
-            ]);
-        }
-
         if (trim($reason) === '') {
             throw ValidationException::withMessages([
                 'rejection_reason' => 'A rejection reason is required.',
             ]);
         }
 
-        $voucher->update([
-            'status' => Voucher::STATUS_REJECTED,
-            'rejection_reason' => $reason,
-            'approved_by' => $user->getKey(),
-            'approved_at' => now(),
-        ]);
+        DB::transaction(function () use ($voucher, $user, $reason): void {
+            $lockedVoucher = Voucher::query()->withoutGlobalScopes()->lockForUpdate()->findOrFail($voucher->getKey());
+
+            if (in_array($lockedVoucher->status, [Voucher::STATUS_APPROVED, Voucher::STATUS_REJECTED, Voucher::STATUS_CANCELLED], true)) {
+                throw ValidationException::withMessages([
+                    'status' => 'This voucher has already reached a final status.',
+                ]);
+            }
+
+            $lockedVoucher->update([
+                'status' => Voucher::STATUS_REJECTED,
+                'rejection_reason' => $reason,
+                'approved_by' => $user->getKey(),
+                'approved_at' => now(),
+            ]);
+
+            $voucher->setRawAttributes($lockedVoucher->getAttributes());
+        });
     }
 
     public function cancel(Voucher $voucher): void
     {
-        if (! $voucher->isPending()) {
-            throw ValidationException::withMessages([
-                'status' => 'Only a pending voucher can be cancelled.',
-            ]);
-        }
+        DB::transaction(function () use ($voucher): void {
+            $lockedVoucher = Voucher::query()->withoutGlobalScopes()->lockForUpdate()->findOrFail($voucher->getKey());
 
-        $voucher->update(['status' => Voucher::STATUS_CANCELLED]);
+            if (! $lockedVoucher->isPending()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Only a pending voucher can be cancelled.',
+                ]);
+            }
+
+            $lockedVoucher->update(['status' => Voucher::STATUS_CANCELLED]);
+
+            $voucher->setRawAttributes($lockedVoucher->getAttributes());
+        });
     }
 
     /**
@@ -210,7 +240,12 @@ class VoucherService
      */
     protected function assertFundingDoesNotExceedPurchaseTotal(Voucher $voucher): void
     {
-        $purchase = Purchase::query()->find($voucher->purchase_id);
+        // Locking the Purchase row serializes concurrent approve() calls for
+        // *different* vouchers funding the same purchase (the caller's own
+        // voucher-row lock only protects against double-approving this one
+        // voucher), so the sum below is never read from two transactions at
+        // once and cannot jointly overfund the purchase.
+        $purchase = Purchase::query()->withoutGlobalScopes()->lockForUpdate()->find($voucher->purchase_id);
 
         if (! $purchase) {
             return;

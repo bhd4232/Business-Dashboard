@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use App\Services\StockMovementService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class StockMovement extends Model
 {
@@ -64,6 +65,55 @@ class StockMovement extends Model
         static::deleting(function (StockMovement $movement): void {
             app(StockMovementService::class)->assertCanDelete($movement);
         });
+    }
+
+    /**
+     * Save inside a transaction that holds a row lock on the affected
+     * Product (and variant, if any) for the whole save — including the
+     * `saving` hook's stock validation (a SUM over the movement ledger)
+     * and the `saved` hook's stock sync. Without this lock, two concurrent
+     * movements for the same product can both read the same "current
+     * stock" before either commits, both pass the >= 0 check, and both
+     * insert — overselling the product. Locking the Product row first
+     * serializes concurrent movements for the same product so the second
+     * one sees the first one's committed effect before it validates.
+     */
+    public function save(array $options = [])
+    {
+        return DB::transaction(function () use ($options) {
+            $this->lockAffectedRows();
+
+            return parent::save($options);
+        });
+    }
+
+    public function delete()
+    {
+        return DB::transaction(function () {
+            $this->lockAffectedRows();
+
+            return parent::delete();
+        });
+    }
+
+    /**
+     * Locks the Product row (and variant row, if any) this movement
+     * affects, always in the same order (product, then variant), so
+     * concurrent movements never deadlock against each other.
+     */
+    protected function lockAffectedRows(): void
+    {
+        $productId = $this->product_id ?: $this->getOriginal('product_id');
+
+        if ($productId) {
+            Product::query()->withoutGlobalScopes()->whereKey($productId)->lockForUpdate()->first();
+        }
+
+        $variantId = $this->product_variant_id ?: $this->getOriginal('product_variant_id');
+
+        if ($variantId) {
+            ProductVariant::query()->withoutGlobalScopes()->whereKey($variantId)->lockForUpdate()->first();
+        }
     }
 
     public function product()

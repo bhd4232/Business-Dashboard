@@ -4,9 +4,28 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- Company Management's **Companies** list now follows the top-bar company switcher: a selected company shows only its own row, while **All Companies** shows the full permitted company list.
+- Monetary values now begin with a currency symbol throughout the app: Bangladeshi Taka renders as **৳** instead of `BDT`, while other supported currencies use their own familiar symbols. All BDT amount inputs use the same **৳** prefix, and currency-code fields clarify the expected `BDT (৳)` value.
+
 ### Fixed
 
 - Storefront Settings now commits native Filament Color Picker values when the picker loses focus, so changing one color and then moving to another field no longer restores a stale black value. The same reliable blur-save behavior also applies to the company dashboard color picker. Shared sticky **Save changes** actions now use Filament's native form-submit flow and explicitly target the page form, restoring save behavior on all affected resource create/edit pages, including Storefront Settings and Company pages.
+
+### Security
+
+- Closed four race-condition (concurrency) gaps found during a deep audit, all following the same pattern: a stock/fund "is this safe?" check and the write that acts on it happened in two separate, unlocked queries, so two requests arriving at nearly the same moment could both pass the check off stale data.
+  - **Stock oversell**: creating/updating/deleting a `StockMovement` now locks its Product row (and variant row, if any) for the whole operation, so the ledger-sum stock check and the insert that follows it can no longer race — two concurrent sales for the last unit of a product can no longer both pass validation and both go through.
+  - **Variant stock lost-update**: the same lock also protects `ProductVariant.stock`'s read-modify-write delta, so two concurrent movements against one variant can no longer silently overwrite each other's update.
+  - **Purchase overfunding**: approving an inventory-purchase voucher now locks both the voucher row and the Purchase row for the whole approval, so two vouchers funding the same purchase approved near-simultaneously can no longer jointly exceed the purchase total.
+  - **Voucher double-processing**: `verify()`, `approve()`, `reject()`, and `cancel()` now all re-fetch and lock the voucher row inside their transaction before checking/changing its status, closing the narrower window where the same voucher could be processed twice from two concurrent requests.
+
+### Technical Notes
+
+- `App\Models\StockMovement::save()`/`delete()` now wrap `parent::save()`/`parent::delete()` in `DB::transaction()` with `lockForUpdate()` on the affected Product/ProductVariant rows (always locked in the same product-then-variant order to avoid deadlocks), acquired before the `saving` hook's ledger-sum validation runs.
+- `App\Services\VoucherService::verify()/approve()/reject()/cancel()` now lock the target `Voucher` row (`lockForUpdate()`) inside `DB::transaction()` before re-checking status; `approve()` additionally locks the related `Purchase` row before summing already-approved funding vouchers against it.
+- No schema changes. Full `php artisan test` run: all previously-passing tests still pass; 13 pre-existing storefront-view failures (unrelated `Undefined variable $item` in `storefront/cart/show.blade.php` and related view bugs) were confirmed present before these changes too (verified via `git stash`) and are out of scope for this fix.
 
 ## [2.1.0] - 2026-08-18
 
