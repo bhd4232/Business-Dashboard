@@ -2,6 +2,32 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-20 - Connect WhatsApp App: fix silent save failure on Configuration ID
+
+Reason:
+
+- While walking through the real Meta Tech Provider / Embedded Signup onboarding live with the owner, saving the Meta App ID/Secret/verify token on the **CRM → Connect WhatsApp App** page appeared to succeed but reverted to blank on reload. Investigated and found the page's `save()` required `settings.config_id`, but Meta only issues a Configuration ID after the Tech Provider App Review step is approved — so saving credentials first (the only order possible in the real world) always failed Livewire validation. The blade view had no `@error` output anywhere, so the failure was silent.
+
+What happened:
+
+- `settings.config_id` validation changed from `required` to `nullable` in `ConnectWhatsAppBusinessApp::save()`, so the Meta App ID/Secret/verify token can be saved on their own; Configuration ID can be added later once it exists.
+- Added `@error` blocks under all four fields in `connect-whats-app-business-app.blade.php` so any future validation failure is visible instead of silent, plus a label hint that Configuration ID is optional for now.
+
+Important changed files:
+
+- `app/Filament/Pages/ConnectWhatsAppBusinessApp.php`
+- `resources/views/filament/pages/connect-whats-app-business-app.blade.php`
+- `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Verification:
+
+- `php artisan test --filter=EmbeddedSignupTest` — 5/5 passed (19 assertions), no regressions.
+- No schema changes; `npm run build` not needed (no JS/CSS asset changes, Blade-only).
+
+Commit status:
+
+- Approved by owner in chat — commit and push this fix only (unrelated pending changes in the working tree are intentionally left out).
+
 ## 2026-08-20 - Race-condition audit + fixes: stock oversell, variant lost-update, voucher/purchase overfunding
 
 Reason:

@@ -52,7 +52,10 @@ class ConnectWhatsAppBusinessApp extends Page
     {
         $this->validate([
             'settings.app_id' => ['required', 'string', 'max:100'],
-            'settings.config_id' => ['required', 'string', 'max:100'],
+            // config_id is deliberately optional here: it is only obtainable from
+            // Meta after Embedded Signup / Tech Provider App Review is approved,
+            // so the App ID/Secret/verify token must be saveable on their own first.
+            'settings.config_id' => ['nullable', 'string', 'max:100'],
             'settings.verify_token' => ['required', 'string', 'max:255'],
             'settings.app_secret' => ['nullable', 'string', 'max:255'],
         ]);

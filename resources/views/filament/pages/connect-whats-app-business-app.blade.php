@@ -6,6 +6,7 @@
                 <x-filament::input.wrapper>
                     <x-filament::input type="text" wire:model="settings.app_id" placeholder="123456789012345" />
                 </x-filament::input.wrapper>
+                @error('settings.app_id') <p style="font-size: .72rem; color: rgb(220 38 38); margin-top: .3rem;">{{ $message }}</p> @enderror
             </div>
 
             <div>
@@ -16,13 +17,15 @@
                     <x-filament::input type="password" wire:model="settings.app_secret" placeholder="{{ ($settings['has_app_secret'] ?? false) ? '••••••••' : '' }}" />
                 </x-filament::input.wrapper>
                 <p style="font-size: .72rem; color: rgb(113 113 122); margin-top: .3rem;">Stored encrypted per company. Also used to verify inbound webhook signatures.</p>
+                @error('settings.app_secret') <p style="font-size: .72rem; color: rgb(220 38 38); margin-top: .3rem;">{{ $message }}</p> @enderror
             </div>
 
             <div>
-                <label style="display:block; font-size: .8rem; font-weight: 600; margin-bottom: .3rem;">Embedded Signup Configuration ID</label>
+                <label style="display:block; font-size: .8rem; font-weight: 600; margin-bottom: .3rem;">Embedded Signup Configuration ID <span style="font-weight: 400; color: rgb(113 113 122);">(optional for now — add once App Review is approved)</span></label>
                 <x-filament::input.wrapper>
                     <x-filament::input type="text" wire:model="settings.config_id" placeholder="From App Dashboard → WhatsApp → Embedded Signup" />
                 </x-filament::input.wrapper>
+                @error('settings.config_id') <p style="font-size: .72rem; color: rgb(220 38 38); margin-top: .3rem;">{{ $message }}</p> @enderror
             </div>
 
             <div>
@@ -30,6 +33,7 @@
                 <x-filament::input.wrapper>
                     <x-filament::input type="text" wire:model="settings.verify_token" placeholder="A shared secret you also set in the App Dashboard's Webhooks config" />
                 </x-filament::input.wrapper>
+                @error('settings.verify_token') <p style="font-size: .72rem; color: rgb(220 38 38); margin-top: .3rem;">{{ $message }}</p> @enderror
             </div>
 
             <div>
