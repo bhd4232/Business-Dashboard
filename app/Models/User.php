@@ -172,6 +172,10 @@ class User extends Authenticatable implements FilamentUser
             'marketing.create',
             'marketing.update',
             'marketing.delete',
+            'notifications.orders',
+            'notifications.order_status',
+            'notifications.staff',
+            'notifications.company',
         ],
         'sales_staff' => [
             'dashboard.view',
@@ -184,6 +188,8 @@ class User extends Authenticatable implements FilamentUser
             'crm.manage',
             'voucher.create',
             'voucher.view',
+            'notifications.orders',
+            'notifications.order_status',
         ],
         'inventory_staff' => [
             'dashboard.view',
@@ -194,6 +200,7 @@ class User extends Authenticatable implements FilamentUser
             'reports.view',
             'voucher.create',
             'voucher.view',
+            'notifications.orders',
         ],
         'accountant' => [
             'dashboard.view',
@@ -213,6 +220,8 @@ class User extends Authenticatable implements FilamentUser
             'fund_transfer.create',
             'finance.dashboard',
             'investments.view',
+            'notifications.orders',
+            'notifications.order_status',
         ],
     ];
 
@@ -260,6 +269,10 @@ class User extends Authenticatable implements FilamentUser
         'marketing.create' => 'Marketing/Ads: Create',
         'marketing.update' => 'Marketing/Ads: Update',
         'marketing.delete' => 'Marketing/Ads: Delete',
+        'notifications.orders' => 'Notifications: New Orders',
+        'notifications.order_status' => 'Notifications: Order Status Changes',
+        'notifications.staff' => 'Notifications: New Staff/User Added',
+        'notifications.company' => 'Notifications: Company Info Changes',
     ];
 
     public const MODEL_MODULES = [

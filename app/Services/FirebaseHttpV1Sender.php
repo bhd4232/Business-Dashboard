@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\FirebasePushResult;
+use App\Support\FirebaseSettings;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -21,7 +22,7 @@ class FirebaseHttpV1Sender
 
     public function isConfigured(): bool
     {
-        if (! config('native_push.firebase.enabled', false)) {
+        if (! config('native_push.firebase.enabled', false) && ! FirebaseSettings::enabled()) {
             return false;
         }
 
@@ -44,6 +45,7 @@ class FirebaseHttpV1Sender
         string $title,
         string $body,
         array $data = [],
+        string $channelId = 'app-updates',
     ): FirebasePushResult {
         if (! $this->isConfigured()) {
             return FirebasePushResult::failed(
@@ -85,7 +87,7 @@ class FirebaseHttpV1Sender
                 'android' => [
                     'priority' => 'high',
                     'notification' => [
-                        'channel_id' => 'app-updates',
+                        'channel_id' => $channelId,
                         'sound' => 'default',
                     ],
                 ],
@@ -161,6 +163,16 @@ class FirebaseHttpV1Sender
     {
         if ($this->credentials !== null) {
             return $this->credentials;
+        }
+
+        $settingsCredentials = FirebaseSettings::serviceAccountJson();
+
+        if (
+            is_array($settingsCredentials)
+            && filled($settingsCredentials['client_email'] ?? null)
+            && filled($settingsCredentials['private_key'] ?? null)
+        ) {
+            return $this->credentials = $settingsCredentials;
         }
 
         $json = null;

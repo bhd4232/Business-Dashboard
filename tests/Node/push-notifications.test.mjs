@@ -2,13 +2,17 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
     APP_UPDATE_CHANNEL_ID,
+    BUSINESS_ALERT_CHANNEL_ID,
+    BUSINESS_ALERT_PUSH_KIND,
     PUSH_INSTALLATION_STORAGE_KEY,
     buildPushRegistrationPayload,
     deliverAppUpdatePush,
+    deliverBusinessAlertPush,
     extractPushData,
     initializeNativePushNotifications,
     installationId,
     isAppUpdatePush,
+    isBusinessAlertPush,
     isNativeAndroid,
     isPushNotificationsAvailable,
     nativeAppVersion,
@@ -213,7 +217,10 @@ test('native initialization registers a stable installation and app version', as
             listeners.set(name, listener);
         },
         createChannel: async (channel) => {
-            assert.equal(channel.id, APP_UPDATE_CHANNEL_ID);
+            assert.ok(
+                [APP_UPDATE_CHANNEL_ID, BUSINESS_ALERT_CHANNEL_ID].includes(channel.id),
+                `unexpected channel id: ${channel.id}`,
+            );
         },
         checkPermissions: async () => ({ receive: 'granted' }),
         register: async () => {
@@ -347,4 +354,50 @@ test('initialization skips entirely when the native bridge reports Firebase is n
     }), false);
 
     assert.equal(pluginTouched, false);
+});
+
+test('business-alert pushes are recognized by kind and use a separate channel from app updates', () => {
+    assert.equal(BUSINESS_ALERT_PUSH_KIND, 'business-alert');
+    assert.notEqual(BUSINESS_ALERT_CHANNEL_ID, APP_UPDATE_CHANNEL_ID);
+
+    assert.equal(isBusinessAlertPush({ data: { kind: 'business-alert' } }), true);
+    assert.equal(isBusinessAlertPush({ data: { kind: 'app-update' } }), false);
+});
+
+test('a foreground business-alert receive dispatches an event but never navigates', () => {
+    const events = [];
+
+    class TestCustomEvent {
+        constructor(type, options) {
+            this.type = type;
+            this.detail = options.detail;
+        }
+    }
+
+    const targetWindow = {
+        CustomEvent: TestCustomEvent,
+        dispatchEvent: (event) => events.push(event),
+        location: { href: 'https://app.example.com/admin' },
+    };
+    const data = { kind: 'business-alert', alert_kind: 'order.created', action_url: '/admin/orders/1' };
+
+    assert.equal(deliverBusinessAlertPush({ data }, targetWindow), true);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, 'zz:business-alert');
+    assert.deepEqual(events[0].detail, data);
+    // No navigate: true was passed, so the current page must be left alone.
+    assert.equal(targetWindow.location.href, 'https://app.example.com/admin');
+
+    assert.equal(deliverBusinessAlertPush({ data: { kind: 'app-update' } }, targetWindow), false);
+});
+
+test('a tapped business-alert notification navigates to its action_url', () => {
+    const targetWindow = {
+        dispatchEvent: () => {},
+        location: { href: 'https://app.example.com/admin' },
+    };
+    const data = { kind: 'business-alert', alert_kind: 'order.created', action_url: '/admin/orders/1' };
+
+    assert.equal(deliverBusinessAlertPush({ data }, targetWindow, { navigate: true }), true);
+    assert.equal(targetWindow.location.href, '/admin/orders/1');
 });

@@ -50,6 +50,9 @@ jobs:
       - name: Test native push integration
         run: npm run test:push-notifications
 
+      - name: Test web push integration
+        run: npm run test:web-push
+
       - name: Build frontend assets
         run: npm run build
 

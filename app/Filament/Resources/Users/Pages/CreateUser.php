@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Concerns\HasStickyHeaderFormActions;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\Company;
+use App\Services\BusinessNotificationService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 
@@ -62,5 +64,31 @@ class CreateUser extends CreateRecord
             ->all();
 
         $record->companies()->sync($sync);
+
+        $this->notifyCompaniesOfNewStaff($record, array_keys($sync));
+    }
+
+    /**
+     * @param  array<int, int>  $companyIds
+     */
+    protected function notifyCompaniesOfNewStaff(Model $record, array $companyIds): void
+    {
+        if ($companyIds === []) {
+            return;
+        }
+
+        $notifications = app(BusinessNotificationService::class);
+
+        foreach (Company::query()->whereKey($companyIds)->get() as $company) {
+            $notifications->notifyCompany(
+                $company,
+                'user.created',
+                'notifications.staff',
+                'New staff added',
+                "{$record->name} was added as {$record->effectiveRole()}.",
+                actionUrl: UserResource::getUrl('view', ['record' => $record]),
+                actionLabel: 'View user',
+            );
+        }
     }
 }
