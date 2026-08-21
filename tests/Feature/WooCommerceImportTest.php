@@ -172,6 +172,42 @@ class WooCommerceImportTest extends TestCase
         $this->assertSame(2, ProductVariant::withoutGlobalScopes()->where('product_id', $product->getKey())->count());
     }
 
+    public function test_two_companies_can_each_import_a_category_with_the_same_slug(): void
+    {
+        // Regression test: categories.slug used to have a database-wide unique
+        // constraint even though Category is company-scoped, so a second
+        // company syncing a category name that slugs the same as one another
+        // company already has (e.g. "Audio") crashed with a 1062 duplicate
+        // entry error instead of getting its own company-scoped category row.
+        $companyA = $this->createCompanyWithWooCredentials('woo-audio-a', 'WAA');
+        $companyB = $this->createCompanyWithWooCredentials('woo-audio-b', 'WAB');
+
+        $payloadFor = fn (string $sku) => [[
+            'name' => 'Speaker',
+            'sku' => $sku,
+            'slug' => 'speaker-'.$sku,
+            'regular_price' => '500',
+            'categories' => [['name' => 'Audio']],
+            'images' => [],
+        ]];
+
+        Http::fake([
+            'old-shop.example.test/wp-json/wc/v3/products*' => Http::sequence()
+                ->push($payloadFor('WOO-SPEAKER-A'))
+                ->push($payloadFor('WOO-SPEAKER-B')),
+        ]);
+        app(WooCommerceImportService::class)->importProducts($companyA, downloadImages: false);
+        app(\App\Services\CompanyContext::class)->clear();
+        app(WooCommerceImportService::class)->importProducts($companyB, downloadImages: false);
+
+        $categoryA = Category::withoutGlobalScopes()->where('company_id', $companyA->getKey())->where('slug', 'audio')->first();
+        $categoryB = Category::withoutGlobalScopes()->where('company_id', $companyB->getKey())->where('slug', 'audio')->first();
+
+        $this->assertNotNull($categoryA);
+        $this->assertNotNull($categoryB);
+        $this->assertNotSame($categoryA->getKey(), $categoryB->getKey());
+    }
+
     public function test_import_fails_without_configured_credentials(): void
     {
         $company = Company::query()->create([
@@ -216,12 +252,12 @@ class WooCommerceImportTest extends TestCase
             ->assertSuccessful();
     }
 
-    private function createCompanyWithWooCredentials(string $slug): Company
+    private function createCompanyWithWooCredentials(string $slug, string $invoicePrefix = 'WOO'): Company
     {
         $company = Company::query()->create([
             'name' => 'Woo Store '.$slug,
             'slug' => $slug,
-            'invoice_prefix' => 'WOO',
+            'invoice_prefix' => $invoicePrefix,
             'currency' => 'BDT',
             'timezone' => 'Asia/Dhaka',
             'is_active' => true,

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ExpenseCategories\Schemas;
 
+use App\Support\CompanyScopedUnique;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -19,7 +20,7 @@ class ExpenseCategoryForm
                     ->required()
                     ->live(onBlur: true)
                     ->afterStateUpdated(fn ($state, $set) => $set('slug', Str::slug($state))),
-                TextInput::make('slug')->required()->unique(ignoreRecord: true),
+                TextInput::make('slug')->required()->unique(ignoreRecord: true, modifyRuleUsing: CompanyScopedUnique::rule()),
                 Toggle::make('is_active')->label('Active')->default(true),
                 Textarea::make('description')->rows(3)->columnSpanFull(),
             ])->columns(2),

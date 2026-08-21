@@ -9,6 +9,7 @@ use App\Filament\Resources\Investors\Pages\ListInvestors;
 use App\Filament\Resources\Investors\Pages\ViewInvestor;
 use App\Filament\Resources\Investors\RelationManagers\InvestmentsRelationManager;
 use App\Models\Investor;
+use App\Support\CompanyScopedUnique;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -42,7 +43,7 @@ class InvestorResource extends Resource
             Section::make('Investor Identity')->schema([
                 TextInput::make('name')->required(),
                 TextInput::make('guardian_name')->label('Father / Spouse Name'),
-                TextInput::make('phone')->tel()->required()->unique(ignoreRecord: true),
+                TextInput::make('phone')->tel()->required()->unique(ignoreRecord: true, modifyRuleUsing: CompanyScopedUnique::rule()),
                 TextInput::make('email')->email(),
                 TextInput::make('nid_number')->label('NID Number'),
                 Select::make('channel_partner_id')

@@ -7,6 +7,7 @@ use App\Filament\Resources\Categories\Schemas\CategoryForm;
 use App\Models\Category;
 use App\Models\Product;
 use App\Support\CompanyMedia;
+use App\Support\CompanyScopedUnique;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
@@ -64,11 +65,11 @@ class ProductForm
                         TextInput::make('sku')
                             ->label('SKU')
                             ->required()
-                            ->unique(ignoreRecord: true),
+                            ->unique(ignoreRecord: true, modifyRuleUsing: CompanyScopedUnique::rule()),
 
                         TextInput::make('barcode')
                             ->label('Barcode')
-                            ->unique(ignoreRecord: true)
+                            ->unique(ignoreRecord: true, modifyRuleUsing: CompanyScopedUnique::rule())
                             ->maxLength(255),
 
                         TextInput::make('brand')

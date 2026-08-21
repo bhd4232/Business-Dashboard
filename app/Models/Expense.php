@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -10,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class Expense extends Model
 {
-    use BelongsToCompany;
+    use BelongsToCompany, GeneratesSequentialNumber;
 
     protected $fillable = [
         'company_id',
@@ -68,6 +69,11 @@ class Expense extends Model
         static::deleted(function (Expense $expense): void {
             $expense->deleteLedger();
         });
+    }
+
+    protected function sequentialNumberColumn(): string
+    {
+        return 'expense_number';
     }
 
     public function category(): BelongsTo

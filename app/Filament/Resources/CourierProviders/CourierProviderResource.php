@@ -13,6 +13,7 @@ use App\Services\ECourierClient;
 use App\Services\PathaoCourierClient;
 use App\Services\RedxCourierClient;
 use App\Services\SteadfastCourierClient;
+use App\Support\CompanyScopedUnique;
 use App\Support\MoneyFormatter;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -109,7 +110,7 @@ class CourierProviderResource extends Resource
                         ->default('custom')
                         ->required()
                         ->maxLength(255)
-                        ->unique(ignoreRecord: true),
+                        ->unique(ignoreRecord: true, modifyRuleUsing: CompanyScopedUnique::rule()),
                     Toggle::make('is_active')
                         ->label('Active')
                         ->default(true),

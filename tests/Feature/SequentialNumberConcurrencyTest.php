@@ -2,10 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
 use App\Models\Company;
+use App\Models\Customer;
+use App\Models\CustomerPayment;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Order;
 use App\Models\Purchase;
 use App\Models\Supplier;
+use App\Models\SupplierPayment;
 use App\Services\CompanyContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -99,6 +105,131 @@ class SequentialNumberConcurrencyTest extends TestCase
         $this->assertNotSame($first->purchase_number, $second->purchase_number);
         $this->assertSame(1, Purchase::query()->where('purchase_number', $second->purchase_number)->count());
         $this->assertSame(3, Purchase::query()->distinct()->count('purchase_number'));
+    }
+
+    public function test_customer_payment_number_collision_is_retried_and_resolved(): void
+    {
+        $company = $this->company();
+        app(CompanyContext::class)->set($company);
+
+        $account = Account::query()->create(['name' => 'Cash', 'type' => 'cash', 'opening_balance' => 0]);
+        $customer = Customer::query()->create(['name' => 'Concurrency Customer', 'opening_balance' => 1000]);
+        $customer->syncCurrentBalance();
+
+        $first = CustomerPayment::query()->create([
+            'customer_id' => $customer->id,
+            'account_id' => $account->id,
+            'amount' => 10,
+        ]);
+
+        $stole = false;
+        CustomerPayment::creating(function (CustomerPayment $payment) use (&$stole, $customer, $account): void {
+            if ($stole || blank($payment->payment_number)) {
+                return;
+            }
+
+            $stole = true;
+
+            CustomerPayment::query()->create([
+                'payment_number' => $payment->payment_number,
+                'customer_id' => $customer->id,
+                'account_id' => $account->id,
+                'amount' => 10,
+            ]);
+        });
+
+        $second = CustomerPayment::query()->create([
+            'customer_id' => $customer->id,
+            'account_id' => $account->id,
+            'amount' => 10,
+        ]);
+
+        $this->assertTrue($stole);
+        $this->assertNotSame($first->payment_number, $second->payment_number);
+        $this->assertSame(3, CustomerPayment::query()->distinct()->count('payment_number'));
+    }
+
+    public function test_supplier_payment_number_collision_is_retried_and_resolved(): void
+    {
+        $company = $this->company();
+        app(CompanyContext::class)->set($company);
+
+        $account = Account::query()->create(['name' => 'Cash', 'type' => 'cash', 'opening_balance' => 1000]);
+        $supplier = Supplier::query()->create(['name' => 'Concurrency Supplier', 'opening_balance' => 1000]);
+        $supplier->syncCurrentBalance();
+
+        $first = SupplierPayment::query()->create([
+            'supplier_id' => $supplier->id,
+            'account_id' => $account->id,
+            'amount' => 10,
+        ]);
+
+        $stole = false;
+        SupplierPayment::creating(function (SupplierPayment $payment) use (&$stole, $supplier, $account): void {
+            if ($stole || blank($payment->payment_number)) {
+                return;
+            }
+
+            $stole = true;
+
+            SupplierPayment::query()->create([
+                'payment_number' => $payment->payment_number,
+                'supplier_id' => $supplier->id,
+                'account_id' => $account->id,
+                'amount' => 10,
+            ]);
+        });
+
+        $second = SupplierPayment::query()->create([
+            'supplier_id' => $supplier->id,
+            'account_id' => $account->id,
+            'amount' => 10,
+        ]);
+
+        $this->assertTrue($stole);
+        $this->assertNotSame($first->payment_number, $second->payment_number);
+        $this->assertSame(3, SupplierPayment::query()->distinct()->count('payment_number'));
+    }
+
+    public function test_expense_number_collision_is_retried_and_resolved(): void
+    {
+        $company = $this->company();
+        app(CompanyContext::class)->set($company);
+
+        $account = Account::query()->create(['name' => 'Cash', 'type' => 'cash', 'opening_balance' => 1000]);
+        $category = ExpenseCategory::query()->create(['name' => 'Rent', 'slug' => 'rent', 'is_active' => true]);
+
+        $first = Expense::query()->create([
+            'expense_category_id' => $category->id,
+            'account_id' => $account->id,
+            'amount' => 10,
+        ]);
+
+        $stole = false;
+        Expense::creating(function (Expense $expense) use (&$stole, $category, $account): void {
+            if ($stole || blank($expense->expense_number)) {
+                return;
+            }
+
+            $stole = true;
+
+            Expense::query()->create([
+                'expense_number' => $expense->expense_number,
+                'expense_category_id' => $category->id,
+                'account_id' => $account->id,
+                'amount' => 10,
+            ]);
+        });
+
+        $second = Expense::query()->create([
+            'expense_category_id' => $category->id,
+            'account_id' => $account->id,
+            'amount' => 10,
+        ]);
+
+        $this->assertTrue($stole);
+        $this->assertNotSame($first->expense_number, $second->expense_number);
+        $this->assertSame(3, Expense::query()->distinct()->count('expense_number'));
     }
 
     private function company(): Company

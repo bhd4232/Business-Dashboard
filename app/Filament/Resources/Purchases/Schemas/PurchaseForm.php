@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Supplier;
+use App\Support\CompanyScopedUnique;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
@@ -202,12 +203,12 @@ class PurchaseForm
                                         TextInput::make('sku')
                                             ->label('SKU')
                                             ->required()
-                                            ->unique(Product::class, 'sku')
+                                            ->unique(Product::class, 'sku', modifyRuleUsing: CompanyScopedUnique::rule())
                                             ->maxLength(255),
 
                                         TextInput::make('barcode')
                                             ->label('Barcode')
-                                            ->unique(Product::class, 'barcode')
+                                            ->unique(Product::class, 'barcode', modifyRuleUsing: CompanyScopedUnique::rule())
                                             ->maxLength(255),
 
                                         TextInput::make('brand')

@@ -2,6 +2,58 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-21 - Fix cross-company unique-constraint crashes and false "already taken" rejections (full-schema audit)
+
+Reason:
+
+- Owner hit a live 500 while clicking **Sync WooCommerce** on ZamZam Gadget's storefront settings: `SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry 'audio' for key 'categories.categories_slug_unique'`. Root cause: `categories.slug` was given a database-wide `unique()` constraint in the original `create_categories_table` migration, from before this app had multi-company support. Once `company_id` was added, `Category` became company-scoped (`BelongsToCompany`/`CompanyScope`) and `WooCommerceImportService::resolveCategory()` only ever checks for an existing slug *within the current company* before inserting — so as soon as a second company synced a category name that slugs the same as one another company already has (here, "Audio"), the DB itself rejected the insert even though app logic correctly determined it was a new row for that company.
+- The owner then asked for a full schema-level audit for the same pattern anywhere else in the database, followed by "fix everything now". Checked every company-owned table's actual indexes directly via SQLite's `PRAGMA index_list`/`index_info` (not just the migration files) and cross-referenced each unique constraint against whether it's genuinely global (e.g. a real external ID, or a random/sequential document number with its own concurrency-safe retry logic) or should be company-scoped. Found two more database-level instances of the exact same bug, and a related admin-form-only version of it (Filament's `unique()` validation never applies a model's Eloquent global scopes, so it can reject a value the database would happily allow) on five more fields.
+
+What happened:
+
+- **Database-level fixes** (same shape as the categories fix — drop the global unique constraint, add a `(company_id, column)` unique index instead):
+  - `database/migrations/2026_08_21_163643_fix_categories_slug_unique_scope_to_company.php` — `categories.slug`.
+  - `database/migrations/2026_08_21_170645_fix_products_sku_and_barcode_unique_scope_to_company.php` — `products.sku` (was database-wide unique) and `products.barcode` (had no database constraint at all, only an unscoped admin-form check — added a proper per-company one to back it).
+  - `database/migrations/2026_08_21_170648_fix_expense_categories_slug_unique_scope_to_company.php` — `expense_categories.slug`.
+  - Verified no existing data would conflict with any of these three before writing them (checked for existing cross-table duplicate SKUs/barcodes directly against the demo database - none existed).
+- **Admin-form-level fixes** — added `App\Support\CompanyScopedUnique::rule()`, a reusable `modifyRuleUsing` callback that scopes a Filament field's uniqueness check to the record's own company (or the currently selected company from `CompanyContext` on create), and applied it to:
+  - `ProductForm` (`sku`, `barcode`) and `PurchaseForm`'s inline "add new product" fields (`sku`, `barcode`)
+  - `ExpenseCategoryForm` (`slug`)
+  - `CourierProviderResource` (`slug`)
+  - `InvestorResource` (`phone`)
+- Everything else found during the audit was confirmed correct as-is and left untouched: `product_variants`, `customer_risk_events`, `courier_webhook_logs`, `conversations`, `settlement_payouts`, `product_reviews`, `storefront_meta_attributions`, and the `meta_ad_*` tables are all scoped correctly through a parent foreign key that's already company-specific; `conversation_channels(provider, external_id)` is intentionally globally unique (a real Meta-assigned phone/page ID) and already documented as such in code; `orders.order_number`, `purchases.purchase_number`, `vouchers.voucher_number`, `quotations.quotation_number`, and `fund_transfers.transfer_number` are intentionally globally sequential/random with their own concurrency-safe retry logic (`GeneratesSequentialNumber` trait), not a bug. Also checked every `BelongsToCompany` model has an actual `company_id` column on its table (none missing), and every other `Rule::unique()`/`Str::random()` call in the app (none else needed fixing).
+- **Follow-up finding, same audit**: while confirming the `GeneratesSequentialNumber` retry pattern was the reason `orders`/`purchases`/etc. are safe despite a global unique constraint, found `CustomerPayment`, `SupplierPayment`, and `Expense` generate their number/`_number` column the same random way but *don't* use that trait — so a genuine (rare) collision between two requests would bubble up as a raw unhandled `QueryException` instead of retrying like every other numbered document already does. Added `GeneratesSequentialNumber` + `sequentialNumberColumn()` to all three, matching `Purchase`/`Order`/`Voucher`/`Quotation`/`FundTransfer`. This is a lower-severity, different-shaped bug than the three above (a rare race, not a guaranteed collision on common values) but the same underlying "unique constraint has no recovery path" family, so fixed alongside it.
+- Added regression tests: extended `tests/Feature/WooCommerceImportTest.php` with `test_two_companies_can_each_import_a_category_with_the_same_slug`; added `tests/Feature/CompanyScopedUniquenessTest.php` covering products (sku+barcode), expense categories (slug), and — using the same `CompanyScopedUnique::rule()` the forms call — courier providers (slug) and investors (phone), asserting cross-company duplicates are now allowed while same-company duplicates are still correctly rejected; extended `tests/Feature/SequentialNumberConcurrencyTest.php` with the same collision-and-retry simulation already used for orders/purchases, for customer payments, supplier payments, and expenses.
+
+Important changed files:
+
+- `database/migrations/2026_08_21_163643_fix_categories_slug_unique_scope_to_company.php` (new)
+- `database/migrations/2026_08_21_170645_fix_products_sku_and_barcode_unique_scope_to_company.php` (new)
+- `database/migrations/2026_08_21_170648_fix_expense_categories_slug_unique_scope_to_company.php` (new)
+- `app/Support/CompanyScopedUnique.php` (new)
+- `app/Filament/Resources/Products/Schemas/ProductForm.php`
+- `app/Filament/Resources/Purchases/Schemas/PurchaseForm.php`
+- `app/Filament/Resources/ExpenseCategories/Schemas/ExpenseCategoryForm.php`
+- `app/Filament/Resources/CourierProviders/CourierProviderResource.php`
+- `app/Filament/Resources/Investors/InvestorResource.php`
+- `app/Models/CustomerPayment.php`, `app/Models/SupplierPayment.php`, `app/Models/Expense.php`
+- `tests/Feature/WooCommerceImportTest.php`
+- `tests/Feature/CompanyScopedUniquenessTest.php` (new)
+- `tests/Feature/SequentialNumberConcurrencyTest.php`
+- `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Verification:
+
+- `php artisan test --filter=WooCommerceImportTest` — 6/6 passed (36 assertions).
+- `php artisan test --filter=CompanyScopedUniquenessTest` — 4/4 passed (8 assertions).
+- `php artisan test --filter=SequentialNumberConcurrencyTest` — 5/5 passed (17 assertions).
+- Full `php artisan test` suite run three times across this work (before, mid-way, and after this change) — pass count climbed only by the new tests added each time (810 → 814 → 819), same 7 pre-existing failures every time, all unrelated to this change (currency-symbol display, customer due-alert widget, reports page, storefront order tracking — none touch categories/products/expense categories/courier providers/investors/payment numbers).
+- These three migrations must be run on **production** (`app.zamzamint.com`) via `php artisan migrate` before the fixes take effect there — not run against the local demo/dev database as part of this fix, per the never-touch-demo-data-during-verification rule; the owner should run them as a normal deployment migration step.
+
+Commit status:
+
+- Approved by owner in chat — commit and push this fix only (unrelated pending changes in the working tree — an in-progress currency-symbol display update, among others — are intentionally left out).
+
 ## 2026-08-20 - Connect WhatsApp App: fix silent save failure on Configuration ID
 
 Reason:
