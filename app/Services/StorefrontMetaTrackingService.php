@@ -80,6 +80,7 @@ class StorefrontMetaTrackingService
         'immediate' => 'Immediately after checkout',
         'risk_aware' => 'Immediately for trusted courier history; otherwise after confirmation',
         'confirmed' => 'Only after order confirmation',
+        'completed' => 'Only after order status shows Completed',
     ];
 
     public function browserEnabled(StorefrontSetting $setting, ?Request $request = null): bool
@@ -124,7 +125,7 @@ class StorefrontMetaTrackingService
             return false;
         }
 
-        $events = is_array($setting->meta_browser_events)
+        $events = is_array($setting->meta_browser_events) && $setting->meta_browser_events !== []
             ? $setting->meta_browser_events
             : self::DEFAULT_BROWSER_EVENTS;
 
@@ -247,6 +248,10 @@ class StorefrontMetaTrackingService
             return StorefrontMetaAttribution::DUE_CONFIRMED;
         }
 
+        if ($timing === 'completed') {
+            return StorefrontMetaAttribution::DUE_COMPLETED;
+        }
+
         if ($timing !== 'risk_aware' || $courierSuccessRatio === null) {
             return StorefrontMetaAttribution::DUE_IMMEDIATE;
         }
@@ -320,7 +325,7 @@ class StorefrontMetaTrackingService
         }
 
         $enabled = $setting->meta_status_events;
-        $enabled = is_array($enabled) ? $enabled : self::DEFAULT_STATUS_EVENTS;
+        $enabled = is_array($enabled) && $enabled !== [] ? $enabled : self::DEFAULT_STATUS_EVENTS;
 
         return array_key_exists($stage, self::STATUS_EVENTS) && in_array($stage, $enabled, true);
     }

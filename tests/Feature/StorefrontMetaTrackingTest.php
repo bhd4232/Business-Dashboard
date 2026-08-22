@@ -78,6 +78,32 @@ class StorefrontMetaTrackingTest extends TestCase
             ->assertDontSee('connect.facebook.net', false);
     }
 
+    public function test_an_empty_saved_browser_events_list_falls_back_to_the_default_events_instead_of_firing_none(): void
+    {
+        // Regression test: this is the exact bug behind a real report —
+        // Meta Pixel Helper showed the Pixel ID as "installed" (fbq('init')
+        // ran fine) but "hasn't fired recently" / "no events recorded",
+        // because `meta_browser_events` was saved as `[]` (every Browser
+        // Events checkbox unchecked) rather than left unset. The old
+        // fallback only kicked in for a genuinely unset (null) value, so a
+        // saved `[]` silently meant "fire nothing, forever" while every
+        // readiness indicator in the admin panel still said "Ready".
+        [, $product, $setting] = $this->store('Empty Browser Events Store', 'empty-browser-events.example.test');
+        $setting->update([
+            'meta_tracking_enabled' => true,
+            'meta_consent_required' => false,
+            'meta_browser_tracking_enabled' => true,
+            'meta_browser_events' => [],
+            'meta_pixel_id' => '5566778899001122',
+        ]);
+
+        $this->get('http://empty-browser-events.example.test/product/'.$product->slug)
+            ->assertOk()
+            ->assertSee('connect.facebook.net/en_US/fbevents.js', false)
+            ->assertSee("fbq('track', 'PageView'", false)
+            ->assertSee("fbq('track', 'ViewContent'", false);
+    }
+
     public function test_purchase_is_sent_server_side_with_hashed_customer_data_and_shared_event_id(): void
     {
         [, $product, $setting] = $this->store('CAPI Store', 'capi.example.test');
@@ -332,6 +358,34 @@ class StorefrontMetaTrackingTest extends TestCase
 
         Http::assertNothingSent();
         $this->assertDatabaseCount('storefront_meta_events', 0);
+    }
+
+    public function test_an_empty_saved_status_events_list_falls_back_to_the_default_events_instead_of_sending_none(): void
+    {
+        // Regression test: Filament's CheckboxList dehydrates an
+        // all-unchecked selection as `[]`, not `null`. The old fallback
+        // (`is_array($enabled) ? $enabled : DEFAULT`) treated a saved `[]`
+        // as "administrator explicitly wants zero events" and silently sent
+        // nothing forever — indistinguishable from a healthy "Ready" status
+        // in the admin panel. An empty array is now treated the same as an
+        // unset value: fall back to the default event list.
+        [, $product, $setting] = $this->store('Empty Status Events Store', 'empty-status-events.example.test');
+        $setting->update([
+            'meta_tracking_enabled' => true,
+            'meta_consent_required' => false,
+            'meta_capi_enabled' => true,
+            'meta_status_events_enabled' => true,
+            'meta_status_events' => [],
+            'meta_pixel_id' => '4455667788990011',
+            'meta_tracking_credentials' => ['access_token' => 'empty-status-token'],
+        ]);
+        Http::fake();
+        $order = $this->draftStorefrontOrder($product);
+
+        app(OrderStatusWorkflowService::class)->transition($order, Order::STAGE_CONFIRMED);
+
+        Http::assertSentCount(1);
+        $this->assertDatabaseCount('storefront_meta_events', 1);
     }
 
     public function test_status_event_failure_never_rolls_back_order_and_is_safely_audited(): void
@@ -681,6 +735,71 @@ class StorefrontMetaTrackingTest extends TestCase
         $this->assertNull($attribution->fresh()->context);
         $this->assertNotNull($attribution->fresh()->purchase_dispatched_at);
         $this->assertSame(Order::STATUS_CONFIRMED, $order->status);
+    }
+
+    public function test_completed_purchase_timing_waits_for_order_status_to_show_completed(): void
+    {
+        [, $product, $setting] = $this->store('Completed Timing Store', 'completed-timing.example.test');
+        $setting->update([
+            'meta_tracking_enabled' => true,
+            'meta_consent_required' => false,
+            'meta_capi_enabled' => true,
+            'meta_purchase_timing' => 'completed',
+            'meta_pixel_id' => '6060606060606060',
+            'meta_tracking_credentials' => ['access_token' => 'completed-timing-token'],
+        ]);
+        Http::fake(['graph.facebook.com/*' => Http::response(['events_received' => 1], 200)]);
+        $order = $this->draftStorefrontOrder($product);
+
+        app(StorefrontMetaDispatchService::class)->captureOrder(
+            $order,
+            $setting,
+            ['event_source_url' => 'https://completed-timing.example.test/checkout', 'consent_granted' => true],
+        );
+
+        $attribution = StorefrontMetaAttribution::withoutGlobalScopes()->sole();
+        $this->assertSame(StorefrontMetaAttribution::DUE_COMPLETED, $attribution->purchase_due_stage);
+        Http::assertNothingSent();
+
+        $order = app(OrderStatusWorkflowService::class)->transition($order, Order::STAGE_CONFIRMED);
+        Http::assertNothingSent();
+
+        app(OrderStatusWorkflowService::class)->transition($order, Order::STAGE_COMPLETED);
+
+        Http::assertSent(fn (Request $request): bool => ($request->data()['data'][0]['event_name'] ?? null) === 'Purchase');
+        $this->assertNotNull($attribution->fresh()->purchase_dispatched_at);
+    }
+
+    public function test_completed_purchase_timing_also_fires_when_the_delivered_stage_completes_the_order(): void
+    {
+        // Delivered sets the order's status to Completed too (courier-tracked
+        // fulfillment never passes through the separate "Completed" stage
+        // explicitly) — "only after order status shows Completed" must cover
+        // this path as well, not just an explicit Completed transition.
+        [, $product, $setting] = $this->store('Delivered Completes Store', 'delivered-completes.example.test');
+        $setting->update([
+            'meta_tracking_enabled' => true,
+            'meta_consent_required' => false,
+            'meta_capi_enabled' => true,
+            'meta_purchase_timing' => 'completed',
+            'meta_pixel_id' => '7070707070707070',
+            'meta_tracking_credentials' => ['access_token' => 'delivered-completes-token'],
+        ]);
+        Http::fake(['graph.facebook.com/*' => Http::response(['events_received' => 1], 200)]);
+        $order = $this->draftStorefrontOrder($product);
+
+        app(StorefrontMetaDispatchService::class)->captureOrder(
+            $order,
+            $setting,
+            ['event_source_url' => 'https://delivered-completes.example.test/checkout', 'consent_granted' => true],
+        );
+        $order = app(OrderStatusWorkflowService::class)->transition($order, Order::STAGE_CONFIRMED);
+        Http::assertNothingSent();
+
+        $order = app(OrderStatusWorkflowService::class)->transition($order, Order::STAGE_DELIVERED);
+
+        $this->assertSame(Order::STATUS_COMPLETED, $order->status);
+        Http::assertSent(fn (Request $request): bool => ($request->data()['data'][0]['event_name'] ?? null) === 'Purchase');
     }
 
     public function test_recovered_checkout_sends_recovered_event_from_recovery_subsystem(): void

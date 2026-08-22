@@ -76,13 +76,23 @@ class StorefrontMetaDispatchService
             return;
         }
 
+        // "Completed" is reached either via the explicit Completed stage or
+        // via Delivered (both set status to STATUS_COMPLETED) — either path
+        // should satisfy the "only after order status shows Completed"
+        // Purchase timing, matching what the order actually displays.
+        $purchaseDueStageForTransitionStage = match (true) {
+            $transition->stage === Order::STAGE_CONFIRMED => StorefrontMetaAttribution::DUE_CONFIRMED,
+            $order->status === Order::STATUS_COMPLETED => StorefrontMetaAttribution::DUE_COMPLETED,
+            default => null,
+        };
+
         if (
-            $transition->stage === Order::STAGE_CONFIRMED
+            $purchaseDueStageForTransitionStage !== null
             && Schema::hasTable('storefront_meta_attributions')
             && StorefrontMetaAttribution::withoutGlobalScopes()
                 ->where('company_id', $order->company_id)
                 ->where('order_id', $order->getKey())
-                ->where('purchase_due_stage', StorefrontMetaAttribution::DUE_CONFIRMED)
+                ->where('purchase_due_stage', $purchaseDueStageForTransitionStage)
                 ->whereNull('purchase_dispatched_at')
                 ->exists()
             && $this->tracking->capiEnabled($setting)

@@ -14,6 +14,8 @@ class StorefrontMetaAttribution extends Model
 
     public const DUE_CONFIRMED = 'confirmed';
 
+    public const DUE_COMPLETED = 'completed';
+
     protected $fillable = [
         'company_id',
         'order_id',

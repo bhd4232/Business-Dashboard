@@ -32,7 +32,60 @@ Verification:
 - Full `php artisan test` suite — first run showed 55 unrelated failures, root-caused to a stale local dev environment (not this change): the earlier push-notifications feature (`05e6db1c`) added `resources/js/web-push.js` importing the `firebase` package, but `npm install` had never been re-run locally to pull that dependency, so `npm run build`'s Vite manifest was missing that entry and every admin page that loads it 500'd. Ran `npm install` + `npm run build` to bring the local environment in sync with already-committed `package.json`/source (no source files changed by this) — re-ran the full suite: 832 passed, 7 failed, all 7 pre-existing and unrelated to this change (the concurrent, still-uncommitted currency-symbol `৳`/`BDT` display refactor already in this working tree causing old `assertSee('BDT ...')` tests to see `৳ ...` instead — same as the 5 pre-existing failures noted on the previous commit in this file).
 - `npm run build` succeeded (frontend Blade/JS views were not changed by this fix, but the environment rebuild was needed to get an accurate test run).
 
-Commit status: Approved by owner in chat — push to `origin/staging` first, then `origin/main`.
+Commit status: Approved by owner in chat — pushed to `origin/staging` then `origin/main` as `cf3c34aa`.
+
+## 2026-08-22 - Meta Pixel/CAPI could report "Ready" everywhere and still send zero browser/status events
+
+Reason:
+
+- After the consent-gate fix above was deployed, the owner reported Meta Pixel Helper now showed the Pixel as **installed** (matching the real configured Pixel ID, `1052757151069745`) but with the warning "installed, but hasn't fired recently" / "No events recorded yet" on the real storefront (`offer.zamzamint.com`).
+- Reproduced directly against the live site with the in-app browser tool: submitted the (now-working) consent form, confirmed `fbq('init', '1052757151069745')` renders in the page — the exact ID from the owner's screenshot — but **no `fbq('track', ...)` call of any kind was ever emitted**, even though every readiness indicator in Meta Pixel & Conversions API (Browser tracking: Ready, Conversions API: Ready) says everything is configured correctly.
+- Traced by elimination through `StorefrontMetaTrackingService::browserEventEnabled()`: since `fbq('init')` fired, `browserEnabled()` was already confirmed true, so the only way `browserEventEnabled($setting, 'PageView', ...)` could still return false is if the stored `meta_browser_events` list itself excludes `PageView`. The old fallback logic was `is_array($setting->meta_browser_events) ? $setting->meta_browser_events : DEFAULT_BROWSER_EVENTS` — this only falls back to sensible defaults when the column is genuinely unset (`null`). Filament's `CheckboxList` dehydrates an all-unchecked selection as `[]` (an array), not `null` — so the moment the "Browser events to send" section was ever saved with nothing checked (easy to do while exploring this large multi-section settings form during initial setup), it permanently became "administrator explicitly wants zero browser events," and every single browser event silently stopped firing forever, with no visible error anywhere. The exact same fallback bug existed for CAPI's `meta_status_events` (order status events) in `statusEventEnabled()`.
+
+What happened:
+
+- `StorefrontMetaTrackingService::browserEventEnabled()` and `::statusEventEnabled()` now treat a saved empty array (`[]`) the same as an unset value: both fall back to the full default event list. A deliberately narrowed-but-non-empty selection (e.g. only "Purchase" checked) is still respected exactly as before — only the degenerate "everything unchecked" state is now treated as "not configured yet" instead of "send nothing."
+- This is a pure server-side logic fix — no admin action or re-save is needed on the owner's side; the very next storefront page load fires the default event set for any company already stuck in this state.
+- Added two regression tests reproducing the exact reported symptom: an empty `meta_browser_events` no longer suppresses `PageView`/`ViewContent`, and an empty `meta_status_events` no longer suppresses CAPI status events.
+
+Important changed files:
+
+- `app/Services/StorefrontMetaTrackingService.php` (`browserEventEnabled()`, `statusEventEnabled()`)
+- `tests/Feature/StorefrontMetaTrackingTest.php` (two new regression tests)
+
+Verification:
+
+- `php artisan test --filter=StorefrontMetaTrackingTest` — 19 passed (228 assertions).
+- Full `php artisan test` suite — running; will confirm before commit.
+
+Commit status: Not yet approved — owner has not yet said "commit and push" for this change.
+
+## 2026-08-22 - Purchase event timing: new "only after order status shows Completed" option
+
+Reason:
+
+- Owner asked for a fourth Purchase event timing option alongside the existing "immediate"/"risk-aware"/"confirmed" ones: hold the Purchase event until the order's status shows Completed.
+
+What happened:
+
+- `StorefrontMetaTrackingService::PURCHASE_TIMINGS` gained `'completed' => 'Only after order status shows Completed'`; it's a plain option in the existing `meta_purchase_timing` Select, no form changes needed.
+- `StorefrontMetaAttribution::DUE_COMPLETED` (new constant) is what `purchaseDispatchStage()` now returns for this timing, parallel to the existing `DUE_CONFIRMED`.
+- `StorefrontMetaDispatchService::dispatchForTransition()` now fires the held Purchase event when the order's `status` column becomes `Order::STATUS_COMPLETED` — deliberately checking the order's actual status rather than only the explicit "Completed" workflow stage, because `Order::STAGE_DELIVERED` also sets `status` to Completed (courier-tracked orders normally flow Confirmed → Shipping → Delivered and never touch a separate manual "Completed" step). Checking the stage name alone would have silently never fired for that — very common — path.
+- Added two regression tests: one confirms the Purchase event stays held through Confirmed and only fires once the order is explicitly moved to the Completed stage; the other confirms it also fires when Delivered is what completes the order, without ever visiting the Completed stage by name.
+
+Important changed files:
+
+- `app/Services/StorefrontMetaTrackingService.php` (`PURCHASE_TIMINGS`, `purchaseDispatchStage()`)
+- `app/Models/StorefrontMetaAttribution.php` (`DUE_COMPLETED` constant)
+- `app/Services/StorefrontMetaDispatchService.php` (`dispatchForTransition()`)
+- `tests/Feature/StorefrontMetaTrackingTest.php` (two new regression tests)
+
+Verification:
+
+- `php artisan test --filter=StorefrontMetaTrackingTest` — 21 passed (236 assertions).
+- Full `php artisan test` suite — running; will confirm before commit.
+
+Commit status: Not yet approved — owner has not yet said "commit and push" for this change.
 
 ## 2026-08-21 - Fix cross-company unique-constraint crashes and false "already taken" rejections (full-schema audit)
 
