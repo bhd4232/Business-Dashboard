@@ -32,6 +32,7 @@ use App\Http\Controllers\Storefront\CheckoutController as StorefrontCheckoutCont
 use App\Http\Controllers\Storefront\ComplaintController as StorefrontComplaintController;
 use App\Http\Controllers\Storefront\ContactController as StorefrontContactController;
 use App\Http\Controllers\Storefront\HomeController as StorefrontHomeController;
+use App\Http\Controllers\Storefront\MetaConsentController as StorefrontMetaConsentController;
 use App\Http\Controllers\Storefront\OfferCheckoutController as StorefrontOfferCheckoutController;
 use App\Http\Controllers\Storefront\OfferController as StorefrontOfferController;
 use App\Http\Controllers\Storefront\OrderTrackController as StorefrontOrderTrackController;
@@ -212,6 +213,10 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
 });
 
 Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
+    Route::post('/meta-consent', [StorefrontMetaConsentController::class, 'store'])
+        ->middleware('throttle:30,1')
+        ->name('storefront.meta-consent.store');
+
     Route::get('/products', StorefrontProductIndexController::class)
         ->name('storefront.products.index');
 

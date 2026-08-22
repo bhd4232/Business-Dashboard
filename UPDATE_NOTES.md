@@ -2,6 +2,38 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-22 - Meta Pixel/CAPI consent banner never actually granted tracking, and is now off by default
+
+Reason:
+
+- Owner reported the Meta Pixel showing "No Pixels found on this page" in Meta Pixel Helper even after credentials were entered and confirmed correct on the Meta Pixel & Conversions API settings page. First diagnosed that the URL being checked (`app.zamzamint.com/storefront/{company}`) was the internal admin preview route, where Pixel code is deliberately excluded — not a bug. On the real live domain (`offer.zamzamint.com`), the consent banner ("Privacy choices" / "Accept Meta measurement" / "Decline") appeared correctly, but clicking **Accept** did nothing: the banner kept coming back and the Pixel never fired.
+- Root cause: `resources/views/storefront/partials/meta-consent.blade.php`'s JS set the consent cookie via raw `document.cookie`. The storefront runs under Laravel's default `web` middleware group, which includes `EncryptCookies` — it decrypts every incoming cookie and, per Laravel core behavior, silently sets any cookie it fails to decrypt to `null` rather than erroring. A plain unencrypted cookie from `document.cookie` therefore round-tripped to nothing server-side; `StorefrontMetaTrackingService::consentStatus()` always saw no cookie, so the banner never hid and `consentGranted()` never returned true — Pixel and CAPI stayed off for every visitor, permanently, regardless of what they clicked. Confirmed by reading `EncryptCookies::isDisabled()`/`decrypt()` directly and by noting the existing test (`StorefrontMetaTrackingTest`) always used `withCookie()`, which Laravel's test helpers encrypt automatically — so it could never have caught this exact bug.
+- Owner then made a product decision on being shown this: don't gate tracking behind any accept/decline click at all — remove the friction, and make Meta CAPI "easy to connect." The CAPI connection itself (paste Pixel/Dataset ID + access token) was already the entire setup needed and was already working; the only obstacle was the broken consent gate defaulting to on.
+
+What happened:
+
+- **Real bug fix** (in case any storefront legitimately wants an accept/decline gate for local regulation): the banner's Accept/Decline buttons are now a real form that POSTs to a new `storefront.meta-consent.store` route (`App\Http\Controllers\Storefront\MetaConsentController`), so Laravel sets the consent cookie through its own encryption pipeline — symmetric with how it's read back. Confirmed with a new regression test that POSTs the form, reads the encrypted `Set-Cookie` back via `TestResponse::assertCookie()`, and confirms the Pixel fires on the very next request.
+- **Product simplification**: `StorefrontSetting`'s `meta_consent_required` field now defaults to `false` for every newly created storefront (was `true`) — both the model's `creating` default and the Filament toggle's default. New storefronts fire Pixel + CAPI events for every visitor immediately, no button, no cookie, no delay. The toggle still exists (Meta Pixel & Conversions API → Consent & Advanced Matching → "Require customer consent") for any store that specifically needs a consent gate, and now works correctly when switched on.
+- **Owner action still required for ZamZam International specifically**: this default only applies to *new* storefront settings rows — the existing `meta_consent_required = true` value already saved for ZamZam International is unaffected by the code change (as it must be — this app never silently rewrites another company's already-saved settings). The owner needs to open **Meta Pixel & Conversions API → Consent & Advanced Matching** and switch **"Require customer consent" off** themselves, then Save — this is a one-click change in their own panel and cannot be done from here without touching the production database directly, which this project's rules don't permit without a separate explicit request.
+- Ran the full affected test file (`StorefrontMetaTrackingTest`, 17/17 passing including the new regression test) and the full `php artisan test` suite per CLAUDE.md verification rules.
+
+Important changed files:
+
+- `app/Http/Controllers/Storefront/MetaConsentController.php` (new)
+- `routes/web.php` (new `storefront.meta-consent.store` POST route)
+- `resources/views/storefront/partials/meta-consent.blade.php` (buttons now submit a real form instead of setting a cookie via JS)
+- `app/Models/StorefrontSetting.php` (`meta_consent_required` default `true` → `false`)
+- `app/Filament/Pages/MetaCapiSettings.php` (toggle default `true` → `false`, updated helper text)
+- `tests/Feature/StorefrontMetaTrackingTest.php` (new regression test)
+
+Verification:
+
+- `php artisan test --filter=StorefrontMetaTrackingTest` — 17 passed (222 assertions).
+- Full `php artisan test` suite — first run showed 55 unrelated failures, root-caused to a stale local dev environment (not this change): the earlier push-notifications feature (`05e6db1c`) added `resources/js/web-push.js` importing the `firebase` package, but `npm install` had never been re-run locally to pull that dependency, so `npm run build`'s Vite manifest was missing that entry and every admin page that loads it 500'd. Ran `npm install` + `npm run build` to bring the local environment in sync with already-committed `package.json`/source (no source files changed by this) — re-ran the full suite: 832 passed, 7 failed, all 7 pre-existing and unrelated to this change (the concurrent, still-uncommitted currency-symbol `৳`/`BDT` display refactor already in this working tree causing old `assertSee('BDT ...')` tests to see `৳ ...` instead — same as the 5 pre-existing failures noted on the previous commit in this file).
+- `npm run build` succeeded (frontend Blade/JS views were not changed by this fix, but the environment rebuild was needed to get an accurate test run).
+
+Commit status: Approved by owner in chat — push to `origin/staging` first, then `origin/main`.
+
 ## 2026-08-21 - Fix cross-company unique-constraint crashes and false "already taken" rejections (full-schema audit)
 
 Reason:

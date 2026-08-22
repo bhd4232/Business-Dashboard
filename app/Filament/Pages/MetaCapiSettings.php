@@ -262,9 +262,9 @@ class MetaCapiSettings extends Page implements HasTable
                     ->schema([
                         Toggle::make('meta_consent_required')
                             ->label('Require customer consent')
-                            ->default(true)
+                            ->default(false)
                             ->live()
-                            ->helperText('Recommended. Pixel and server events remain off until the customer accepts Meta measurement cookies.'),
+                            ->helperText('Off by default: Pixel and server events fire for every visitor immediately. Turn on only if local regulation requires an accept/decline choice before measurement — while on, Pixel and server events stay off until each customer accepts.'),
                         Toggle::make('meta_advanced_matching_enabled')
                             ->label('Authenticated-customer advanced matching')
                             ->default(false)

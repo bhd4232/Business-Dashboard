@@ -544,6 +544,42 @@ class StorefrontMetaTrackingTest extends TestCase
             ->assertDontSee('connect.facebook.net', false);
     }
 
+    public function test_meta_consent_form_sets_a_properly_encrypted_cookie_the_browser_can_send_back(): void
+    {
+        // Regression test: the consent banner used to set the cookie via raw
+        // `document.cookie` JavaScript. Laravel's EncryptCookies middleware
+        // (in the default 'web' group) silently discards any cookie it can't
+        // decrypt, so that plain-text cookie was invisible to consentStatus()
+        // on every subsequent request — the banner never went away and the
+        // Pixel/CAPI never fired even after "Accept" was clicked. The fix
+        // routes consent through a real POST so Laravel sets (and later
+        // reads) the cookie through its own encryption pipeline.
+        [$company, $product, $setting] = $this->store('Consent Cookie Store', 'consent-cookie.example.test');
+        $setting->update([
+            'meta_tracking_enabled' => true,
+            'meta_consent_required' => true,
+            'meta_browser_tracking_enabled' => true,
+            'meta_pixel_id' => '1313131313131313',
+        ]);
+
+        $productUrl = 'http://consent-cookie.example.test/product/'.$product->slug;
+        $cookieName = "storefront_meta_consent_{$company->getKey()}";
+
+        $response = $this->post('http://consent-cookie.example.test/meta-consent', [
+            'choice' => 'granted',
+            'redirect_to' => $productUrl,
+        ]);
+
+        $response->assertRedirect($productUrl);
+        $response->assertCookie($cookieName, 'granted');
+
+        $this->withCookie($cookieName, 'granted')
+            ->get($productUrl)
+            ->assertOk()
+            ->assertSee('connect.facebook.net/en_US/fbevents.js', false)
+            ->assertSee('data-meta-consent-panel', false);
+    }
+
     public function test_required_consent_also_blocks_capi_delivery(): void
     {
         [, $product, $setting] = $this->store('CAPI Consent Store', 'capi-consent.example.test');

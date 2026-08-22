@@ -514,7 +514,7 @@ class StorefrontSetting extends Model
             $setting->risk_payment_advance_percent ??= 20;
             $setting->risk_payment_zero_history_action ??= self::RISK_ZERO_HISTORY_ALLOW_COD;
             $setting->checkout_autosave_enabled ??= false;
-            $setting->meta_consent_required ??= true;
+            $setting->meta_consent_required ??= false;
             $setting->meta_advanced_matching_enabled ??= false;
             $setting->meta_browser_events ??= StorefrontMetaTrackingService::DEFAULT_BROWSER_EVENTS;
             $setting->meta_custom_events_enabled ??= false;
