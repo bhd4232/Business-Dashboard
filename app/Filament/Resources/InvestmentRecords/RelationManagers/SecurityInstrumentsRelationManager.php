@@ -26,7 +26,7 @@ class SecurityInstrumentsRelationManager extends RelationManager
         return $schema->components([
             TextInput::make('cheque_number'),
             TextInput::make('cheque_bank_name'),
-            TextInput::make('cheque_amount')->numeric()->prefix('BDT')->default(fn (): float => (float) $this->getOwnerRecord()->amount),
+            TextInput::make('cheque_amount')->numeric()->prefix('৳')->default(fn (): float => (float) $this->getOwnerRecord()->amount),
             Select::make('cheque_status')->options(InvestorSecurityInstrument::CHEQUE_STATUSES)->default('held_by_investor')->required(),
             TextInput::make('guarantor_name'),
             TextInput::make('guarantor_nid')->label('Guarantor NID'),

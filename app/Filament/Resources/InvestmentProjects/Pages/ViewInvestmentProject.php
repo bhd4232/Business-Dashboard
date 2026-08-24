@@ -27,10 +27,10 @@ class ViewInvestmentProject extends ViewRecord
                 ->visible(fn (): bool => $this->record->status === 'closed' && (auth()->user()?->hasPermission('investments.settle') ?? false))
                 ->requiresConfirmation()
                 ->modalDescription('This creates an immutable settlement and investor payout schedule from the recorded direct costs.')
-                ->schema([TextInput::make('total_revenue')->numeric()->prefix('BDT')->minValue(0)->required()])
+                ->schema([TextInput::make('total_revenue')->numeric()->prefix('৳')->minValue(0)->required()])
                 ->action(function (array $data): void {
                     $settlement = app(SettlementService::class)->calculateAndSettle($this->record, (float) $data['total_revenue'], (int) auth()->id());
-                    Notification::make()->success()->title('Settlement confirmed')->body('Net profit: BDT '.MoneyFormatter::number((float) $settlement->net_profit))->send();
+                    Notification::make()->success()->title('Settlement confirmed')->body('Net profit: '.MoneyFormatter::currency((float) $settlement->net_profit))->send();
                     $this->redirect(ProjectSettlementResource::getUrl('view', ['record' => $settlement]));
                 }),
         ];

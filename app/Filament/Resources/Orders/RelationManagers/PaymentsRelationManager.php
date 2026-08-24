@@ -44,7 +44,7 @@ class PaymentsRelationManager extends RelationManager
                 ->required(),
             TextInput::make('amount')
                 ->numeric()
-                ->prefix('BDT')
+                ->prefix('৳')
                 ->minValue(0.01)
                 ->required(),
             DatePicker::make('paid_at')

@@ -298,7 +298,7 @@ class CompanySettingsService
 
     public function formatMoney(float|int|string|null $amount): string
     {
-        return $this->profile()['currency'].' '.MoneyFormatter::number($amount);
+        return MoneyFormatter::currency($amount, (string) $this->profile()['currency']);
     }
 
     public function formatDate($date): string

@@ -62,7 +62,7 @@ class ReportsTest extends TestCase
             ->assertOk()
             ->assertSee('Product Profit Report')
             ->assertSee('Report Product')
-            ->assertSee('BDT 100');
+            ->assertSee('৳ 100');
     }
 
     public function test_every_report_type_renders_through_the_native_filament_table(): void
@@ -213,7 +213,7 @@ class ReportsTest extends TestCase
             ->assertOk()
             ->assertSee('Warehouse Charge')
             ->assertSee('China to BD Costs')
-            ->assertSee('BDT 25');
+            ->assertSee('৳ 25');
 
         $response = $this->actingAs($user)
             ->get("/admin/reports/export/purchases?date_from={$reportDate}&date_to={$reportDate}");

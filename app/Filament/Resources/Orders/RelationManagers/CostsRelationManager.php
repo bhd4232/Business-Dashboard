@@ -38,7 +38,7 @@ class CostsRelationManager extends RelationManager
                 ->required(),
             TextInput::make('amount')
                 ->numeric()
-                ->prefix('BDT')
+                ->prefix('৳')
                 ->minValue(0)
                 ->required(),
             Textarea::make('note')

@@ -36,6 +36,7 @@ use App\Filament\Resources\Products\ProductResource;
 use App\Filament\Resources\Purchases\PurchaseResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\StockMovements\StockMovementResource;
+use App\Filament\Resources\StockPools\StockPoolResource;
 use App\Filament\Resources\StorefrontPages\StorefrontPageResource;
 use App\Filament\Resources\StorefrontPayments\StorefrontPaymentResource;
 use App\Filament\Resources\StorefrontSettings\StorefrontSettingResource;
@@ -105,6 +106,7 @@ class AdminNavigationClustersTest extends TestCase
                 ProductResource::class,
                 StockMovementResource::class,
                 CategoryResource::class,
+                StockPoolResource::class,
             ],
             ReportsCluster::class => [Reports::class],
             Settings::class => [
@@ -178,7 +180,7 @@ class AdminNavigationClustersTest extends TestCase
             ->map(fn ($item): string => $item->getLabel())
             ->all();
 
-        $this->assertSame(['Products', 'Categories', 'Stock Movement'], $productModuleLabels);
+        $this->assertSame(['Products', 'Categories', 'Stock Movement', 'Shared Stock Pools'], $productModuleLabels);
     }
 
     public function test_storefront_cluster_uses_concise_site_navigation_labels(): void

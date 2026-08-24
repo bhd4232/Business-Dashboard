@@ -6,6 +6,7 @@ use App\Models\Offer;
 use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\ProductVariant;
+use App\Services\CompanyContext;
 use App\Support\CompanyMedia;
 use App\Support\MoneyFormatter;
 use Filament\Forms\Components\FileUpload;
@@ -32,7 +33,9 @@ class OfferForm
                     Select::make('company_id')
                         ->relationship('company', 'name', modifyQueryUsing: fn ($query) => CompanyMedia::constrainCompanyQuery($query))
                         ->rule(CompanyMedia::companyAccessRule())
-                        ->required()
+                        ->required(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->visible(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->helperText('Select the company that will own this offer.')
                         ->searchable()
                         ->preload()
                         ->live(),
@@ -138,7 +141,7 @@ class OfferForm
                         ->live(),
                     TextInput::make('manual_price')
                         ->numeric()
-                        ->prefix('BDT')
+                        ->prefix('৳')
                         ->minValue(0)
                         ->visible(fn (Get $get): bool => $get('price_mode') === Offer::PRICE_MODE_MANUAL)
                         ->required(fn (Get $get): bool => $get('price_mode') === Offer::PRICE_MODE_MANUAL)
@@ -155,10 +158,10 @@ class OfferForm
                         ->live(onBlur: true),
                     Placeholder::make('components_subtotal_preview')
                         ->label('Components subtotal')
-                        ->content(fn (Get $get): string => 'BDT '.MoneyFormatter::number(static::previewComponentsSubtotal($get))),
+                        ->content(fn (Get $get): string => MoneyFormatter::currency(static::previewComponentsSubtotal($get))),
                     Placeholder::make('final_price_preview')
                         ->label('Final selling price (preview)')
-                        ->content(fn (Get $get): string => 'BDT '.MoneyFormatter::number(static::previewFinalPrice($get))),
+                        ->content(fn (Get $get): string => MoneyFormatter::currency(static::previewFinalPrice($get))),
                 ])
                 ->columns(2),
 

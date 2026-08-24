@@ -869,7 +869,7 @@
                                                     <option value="">Select a productâ€¦</option>
                                                     @foreach ($this->products as $product)
                                                         <option value="{{ $product->getKey() }}">
-                                                            {{ $product->name }} â€” {{ $conversationCurrency }} {{ \App\Support\MoneyFormatter::number((float) $product->sale_price) }}
+                                                            {{ $product->name }} â€” {{ \App\Support\MoneyFormatter::currency((float) $product->sale_price, $conversationCurrency) }}
                                                         </option>
                                                     @endforeach
                                                 </x-filament::input.select>
@@ -904,7 +904,7 @@
                                             color="info"
                                             icon="heroicon-o-shopping-bag"
                                             :heading="$selectedProduct->name"
-                                            :description="$conversationCurrency.' '.\App\Support\MoneyFormatter::number((float) $selectedProduct->sale_price).' · A secure order link will be added to the thread.'"
+                                            :description="\App\Support\MoneyFormatter::currency((float) $selectedProduct->sale_price, $conversationCurrency).' · A secure order link will be added to the thread.'"
                                         />
                                     @endif
 

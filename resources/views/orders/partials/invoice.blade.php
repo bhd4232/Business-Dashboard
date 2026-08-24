@@ -16,7 +16,7 @@
     $company = $company ?? ['name' => config('app.name', 'Business Dashboard'), 'currency' => 'BDT'];
     $invoice = $invoice ?? \App\Services\CompanySettingsService::INVOICE_DEFAULTS;
     $currency = $company['currency'] ?? 'BDT';
-    $money = fn (float $amount): string => \App\Support\MoneyFormatter::number($amount);
+    $money = fn (float $amount): string => \App\Support\MoneyFormatter::currency($amount, $currency);
     $discount = (float) $order->discount;
     $vat = (float) $order->vat;
     $shippingFee = (float) $order->shipping_fee;
@@ -148,7 +148,7 @@
                     @if ($discount > 0)
                         <tr class="row">
                             <td class="t-label">Discount</td>
-                            <td class="num">-{{ $money($discount) }}</td>
+                            <td class="num">{{ $money(-$discount) }}</td>
                         </tr>
                     @endif
                     @if ($vat > 0)
@@ -170,7 +170,7 @@
                     @if ($paid > 0)
                         <tr class="row">
                             <td class="t-label">Paid</td>
-                            <td class="num">-{{ $money($paid) }}</td>
+                            <td class="num">{{ $money(-$paid) }}</td>
                         </tr>
                     @endif
                     <tr class="due">
@@ -242,7 +242,7 @@
                                 <p>Delivery Partner: <strong>{{ $deliveryPartner }}</strong></p>
                             @endif
                             <p>Date: <strong>{{ $invoiceDate }}</strong></p>
-                            <div class="slip-due">Due Amount: {{ $currency }} {{ $money($due) }}</div>
+                            <div class="slip-due">Due Amount: {{ $money($due) }}</div>
                         </div>
                     </div>
                 </section>

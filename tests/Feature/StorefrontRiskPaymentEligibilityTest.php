@@ -56,7 +56,7 @@ class StorefrontRiskPaymentEligibilityTest extends TestCase
         $this->assertSame(0, Order::withoutGlobalScopes()->count());
         $payment = StorefrontPayment::withoutGlobalScopes()->sole();
         $this->assertSame(StorefrontPayment::PURPOSE_CHECKOUT_ADVANCE, $payment->purpose);
-        $this->assertSame(267.5, (float) $payment->amount); // 25% of BDT 1,070 including delivery.
+        $this->assertSame(267.5, (float) $payment->amount); // 25% of ৳ 1,070 including delivery.
         $attempt = StorefrontCheckoutAttempt::withoutGlobalScopes()->sole();
         $this->assertSame(40.0, (float) $attempt->courier_success_ratio);
         $this->assertSame(267.5, (float) $attempt->required_advance);

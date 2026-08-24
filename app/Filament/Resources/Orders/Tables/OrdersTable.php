@@ -575,7 +575,7 @@ class OrdersTable
                 ->rows(3),
             TextInput::make('cod_amount')
                 ->numeric()
-                ->prefix('BDT')
+                ->prefix('৳')
                 ->default((float) $record->due_amount)
                 ->minValue(0),
             Textarea::make('note')

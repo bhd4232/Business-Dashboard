@@ -23,6 +23,7 @@ class Product extends Model
 
     protected $fillable = [
         'company_id',
+        'stock_pool_id',
         'name',
         'slug',
         'description',
@@ -97,6 +98,18 @@ class Product extends Model
     public function stockMovements()
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function stockPool(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(StockPool::class);
+    }
+
+    /** True when this product is the pool member whose ledger holds the real stock (see StockPool). */
+    public function isPoolSource(): bool
+    {
+        return $this->stock_pool_id !== null
+            && (int) $this->stockPool?->source_product_id === (int) $this->getKey();
     }
 
     public function purchaseItems()

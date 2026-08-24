@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Support\MoneyFormatter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -41,10 +42,10 @@ class CustomerDueAlertService
     public function message(): string
     {
         $count = $this->count();
-        $total = \App\Support\MoneyFormatter::number($this->totalDue());
+        $total = MoneyFormatter::currency($this->totalDue());
 
         return $count === 1
-            ? "1 customer has BDT {$total} due."
-            : "{$count} customers have BDT {$total} due.";
+            ? "1 customer has {$total} due."
+            : "{$count} customers have {$total} due.";
     }
 }

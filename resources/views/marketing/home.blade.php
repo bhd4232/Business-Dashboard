@@ -12,10 +12,10 @@
         <section class="preview" aria-label="Dashboard preview">
             <div class="preview-bar"></div>
             <div class="preview-grid">
-                <div class="preview-card">Today Sales<strong>BDT 84,500</strong></div>
-                <div class="preview-card">Customer Due<strong>BDT 32,100</strong></div>
+                <div class="preview-card">Today Sales<strong>৳ 84,500</strong></div>
+                <div class="preview-card">Customer Due<strong>৳ 32,100</strong></div>
                 <div class="preview-card">Low Stock<strong>12</strong></div>
-                <div class="preview-card">Gross Profit<strong>BDT 18,900</strong></div>
+                <div class="preview-card">Gross Profit<strong>৳ 18,900</strong></div>
             </div>
         </section>
     </main>

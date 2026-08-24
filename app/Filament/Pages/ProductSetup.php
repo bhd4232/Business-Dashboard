@@ -105,6 +105,8 @@ class ProductSetup extends Page
                                     ->label('Currency')
                                     ->required()
                                     ->maxLength(12)
+                                    ->suffix('৳')
+                                    ->helperText('Currency code, for example BDT (৳).')
                                     ->autocomplete(false),
                                 Select::make('timezone')
                                     ->label('Timezone')

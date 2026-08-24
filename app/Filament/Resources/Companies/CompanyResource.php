@@ -133,7 +133,9 @@ class CompanyResource extends Resource
                     TextInput::make('currency')
                         ->default('BDT')
                         ->required()
-                        ->maxLength(12),
+                        ->maxLength(12)
+                        ->suffix('৳')
+                        ->helperText('Currency code, for example BDT (৳).'),
                     Select::make('timezone')
                         ->options([
                             'Asia/Dhaka' => 'Asia/Dhaka',

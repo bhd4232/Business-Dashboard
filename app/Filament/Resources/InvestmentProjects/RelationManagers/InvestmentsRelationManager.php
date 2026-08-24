@@ -36,7 +36,7 @@ class InvestmentsRelationManager extends RelationManager
                     TextInput::make('phone')->required(),
                     TextInput::make('nid_number')->label('NID Number'),
                 ])->createOptionUsing(fn (array $data): int => Investor::query()->create($data)->getKey())->required(),
-            TextInput::make('amount')->numeric()->prefix('BDT')->minValue(0.01)->required(),
+            TextInput::make('amount')->numeric()->prefix('৳')->minValue(0.01)->required(),
             Select::make('payment_method')->options(Investment::PAYMENT_METHODS)->required(),
             TextInput::make('payment_reference'),
             DatePicker::make('invested_at')->default(now())->required(),

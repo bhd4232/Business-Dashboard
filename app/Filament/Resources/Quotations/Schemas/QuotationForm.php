@@ -123,7 +123,7 @@ class QuotationForm
 
                                 TextInput::make('unit_price')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->minValue(0)
                                     ->required()
                                     ->live(onBlur: true)
@@ -134,7 +134,7 @@ class QuotationForm
 
                                 TextInput::make('subtotal')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->readOnly(),
                             ])
                             ->columns(4)
@@ -152,7 +152,7 @@ class QuotationForm
                         TextInput::make('discount_amount')
                             ->label('Discount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->minValue(0)
                             ->required()
@@ -162,7 +162,7 @@ class QuotationForm
                         TextInput::make('total_amount')
                             ->label('Total')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->readOnly(),
                     ])
                     ->columns(2),

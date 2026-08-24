@@ -7,6 +7,7 @@ use App\Filament\Pages\CompanySettings;
 use App\Filament\Resources\Companies\CompanyResource;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
 use App\Filament\Resources\Companies\Pages\EditCompany;
+use App\Filament\Resources\Companies\Pages\ListCompanies;
 use App\Models\AppSetting;
 use App\Models\Company;
 use App\Models\Customer;
@@ -307,6 +308,37 @@ class CompanySettingsTest extends TestCase
         $this->actingAs($admin)
             ->get('/admin/company-settings')
             ->assertRedirect('/admin/company-management/company-settings');
+    }
+
+    public function test_companies_list_follows_the_header_company_selection(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $selectedCompany = $admin->defaultCompany();
+        $otherCompany = Company::query()->create([
+            'name' => 'Other Listed Company',
+            'slug' => 'other-listed-company',
+            'invoice_prefix' => 'OLC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin);
+        app(CompanyContext::class)->set($selectedCompany);
+
+        Livewire::test(ListCompanies::class)
+            ->assertCanSeeTableRecords([$selectedCompany])
+            ->assertCanNotSeeTableRecords([$otherCompany])
+            ->assertCountTableRecords(1);
+
+        app(CompanyContext::class)->all();
+
+        Livewire::test(ListCompanies::class)
+            ->assertCanSeeTableRecords([$selectedCompany, $otherCompany])
+            ->assertCountTableRecords(2);
     }
 
     public function test_company_settings_all_companies_mode_cannot_save(): void

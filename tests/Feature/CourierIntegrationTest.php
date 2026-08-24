@@ -957,7 +957,7 @@ class CourierIntegrationTest extends TestCase
         Livewire::test(CourierPaymentHistory::class)
             ->assertTableActionExists('viewPaymentDetails', record: 'payment-0')
             ->mountTableAction('viewPaymentDetails', 'payment-0')
-            ->assertMountedActionModalSee(['BDT 40,541', 'ZamZam International']);
+            ->assertMountedActionModalSee(['৳ 40,541', 'ZamZam International']);
 
         Http::assertSent(fn ($request): bool => str_ends_with((string) $request->url(), '/payments/501'));
     }

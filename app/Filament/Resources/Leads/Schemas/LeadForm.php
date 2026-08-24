@@ -48,7 +48,7 @@ class LeadForm
                         TextInput::make('estimated_value')
                             ->label('Estimated Value')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->minValue(0),
                     ])
                     ->columns(2),

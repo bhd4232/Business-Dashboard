@@ -179,7 +179,7 @@
                                 </dl>
                                 <div class="noor-product-price">
                                     @if ((float) $product->selling_price > 0)
-                                        <span>BDT {{ \App\Support\MoneyFormatter::number((float) $product->selling_price) }}</span>
+                                        <span>{{ \App\Support\MoneyFormatter::currency((float) $product->selling_price) }}</span>
                                     @else
                                         <span>Request Pricing</span>
                                     @endif

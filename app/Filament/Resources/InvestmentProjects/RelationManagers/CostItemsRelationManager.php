@@ -30,7 +30,7 @@ class CostItemsRelationManager extends RelationManager
         return $schema->components([
             Select::make('category')->options(ProjectCostItem::CATEGORIES)->required(),
             TextInput::make('label')->required(),
-            TextInput::make('amount')->numeric()->prefix('BDT')->minValue(0)->required(),
+            TextInput::make('amount')->numeric()->prefix('৳')->minValue(0)->required(),
             Select::make('purchase_id')->relationship('purchase', 'purchase_number')->searchable()->preload(),
             Textarea::make('remarks')->columnSpanFull(),
         ]);

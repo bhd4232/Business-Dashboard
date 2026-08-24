@@ -26,7 +26,7 @@
             'max' => $customerMax,
             'empty' => 'No customer sales yet.',
             'name' => fn ($customer) => $customer->name,
-            'meta' => fn ($customer) => 'Due BDT '.\App\Support\MoneyFormatter::number((float) $customer->current_balance),
+            'meta' => fn ($customer) => 'Due '.\App\Support\MoneyFormatter::currency((float) $customer->current_balance),
             'value' => fn ($customer) => (float) $customer->total_sales,
             'trail' => fn ($customer) => 'Sales',
         ],
@@ -39,7 +39,7 @@
             'max' => $supplierMax,
             'empty' => 'No supplier purchases yet.',
             'name' => fn ($supplier) => $supplier->name,
-            'meta' => fn ($supplier) => 'Payable BDT '.\App\Support\MoneyFormatter::number((float) $supplier->current_balance),
+            'meta' => fn ($supplier) => 'Payable '.\App\Support\MoneyFormatter::currency((float) $supplier->current_balance),
             'value' => fn ($supplier) => (float) $supplier->total_purchases,
             'trail' => fn ($supplier) => 'Purchases',
         ],
@@ -344,7 +344,7 @@
                                         </div>
                                     </div>
                                     <div class="zz-performer-value">
-                                        <strong>BDT {{ \App\Support\MoneyFormatter::number($value) }}</strong>
+                                        <strong>{{ \App\Support\MoneyFormatter::currency($value) }}</strong>
                                         <span>{{ $group['trail']($item) }}</span>
                                     </div>
                                 </div>

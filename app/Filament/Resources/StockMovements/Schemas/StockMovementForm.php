@@ -28,7 +28,7 @@ class StockMovementForm
 
                         Select::make('type')
                             ->label('Type')
-                            ->options(StockMovement::TYPES)
+                            ->options(StockMovement::userSelectableTypes())
                             ->live()
                             ->required(),
 

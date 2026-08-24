@@ -67,13 +67,13 @@ class CustomerForm
                     ->schema([
                         TextInput::make('opening_balance')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->required(),
 
                         TextInput::make('current_balance')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->disabled()
                             ->dehydrated(false)

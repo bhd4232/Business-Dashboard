@@ -13,6 +13,9 @@ class MoneyFormatterTest extends TestCase
         $this->assertSame('1,625,000', MoneyFormatter::number(1625000));
         $this->assertSame('2,520.5', MoneyFormatter::number(2520.50));
         $this->assertSame('2,520.25', MoneyFormatter::number(2520.25));
-        $this->assertSame('USD 2,520.5', MoneyFormatter::currency(2520.50, 'USD'));
+        $this->assertSame('৳', MoneyFormatter::symbol());
+        $this->assertSame('$', MoneyFormatter::symbol('USD'));
+        $this->assertSame('BDT (৳)', MoneyFormatter::label());
+        $this->assertSame('$ 2,520.5', MoneyFormatter::currency(2520.50, 'USD'));
     }
 }

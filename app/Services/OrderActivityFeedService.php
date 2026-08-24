@@ -7,6 +7,7 @@ use App\Models\CourierBooking;
 use App\Models\Order;
 use App\Models\OrderCost;
 use App\Models\OrderPayment;
+use App\Support\MoneyFormatter;
 use Illuminate\Support\Collection;
 
 /**
@@ -122,6 +123,6 @@ class OrderActivityFeedService
 
     protected function money(mixed $amount): string
     {
-        return 'BDT '.\App\Support\MoneyFormatter::number((float) $amount);
+        return MoneyFormatter::currency((float) $amount);
     }
 }

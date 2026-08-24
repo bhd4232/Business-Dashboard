@@ -7,6 +7,7 @@ use App\Filament\Resources\ProductCarousels\Pages\CreateProductCarousel;
 use App\Filament\Resources\ProductCarousels\Pages\EditProductCarousel;
 use App\Filament\Resources\ProductCarousels\Pages\ListProductCarousels;
 use App\Models\ProductCarousel;
+use App\Services\CompanyContext;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -48,7 +49,9 @@ class ProductCarouselResource extends Resource
                 ->schema([
                     Select::make('company_id')
                         ->relationship('company', 'name')
-                        ->required()
+                        ->required(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->visible(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->helperText('Select the company that will own this carousel.')
                         ->searchable()
                         ->preload()
                         ->live(),

@@ -65,11 +65,11 @@ class ProductInfolist
                     ->schema([
                         TextEntry::make('cost_price')
                             ->label('Cost Price')
-                            ->formatStateUsing(fn ($state) => $state === null ? 'Not set' : 'BDT '.MoneyFormatter::number((float) $state)),
+                            ->formatStateUsing(fn ($state) => $state === null ? 'Not set' : MoneyFormatter::currency((float) $state)),
 
                         TextEntry::make('sale_price')
                             ->label('Sale Price')
-                            ->formatStateUsing(fn ($state, $record) => 'BDT '.MoneyFormatter::number((float) $record->selling_price)),
+                            ->formatStateUsing(fn ($state, $record) => MoneyFormatter::currency((float) $record->selling_price)),
 
                         TextEntry::make('stock')
                             ->label('Current Stock')

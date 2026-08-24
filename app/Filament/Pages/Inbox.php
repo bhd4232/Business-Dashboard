@@ -702,7 +702,7 @@ class Inbox extends Page
 
         $currency = $conversation->company?->currency ?: 'BDT';
         $body = "🛍️ {$product->name}\n"
-            .$currency.' '.MoneyFormatter::number((float) $product->sale_price)."\n\n"
+            .MoneyFormatter::currency((float) $product->sale_price, $currency)."\n\n"
             ."অর্ডার করতে এই লিংকে ক্লিক করুন: {$link->publicUrl()}";
 
         try {

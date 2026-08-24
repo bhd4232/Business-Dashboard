@@ -35,7 +35,7 @@
                                     This courier doesn't expose a balance check.
                                 </p>
                             @elseif ($row['amount'] !== null)
-                                <p class="mt-1 text-3xl font-semibold tracking-tight">BDT {{ \App\Support\MoneyFormatter::number($row['amount']) }}</p>
+                                <p class="mt-1 text-3xl font-semibold tracking-tight">{{ \App\Support\MoneyFormatter::currency($row['amount']) }}</p>
                             @else
                                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                     {{ $row['error'] ?? 'Balance unavailable.' }}
@@ -90,13 +90,13 @@
                             </div>
                             <div>
                                 <p class="text-gray-500 dark:text-gray-400">Delivered COD</p>
-                                <p class="font-semibold text-base">BDT {{ \App\Support\MoneyFormatter::number($row['amount']) }}</p>
+                                <p class="font-semibold text-base">{{ \App\Support\MoneyFormatter::currency($row['amount']) }}</p>
                             </div>
                             <div>
                                 <p class="text-gray-500 dark:text-gray-400">Margin</p>
                                 <p class="font-semibold text-base">
                                     @if ($row->total_margin !== null)
-                                        BDT {{ \App\Support\MoneyFormatter::number($row['amount']) }}
+                                        {{ \App\Support\MoneyFormatter::currency($row['amount']) }}
                                     @else
                                         &mdash;
                                     @endif

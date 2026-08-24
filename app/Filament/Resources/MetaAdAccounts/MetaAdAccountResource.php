@@ -10,6 +10,7 @@ use App\Models\Company;
 use App\Models\MetaAdAccount;
 use App\Services\CompanyContext;
 use App\Services\MetaMarketingApiClient;
+use App\Support\MoneyFormatter;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -144,6 +145,7 @@ class MetaAdAccountResource extends Resource
                         ->label('Ad Account Currency')
                         ->placeholder('USD')
                         ->maxLength(8)
+                        ->suffix(fn (Get $get): string => MoneyFormatter::symbol((string) ($get('currency') ?: 'USD')))
                         ->helperText('Filled in automatically the first time Test Connection succeeds; you can also set it manually.'),
                     TextInput::make('exchange_rate_to_company_currency')
                         ->label('Exchange Rate to Company Currency')

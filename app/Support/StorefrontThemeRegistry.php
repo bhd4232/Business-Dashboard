@@ -20,6 +20,55 @@ final class StorefrontThemeRegistry
 
     public const NOOR_SOLAR_ENGINEERED = 'solar_engineered';
 
+    /**
+     * Real banner/hero image dimensions per theme, sourced from the actual
+     * homepage view markup (not guessed): Built-in and Marketplace Pro both
+     * render slides through `storefront.partials.image-banner` (full-width
+     * banner, ~3:1); Noor Solar shows only the first slide as a 4:3 hero
+     * visual with no mobile variant (see `themes/noor-solar/home.blade.php`).
+     *
+     * @var array<string, array{desktop: array{width: int, height: int, note: string}, mobile: array{width: int, height: int, note: string}|null}>
+     */
+    public const BANNER_SPECS = [
+        self::BUILT_IN => [
+            'desktop' => [
+                'width' => 1920,
+                'height' => 640,
+                'note' => 'Extra-wide banner, at least 1920×640px (about 3:1). It fills the viewport width and is cropped to one-third of the desktop screen height.',
+            ],
+            'mobile' => [
+                'width' => 900,
+                'height' => 320,
+                'note' => 'Optional. Use a wide mobile banner, at least 900×320px. It is cropped to one-sixth of the mobile screen height.',
+            ],
+        ],
+        self::MARKETPLACE_PRO => [
+            'desktop' => [
+                'width' => 1920,
+                'height' => 640,
+                'note' => 'Extra-wide banner, at least 1920×640px (about 3:1), same as Built-in — every Marketplace Pro homepage template shares this banner slot.',
+            ],
+            'mobile' => [
+                'width' => 900,
+                'height' => 320,
+                'note' => 'Optional. Use a wide mobile banner, at least 900×320px. It is cropped to one-sixth of the mobile screen height.',
+            ],
+        ],
+        self::NOOR_SOLAR => [
+            'desktop' => [
+                'width' => 1200,
+                'height' => 900,
+                'note' => 'Hero visual, at least 1200×900px (4:3). Noor Solar shows only the first slide as a single hero image, not a carousel.',
+            ],
+            'mobile' => null,
+        ],
+    ];
+
+    public static function bannerSpec(?string $theme): array
+    {
+        return self::BANNER_SPECS[self::normalizeTheme($theme)] ?? self::BANNER_SPECS[self::BUILT_IN];
+    }
+
     public static function themes(): array
     {
         return [

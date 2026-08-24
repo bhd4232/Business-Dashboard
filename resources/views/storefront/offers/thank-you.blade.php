@@ -29,20 +29,20 @@
         <div class="mt-8 rounded-xl border border-gray-200 bg-white p-6 text-left dark:border-white/10 dark:bg-white/5">
             <div class="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-5 dark:border-white/10">
                 <div><div class="text-xs font-medium text-gray-400">Status</div><div class="mt-1 text-base font-semibold">{{ ucfirst($order->status) }}</div></div>
-                <div class="text-right"><div class="text-xs font-medium text-gray-400">Total</div><div class="mt-1 text-xl font-semibold text-gray-950 dark:text-white">BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</div></div>
+                <div class="text-right"><div class="text-xs font-medium text-gray-400">Total</div><div class="mt-1 text-xl font-semibold text-gray-950 dark:text-white">{{ \App\Support\MoneyFormatter::currency((float) $order->total_amount) }}</div></div>
             </div>
             <div class="mt-5 space-y-3">
                 @foreach ($order->items as $item)
                     <div class="flex justify-between gap-4 text-sm">
                         <span class="text-gray-600 dark:text-gray-300">{{ $item->product?->name }}{{ $item->variant_label ? ' ('.$item->variant_label.')' : '' }} &times; {{ $item->quantity }}</span>
-                        <span class="font-semibold">BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</span>
+                        <span class="font-semibold">{{ \App\Support\MoneyFormatter::currency((float) $order->total_amount) }}</span>
                     </div>
                 @endforeach
             </div>
             <div class="mt-5 space-y-2 border-t border-gray-200 pt-4 text-sm dark:border-white/10">
-                <div class="flex justify-between text-gray-600 dark:text-gray-300"><span>Subtotal</span><span>BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</span></div>
-                <div class="flex justify-between text-gray-600 dark:text-gray-300"><span>Delivery charge</span><span>BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</span></div>
-                <div class="flex justify-between font-semibold text-gray-950 dark:text-white"><span>Amount due on delivery</span><span>BDT {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</span></div>
+                <div class="flex justify-between text-gray-600 dark:text-gray-300"><span>Subtotal</span><span>{{ \App\Support\MoneyFormatter::currency((float) $order->total_amount) }}</span></div>
+                <div class="flex justify-between text-gray-600 dark:text-gray-300"><span>Delivery charge</span><span>{{ \App\Support\MoneyFormatter::currency((float) $order->total_amount) }}</span></div>
+                <div class="flex justify-between font-semibold text-gray-950 dark:text-white"><span>Amount due on delivery</span><span>{{ \App\Support\MoneyFormatter::currency((float) $order->total_amount) }}</span></div>
             </div>
         </div>
 

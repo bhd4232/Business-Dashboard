@@ -8,6 +8,7 @@ use App\Filament\Resources\StorefrontPages\Pages\CreateStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\EditStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\ListStorefrontPages;
 use App\Models\StorefrontPage;
+use App\Services\CompanyContext;
 use App\Support\CompanyMedia;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
@@ -56,7 +57,9 @@ class StorefrontPageResource extends Resource
                     Select::make('company_id')
                         ->relationship('company', 'name', modifyQueryUsing: fn ($query) => CompanyMedia::constrainCompanyQuery($query))
                         ->rule(CompanyMedia::companyAccessRule())
-                        ->required()
+                        ->required(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->visible(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->helperText('Select the company that will own this page.')
                         ->searchable()
                         ->preload()
                         ->live(),

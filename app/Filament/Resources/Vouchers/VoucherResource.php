@@ -124,7 +124,7 @@ class VoucherResource extends Resource
                     ->searchable()
                     ->visible(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER)
                     ->required(fn (Get $get): bool => $get('type') !== Voucher::FORM_TYPE_FUND_TRANSFER),
-                TextInput::make('amount')->numeric()->prefix('BDT')->required(),
+                TextInput::make('amount')->numeric()->prefix('৳')->required(),
                 Select::make('from_account_id')
                     ->label('From Account')
                     ->options(fn () => Account::query()->manual()->orderBy('name')->pluck('name', 'id')->all())
@@ -143,7 +143,7 @@ class VoucherResource extends Resource
                 TextInput::make('transaction_cost')
                     ->label('Transaction Cost')
                     ->numeric()
-                    ->prefix('BDT')
+                    ->prefix('৳')
                     ->default(0)
                     ->minValue(0)
                     ->visible(fn (Get $get): bool => $get('type') === Voucher::FORM_TYPE_FUND_TRANSFER)

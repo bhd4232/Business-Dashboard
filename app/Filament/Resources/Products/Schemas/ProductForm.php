@@ -110,13 +110,13 @@ class ProductForm
                         TextInput::make('cost_price')
                             ->label('Cost Price')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->minValue(0),
 
                         TextInput::make('sale_price')
                             ->label('Sale Price')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->minValue(0)
                             ->required(),
 
@@ -128,7 +128,9 @@ class ProductForm
                             ->required(fn ($get): bool => ! $get('has_variants'))
                             ->disabled(fn ($get): bool => (bool) $get('has_variants'))
                             ->dehydrated(fn ($get): bool => ! $get('has_variants'))
-                            ->helperText('Saving this value creates an opening or adjustment stock movement. When variations are enabled, stock is tracked per variation and this field becomes the automatic sum of variation stock.'),
+                            ->helperText(fn (?Product $record): string => $record?->stock_pool_id
+                                ? 'This product\'s stock is shared with a linked product in another company (Inventory > Shared Stock Pools) — selling either one updates this same live number.'
+                                : 'Saving this value creates an opening or adjustment stock movement. When variations are enabled, stock is tracked per variation and this field becomes the automatic sum of variation stock.'),
 
                         TextInput::make('reorder_level')
                             ->label('Reorder Level')
@@ -182,7 +184,7 @@ class ProductForm
                                 TextInput::make('price')
                                     ->label('Unit price')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->minValue(0)
                                     ->required(),
                             ])
@@ -265,13 +267,13 @@ class ProductForm
                                 TextInput::make('sale_price')
                                     ->label('Sale Price')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->minValue(0)
                                     ->helperText('Leave empty to use the product sale price.'),
                                 TextInput::make('cost_price')
                                     ->label('Cost Price')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->minValue(0),
                                 TextInput::make('stock')
                                     ->label('Stock')

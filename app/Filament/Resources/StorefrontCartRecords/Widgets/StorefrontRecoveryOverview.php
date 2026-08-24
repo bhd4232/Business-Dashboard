@@ -34,7 +34,7 @@ class StorefrontRecoveryOverview extends StatsOverviewWidget
                 ->description($rate.'% recovery rate')
                 ->icon(Heroicon::OutlinedArrowPath)
                 ->color('success'),
-            Stat::make('Recovered revenue', 'BDT '.MoneyFormatter::number($revenue))
+            Stat::make('Recovered revenue', MoneyFormatter::currency($revenue))
                 ->icon(Heroicon::OutlinedBanknotes)
                 ->color('success'),
         ];

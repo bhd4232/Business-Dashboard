@@ -51,7 +51,7 @@ class HomeController extends Controller
                 ->take(23)
                 ->get(),
             'carousels' => ProductCarousel::forHomepage(),
-            'slides' => StorefrontSlide::forCompany($company->getKey()),
+            'slides' => StorefrontSlide::forCompanyTheme($company->getKey(), $setting->storefrontTheme(), $setting->homepageTemplate()),
         ]);
     }
 

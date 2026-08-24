@@ -135,17 +135,17 @@ class CourierProviderResource extends Resource
                         ->native(false),
                     TextInput::make('settings.delivery_fees.inside')
                         ->label('Inside')
-                        ->prefix('BDT')
+                        ->prefix('৳')
                         ->numeric()
                         ->default(0),
                     TextInput::make('settings.delivery_fees.outside')
                         ->label('Outside')
-                        ->prefix('BDT')
+                        ->prefix('৳')
                         ->numeric()
                         ->default(0),
                     TextInput::make('settings.delivery_fees.suburb')
                         ->label('Suburb')
-                        ->prefix('BDT')
+                        ->prefix('৳')
                         ->numeric()
                         ->default(0),
                 ])
@@ -157,17 +157,17 @@ class CourierProviderResource extends Resource
                 ->schema([
                     TextInput::make('settings.return_costs.inside')
                         ->label('Inside')
-                        ->prefix('BDT')
+                        ->prefix('৳')
                         ->numeric()
                         ->default(0),
                     TextInput::make('settings.return_costs.outside')
                         ->label('Outside')
-                        ->prefix('BDT')
+                        ->prefix('৳')
                         ->numeric()
                         ->default(0),
                     TextInput::make('settings.return_costs.suburb')
                         ->label('Suburb')
-                        ->prefix('BDT')
+                        ->prefix('৳')
                         ->numeric()
                         ->default(0),
                     TextInput::make('settings.cod_charge_percent')
@@ -402,7 +402,7 @@ class CourierProviderResource extends Resource
 
                             Notification::make()
                                 ->title('Steadfast balance')
-                                ->body('Current balance: BDT '.MoneyFormatter::number((float) $balance))
+                                ->body('Current balance: '.MoneyFormatter::currency((float) $balance))
                                 ->success()
                                 ->send();
                         } catch (\Throwable $exception) {

@@ -111,7 +111,7 @@
                                     </div>
                                     <div class="text-right">
                                         <div class="text-xs font-medium text-gray-400">Total</div>
-                                        <div class="mt-1 text-lg font-semibold text-gray-950 dark:text-white">{{ $currency }} {{ \App\Support\MoneyFormatter::number((float) $order->total_amount) }}</div>
+                                        <div class="mt-1 text-lg font-semibold text-gray-950 dark:text-white">{{ \App\Support\MoneyFormatter::currency((float) $order->total_amount, $currency) }}</div>
                                     </div>
                                 </div>
 

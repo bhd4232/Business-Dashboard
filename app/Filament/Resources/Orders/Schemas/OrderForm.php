@@ -310,7 +310,7 @@ class OrderForm
 
                                 TextInput::make('unit_price')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->minValue(0)
                                     ->required()
                                     ->live(onBlur: true)
@@ -321,7 +321,7 @@ class OrderForm
 
                                 TextInput::make('subtotal')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->readOnly(),
                             ])
                             ->columns(4)
@@ -340,12 +340,12 @@ class OrderForm
                     ->schema([
                         TextInput::make('subtotal')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->readOnly(),
 
                         TextInput::make('discount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->minValue(0)
                             ->required()
@@ -354,7 +354,7 @@ class OrderForm
 
                         TextInput::make('vat')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->minValue(0)
                             ->required()
@@ -366,7 +366,7 @@ class OrderForm
                         TextInput::make('shipping_fee')
                             ->label('Shipping Fee')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->minValue(0)
                             ->required()
@@ -378,12 +378,12 @@ class OrderForm
 
                         TextInput::make('total_amount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->readOnly(),
 
                         TextInput::make('paid_amount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->minValue(0)
                             ->required()
@@ -404,7 +404,7 @@ class OrderForm
 
                         TextInput::make('due_amount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->readOnly(),
                     ])
                     ->columns(3)

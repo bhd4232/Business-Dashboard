@@ -87,7 +87,7 @@ class OrderInfolist
                         TextEntry::make('latestCourierBooking.cod_amount')
                             ->label('COD')
                             ->moneyWithoutTrailingZeroes('BDT')
-                            ->placeholder('BDT 0.00'),
+                            ->placeholder('৳ 0'),
                     ])
                     ->columns(4),
 

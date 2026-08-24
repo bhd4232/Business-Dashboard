@@ -149,7 +149,7 @@ class ViewOrder extends ViewRecord
                 ->rows(3),
             TextInput::make('cod_amount')
                 ->numeric()
-                ->prefix('BDT')
+                ->prefix('৳')
                 ->default((float) $this->record->due_amount)
                 ->minValue(0),
             Textarea::make('note')

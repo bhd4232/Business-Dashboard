@@ -7,6 +7,7 @@ use App\Filament\Concerns\OptimizesUploadedImages;
 use App\Models\Company;
 use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
+use App\Support\BangladeshDistricts;
 use App\Support\CompanyMedia;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -18,6 +19,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Auth;
@@ -70,9 +72,9 @@ class CompanySettings extends Page
             'invoice_prefix' => $profile['invoice_prefix'],
             'invoice' => $settings->invoice($company),
             'shipping' => [
-                'inside' => implode(', ', $profile['shipping_zones']['inside'] ?? []),
-                'outside' => implode(', ', $profile['shipping_zones']['outside'] ?? []),
-                'suburb' => implode(', ', $profile['shipping_zones']['suburb'] ?? []),
+                'inside' => $profile['shipping_zones']['inside'] ?? [],
+                'outside' => $profile['shipping_zones']['outside'] ?? [],
+                'suburb' => $profile['shipping_zones']['suburb'] ?? [],
             ],
         ]);
     }
@@ -138,7 +140,9 @@ class CompanySettings extends Page
                             ->maxLength(60),
                         TextInput::make('currency')
                             ->required()
-                            ->maxLength(12),
+                            ->maxLength(12)
+                            ->suffix('৳')
+                            ->helperText('Currency code, for example BDT (৳).'),
                         Select::make('timezone')
                             ->options($this->timezoneOptions())
                             ->required()
@@ -212,20 +216,11 @@ class CompanySettings extends Page
                     ->columns(2),
 
                 Section::make('Shipping Zones')
-                    ->description('Comma-separated area names used to match company-specific delivery fees.')
+                    ->description('Select the districts/areas used to match company-specific delivery fees. A customer address is matched against the selected names.')
                     ->schema([
-                        Textarea::make('shipping.inside')
-                            ->label('Inside areas')
-                            ->rows(3)
-                            ->maxLength(1000),
-                        Textarea::make('shipping.outside')
-                            ->label('Outside areas')
-                            ->rows(3)
-                            ->maxLength(1000),
-                        Textarea::make('shipping.suburb')
-                            ->label('Suburb areas')
-                            ->rows(3)
-                            ->maxLength(1000)
+                        $this->areaSelect('shipping.inside', 'Inside areas', BangladeshDistricts::options()),
+                        $this->areaSelect('shipping.outside', 'Outside areas', BangladeshDistricts::options()),
+                        $this->areaSelect('shipping.suburb', 'Suburb areas', BangladeshDistricts::suburbOptions())
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
@@ -249,9 +244,9 @@ class CompanySettings extends Page
             'date_format' => $state['date_format'],
             'invoice_prefix' => $state['invoice_prefix'],
             'shipping_zones' => [
-                'inside' => $this->splitAreas(data_get($state, 'shipping.inside')),
-                'outside' => $this->splitAreas(data_get($state, 'shipping.outside')),
-                'suburb' => $this->splitAreas(data_get($state, 'shipping.suburb')),
+                'inside' => $this->normalizeAreas(data_get($state, 'shipping.inside')),
+                'outside' => $this->normalizeAreas(data_get($state, 'shipping.outside')),
+                'suburb' => $this->normalizeAreas(data_get($state, 'shipping.suburb')),
             ],
         ], $company);
         $settings->saveInvoice((array) ($state['invoice'] ?? []), $company);
@@ -329,12 +324,30 @@ class CompanySettings extends Page
         return $company;
     }
 
-    /** @return list<string> */
-    protected function splitAreas(mixed $areas): array
+    /** @param array<string, string> $options */
+    protected function areaSelect(string $name, string $label, array $options): Select
     {
-        return collect(explode(',', (string) $areas))
-            ->map(fn (string $area): string => trim($area))
+        return Select::make($name)
+            ->label($label)
+            ->options($options)
+            ->multiple()
+            ->searchable()
+            ->preload()
+            ->hintAction(
+                Action::make("{$name}SelectAll")
+                    ->label('Select all')
+                    ->link()
+                    ->action(fn (Set $set) => $set($name, array_keys($options))),
+            );
+    }
+
+    /** @return list<string> */
+    protected function normalizeAreas(mixed $areas): array
+    {
+        return collect((array) $areas)
+            ->map(fn (mixed $area): string => trim((string) $area))
             ->filter()
+            ->unique()
             ->values()
             ->all();
     }

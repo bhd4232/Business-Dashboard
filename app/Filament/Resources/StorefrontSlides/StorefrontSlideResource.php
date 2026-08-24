@@ -8,8 +8,11 @@ use App\Filament\Resources\StorefrontSlides\Pages\CreateStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\EditStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\ListStorefrontSlides;
 use App\Models\Product;
+use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
+use App\Services\CompanyContext;
 use App\Support\CompanyMedia;
+use App\Support\StorefrontThemeRegistry;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -22,6 +25,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
@@ -53,16 +57,32 @@ class StorefrontSlideResource extends Resource
                     Select::make('company_id')
                         ->relationship('company', 'name', modifyQueryUsing: fn ($query) => CompanyMedia::constrainCompanyQuery($query))
                         ->rule(CompanyMedia::companyAccessRule())
-                        ->required()
+                        ->required(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->visible(fn (): bool => app(CompanyContext::class)->isAllCompanies())
+                        ->helperText('Select the company that will own this slide.')
                         ->searchable()
                         ->preload()
+                        ->live(),
+                    Select::make('theme')
+                        ->label('Theme')
+                        ->options(StorefrontThemeRegistry::themeOptions())
+                        ->default(fn (): string => static::activeTheme())
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(fn (Set $set, ?string $state): mixed => $set('template', array_key_first(StorefrontThemeRegistry::templateOptions($state))))
+                        ->helperText('The banner is only shown when this theme is active for the company. Match it to whichever theme you are preparing artwork for.'),
+                    Select::make('template')
+                        ->label('Homepage template')
+                        ->options(fn (Get $get): array => StorefrontThemeRegistry::templateOptions($get('theme')))
+                        ->default(fn (): string => static::activeTemplate())
+                        ->required()
                         ->live(),
                     Toggle::make('is_active')
                         ->label('Active')
                         ->default(true),
                     FileUpload::make('image')
                         ->label('Image (desktop)')
-                        ->helperText('Recommended: extra-wide banner, at least 1920x640px. It fills the viewport width and is cropped to one-third of the desktop screen height. Automatically compressed to WebP on upload.')
+                        ->helperText(fn (Get $get): string => static::bannerHelperText($get('theme'), 'desktop'))
                         ->image()
                         ->maxSize(2048)
                         ->tap(static::browserImagePrecompression())
@@ -72,11 +92,15 @@ class StorefrontSlideResource extends Resource
                         ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
                         ->disabled(fn (Get $get, ?StorefrontSlide $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
+                        ->imageEditorAspectRatios(fn (Get $get): array => [static::bannerAspectRatio($get('theme'), 'desktop')])
+                        ->imageResizeTargetWidth(fn (Get $get): string => (string) StorefrontThemeRegistry::bannerSpec($get('theme'))['desktop']['width'])
+                        ->imageResizeTargetHeight(fn (Get $get): string => (string) StorefrontThemeRegistry::bannerSpec($get('theme'))['desktop']['height'])
                         ->saveUploadedFileUsing(static::optimizeImageUpload())
                         ->required(),
                     FileUpload::make('image_mobile')
                         ->label('Image (mobile)')
-                        ->helperText('Optional. Use a wide mobile banner, at least 900x320px. It is cropped to one-sixth of the mobile screen height. Automatically compressed to WebP on upload.')
+                        ->helperText(fn (Get $get): string => static::bannerHelperText($get('theme'), 'mobile'))
+                        ->visible(fn (Get $get): bool => StorefrontThemeRegistry::bannerSpec($get('theme'))['mobile'] !== null)
                         ->image()
                         ->maxSize(2048)
                         ->tap(static::browserImagePrecompression())
@@ -85,6 +109,8 @@ class StorefrontSlideResource extends Resource
                         ->fetchFileInformation(false)
                         ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
                         ->disabled(fn (Get $get, ?StorefrontSlide $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
+                        ->imageEditor()
+                        ->imageEditorAspectRatios(fn (Get $get): array => [static::bannerAspectRatio($get('theme'), 'mobile')])
                         ->saveUploadedFileUsing(static::optimizeImageUpload()),
                     TextInput::make('cta_url')
                         ->label('Banner link (optional)')
@@ -139,6 +165,12 @@ class StorefrontSlideResource extends Resource
                     ->label('Company')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('theme')
+                    ->label('Theme')
+                    ->formatStateUsing(fn (?string $state): string => $state === null
+                        ? 'Any theme (legacy)'
+                        : StorefrontThemeRegistry::themeOptions()[StorefrontThemeRegistry::normalizeTheme($state)])
+                    ->badge(),
                 IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean()
@@ -161,6 +193,50 @@ class StorefrontSlideResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /** The company selected in the header's active theme, or the built-in default when none is set yet. */
+    protected static function activeTheme(): string
+    {
+        $companyId = app(CompanyContext::class)->id();
+
+        $setting = $companyId
+            ? StorefrontSetting::withoutGlobalScopes()->where('company_id', $companyId)->first()
+            : null;
+
+        return $setting?->storefrontTheme() ?? StorefrontThemeRegistry::BUILT_IN;
+    }
+
+    protected static function activeTemplate(): string
+    {
+        return StorefrontThemeRegistry::normalizeTemplate(static::activeTheme(), null);
+    }
+
+    protected static function bannerHelperText(?string $theme, string $slot): string
+    {
+        $spec = StorefrontThemeRegistry::bannerSpec($theme)[$slot] ?? null;
+
+        return $spec['note'] ?? 'Not used by this theme.';
+    }
+
+    protected static function bannerAspectRatio(?string $theme, string $slot): string
+    {
+        $spec = StorefrontThemeRegistry::bannerSpec($theme)[$slot] ?? null;
+
+        if ($spec === null) {
+            return '1:1';
+        }
+
+        [$width, $height] = [$spec['width'], $spec['height']];
+        [$a, $b] = [$width, $height];
+
+        while ($b !== 0) {
+            [$a, $b] = [$b, $a % $b];
+        }
+
+        $gcd = max(1, $a);
+
+        return ($width / $gcd).':'.($height / $gcd);
     }
 
     public static function canViewAny(): bool

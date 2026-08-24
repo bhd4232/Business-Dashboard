@@ -57,7 +57,7 @@
             <tr>
                 <td>{{ $voucher->purpose ?: (\App\Models\Voucher::TRANSACTION_TYPES[$voucher->transaction_type] ?? 'Payment') }}</td>
                 <td>{{ $voucher->payment_method ?: '—' }}</td>
-                <td style="text-align: right;">{{ $voucher->currency }} {{ \App\Support\MoneyFormatter::number((float) $voucher->amount) }}</td>
+                <td style="text-align: right;">{{ \App\Support\MoneyFormatter::currency((float) $voucher->amount, $voucher->currency) }}</td>
             </tr>
         </tbody>
     </table>

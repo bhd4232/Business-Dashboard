@@ -5,26 +5,55 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\StockMovement;
+use App\Models\StockPool;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class StockMovementService
 {
     /**
      * Signed on-hand stock for the movements matched by $query, summed in SQL.
-     * Mirrors signedQuantityFor(): sales and damage subtract, adjustments
-     * keep their sign, everything else adds. Aggregating in the database
-     * avoids loading a product's entire movement history into memory on
-     * every recompute.
+     * Mirrors signedQuantityFor(): sales and damage subtract, adjustments and
+     * transfers keep their own sign, everything else adds. Aggregating in the
+     * database avoids loading a product's entire movement history into memory
+     * on every recompute.
      */
     protected function signedStockSum(Builder $query): int
     {
         return (int) $query
             ->selectRaw(
                 "COALESCE(SUM(CASE WHEN type IN ('sale', 'damage') THEN -ABS(quantity) "
-                ."WHEN type = 'adjustment' THEN quantity ELSE ABS(quantity) END), 0) as signed_stock"
+                ."WHEN type IN ('adjustment', 'transfer') THEN quantity ELSE ABS(quantity) END), 0) as signed_stock"
             )
             ->value('signed_stock');
+    }
+
+    /**
+     * The other Product ids sharing this product's stock pool (see
+     * StockPool), or null when the product isn't pooled. Always reads across
+     * companies deliberately — a pool exists specifically to link products
+     * that belong to different companies.
+     */
+    protected function poolMemberIds(int $productId): ?Collection
+    {
+        $poolId = Product::query()->withoutGlobalScopes()->whereKey($productId)->value('stock_pool_id');
+
+        if (! $poolId) {
+            return null;
+        }
+
+        return Product::query()->withoutGlobalScopes()->where('stock_pool_id', $poolId)->pluck('id');
+    }
+
+    /** The StockMovement query for a product's own ledger, or its whole pool's combined ledger when pooled. */
+    protected function ledgerQueryFor(int $productId): Builder
+    {
+        $poolMemberIds = $this->poolMemberIds($productId);
+
+        return $poolMemberIds
+            ? StockMovement::query()->withoutGlobalScopes()->whereIn('product_id', $poolMemberIds)
+            : StockMovement::query()->where('product_id', $productId);
     }
 
     public function prepareForSave(StockMovement $movement): void
@@ -41,9 +70,7 @@ class StockMovementService
         }
 
         $stockAfterDelete = $this->signedStockSum(
-            StockMovement::query()
-                ->where('product_id', $movement->product_id)
-                ->whereKeyNot($movement->getKey())
+            $this->ledgerQueryFor((int) $movement->product_id)->whereKeyNot($movement->getKey())
         );
 
         if ($stockAfterDelete < 0) {
@@ -62,28 +89,35 @@ class StockMovementService
         // Variable products own their stock as the sum of active variant
         // stock (synced by ProductVariant hooks) — the movement ledger
         // must not overwrite it.
-        $hasVariants = (bool) Product::query()
-            ->withoutGlobalScopes()
-            ->whereKey($productId)
-            ->value('has_variants');
+        $product = Product::query()->withoutGlobalScopes()->whereKey($productId)->first();
 
-        if ($hasVariants) {
+        if (! $product || $product->has_variants) {
             return;
         }
 
-        $stock = $this->signedStockSum(
-            StockMovement::query()->where('product_id', $productId)
-        );
+        $poolMemberIds = $this->poolMemberIds($productId);
 
-        Product::query()
-            ->whereKey($productId)
-            ->update(['stock' => $stock]);
+        if ($poolMemberIds) {
+            $stock = $this->signedStockSum(
+                StockMovement::query()->withoutGlobalScopes()->whereIn('product_id', $poolMemberIds)
+            );
+
+            // Every member shows the same live pool-wide total, regardless
+            // of which company's order actually moved it.
+            Product::query()->withoutGlobalScopes()->whereIn('id', $poolMemberIds)->update(['stock' => $stock]);
+
+            return;
+        }
+
+        $stock = $this->signedStockSum(StockMovement::query()->where('product_id', $productId));
+
+        Product::query()->whereKey($productId)->update(['stock' => $stock]);
     }
 
     public function normalizeQuantity(?string $type, int $quantity): int
     {
         return match ($type) {
-            'adjustment' => $quantity,
+            'adjustment', 'transfer' => $quantity,
             'sale', 'damage', 'opening', 'purchase', 'return' => abs($quantity),
             default => $quantity,
         };
@@ -93,7 +127,7 @@ class StockMovementService
     {
         return match ($type) {
             'sale', 'damage' => -abs($quantity),
-            'adjustment' => $quantity,
+            'adjustment', 'transfer' => $quantity,
             default => abs($quantity),
         };
     }
@@ -105,12 +139,86 @@ class StockMovementService
         ?int $excludingMovementId = null,
     ): int {
         $currentStock = $this->signedStockSum(
-            StockMovement::query()
-                ->where('product_id', $productId)
+            $this->ledgerQueryFor($productId)
                 ->when($excludingMovementId, fn ($query) => $query->whereKeyNot($excludingMovementId))
         );
 
         return $currentStock + $this->signedQuantityFor($type, $quantity);
+    }
+
+    /**
+     * Mirrors a real movement (sale/purchase/return/damage/adjustment/
+     * opening) recorded against a non-source pooled product as an
+     * equal-and-opposite 'transfer' pair: the non-source product's own
+     * ledger is offset back to a net-zero pass-through, and the pool's
+     * source product records the real, signed effect instead — so the
+     * pool's true total moves exactly once no matter which company's order
+     * triggered it, while both companies' own stock history stays
+     * coherent. `updateOrCreate` keyed on the triggering movement keeps the
+     * mirror in sync if that movement's quantity is later edited (e.g. an
+     * order's line quantity changes) instead of only firing once.
+     *
+     * A no-op for: 'transfer' movements themselves (they never trigger
+     * another pair — that's what stops this from recursing), variant-scoped
+     * movements (pooling only supports simple products), unpooled products,
+     * and movements recorded directly against the pool's own source
+     * product (nothing to mirror — it already holds the real stock).
+     */
+    public function maybeCreatePoolTransfer(StockMovement $movement): void
+    {
+        if ($movement->type === 'transfer' || $movement->product_variant_id) {
+            return;
+        }
+
+        $product = Product::query()->withoutGlobalScopes()->find($movement->product_id);
+
+        if (! $product || ! $product->stock_pool_id || $product->has_variants) {
+            return;
+        }
+
+        $pool = StockPool::query()->find($product->stock_pool_id);
+
+        if (! $pool || ! $pool->source_product_id || (int) $pool->source_product_id === (int) $product->getKey()) {
+            return;
+        }
+
+        $sourceProduct = Product::query()->withoutGlobalScopes()->find($pool->source_product_id);
+
+        if (! $sourceProduct) {
+            return;
+        }
+
+        $signed = $this->signedQuantityFor($movement->type, (int) $movement->quantity);
+
+        StockMovement::query()->withoutGlobalScopes()->updateOrCreate(
+            [
+                'product_id' => $product->getKey(),
+                'type' => 'transfer',
+                'reference_type' => StockMovement::class,
+                'reference_id' => $movement->getKey(),
+            ],
+            [
+                'company_id' => $product->company_id,
+                'quantity' => -$signed,
+                'reason' => 'Shared stock pass-through',
+                'note' => "Auto-mirrors this product's own {$movement->type} movement #{$movement->getKey()}.",
+            ],
+        );
+
+        StockMovement::query()->withoutGlobalScopes()->updateOrCreate(
+            [
+                'product_id' => $sourceProduct->getKey(),
+                'type' => 'transfer',
+                'reference_type' => StockMovement::class,
+                'reference_id' => $movement->getKey(),
+            ],
+            [
+                'company_id' => $sourceProduct->company_id,
+                'quantity' => $signed,
+                'reason' => 'Shared stock pass-through',
+                'note' => "Auto-mirrors a {$movement->type} movement #{$movement->getKey()} recorded against \"{$product->name}\" ({$product->company?->name}).",
+            ],
+        );
     }
 
     public function projectedVariantStockFor(StockMovement $movement): int
@@ -148,7 +256,7 @@ class StockMovementService
             ]);
         }
 
-        if ($movement->type === 'adjustment') {
+        if (in_array($movement->type, ['adjustment', 'transfer'], true)) {
             if ((int) $movement->quantity === 0) {
                 throw ValidationException::withMessages([
                     'quantity' => 'Adjustment quantity must be a non-zero signed value.',
@@ -183,6 +291,7 @@ class StockMovementService
             $message = match ($movement->type) {
                 'sale' => 'Insufficient stock for this sale quantity.',
                 'damage' => 'Insufficient stock to record this much damage.',
+                'transfer' => 'Insufficient shared pool stock for this transfer.',
                 default => 'This stock movement would make product stock negative.',
             };
 

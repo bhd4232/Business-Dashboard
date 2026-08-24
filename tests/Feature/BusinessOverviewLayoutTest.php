@@ -120,9 +120,9 @@ class BusinessOverviewLayoutTest extends TestCase
             }
         };
 
-        $this->assertSame('BDT 0', $widget->formatMoney(0));
-        $this->assertSame('BDT 1,625,000', $widget->formatMoney(1625000));
-        $this->assertSame('BDT 2,520.5', $widget->formatMoney(2520.50));
-        $this->assertSame('BDT 2,520.25', $widget->formatMoney(2520.25));
+        $this->assertSame('৳ 0', $widget->formatMoney(0));
+        $this->assertSame('৳ 1,625,000', $widget->formatMoney(1625000));
+        $this->assertSame('৳ 2,520.5', $widget->formatMoney(2520.50));
+        $this->assertSame('৳ 2,520.25', $widget->formatMoney(2520.25));
     }
 }

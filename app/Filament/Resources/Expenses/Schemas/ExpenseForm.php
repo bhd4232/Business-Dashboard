@@ -56,7 +56,7 @@ class ExpenseForm
                         ->searchable()
                         ->required(),
                     DatePicker::make('expense_date')->default(now())->required(),
-                    TextInput::make('amount')->numeric()->prefix('BDT')->minValue(0.01)->required(),
+                    TextInput::make('amount')->numeric()->prefix('৳')->minValue(0.01)->required(),
                     TextInput::make('reference')->maxLength(255),
                 ])->columns(2),
             Section::make('Note')->columnSpanFull()->schema([

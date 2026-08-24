@@ -67,7 +67,7 @@ class PurchaseForm
 
                                 TextInput::make('opening_balance')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->default(0)
                                     ->required(),
 
@@ -224,7 +224,7 @@ class PurchaseForm
                                         TextInput::make('cost_price')
                                             ->label('Cost Price')
                                             ->numeric()
-                                            ->prefix('BDT')
+                                            ->prefix('৳')
                                             ->default(0)
                                             ->minValue(0)
                                             ->required(),
@@ -232,7 +232,7 @@ class PurchaseForm
                                         TextInput::make('sale_price')
                                             ->label('Sale Price')
                                             ->numeric()
-                                            ->prefix('BDT')
+                                            ->prefix('৳')
                                             ->default(0)
                                             ->minValue(0)
                                             ->required(),
@@ -297,7 +297,7 @@ class PurchaseForm
 
                                 TextInput::make('unit_cost')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->minValue(0)
                                     ->required()
                                     ->live(onBlur: true)
@@ -308,20 +308,20 @@ class PurchaseForm
 
                                 TextInput::make('subtotal')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->readOnly(),
 
                                 TextInput::make('allocated_cost')
                                     ->label('Allocated Cost')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->readOnly()
                                     ->dehydrated(false),
 
                                 TextInput::make('landed_unit_cost')
                                     ->label('Landed Unit Cost')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->readOnly()
                                     ->dehydrated(false),
                             ])
@@ -359,7 +359,7 @@ class PurchaseForm
                                 TextInput::make('amount')
                                     ->label('Amount')
                                     ->numeric()
-                                    ->prefix('BDT')
+                                    ->prefix('৳')
                                     ->minValue(0)
                                     ->default(0)
                                     ->required()
@@ -382,12 +382,12 @@ class PurchaseForm
                     ->schema([
                         TextInput::make('subtotal')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->readOnly(),
 
                         TextInput::make('discount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->minValue(0)
                             ->required()
@@ -396,7 +396,7 @@ class PurchaseForm
 
                         TextInput::make('vat')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->minValue(0)
                             ->required()
@@ -405,13 +405,13 @@ class PurchaseForm
 
                         TextInput::make('total_amount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->readOnly(),
 
                         TextInput::make('landed_cost_total')
                             ->label('Landed Cost Total')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->dehydrated(false)
                             ->readOnly()
                             ->afterStateHydrated(function (TextInput $component, ?Purchase $record): void {
@@ -420,7 +420,7 @@ class PurchaseForm
 
                         TextInput::make('paid_amount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->default(0)
                             ->minValue(0)
                             ->required()
@@ -429,7 +429,7 @@ class PurchaseForm
 
                         TextInput::make('due_amount')
                             ->numeric()
-                            ->prefix('BDT')
+                            ->prefix('৳')
                             ->readOnly(),
                     ])
                     ->columns(3)
@@ -462,7 +462,7 @@ class PurchaseForm
             ->map(fn (string $label, string $field): TextInput => TextInput::make($field)
                 ->label($label)
                 ->numeric()
-                ->prefix('BDT')
+                ->prefix('৳')
                 ->minValue(0)
                 ->default(0)
                 ->live(onBlur: true)
@@ -485,7 +485,7 @@ class PurchaseForm
                 TextInput::make('amount')
                     ->label('Amount')
                     ->numeric()
-                    ->prefix('BDT')
+                    ->prefix('৳')
                     ->minValue(0)
                     ->default(0)
                     ->required(),

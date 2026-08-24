@@ -75,7 +75,7 @@ class InvestmentProjectResource extends Resource
                     ->afterOrEqual('start_date'),
                 TextInput::make('target_amount')
                     ->hintAction(static::fieldHelp('targetAmountHelp', 'Target Amount', 'এই project-এর জন্য মোট কত টাকা investor-দের কাছ থেকে সংগ্রহের লক্ষ্য তা লিখুন। এটি funding progress দেখায়; settlement profit calculation-এ সরাসরি ব্যবহার হয় না।'))
-                    ->numeric()->prefix('BDT')->minValue(0),
+                    ->numeric()->prefix('৳')->minValue(0),
                 Select::make('status')
                     ->hintAction(static::fieldHelp('statusHelp', 'Project Status', 'Open = investment নেওয়া হচ্ছে; Running = deal চলছে; Closed = হিসাব প্রস্তুত এবং settlement করা যাবে। Settled status হাতে দেওয়া যায় না—Calculate & Settle action সফল হলে স্বয়ংক্রিয়ভাবে হয়।'))
                     ->options(fn (?InvestmentProject $record): array => $record?->status === 'settled' ? ['settled' => 'Settled'] : array_diff_key(InvestmentProject::STATUSES, ['settled' => true]))->default('open')->required(),
@@ -199,7 +199,7 @@ class InvestmentProjectResource extends Resource
                 ->color(fn (?float $state): string => static::fundingProgressColor($state))
                 ->icon(Heroicon::OutlinedChartBar)
                 ->description(fn (InvestmentProject $record): ?string => (float) $record->target_amount > 0
-                    ? 'BDT '.MoneyFormatter::number((float) ($record->investments_sum_amount ?? 0)).' of BDT '.MoneyFormatter::number((float) $record->target_amount)
+                    ? MoneyFormatter::currency((float) ($record->investments_sum_amount ?? 0)).' of '.MoneyFormatter::currency((float) $record->target_amount)
                     : null)
                 ->placeholder('No target'),
             TextColumn::make('status')->badge()->sortable(),

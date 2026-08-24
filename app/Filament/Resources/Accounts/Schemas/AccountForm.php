@@ -27,7 +27,7 @@ class AccountForm
                     TextInput::make('current_balance')
                         ->label('Balance')
                         ->numeric()
-                        ->prefix('BDT')
+                        ->prefix('৳')
                         ->disabled()
                         ->dehydrated(false),
                 ]),

@@ -48,7 +48,7 @@ class FundSourceResource extends Resource
                     ->visible(fn (Get $get) => in_array($get('type'), FundSource::ACCOUNT_LINKED_TYPES, true))
                     ->required(fn (Get $get) => in_array($get('type'), FundSource::ACCOUNT_LINKED_TYPES, true)),
                 TextInput::make('opening_balance')
-                    ->numeric()->prefix('BDT')->default(0)
+                    ->numeric()->prefix('৳')->default(0)
                     ->helperText('Only used for capital-type sources (investment/profit/loan/credit) that do not have a linked account.')
                     ->visible(fn (Get $get) => ! in_array($get('type'), FundSource::ACCOUNT_LINKED_TYPES, true)),
                 Toggle::make('is_active')->default(true),
