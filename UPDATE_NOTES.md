@@ -2,6 +2,31 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-24 - Production `php artisan migrate --force` failure: three uniqueness-fix migrations assumed indexes that had already drifted off production
+
+Reason:
+
+- Owner ran `php artisan migrate --force` on the live server (`app.zamzamint.com`) after the previous commit, to apply the two migrations this round's Storefront Slide/Shared Stock Pool features need. It failed immediately on an older, already-committed migration: `2026_08_21_163643_fix_categories_slug_unique_scope_to_company` — `SQLSTATE[42000]: ... Can't DROP 'categories_slug_unique'; check that column/key exists`. Confirmed live via a screenshot of `/admin/inventory/stock-pools` returning a 500 first (expected, since this failure meant the two new migrations never ran either), then the actual migrate log.
+
+What happened:
+
+- The three "scope this unique constraint to company_id" migrations from 2026-08-21 (`fix_categories_slug_unique_scope_to_company`, `fix_products_sku_and_barcode_unique_scope_to_company`, `fix_expense_categories_slug_unique_scope_to_company`) each unconditionally called `$table->dropUnique('<name>')`/`$table->dropIndex('<name>')` on a hardcoded index name, assuming production's schema exactly matched a fresh `create_categories_table`/`create_products_table`/`create_expense_categories_table` run. Production's actual live indexes on those three tables had already drifted from that assumption (this was very likely the *first* time `php artisan migrate --force` had been run against this production database since before these three migrations existed — Coolify's redeploy does not itself run migrations, confirmed by reading `nixpacks.toml`/`.github/workflows/deploy.yml`, which only runs tests and builds the Android APK, no SSH/deploy/migrate step), so `categories_slug_unique` simply wasn't there to drop, and the whole migration batch halted before reaching this round's two new (and otherwise-unrelated) migrations.
+- Rewrote all three migrations to read `Schema::getIndexes($table)` first and only `dropUnique()`/`dropIndex()`/add the new unique index for whichever of those actually exist right now — correct regardless of what state a given database drifted into, and safely re-runnable if it partially fails again. `down()` on all three is symmetric/guarded the same way. No behavior change for a database that *does* match the original assumption (confirmed by the full test suite, which creates these tables fresh via `RefreshDatabase` on every run and still exercises the drop-then-recreate path exactly as before).
+- Did not change the categories/products/expense_categories migrations' actual intent (still ends up with a `(company_id, slug|sku|barcode)` unique index) — only the *how* of getting there.
+
+Important changed files:
+
+- `database/migrations/2026_08_21_163643_fix_categories_slug_unique_scope_to_company.php`
+- `database/migrations/2026_08_21_170645_fix_products_sku_and_barcode_unique_scope_to_company.php`
+- `database/migrations/2026_08_21_170648_fix_expense_categories_slug_unique_scope_to_company.php`
+
+Verification:
+
+- Full `php artisan test` suite re-run after the rewrite (SQLite, fresh schema every run, so this exercises the "everything exists as expected" branch of the new guards).
+- Owner still needs to re-run `php artisan migrate --force` on production after this lands — that will tell us whether production is now clean, or whether a *data*-level problem exists too (e.g. real pre-existing duplicate `(company_id, slug)` rows that would reject the new unique index outright, a different failure mode from this one and not something visible from here).
+
+Commit status: Not committed yet — pending this run's test result and owner approval, per CLAUDE.md.
+
 ## 2026-08-24 - Steadfast courier webhooks could never authenticate (bearer token vs. HMAC mismatch)
 
 Reason:

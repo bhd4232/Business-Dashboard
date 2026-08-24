@@ -21,26 +21,57 @@ use Illuminate\Support\Facades\Schema;
  *   same barcode even though nothing in the database actually required that.
  *   Added a proper (company_id, barcode) unique index so the database now
  *   backs what the form already promises, scoped correctly per company.
+ *
+ * Every step is guarded by the table's actual current indexes rather than
+ * assumed by name - see the docblock on the sibling categories migration for
+ * why: a production run found `products_sku_unique`/`products_company_lookup_index`
+ * already absent, which made an unconditional `dropUnique()` fail the deploy.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            $table->dropUnique('products_sku_unique');
-            $table->dropIndex('products_company_lookup_index');
-            $table->unique(['company_id', 'sku'], 'products_company_id_sku_unique');
-            $table->unique(['company_id', 'barcode'], 'products_company_id_barcode_unique');
+        $indexes = collect(Schema::getIndexes('products'))->pluck('name')->all();
+
+        Schema::table('products', function (Blueprint $table) use ($indexes) {
+            if (in_array('products_sku_unique', $indexes, true)) {
+                $table->dropUnique('products_sku_unique');
+            }
+
+            if (in_array('products_company_lookup_index', $indexes, true)) {
+                $table->dropIndex('products_company_lookup_index');
+            }
+
+            if (! in_array('products_company_id_sku_unique', $indexes, true)) {
+                $table->unique(['company_id', 'sku'], 'products_company_id_sku_unique');
+            }
+
+            if (! in_array('products_company_id_barcode_unique', $indexes, true)) {
+                $table->unique(['company_id', 'barcode'], 'products_company_id_barcode_unique');
+            }
         });
     }
 
     public function down(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            $table->dropUnique('products_company_id_barcode_unique');
-            $table->dropUnique('products_company_id_sku_unique');
-            $table->index(['company_id', 'sku'], 'products_company_lookup_index');
-            $table->unique('sku', 'products_sku_unique');
+        $indexes = collect(Schema::getIndexes('products'))->pluck('name')->all();
+
+        Schema::table('products', function (Blueprint $table) use ($indexes) {
+            if (in_array('products_company_id_barcode_unique', $indexes, true)) {
+                $table->dropUnique('products_company_id_barcode_unique');
+            }
+
+            if (in_array('products_company_id_sku_unique', $indexes, true)) {
+                $table->dropUnique('products_company_id_sku_unique');
+            }
+
+            if (! in_array('products_company_lookup_index', $indexes, true)) {
+                $table->index(['company_id', 'sku'], 'products_company_lookup_index');
+            }
+
+            if (! in_array('products_sku_unique', $indexes, true)) {
+                $table->unique('sku', 'products_sku_unique');
+            }
         });
     }
 };
