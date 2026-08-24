@@ -264,18 +264,24 @@ class CourierProviderResource extends Resource
                         ->helperText('From E-Courier packages list. Used when the booking form does not override it.')
                         ->visible(fn (Get $get): bool => $get('driver') === CourierProvider::DRIVER_ECOURIER),
                     TextInput::make('credentials.webhook_secret')
-                        ->label('Webhook Signing Secret')
+                        ->label(fn (Get $get): string => $get('driver') === CourierProvider::DRIVER_STEADFAST ? 'Webhook Auth Token' : 'Webhook Signing Secret')
                         ->password()
                         ->revealable()
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->helperText(fn (Get $get): string => $get('driver') === CourierProvider::DRIVER_STEADFAST
+                            ? 'Make up any random token here, then paste this exact value into Steadfast\'s panel: Settings/Integration → Webhook Integration → "Auth Token (Bearer)".'
+                            : 'Used to verify the signature this courier sends with each webhook request.'),
                     TextInput::make('settings.signature_header')
                         ->label('Webhook Signature Header')
-                        ->default('X-Courier-Signature')
-                        ->maxLength(100),
+                        ->placeholder(fn (Get $get): string => $get('driver') === CourierProvider::DRIVER_STEADFAST ? 'Authorization (default — leave blank)' : 'X-Courier-Signature (default — leave blank)')
+                        ->maxLength(100)
+                        ->helperText(fn (Get $get): string => $get('driver') === CourierProvider::DRIVER_STEADFAST
+                            ? 'Steadfast sends its token in the standard Authorization header — leave this blank unless Steadfast tells you otherwise.'
+                            : 'Leave blank to use this courier\'s standard header; only override if the courier documents a different one.'),
                     Toggle::make('settings.webhook_signature_required')
                         ->label('Require Webhook Signature')
                         ->default(true)
-                        ->helperText('Turn off only if the courier confirms it does not sign webhook requests — otherwise incoming webhooks are rejected.'),
+                        ->helperText('Turn off only if the courier confirms it does not sign/authenticate webhook requests — otherwise incoming webhooks are rejected.'),
                     TextInput::make('settings.tracking_url')
                         ->label('Tracking URL Template')
                         ->placeholder('https://example.com/track/{tracking_id}')

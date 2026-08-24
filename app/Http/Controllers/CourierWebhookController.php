@@ -15,7 +15,7 @@ class CourierWebhookController extends Controller
     {
         abort_unless($provider->is_active, 404);
         $adapter = $couriers->adapter($provider);
-        $signatureHeader = (string) ($provider->settings['signature_header'] ?? 'X-Courier-Signature');
+        $signatureHeader = (string) ($provider->settings['signature_header'] ?? $adapter->signatureHeaderDefault());
         abort_unless($adapter->verifyWebhook($provider, $request->getContent(), $request->header($signatureHeader)), 401);
 
         $payload = $request->json()->all();

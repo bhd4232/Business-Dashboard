@@ -46,4 +46,33 @@ class SteadfastCourierAdapter extends AbstractCourierAdapter
 
         return $status ? app(CourierService::class)->normalizeSteadfastStatus((string) $status) : null;
     }
+
+    /**
+     * Steadfast's webhook panel has no concept of a signed payload — it
+     * only offers a "Callback URL" and an "Auth Token (Bearer)" that it
+     * echoes back verbatim as a standard `Authorization: Bearer <token>`
+     * header on every call. So unlike the generic HMAC-signature check
+     * this class would otherwise inherit, verification here is a plain
+     * constant-time comparison against the stored token.
+     */
+    public function verifyWebhook(CourierProvider $provider, string $payload, ?string $signature): bool
+    {
+        if (($provider->settings['webhook_signature_required'] ?? true) === false) {
+            return true;
+        }
+
+        $token = $provider->credentials['webhook_secret'] ?? null;
+        if (blank($token) || blank($signature)) {
+            return false;
+        }
+
+        $received = str_starts_with($signature, 'Bearer ') ? substr($signature, 7) : $signature;
+
+        return hash_equals((string) $token, $received);
+    }
+
+    public function signatureHeaderDefault(): string
+    {
+        return 'Authorization';
+    }
 }

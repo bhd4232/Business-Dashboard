@@ -110,7 +110,7 @@ class CourierIntegrationTest extends TestCase
         Queue::fake();
         $company = $this->company('Webhook Company', 'webhook-company', 'WHK');
         app(CompanyContext::class)->set($company);
-        $provider = $this->steadfastProvider($company);
+        $provider = $this->pathaoProvider($company);
         $credentials = $provider->credentials;
         $credentials['webhook_secret'] = 'webhook-test-secret';
         $provider->update(['credentials' => $credentials]);
@@ -121,6 +121,42 @@ class CourierIntegrationTest extends TestCase
 
         $this->call('POST', route('couriers.webhook', $provider), [], [], [], $server, $payload)->assertAccepted();
         $this->call('POST', route('couriers.webhook', $provider), [], [], [], $server, $payload)->assertAccepted();
+
+        $this->assertDatabaseCount('courier_webhook_logs', 1);
+        Queue::assertPushed(ProcessCourierWebhook::class, 1);
+    }
+
+    /**
+     * Steadfast's webhook panel only offers a Callback URL + a static
+     * "Auth Token (Bearer)" — it does not sign payloads, so this courier
+     * uses plain bearer-token verification instead of the generic
+     * HMAC-signature check the other API couriers inherit.
+     */
+    public function test_steadfast_webhook_accepts_the_configured_bearer_token_and_rejects_others(): void
+    {
+        Queue::fake();
+        $company = $this->company('Steadfast Webhook Company', 'steadfast-webhook-company', 'SFW');
+        app(CompanyContext::class)->set($company);
+        $provider = $this->steadfastProvider($company);
+        $credentials = $provider->credentials;
+        $credentials['webhook_secret'] = 'steadfast-bearer-token';
+        $provider->update(['credentials' => $credentials]);
+
+        $payload = json_encode(['notification_type' => 'delivery_status', 'consignment_id' => 12345, 'tracking_code' => 'TRACK-001', 'status' => 'delivered']);
+
+        $this->call('POST', route('couriers.webhook', $provider), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer steadfast-bearer-token',
+        ], $payload)->assertAccepted();
+
+        $this->call('POST', route('couriers.webhook', $provider), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer wrong-token',
+        ], $payload)->assertUnauthorized();
+
+        $this->call('POST', route('couriers.webhook', $provider), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], $payload)->assertUnauthorized();
 
         $this->assertDatabaseCount('courier_webhook_logs', 1);
         Queue::assertPushed(ProcessCourierWebhook::class, 1);

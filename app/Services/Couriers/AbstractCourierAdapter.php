@@ -68,6 +68,11 @@ abstract class AbstractCourierAdapter implements CourierProviderInterface
             && hash_equals(hash_hmac('sha256', $payload, $secret), $signature);
     }
 
+    public function signatureHeaderDefault(): string
+    {
+        return 'X-Courier-Signature';
+    }
+
     protected function unsupported(string $operation): never
     {
         throw ValidationException::withMessages(['courier' => "The {$operation} operation is not supported by this courier provider."]);

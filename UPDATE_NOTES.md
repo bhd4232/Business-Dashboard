@@ -2,6 +2,39 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-24 - Steadfast courier webhooks could never authenticate (bearer token vs. HMAC mismatch)
+
+Reason:
+
+- Owner shared a screenshot of Steadfast's own "Webhook Integration" panel (Callback URL + "Auth Token (Bearer)" fields, plus their webhook payload documentation) and asked how to configure it against this app.
+- Reading the ERP's webhook-verification code against that screenshot showed a real mismatch: `AbstractCourierAdapter::verifyWebhook()` (inherited by every courier adapter, including Steadfast's) assumes the courier HMAC-signs its payload and sends the signature in a custom header — true for Pathao/RedX/E-Courier, but Steadfast's own documented webhook contract has no signature at all, only a static bearer token echoed back verbatim in a standard `Authorization` header.
+- Net effect before this fix: a correctly-configured Steadfast webhook would always fail verification (401) unless an admin disabled signature checking entirely for that provider (`settings.webhook_signature_required = false`) — which would then accept *any* unauthenticated POST, letting someone who knows a provider ID and a real consignment/tracking ID forge a delivery-status update.
+
+What happened:
+
+- `SteadfastCourierAdapter` now overrides `verifyWebhook()` with a plain constant-time comparison against the provider's own configured token (`credentials.webhook_secret`, reusing the existing encrypted field) instead of inheriting the generic HMAC check — matching what Steadfast's panel actually sends. The `settings.webhook_signature_required` opt-out still works the same as before for every driver.
+- Added `CourierProviderInterface::signatureHeaderDefault()` (default `'X-Courier-Signature'` in `AbstractCourierAdapter`, overridden to `'Authorization'` in `SteadfastCourierAdapter`) so `CourierWebhookController` reads the right header per courier automatically when the provider row hasn't explicitly set `settings.signature_header` — no behavior change for Pathao/RedX/E-Courier, which don't override it.
+- `CourierProviderResource`'s "API Integration" section now shows Steadfast-specific labels/helper text on the two webhook fields: **Webhook Auth Token** (was "Webhook Signing Secret" for all drivers) explains to paste the same value into Steadfast's "Auth Token (Bearer)" field, and **Webhook Signature Header** explains Steadfast uses the standard `Authorization` header and should normally be left blank. Removed the static `->default('X-Courier-Signature')` on that field (now just a placeholder) so a freshly-created provider relies on the adapter's own correct default instead of persisting a value that could be wrong for the driver.
+- Existing Steadfast provider rows that already have `settings.signature_header` saved as the old default value need the admin to re-save that field (blank it, or explicitly type `Authorization`) since a stored value always wins over the new automatic default — mentioned to the owner directly, not silently migrated (no safe way to distinguish "admin deliberately set this" from "form default happened to fill this in" from existing data alone).
+
+Important changed files:
+
+- `app/Services/Couriers/SteadfastCourierAdapter.php` (bearer-token `verifyWebhook()`, `signatureHeaderDefault()`)
+- `app/Services/Couriers/AbstractCourierAdapter.php` (`signatureHeaderDefault()` default)
+- `app/Contracts/CourierProviderInterface.php` (new interface method)
+- `app/Http/Controllers/CourierWebhookController.php` (uses the adapter's default instead of a hardcoded header name)
+- `app/Filament/Resources/CourierProviders/CourierProviderResource.php` (driver-aware labels/helper text)
+- `tests/Feature/CourierIntegrationTest.php` (existing HMAC webhook test repointed at Pathao since that's the driver it's actually testing; new bearer-token accept/reject regression test for Steadfast)
+
+Verification:
+
+- `php artisan test --filter=CourierIntegrationTest` — 28 passed (131 assertions).
+- `php artisan test --filter=CourierMonitoringTest` — 6 passed (24 assertions).
+- Full `php artisan test` suite — 865 passed, 0 failed (the previously-flaky `StockPoolResourceTest` also passed clean on this run, reconfirming it's unrelated pre-existing flakiness, not a regression from any change here).
+- No frontend assets touched; `npm run build` not required.
+
+Commit status: Approved by owner in chat on 2026-08-24 ("কমিট এবং পুশ কর") — committed.
+
 ## 2026-08-24 - Shipping-zone dropdowns, Storefront Slide theme/template + dashboard-wide company-field removal, Shared Stock Pool
 
 Reason:

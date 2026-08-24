@@ -38,5 +38,13 @@ interface CourierProviderInterface
 
     public function verifyWebhook(CourierProvider $provider, string $payload, ?string $signature): bool;
 
+    /**
+     * The HTTP header a webhook's signature/token is read from when the
+     * provider row hasn't set settings.signature_header explicitly —
+     * couriers that don't sign payloads at all (e.g. a static bearer
+     * token) override this to point at the header they actually use.
+     */
+    public function signatureHeaderDefault(): string;
+
     public function webhookStatus(array $payload): ?string;
 }
