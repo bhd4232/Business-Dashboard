@@ -12,11 +12,23 @@ use Symfony\Component\HttpFoundation\Response;
 
 class SetCurrentCompany
 {
+    /**
+     * Once the companies table exists it exists for the rest of the app's
+     * life, so we only need to keep re-querying the schema while this is
+     * still false (i.e. briefly, before the initial install migrates).
+     * Avoids a Schema::hasTable() query on every single request.
+     */
+    protected static bool $companiesTableExists = false;
+
     public function handle(Request $request, Closure $next): Response
     {
         $context = app(CompanyContext::class)->clear();
 
-        if (! Schema::hasTable('companies')) {
+        if (! self::$companiesTableExists) {
+            self::$companiesTableExists = Schema::hasTable('companies');
+        }
+
+        if (! self::$companiesTableExists) {
             return $next($request);
         }
 

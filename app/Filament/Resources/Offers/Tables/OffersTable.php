@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Offers\Tables;
 
 use App\Models\Offer;
+use App\Services\OfferPricingService;
 use App\Support\MoneyFormatter;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -40,7 +41,7 @@ class OffersTable
                     ->sortable(),
                 TextColumn::make('final_price')
                     ->label('Price')
-                    ->state(fn (Offer $record): string => 'BDT '.MoneyFormatter::number($record->finalPrice())),
+                    ->state(fn (Offer $record): string => MoneyFormatter::currency(app(OfferPricingService::class)->finalPrice($record))),
                 TextColumn::make('items_count')
                     ->label('Products')
                     ->counts('items')

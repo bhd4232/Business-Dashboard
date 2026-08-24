@@ -216,6 +216,14 @@ class OfferCheckoutController extends Controller
     {
         abort_unless(app()->environment(['local', 'testing']) || auth()->check(), 404);
 
+        // Matches Storefront\PreviewController::previewCompany() — an
+        // authenticated preview request must belong to a company the
+        // signed-in staff member actually has access to (super admins pass
+        // via the existing canAccessCompany() bypass).
+        if (auth()->check()) {
+            abort_unless(auth()->user()->canAccessCompany($company->getKey()), 404);
+        }
+
         $this->context->set($company);
 
         return $company->storefrontSetting ?: new StorefrontSetting([

@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\StorefrontSetting;
+use App\Models\User;
 use App\Services\CompanyContext;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -140,6 +141,58 @@ class OfferCheckoutTest extends TestCase
         $this->get('http://combo-landing.example.test/offers/'.$offer->slug)
             ->assertOk()
             ->assertSee('Landing Offer');
+    }
+
+    public function test_admin_offers_list_renders_the_price_column_without_error(): void
+    {
+        $company = $this->createStore('combo-admin-list.example.test');
+        app(CompanyContext::class)->set($company);
+
+        $product = $this->createProduct('Admin List Item', 'ADMIN-LIST-1', 500, 10);
+        $this->createCombo($company, 'Admin List Offer', [[$product, 1]], Offer::TYPE_SINGLE);
+
+        $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $user->companies()->attach($company, ['role' => 'super_admin', 'is_default' => true]);
+
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true])
+            ->get('/admin/storefront/offers')
+            ->assertOk()
+            ->assertSee('Admin List Offer');
+    }
+
+    public function test_offer_preview_shows_a_draft_offer(): void
+    {
+        $company = $this->createStore('combo-preview.example.test');
+        app(CompanyContext::class)->set($company);
+
+        $product = $this->createProduct('Preview Item', 'PREVIEW-1', 500, 10);
+        $offer = $this->createCombo($company, 'Preview Draft Offer', [[$product, 1]], Offer::TYPE_SINGLE);
+        $offer->update(['status' => Offer::STATUS_DRAFT]);
+
+        // The real public route 404s a draft — preview must not.
+        $this->get('http://combo-preview.example.test/offers/'.$offer->slug)->assertNotFound();
+
+        $this->get("http://127.0.0.1/storefront/{$company->slug}/offers/{$offer->slug}")
+            ->assertOk()
+            ->assertSee('Preview Draft Offer');
+    }
+
+    public function test_offer_preview_rejects_staff_from_another_company(): void
+    {
+        $ownCompany = $this->createStore('combo-preview-own.example.test');
+        $otherCompany = $this->createStore('combo-preview-other.example.test');
+        app(CompanyContext::class)->set($otherCompany);
+
+        $product = $this->createProduct('Other Co Item', 'OTHERCO-1', 500, 10);
+        $offer = $this->createCombo($otherCompany, 'Other Co Offer', [[$product, 1]]);
+
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $user->companies()->attach($ownCompany, ['role' => 'sales_staff', 'is_default' => true]);
+
+        $this->actingAs($user)
+            ->get("http://127.0.0.1/storefront/{$otherCompany->slug}/offers/{$offer->slug}")
+            ->assertNotFound();
     }
 
     /**

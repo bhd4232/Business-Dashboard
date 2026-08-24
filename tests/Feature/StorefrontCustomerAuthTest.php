@@ -231,6 +231,35 @@ class StorefrontCustomerAuthTest extends TestCase
         $this->assertGuest('customer');
     }
 
+    public function test_login_locks_out_an_identifier_after_repeated_wrong_passwords(): void
+    {
+        $this->createPublishedStorefrontCompany('Lockout Store', 'lockout.example.test');
+
+        $this->post('http://lockout.example.test/account/register', [
+            'name' => 'Locked Buyer',
+            'phone' => '01744444444',
+            'password' => 'correct-password',
+            'password_confirmation' => 'correct-password',
+        ]);
+        $this->post('http://lockout.example.test/account/logout');
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->post('http://lockout.example.test/account/login', [
+                'identifier' => '01744444444',
+                'password' => 'wrong-password',
+            ])->assertSessionHasErrors('identifier');
+        }
+
+        // The 6th attempt is locked out even with the correct password now -
+        // this is what closes the distributed-brute-force gap the route's
+        // per-IP throttle:10,1 alone can't cover.
+        $this->post('http://lockout.example.test/account/login', [
+            'identifier' => '01744444444',
+            'password' => 'correct-password',
+        ])->assertSessionHasErrors('identifier');
+        $this->assertGuest('customer');
+    }
+
     public function test_registration_reuses_existing_unregistered_customer_record(): void
     {
         $company = $this->createPublishedStorefrontCompany('Reuse Store', 'reuse.example.test');

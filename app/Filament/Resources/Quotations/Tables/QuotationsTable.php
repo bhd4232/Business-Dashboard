@@ -11,6 +11,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\URL;
 
 class QuotationsTable
 {
@@ -77,20 +78,21 @@ class QuotationsTable
                 Action::make('publicLink')
                     ->label('Public Link')
                     ->icon(Heroicon::OutlinedLink)
-                    ->url(fn (Quotation $record): string => route('quotation.public', $record->quotation_number))
+                    ->url(fn (Quotation $record): string => URL::signedRoute('quotation.public', ['quotationNumber' => $record->quotation_number]))
+                    ->visible(fn (Quotation $record): bool => in_array($record->status, ['sent', 'accepted'], true))
                     ->openUrlInNewTab(),
                 Action::make('shareWhatsApp')
                     ->label('Share on WhatsApp')
                     ->icon(Heroicon::OutlinedShare)
                     ->url(function (Quotation $record): string {
-                        $link = route('quotation.public', $record->quotation_number);
+                        $link = URL::signedRoute('quotation.public', ['quotationNumber' => $record->quotation_number]);
                         $text = "আপনার কোটেশন দেখুন: {$link}";
                         $phone = preg_replace('/\D/', '', $record->customer?->phone ?? $record->lead?->phone ?? '');
                         $phone = str_starts_with($phone, '0') ? '88'.$phone : $phone;
 
                         return "https://wa.me/{$phone}?text=".urlencode($text);
                     })
-                    ->visible(fn (Quotation $record): bool => filled($record->customer?->phone ?? $record->lead?->phone))
+                    ->visible(fn (Quotation $record): bool => in_array($record->status, ['sent', 'accepted'], true) && filled($record->customer?->phone ?? $record->lead?->phone))
                     ->openUrlInNewTab(),
             ]);
     }

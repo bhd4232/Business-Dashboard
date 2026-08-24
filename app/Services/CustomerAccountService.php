@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\StorefrontSetting;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -58,10 +59,23 @@ class CustomerAccountService
 
     /**
      * @return Customer|null null when the identifier/password pair doesn't match a registered account.
+     *
+     * @throws ValidationException when the identifier has failed too many times recently. This is
+     *                              keyed on the identifier itself (not the caller's IP), so it also
+     *                              catches a password-guessing attack distributed across many IPs -
+     *                              the route-level `throttle:10,1` only protects a single IP.
      */
     public function attemptLogin(string $identifier, string $password): ?Customer
     {
         $identifier = trim($identifier);
+        $rateLimitKey = $this->loginRateLimitKey($identifier);
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
+            throw ValidationException::withMessages([
+                'identifier' => 'Too many login attempts. Please try again in '.RateLimiter::availableIn($rateLimitKey).' seconds.',
+            ]);
+        }
+
         $query = Customer::query()->whereNotNull('password');
 
         if (str_contains($identifier, '@')) {
@@ -73,10 +87,22 @@ class CustomerAccountService
         $customer = $query->first();
 
         if (! $customer || ! Hash::check($password, $customer->password)) {
+            // Hit the limiter even for an identifier with no account, so the
+            // lockout can't be used to distinguish "wrong password" from
+            // "no such account".
+            RateLimiter::hit($rateLimitKey, 60);
+
             return null;
         }
 
+        RateLimiter::clear($rateLimitKey);
+
         return $customer;
+    }
+
+    protected function loginRateLimitKey(string $identifier): string
+    {
+        return 'storefront-login:'.strtolower($identifier);
     }
 
     /**

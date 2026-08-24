@@ -58,7 +58,9 @@ Route::middleware(ResolveCompanyFromDomain::class.':optional')
     ->get('/', StorefrontHomeController::class)
     ->name('marketing.home');
 
-Route::get('/quotation/{quotationNumber}', [QuotationPublicController::class, 'show'])
+// Shareable quotation link: signed URL, no login required, signature can't be guessed.
+Route::middleware('signed')
+    ->get('/quotation/{quotationNumber}', [QuotationPublicController::class, 'show'])
     ->name('quotation.public');
 
 Route::get('/webhooks/meta', [MetaWebhookController::class, 'verify'])

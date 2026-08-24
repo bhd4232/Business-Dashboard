@@ -364,6 +364,11 @@ class Order extends Model
         $lastNumber = self::query()
             ->when($company, fn ($query) => $query->where('company_id', $company->getKey()))
             ->where('order_number', 'like', $base.'%')
+            // Same-prefix numbers can differ in digit count once the daily
+            // sequence passes 9999, at which point a plain string ORDER BY
+            // would rank "...-10000" below "...-9999". Sorting by length
+            // first keeps the numerically-largest suffix on top.
+            ->orderByRaw('LENGTH(order_number) desc')
             ->orderByDesc('order_number')
             ->value('order_number');
 

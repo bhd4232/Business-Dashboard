@@ -40,7 +40,7 @@ class PreviewController extends Controller
                 ->take(23)
                 ->get(),
             'carousels' => ProductCarousel::forHomepage(),
-            'slides' => StorefrontSlide::forCompany($company->getKey()),
+            'slides' => StorefrontSlide::forCompanyTheme($company->getKey(), $setting->storefrontTheme(), $setting->homepageTemplate()),
         ]);
     }
 
@@ -113,6 +113,15 @@ class PreviewController extends Controller
     protected function previewCompany(?Company $company): Company
     {
         abort_unless(app()->environment(['local', 'testing']) || auth()->check(), 404);
+
+        // An explicit /storefront/{company:slug} preview must belong to the
+        // signed-in staff member's own company/companies — otherwise any
+        // authenticated user could browse another company's unpublished
+        // storefront by guessing its slug. Unauthenticated local/testing
+        // access (handled above) never reaches here.
+        if ($company && auth()->check()) {
+            abort_unless(auth()->user()->canAccessCompany($company->getKey()), 404);
+        }
 
         $company ??= StorefrontSetting::query()
             ->where('is_published', true)

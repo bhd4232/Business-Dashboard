@@ -41,7 +41,12 @@ class OfferController extends Controller
     {
         $setting = $this->previewStorefront($company);
 
-        return $this->showView($this->findPublishedOffer($slug), $company, $setting, $company->slug);
+        // Unlike the public show() above, preview intentionally is not
+        // restricted to Published — the whole point of previewing is to
+        // review a Draft offer's AI-generated/hand-built landing page
+        // before flipping it to Published (same "preview shows what isn't
+        // live yet" convention as the main storefront preview).
+        return $this->showView($this->findOfferForPreview($slug), $company, $setting, $company->slug);
     }
 
     protected function indexView(Request $request, Company $company, StorefrontSetting $setting, ?string $previewSlug = null): View
@@ -109,6 +114,12 @@ class OfferController extends Controller
             ->firstOrFail();
     }
 
+    /** Preview may show a Draft/Archived offer too — CompanyScope (already set by previewStorefront()) still keeps this to the previewed company only. */
+    protected function findOfferForPreview(string $slug): Offer
+    {
+        return Offer::query()->where('slug', trim($slug))->firstOrFail();
+    }
+
     protected function domainStorefront(Request $request): array
     {
         $company = $request->attributes->get('storefront_company');
@@ -123,6 +134,14 @@ class OfferController extends Controller
     protected function previewStorefront(Company $company): StorefrontSetting
     {
         abort_unless(app()->environment(['local', 'testing']) || auth()->check(), 404);
+
+        // Matches Storefront\PreviewController::previewCompany() — an
+        // authenticated preview request must belong to a company the
+        // signed-in staff member actually has access to (super admins pass
+        // via the existing canAccessCompany() bypass).
+        if (auth()->check()) {
+            abort_unless(auth()->user()->canAccessCompany($company->getKey()), 404);
+        }
 
         $this->context->set($company);
 

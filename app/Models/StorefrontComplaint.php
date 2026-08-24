@@ -72,6 +72,9 @@ class StorefrontComplaint extends Model
         $last = static::withoutGlobalScopes()
             ->where('company_id', $companyId)
             ->where('complaint_number', 'like', $prefix.'%')
+            // See Order::nextOrderNumber() — length-first keeps the sort
+            // numerically correct once the daily sequence passes 9999.
+            ->orderByRaw('LENGTH(complaint_number) desc')
             ->orderByDesc('complaint_number')
             ->value('complaint_number');
 

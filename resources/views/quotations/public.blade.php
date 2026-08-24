@@ -67,18 +67,19 @@
                         </td>
                         <td class="num">{{ $item->quantity }}</td>
                         <td class="num">৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td>
-                        <td class="num">৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</td>
+                        <td class="num">৳{{ \App\Support\MoneyFormatter::number((float) $item->subtotal) }}</td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
 
+        @php($itemsSubtotal = (float) $quotation->items->sum('subtotal'))
         <div class="totals">
-            <div><span>Subtotal</span><span>৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</span></div>
+            <div><span>Subtotal</span><span>৳{{ \App\Support\MoneyFormatter::number($itemsSubtotal) }}</span></div>
             @if ((float) $quotation->discount_amount > 0)
-                <div><span>Discount</span><span>-৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</span></div>
+                <div><span>Discount</span><span>-৳{{ \App\Support\MoneyFormatter::number((float) $quotation->discount_amount) }}</span></div>
             @endif
-            <div class="grand"><span>Total</span><span>৳{{ \App\Support\MoneyFormatter::number((float) $item->unit_price) }}</span></div>
+            <div class="grand"><span>Total</span><span>৳{{ \App\Support\MoneyFormatter::number((float) $quotation->total_amount) }}</span></div>
         </div>
     </div>
 </body>

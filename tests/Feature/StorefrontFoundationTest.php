@@ -183,6 +183,44 @@ class StorefrontFoundationTest extends TestCase
             ->assertSee('/storefront/local-demo-store/products', false);
     }
 
+    public function test_storefront_slug_preview_rejects_staff_from_another_company(): void
+    {
+        $ownCompany = $this->createPublishedStorefrontCompany('Own Store', 'own.example.test');
+        $otherCompany = $this->createPublishedStorefrontCompany('Other Store', 'other.example.test');
+
+        $user = User::factory()->create([
+            'role' => 'sales_staff',
+            'is_active' => true,
+        ]);
+        $user->companies()->detach();
+        $user->companies()->attach($ownCompany, [
+            'role' => 'sales_staff',
+            'is_default' => true,
+        ]);
+
+        $this->actingAs($user)
+            ->get("http://127.0.0.1/storefront/{$otherCompany->slug}")
+            ->assertNotFound();
+
+        $this->actingAs($user)
+            ->get("http://127.0.0.1/storefront/{$ownCompany->slug}")
+            ->assertOk();
+    }
+
+    public function test_storefront_slug_preview_allows_super_admin_for_any_company(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Admin Viewable Store', 'admin-viewable.example.test');
+
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->get("http://127.0.0.1/storefront/{$company->slug}")
+            ->assertOk();
+    }
+
     public function test_storefront_settings_admin_page_renders(): void
     {
         $user = User::factory()->create([
@@ -565,7 +603,7 @@ class StorefrontFoundationTest extends TestCase
             ->assertDontSee('Failed')
             ->assertSee('Manual Courier')
             ->assertSee('TRK-123456')
-            ->assertSee('BDT 1,100');
+            ->assertSee('৳ 1,100');
     }
 
     public function test_storefront_order_tracking_does_not_leak_other_company_or_admin_orders(): void
@@ -788,7 +826,7 @@ class StorefrontFoundationTest extends TestCase
             ->assertSee('Your order history.')
             ->assertSee($order->order_number)
             ->assertSee('Draft')
-            ->assertSee('BDT 2,000')
+            ->assertSee('৳ 2,000')
             ->assertSee('Track order')
             ->assertSee('http://account.example.test/track/'.$order->order_number, false)
             ->assertDontSee('phone=01728174614', false);

@@ -169,7 +169,12 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Defaults to on whenever APP_URL is https:// (same condition
+    // AppServiceProvider uses for URL::forceScheme('https')), so a
+    // production deploy doesn't silently send the session cookie over
+    // plain HTTP just because SESSION_SECURE_COOKIE was never set.
+    // SESSION_SECURE_COOKIE, when set, still wins either way.
+    'secure' => env('SESSION_SECURE_COOKIE', str_starts_with((string) env('APP_URL'), 'https://')),
 
     /*
     |--------------------------------------------------------------------------

@@ -10,10 +10,24 @@ use Illuminate\Support\Facades\Schema;
 
 trait BelongsToCompany
 {
+    /**
+     * Traits get a separate copy of a static property per consuming class,
+     * so this caches per model. Once the company_id column exists it exists
+     * for the rest of the app's life, so we only need to keep re-querying
+     * the schema while this is still false (i.e. briefly, before the
+     * initial install migrates) — avoids a Schema::hasColumn() query on
+     * every single model creation.
+     */
+    protected static bool $companyIdColumnExists = false;
+
     protected static function bootBelongsToCompany(): void
     {
         static::creating(function ($model): void {
-            if (! Schema::hasColumn($model->getTable(), 'company_id') || $model->company_id) {
+            if (! self::$companyIdColumnExists) {
+                self::$companyIdColumnExists = Schema::hasColumn($model->getTable(), 'company_id');
+            }
+
+            if (! self::$companyIdColumnExists || $model->company_id) {
                 return;
             }
 

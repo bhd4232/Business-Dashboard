@@ -12,6 +12,7 @@ use App\Models\StockMovement;
 use App\Services\CompanyContext;
 use App\Services\Crm\LeadConversionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class QuotationTest extends TestCase
@@ -152,15 +153,43 @@ class QuotationTest extends TestCase
         $this->assertSame('sent', $current->fresh()->status);
     }
 
-    public function test_public_quotation_page_is_viewable_without_auth(): void
+    public function test_public_quotation_page_is_viewable_without_auth_via_signed_link(): void
+    {
+        $quotation = $this->quotationWithItems('sent', discount: 100);
+
+        app(CompanyContext::class)->clear();
+
+        $link = URL::signedRoute('quotation.public', ['quotationNumber' => $quotation->quotation_number]);
+
+        $this->get($link)
+            ->assertOk()
+            ->assertSee($quotation->quotation_number)
+            ->assertSee('Quoted Product')
+            // Subtotal 2000, discount 100, total 1900 — regression guard for the
+            // totals block that used to echo the loop's leftover $item variable.
+            ->assertSee('2,000')
+            ->assertSee('1,900');
+    }
+
+    public function test_public_quotation_page_rejects_unsigned_url(): void
     {
         $quotation = $this->quotationWithItems('sent');
 
         app(CompanyContext::class)->clear();
 
         $this->get(route('quotation.public', $quotation->quotation_number))
-            ->assertOk()
-            ->assertSee($quotation->quotation_number)
-            ->assertSee('Quoted Product');
+            ->assertForbidden();
+    }
+
+    public function test_public_quotation_page_hides_draft_and_expired_quotations(): void
+    {
+        app(CompanyContext::class)->clear();
+
+        foreach (['draft', 'rejected', 'expired'] as $status) {
+            $quotation = $this->quotationWithItems($status);
+            $link = URL::signedRoute('quotation.public', ['quotationNumber' => $quotation->quotation_number]);
+
+            $this->get($link)->assertNotFound();
+        }
     }
 }
