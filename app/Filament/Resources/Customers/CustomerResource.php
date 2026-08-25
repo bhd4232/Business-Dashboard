@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class CustomerResource extends Resource
 {
@@ -42,6 +43,17 @@ class CustomerResource extends Resource
     public static function table(Table $table): Table
     {
         return CustomersTable::configure($table);
+    }
+
+    /**
+     * Once a customer has ever applied to be a reseller (reseller_status
+     * != 'none'), they move entirely to App\Filament\Resources\Resellers\
+     * ResellerResource -- the owner wants full separation, not just a
+     * filtered view, so one row only ever appears in one resource's list.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->where('reseller_status', 'none');
     }
 
     public static function getPages(): array

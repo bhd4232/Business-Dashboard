@@ -299,6 +299,7 @@ class CheckoutController extends Controller
                 'billed_weight' => (int) $quote['billed_weight'],
                 'checkout_attempt_id' => $checkoutAttempt?->getKey(),
                 'cart_record_id' => $this->cart->recordId($company),
+                'reseller_customer_id' => $this->cart->resellerCustomerId($company),
                 'advance_reasons' => $decision['reasons'],
                 'courier_lookup_status' => $decision['courier_lookup_status'],
                 'courier_success_ratio' => $decision['courier_success_ratio'],
@@ -574,6 +575,7 @@ class CheckoutController extends Controller
 
             $order = Order::query()->create([
                 'customer_id' => $customer->getKey(),
+                'reseller_customer_id' => $this->cart->resellerCustomerId($company),
                 'customer_name' => $customer->name,
                 'order_date' => now()->toDateString(),
                 'discount' => 0,

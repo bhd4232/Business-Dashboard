@@ -58,11 +58,13 @@ class Company extends Model
         'is_active',
         'settings',
         'dashboard_color',
+        'reseller_module_enabled',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'domain_verified' => 'boolean',
+        'reseller_module_enabled' => 'boolean',
         'settings' => 'array',
     ];
 
