@@ -30,8 +30,12 @@ class IntegrationsPageTest extends TestCase
         // "Active gateway" Select must still validate via an explicit
         // mount()-time default, not rely on the field's own ->default().
         Livewire::test(Integrations::class)
-            ->set('data.ai_provider', 'anthropic')
-            ->set('data.ai_model', 'claude-test')
+            // Any OpenAI-compatible provider (not just OpenAI itself) can be
+            // added via the free-text label + base URL, without a code change.
+            ->set('data.ai_api_format', 'openai')
+            ->set('data.ai_provider', 'DeepSeek')
+            ->set('data.ai_base_url', 'https://api.deepseek.com/chat/completions')
+            ->set('data.ai_model', 'deepseek-chat')
             ->set('data.ai_confidence_threshold', 0.8)
             ->set('data.ai_max_consecutive_ai_replies', 3)
             ->set('data.ai_api_key', 'sk-live-test')
@@ -49,8 +53,11 @@ class IntegrationsPageTest extends TestCase
             ->assertHasNoFormErrors();
 
         $ai = app(AiSettingsService::class)->all($company);
-        $this->assertSame('claude-test', $ai['model']);
+        $this->assertSame('deepseek-chat', $ai['model']);
         $this->assertSame('sk-live-test', $ai['api_key']);
+        $this->assertSame('openai', $ai['api_format']);
+        $this->assertSame('DeepSeek', $ai['provider']);
+        $this->assertSame('https://api.deepseek.com/chat/completions', $ai['base_url']);
 
         $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->firstOrFail();
         $this->assertSame('https://shop.example.com', $setting->woocommerce_base_url);
@@ -104,7 +111,8 @@ class IntegrationsPageTest extends TestCase
         // the hidden tab in the UI) — save() must still refuse to persist them.
         Livewire::test(Integrations::class)
             ->set('data.woocommerce_base_url', 'https://staff-shop.example.com')
-            ->set('data.ai_provider', 'openai')
+            ->set('data.ai_api_format', 'openai')
+            ->set('data.ai_provider', 'OpenAI')
             ->set('data.ai_model', 'gpt-should-not-save')
             ->set('data.ai_api_key', 'sk-should-not-save')
             ->call('save')

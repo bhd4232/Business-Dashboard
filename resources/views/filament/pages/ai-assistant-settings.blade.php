@@ -7,13 +7,34 @@
             </label>
 
             <div>
-                <label style="display:block; font-size: .8rem; font-weight: 600; margin-bottom: .3rem;">LLM Provider</label>
+                <label style="display:block; font-size: .8rem; font-weight: 600; margin-bottom: .3rem;">API format</label>
                 <x-filament::input.wrapper>
-                    <x-filament::input.select wire:model="settings.provider">
-                        <option value="anthropic">Anthropic (Claude)</option>
-                        <option value="openai">OpenAI</option>
+                    <x-filament::input.select wire:model="settings.api_format">
+                        <option value="anthropic">Anthropic (Claude Messages API)</option>
+                        <option value="openai">OpenAI-compatible (Chat Completions)</option>
                     </x-filament::input.select>
                 </x-filament::input.wrapper>
+                <p style="font-size: .72rem; color: rgb(113 113 122); margin-top: .3rem;">
+                    Almost every non-Anthropic provider (OpenAI, DeepSeek, Groq, Mistral, OpenRouter, xAI, a self-hosted Ollama/vLLM, ...) speaks the "OpenAI-compatible" format — pick that and set the base URL below to add any of them.
+                </p>
+            </div>
+
+            <div>
+                <label style="display:block; font-size: .8rem; font-weight: 600; margin-bottom: .3rem;">Provider name (label only)</label>
+                <x-filament::input.wrapper>
+                    <x-filament::input type="text" wire:model="settings.provider" placeholder="e.g. DeepSeek, Groq, OpenRouter" />
+                </x-filament::input.wrapper>
+                <p style="font-size: .72rem; color: rgb(113 113 122); margin-top: .3rem;">Just for your own reference in this panel and in AI activity records — doesn't affect the request.</p>
+            </div>
+
+            <div>
+                <label style="display:block; font-size: .8rem; font-weight: 600; margin-bottom: .3rem;">Base URL (optional)</label>
+                <x-filament::input.wrapper>
+                    <x-filament::input type="text" wire:model="settings.base_url" placeholder="Leave blank for the API format's own default endpoint" />
+                </x-filament::input.wrapper>
+                <p style="font-size: .72rem; color: rgb(113 113 122); margin-top: .3rem;">
+                    e.g. DeepSeek: https://api.deepseek.com/chat/completions · Groq: https://api.groq.com/openai/v1/chat/completions · OpenRouter: https://openrouter.ai/api/v1/chat/completions
+                </p>
             </div>
 
             <div>

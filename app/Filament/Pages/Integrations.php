@@ -84,7 +84,9 @@ class Integrations extends Page
         // fail validation on first save with no visible reason otherwise.
         $this->form->fill([
             'ai_enabled' => $ai['enabled'],
+            'ai_api_format' => $ai['api_format'],
             'ai_provider' => $ai['provider'],
+            'ai_base_url' => $ai['base_url'],
             'ai_model' => $ai['model'],
             'ai_confidence_threshold' => $ai['confidence_threshold'],
             'ai_max_consecutive_ai_replies' => $ai['max_consecutive_ai_replies'],
@@ -160,11 +162,28 @@ class Integrations extends Page
                                 Toggle::make('ai_enabled')
                                     ->label('Enable AI auto-reply for this company')
                                     ->columnSpanFull(),
-                                Select::make('ai_provider')
-                                    ->label('LLM Provider')
-                                    ->options(['anthropic' => 'Anthropic (Claude)', 'openai' => 'OpenAI'])
+                                Select::make('ai_api_format')
+                                    ->label('API format')
+                                    ->options([
+                                        'anthropic' => 'Anthropic (Claude Messages API)',
+                                        'openai' => 'OpenAI-compatible (Chat Completions)',
+                                    ])
+                                    ->helperText('Almost every non-Anthropic provider (OpenAI, DeepSeek, Groq, Mistral, OpenRouter, xAI, a self-hosted Ollama/vLLM, ...) speaks the "OpenAI-compatible" format — pick that and set the base URL below to add any of them.')
                                     ->required()
                                     ->native(false),
+                                TextInput::make('ai_provider')
+                                    ->label('Provider name (label only)')
+                                    ->placeholder('e.g. DeepSeek, Groq, OpenRouter')
+                                    ->helperText("Just for your own reference — doesn't affect the request.")
+                                    ->required()
+                                    ->maxLength(100),
+                                TextInput::make('ai_base_url')
+                                    ->label('Base URL (optional)')
+                                    ->url()
+                                    ->maxLength(500)
+                                    ->placeholder("Leave blank for the API format's own default endpoint")
+                                    ->helperText('e.g. DeepSeek: https://api.deepseek.com/chat/completions')
+                                    ->columnSpanFull(),
                                 TextInput::make('ai_model')
                                     ->label('Model')
                                     ->placeholder('claude-haiku-4-5-20251001')
@@ -305,7 +324,9 @@ class Integrations extends Page
         if ($this->canManageAi()) {
             $aiSettings->save($company, [
                 'enabled' => $state['ai_enabled'] ?? false,
+                'api_format' => $state['ai_api_format'] ?? null,
                 'provider' => $state['ai_provider'] ?? null,
+                'base_url' => $state['ai_base_url'] ?? null,
                 'model' => $state['ai_model'] ?? null,
                 'confidence_threshold' => $state['ai_confidence_threshold'] ?? null,
                 'max_consecutive_ai_replies' => $state['ai_max_consecutive_ai_replies'] ?? null,

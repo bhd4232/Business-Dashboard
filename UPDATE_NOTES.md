@@ -2,6 +2,36 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-25 - AI provider is now fully flexible (any OpenAI-compatible provider, e.g. DeepSeek)
+
+Reason:
+
+- Owner: "offer পেজে ai connection error দেখাচ্ছে আমি deepseek api connect করেছিলাম।" — the Offer "Generate Landing Page with AI" action failed with `Could not generate the landing page: HTTP request returned status code 401: Incorrect API key provided: sk-1c6c0****...ec02` (screenshot of the admin panel). That "Incorrect API key provided" text is OpenAI's own error message — `AiAssistantSettings`/`Integrations`' AI tab only ever offered a closed **Anthropic | OpenAI** choice, and `AiLlmClient` hardcoded OpenAI's own endpoint for the "openai" choice. DeepSeek's API is OpenAI-compatible but is a different company with its own endpoint (`api.deepseek.com`) and its own keys — a DeepSeek key pasted into the "OpenAI" slot was sent straight to OpenAI's real API and rejected instantly, since that key was never valid there.
+- Follow-up owner request in the same turn: "ai integration কে ফ্লেক্সিবল করে দেও যাতে যে কোন api provider এড করা যায়।" (make the AI integration flexible so any API provider can be added) — so this went beyond just adding DeepSeek as a third hardcoded option.
+
+What changed:
+
+- `AiSettingsService`'s stored AI settings shape changed from a closed `provider: anthropic|openai` enum to three fields: `provider` (free-text label — type any name: "DeepSeek", "Groq", "OpenRouter", "My local Ollama", ...), `api_format` (`anthropic` or `openai` — the actual request/response wire protocol; "openai" covers virtually every non-Anthropic provider today since they all speak the same Chat Completions shape), and `base_url` (optional — the exact endpoint URL to call; blank defaults to that format's own official endpoint). Adding a brand-new provider is now just: pick "OpenAI-compatible", type a label, paste that provider's base URL + model name + API key — no code change.
+- `AiLlmClient` (shared by CRM auto-reply, the Meta Ads AI assistant, and the Offer AI landing-page generator) now takes `$apiFormat`/`$baseUrl` instead of a `$provider` string, and dispatches purely on wire format.
+- Settings saved before this upgrade (the old closed enum, including any `deepseek` value from before this fix existed) are mapped forward automatically on read (`AiSettingsService::migrateLegacySettings()`) — no migration/backfill needed, no behavior change for already-configured companies.
+- Both live AI-settings UI surfaces (the dedicated **AI Assistant Settings** page and the **Integrations** page's AI tab — they write through the same `AiSettingsService`) updated together: API format selector + free-text provider label + optional base URL field, each with inline examples (DeepSeek/Groq/OpenRouter endpoint URLs).
+
+Important changed files:
+
+- `app/Services/Crm/AiSettingsService.php`, `app/Services/Crm/AiLlmClient.php`
+- `app/Services/Crm/AiReplyService.php`, `app/Services/MetaAdsAiAssistantService.php`, `app/Services/OfferLandingPageAiGenerator.php`
+- `app/Filament/Pages/AiAssistantSettings.php`, `resources/views/filament/pages/ai-assistant-settings.blade.php`, `app/Filament/Pages/Integrations.php`
+- `tests/Feature/AiSettingsServiceTest.php` (new), `tests/Feature/OfferLandingPageAiGeneratorTest.php`, `tests/Feature/IntegrationsPageTest.php`
+
+Verification:
+
+- `php artisan test --filter="OfferLandingPageAiGeneratorTest|AiAutoReplyTest|IntegrationsPageTest|MetaAdsAiAssistantServiceTest|MetaAdsAiAssistantPageTest|AdminNavigationClustersTest|AiSettingsServiceTest"` — 55 passed, 0 failed.
+- Full `php artisan test` suite — 881 passed, 0 failed.
+- `npm run build` — clean.
+- No schema change — `companies.settings` is an existing JSON column, no migration needed.
+
+Commit status: Committed as `PLACEHOLDER_HASH_1`, pushed to `origin/main`.
+
 ## 2026-08-25 - Production `php artisan migrate --force` still failing after the previous fix: foreign-key-dependency ordering in the same three migrations
 
 Reason:
@@ -20,10 +50,10 @@ Important changed files:
 
 Verification:
 
-- Full `php artisan test` suite re-run after the reorder (fresh SQLite schema every run, so this exercises the full drop-then-recreate path with the new ordering).
+- Full `php artisan test` suite re-run after the reorder (fresh SQLite schema every run, so this exercises the full drop-then-recreate path with the new ordering) — 875 passed, 0 failed.
 - Owner still needs to re-run `php artisan migrate --force` on production after this lands.
 
-Commit status: Not committed yet — pending the full suite result and owner approval, per CLAUDE.md.
+Commit status: Committed as `894dd4e0`, pushed to `origin/main`.
 
 ## 2026-08-24 - Critical: PayStation checkout "Duplicate invoice number" blocking real customer orders
 
