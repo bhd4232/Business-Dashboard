@@ -29,6 +29,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -268,10 +269,18 @@ class CheckoutController extends Controller
             : route('storefront.checkout.show');
 
         $gateway = $setting->online_payment_gateway ?: 'zinipay';
-        // Guaranteed unique per payment; used as PayStation's own
-        // invoice_number since PayStation never echoes one back (ZiniPay
-        // ignores this and derives its own invoice id instead).
-        $merchantReference = (string) $payment->getKey();
+        // Used as PayStation's own invoice_number since PayStation never
+        // echoes one back (ZiniPay ignores this and derives its own invoice
+        // id instead). Deliberately NOT just the StorefrontPayment's own
+        // primary key: PayStation tracks invoice numbers on its own side
+        // permanently, independent of this app's database, so a local table
+        // reset (migrate:fresh, demo refresh, restore) that restarts the
+        // auto-increment sequence would resend an invoice_number PayStation
+        // already saw before and gets rejected with "Duplicate invoice
+        // number" — confirmed live in production. The random suffix makes
+        // this unique regardless of local ID reuse; the payment id prefix
+        // keeps it traceable back to the StorefrontPayment row.
+        $merchantReference = $payment->getKey().'-'.Str::random(10);
 
         try {
             $created = $this->gateways->forSetting($setting)->createPayment(

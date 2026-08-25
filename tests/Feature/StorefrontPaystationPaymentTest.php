@@ -70,19 +70,26 @@ class StorefrontPaystationPaymentTest extends TestCase
         $this->assertSame(1000.0, (float) $payment->amount); // 2 x 1000 x 50%
         $this->assertSame('pending', $payment->status);
         $this->assertSame('paystation', $payment->gateway);
-        $this->assertSame((string) $payment->getKey(), $payment->invoice_id);
+        // The invoice number is no longer just the payment's raw primary
+        // key (see CheckoutController::startCheckoutAdvancePayment()'s
+        // comment: a local table reset can restart that sequence and PayStation
+        // rejects a number it already saw as a duplicate) — it now carries a
+        // random suffix, but still starts with the payment id for traceability.
+        $this->assertStringStartsWith($payment->getKey().'-', $payment->invoice_id);
         $this->assertSame(0, Order::withoutGlobalScopes()->count());
 
         $capturedCallbackUrl = null;
+        $capturedInvoiceNumber = null;
 
-        Http::assertSent(function ($request) use (&$capturedCallbackUrl, $payment): bool {
+        Http::assertSent(function ($request) use (&$capturedCallbackUrl, &$capturedInvoiceNumber, $payment): bool {
             if (! str_contains($request->url(), '/create-payment')) {
                 return false;
             }
 
             $capturedCallbackUrl = (string) $request['callback_url'];
+            $capturedInvoiceNumber = (string) $request['invoice_number'];
 
-            return $request['invoice_number'] === (string) $payment->getKey()
+            return str_starts_with($capturedInvoiceNumber, $payment->getKey().'-')
                 && $request['cust_phone'] === '01712341234'
                 && $request['cust_address'] === 'Dhaka'
                 && $request['currency'] === 'BDT'
@@ -91,6 +98,7 @@ class StorefrontPaystationPaymentTest extends TestCase
         });
 
         $this->assertNotNull($capturedCallbackUrl);
+        $this->assertSame($payment->invoice_id, $capturedInvoiceNumber);
 
         Http::fake([
             'api.paystation.com.bd/grant-token' => Http::response(['token' => 'tok-abc']),
@@ -107,7 +115,7 @@ class StorefrontPaystationPaymentTest extends TestCase
         // Simulate PayStation's real redirect: it appends invoice_number and
         // trx_id onto the callback_url we sent, which already carries its
         // own ?expires=&signature= query string.
-        $returnUrl = $capturedCallbackUrl.'&invoice_number='.$payment->getKey().'&trx_id=PS-TRX-1';
+        $returnUrl = $capturedCallbackUrl.'&invoice_number='.$capturedInvoiceNumber.'&trx_id=PS-TRX-1';
 
         $this->get($returnUrl)->assertRedirectContains('/checkout/success/');
 
