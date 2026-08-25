@@ -668,8 +668,10 @@ class StorefrontSettingResource extends Resource
                 ->columnSpanFull()
                 ->description('Controls shown on the one-page storefront checkout.')
                 ->schema([
+                    Text::make('The main checkout page\'s payment methods (Cash on Delivery, bKash, Nagad, and any other manual or online channel) are managed in Storefront → Payment Methods — add, reorder, enable/disable, or edit instructions for each one there. The fields below are still used only by the single-product Offer checkout pages.')
+                        ->columnSpanFull(),
                     Toggle::make('cod_enabled')
-                        ->label('Enable Cash on Delivery')
+                        ->label('Offer pages: enable Cash on Delivery')
                         ->default(true),
                     TextInput::make('delivery_first_kg_inside')
                         ->label('First 1 kg — inside Dhaka')
@@ -709,21 +711,21 @@ class StorefrontSettingResource extends Resource
                         ->placeholder(StorefrontSetting::DEFAULT_NEW_CUSTOMER_ADVANCE_MESSAGE)
                         ->columnSpanFull(),
                     TextInput::make('manual_bkash_number')
-                        ->label('bKash Send Money number')
+                        ->label('Offer pages: bKash Send Money number')
                         ->maxLength(20)
                         ->placeholder('01XXXXXXXXX'),
                     Textarea::make('manual_bkash_instructions')
-                        ->label('bKash instructions')
+                        ->label('Offer pages: bKash instructions')
                         ->rows(2)
                         ->maxLength(500)
                         ->placeholder('Send Money to this number, then enter the Transaction ID below.')
                         ->columnSpanFull(),
                     TextInput::make('manual_nagad_number')
-                        ->label('Nagad Send Money number')
+                        ->label('Offer pages: Nagad Send Money number')
                         ->maxLength(20)
                         ->placeholder('01XXXXXXXXX'),
                     Textarea::make('manual_nagad_instructions')
-                        ->label('Nagad instructions')
+                        ->label('Offer pages: Nagad instructions')
                         ->rows(2)
                         ->maxLength(500)
                         ->columnSpanFull(),

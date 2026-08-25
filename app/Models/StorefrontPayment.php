@@ -33,6 +33,7 @@ class StorefrontPayment extends Model
         'company_id',
         'order_id',
         'gateway',
+        'storefront_payment_method_id',
         'purpose',
         'invoice_id',
         'amount',
@@ -52,5 +53,10 @@ class StorefrontPayment extends Model
     public function order()
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function paymentMethod()
+    {
+        return $this->belongsTo(StorefrontPaymentMethod::class, 'storefront_payment_method_id');
     }
 }

@@ -30,7 +30,45 @@ Verification:
 - `npm run build` — clean.
 - No schema change — `companies.settings` is an existing JSON column, no migration needed.
 
-Commit status: Committed as `PLACEHOLDER_HASH_1`, pushed to `origin/main`.
+Commit status: Committed as `5d639a04`, pushed to `origin/main`.
+
+## 2026-08-25 - Flexible, dashboard-managed checkout payment methods
+
+Reason:
+
+- Owner: "চেকআউটে অন্য পেমেন্ট পেমেন্ট গেটওয়েগুলো এড হচ্ছেনা। এইটাকে ফ্লেক্সিবল করে দেও যাতে ড্যাশবোর্ড থেকে যে গেটওয়য়ে ইনেবল করা হবে সেটাই কেবল চেকয়াউট পেজে শো করবে।" (checkout only ever offered Cash on Delivery, bKash, and Nagad — each hardcoded and gated by its own StorefrontSetting column — so adding any other channel meant a code change).
+- Confirmed via two rounds of questions: (1) wants a fully dynamic, admin-managed list (any number of named "manual" channels like Rocket/Upay/Bank Transfer, addable without code changes) rather than just adding a couple more hardcoded options; (2) also wants the existing online gateway (ZiniPay/PayStation) to appear as a normal selectable checkout option for paying the full order online, not just the existing mandatory new-customer/pre-order advance flow.
+
+What changed:
+
+- New `storefront_payment_methods` table (`App\Models\StorefrontPaymentMethod`, company-scoped): any number of `manual` (send-money/bank-transfer) rows, plus at most one `cod` row and one `online_gateway` row per company. New **Storefront → Payment Methods** Filament resource (reorderable, active toggle, name/account-number/instructions fields for manual channels) — a company-scoped uniqueness rule blocks a second `cod`/`online_gateway` row per company.
+- A migration one-time-backfills every existing company's current Cash on Delivery/bKash/Nagad settings into this table exactly as they behave today (including a new, default-**off** `online_gateway` row, since paying the full order online didn't exist as a checkout choice before this). `StorefrontSetting::created()` now also auto-seeds a default active `cod` row for every newly created company going forward, so a brand-new storefront is never left with zero payment options.
+- `CheckoutController` rewritten to validate `payment_method` dynamically against the company's active methods (`Rule::in(...)`) instead of a hardcoded `in:cod,manual_bkash,manual_nagad`; a manual selection carries the method's id (`manual:{id}`) and dynamically requires sender_number/trx_id; `storefront_payments.storefront_payment_method_id` (new nullable FK) links a manual payment back to the exact channel it was made through.
+- Choosing the `online_gateway` option now takes the customer through the same secure-payment-page flow already used for mandatory advances (`startCheckoutAdvancePayment()`), but for the **full order total** instead of a partial advance — and always takes this path regardless of what the existing preorder/new-customer/courier-risk eligibility rules would otherwise have required, since paying in full already covers any of those. The order is created only after the gateway verifies the full payment (`paid_amount` = full total), with its note reading "Paid online in full" rather than "advance paid".
+- Checkout view (`storefront/checkout/show.blade.php`) and the success page now loop over the dashboard-managed list instead of hardcoded COD/bKash/Nagad blocks; `StorefrontPaymentResource` (admin Payments list) and the success page both generalize their gateway-label/verify-reject logic to a `'manual'` + `paymentMethod` relation while keeping old `'manual_bkash'`/`'manual_nagad'` literal rows (pre-existing data) displaying correctly.
+- Storefront Settings' Cash-on-Delivery/bKash/Nagad fields are kept (relabeled "Offer pages: ...") since the separate single-product Offer checkout funnel (`OfferCheckoutController`) still reads them directly and was intentionally **not** touched in this round (its own hardcoded `in:cod,manual_bkash,manual_nagad` pattern is a known, deliberately deferred follow-up) — a note in that section now points admins to the new Payment Methods resource for the main checkout instead.
+- `StorefrontPaymentMethod` added to `MultiCompanyIsolationTest`'s company-scope contract per CLAUDE.md.
+
+Important changed files:
+
+- `database/migrations/2026_08_24_160000_create_storefront_payment_methods_table.php`, `database/migrations/2026_08_24_160100_add_payment_method_id_to_storefront_payments_table.php` (new)
+- `app/Models/StorefrontPaymentMethod.php` (new), `app/Models/StorefrontPayment.php`, `app/Models/StorefrontSetting.php`
+- `app/Filament/Resources/StorefrontPaymentMethods/**` (new resource + pages)
+- `app/Http/Controllers/Storefront/CheckoutController.php`, `app/Services/StorefrontOrderPlacementService.php`
+- `resources/views/storefront/checkout/show.blade.php`, `resources/views/storefront/checkout/success.blade.php`
+- `app/Filament/Resources/StorefrontPayments/StorefrontPaymentResource.php`, `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`
+- `tests/Feature/MultiCompanyIsolationTest.php`, `tests/Feature/StorefrontManualPaymentTest.php` (rewritten for the dynamic system), `tests/Feature/StorefrontOnlineGatewayCheckoutTest.php` (new), `tests/Feature/StorefrontPaymentMethodResourceTest.php` (new)
+
+Verification:
+
+- `php artisan test --filter=StorefrontManualPaymentTest` — 7 passed. `php artisan test --filter=StorefrontOnlineGatewayCheckoutTest` — 3 passed. `php artisan test --filter=StorefrontPaymentMethodResourceTest` — 4 passed.
+- `php artisan test --filter="Storefront(Paystation|ZiniPay|CustomerAdvance|RiskPayment|CheckoutPolicy|IncompleteCheckout)"` — 21 passed (confirms the pre-existing mandatory-advance/eligibility flows are unaffected).
+- `php artisan test --filter="IntegrationsPageTest|OfferCheckoutTest"` and `php artisan test --filter="PhaseFourAdminPagesTest|AdminNavigationClustersTest"` — all passed (confirms the untouched Offer funnel and the Storefront Settings form still work).
+- Full `php artisan test` suite (re-run after the AI provider flexibility commit above) — 881 passed, 0 failed.
+
+Deployment note: two new migrations ship with this round (`create_storefront_payment_methods_table`, `add_payment_method_id_to_storefront_payments_table`) — `php artisan migrate --force` must run in production before this feature works, same as the FK-ordering fix below.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
 
 ## 2026-08-25 - Production `php artisan migrate --force` still failing after the previous fix: foreign-key-dependency ordering in the same three migrations
 

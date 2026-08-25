@@ -533,6 +533,28 @@ class StorefrontSetting extends Model
 
         static::saved(fn (StorefrontSetting $setting) => Cache::forget("storefront-home:{$setting->company_id}"));
         static::deleted(fn (StorefrontSetting $setting) => Cache::forget("storefront-home:{$setting->company_id}"));
+
+        // Checkout payment options now live entirely in StorefrontPaymentMethod
+        // (dashboard-managed, see that model) rather than the cod_enabled/
+        // manual_* columns above. Without at least one active row, a brand
+        // new company's checkout page would have literally no payment option
+        // to offer, so every newly created setting gets a default Cash on
+        // Delivery row for free — matching cod_enabled's old implicit
+        // "true unless the owner turns it off" default. Existing companies
+        // were one-time backfilled by the
+        // 2026_08_24_160000_create_storefront_payment_methods_table migration.
+        static::created(function (StorefrontSetting $setting): void {
+            // withoutGlobalScopes(): CompanyScope filters by whatever the
+            // *current request's* CompanyContext happens to be, which is not
+            // necessarily $setting->company_id (e.g. an admin creating a
+            // second company's settings while their own company is still
+            // the active context) — scoping this lookup would miss an
+            // existing row and attempt a duplicate insert instead.
+            StorefrontPaymentMethod::withoutGlobalScopes()->firstOrCreate(
+                ['company_id' => $setting->company_id, 'type' => StorefrontPaymentMethod::TYPE_COD],
+                ['name' => 'Cash on Delivery', 'is_active' => true, 'sort_order' => 0],
+            );
+        });
     }
 
     public function hasActiveOffer(): bool

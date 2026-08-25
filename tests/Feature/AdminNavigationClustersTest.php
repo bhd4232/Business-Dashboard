@@ -258,7 +258,17 @@ class AdminNavigationClustersTest extends TestCase
             ->assertSee('Transaction / Reference ID')
             ->assertSee('Order Invoices')
             ->assertSee('Customer Account')
-            ->assertSee('Notes & Attachments')
+            ->assertSee('Notes & Attachments');
+
+        // The legacy fund-transfer fields these two guard against were
+        // removed from the merged voucher form. Scoped to the form
+        // component itself (not the full admin page, which also renders the
+        // sidebar) so an unrelated nav item that happens to share the
+        // "Payment Method" substring (Storefront -> Payment Methods) can
+        // never produce a false failure here.
+        app(CompanyContext::class)->set($admin->defaultCompany());
+        Livewire::actingAs($admin)
+            ->test(CreateVoucher::class)
             ->assertDontSee('Payment Method')
             ->assertDontSee('Parties & Account');
     }

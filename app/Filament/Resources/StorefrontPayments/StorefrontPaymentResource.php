@@ -48,12 +48,22 @@ class StorefrontPaymentResource extends Resource
                     }),
                 TextColumn::make('gateway')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'manual_bkash' => 'bKash (Manual)',
-                        'manual_nagad' => 'Nagad (Manual)',
-                        'zinipay' => 'ZiniPay',
-                        'paystation' => 'PayStation',
-                        default => ucfirst($state),
+                    ->formatStateUsing(function (string $state, StorefrontPayment $record): string {
+                        // 'manual_bkash'/'manual_nagad' are legacy literal
+                        // gateway values from before payment methods became
+                        // dashboard-managed (StorefrontPaymentMethod) — kept
+                        // here so historical rows still display correctly.
+                        // New manual payments use the generic 'manual'
+                        // gateway with the channel's own name via the
+                        // paymentMethod relation.
+                        return match ($state) {
+                            'manual' => $record->paymentMethod?->name ?? 'Manual',
+                            'manual_bkash' => 'bKash (Manual)',
+                            'manual_nagad' => 'Nagad (Manual)',
+                            'zinipay' => 'ZiniPay',
+                            'paystation' => 'PayStation',
+                            default => ucfirst($state),
+                        };
                     }),
                 TextColumn::make('amount')
                     ->moneyWithoutTrailingZeroes('BDT')
@@ -77,8 +87,9 @@ class StorefrontPaymentResource extends Resource
             ->filters([
                 SelectFilter::make('status')->options(StorefrontPayment::STATUSES),
                 SelectFilter::make('gateway')->options([
-                    'manual_bkash' => 'bKash (Manual)',
-                    'manual_nagad' => 'Nagad (Manual)',
+                    'manual' => 'Manual',
+                    'manual_bkash' => 'bKash (Manual, legacy)',
+                    'manual_nagad' => 'Nagad (Manual, legacy)',
                     'zinipay' => 'ZiniPay',
                     'paystation' => 'PayStation',
                 ]),
@@ -90,7 +101,7 @@ class StorefrontPaymentResource extends Resource
                     ->color('success')
                     ->icon(Heroicon::OutlinedCheck)
                     ->visible(fn (StorefrontPayment $record): bool => $record->status === StorefrontPayment::STATUS_PENDING
-                        && in_array($record->gateway, ['manual_bkash', 'manual_nagad'], true))
+                        && in_array($record->gateway, ['manual', 'manual_bkash', 'manual_nagad'], true))
                     ->requiresConfirmation()
                     ->action(function (StorefrontPayment $record): void {
                         $record->update(['status' => StorefrontPayment::STATUS_COMPLETED]);
@@ -101,7 +112,7 @@ class StorefrontPaymentResource extends Resource
                     ->color('danger')
                     ->icon(Heroicon::OutlinedXMark)
                     ->visible(fn (StorefrontPayment $record): bool => $record->status === StorefrontPayment::STATUS_PENDING
-                        && in_array($record->gateway, ['manual_bkash', 'manual_nagad'], true))
+                        && in_array($record->gateway, ['manual', 'manual_bkash', 'manual_nagad'], true))
                     ->requiresConfirmation()
                     ->action(function (StorefrontPayment $record): void {
                         $record->update(['status' => StorefrontPayment::STATUS_FAILED]);

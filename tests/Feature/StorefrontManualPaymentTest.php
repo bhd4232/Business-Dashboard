@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\StorefrontPayment;
+use App\Models\StorefrontPaymentMethod;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
@@ -72,11 +73,10 @@ class StorefrontManualPaymentTest extends TestCase
         $this->assertSame(110.0, (float) $order->shipping_fee);
     }
 
-    public function test_manual_bkash_payment_creates_pending_verification_record(): void
+    public function test_manual_payment_creates_pending_verification_record(): void
     {
-        $company = $this->createStore('bkash.example.test', [
-            'manual_bkash_number' => '01700000000',
-        ]);
+        $company = $this->createStore('bkash.example.test');
+        $method = $this->createManualMethod($company, 'bKash (Send Money)', '01700000000');
 
         app(CompanyContext::class)->set($company);
 
@@ -88,24 +88,24 @@ class StorefrontManualPaymentTest extends TestCase
             'phone' => '01711112222',
             'address' => 'Dhaka',
             'delivery_area' => 'inside',
-            'payment_method' => 'manual_bkash',
+            'payment_method' => 'manual:'.$method->getKey(),
             'sender_number' => '01799998888',
             'trx_id' => 'TRX12345',
         ])->assertRedirectContains('/checkout/success/');
 
         $payment = StorefrontPayment::withoutGlobalScopes()->first();
         $this->assertNotNull($payment);
-        $this->assertSame('manual_bkash', $payment->gateway);
+        $this->assertSame('manual', $payment->gateway);
+        $this->assertSame($method->getKey(), $payment->storefront_payment_method_id);
         $this->assertSame(StorefrontPayment::STATUS_PENDING, $payment->status);
         $this->assertSame('01799998888', $payment->payment_method);
         $this->assertSame('TRX12345', $payment->transaction_id);
     }
 
-    public function test_manual_bkash_requires_sender_number_and_trx_id(): void
+    public function test_manual_payment_requires_sender_number_and_trx_id(): void
     {
-        $company = $this->createStore('bkash-missing.example.test', [
-            'manual_bkash_number' => '01700000000',
-        ]);
+        $company = $this->createStore('bkash-missing.example.test');
+        $method = $this->createManualMethod($company, 'bKash (Send Money)', '01700000000');
 
         app(CompanyContext::class)->set($company);
 
@@ -117,7 +117,7 @@ class StorefrontManualPaymentTest extends TestCase
             'phone' => '01711113333',
             'address' => 'Dhaka',
             'delivery_area' => 'inside',
-            'payment_method' => 'manual_bkash',
+            'payment_method' => 'manual:'.$method->getKey(),
         ])->assertSessionHasErrors(['sender_number', 'trx_id']);
 
         $this->get('http://bkash-missing.example.test/checkout')
@@ -129,13 +129,17 @@ class StorefrontManualPaymentTest extends TestCase
         $this->assertSame(0, Order::withoutGlobalScopes()->count());
     }
 
-    public function test_checkout_uses_shared_manual_fields_and_defaults_to_an_available_method(): void
+    public function test_checkout_defaults_to_the_first_active_method_in_admin_sort_order(): void
     {
-        $company = $this->createStore('manual-default.example.test', [
-            'cod_enabled' => false,
-            'manual_bkash_number' => '01700000000',
-            'manual_nagad_number' => '01800000000',
-        ]);
+        $company = $this->createStore('manual-default.example.test');
+
+        // The auto-seeded COD row would otherwise win by sort_order; turning
+        // it off and giving bKash the lowest sort_order proves the default
+        // selection really comes from the admin-controlled order, not a
+        // hardcoded cod > bkash > nagad preference like before.
+        StorefrontPaymentMethod::withoutGlobalScopes()->where('company_id', $company->getKey())->update(['is_active' => false]);
+        $bkash = $this->createManualMethod($company, 'bKash (Send Money)', '01700000000', sortOrder: 0);
+        $this->createManualMethod($company, 'Nagad (Send Money)', '01800000000', sortOrder: 1);
 
         app(CompanyContext::class)->set($company);
 
@@ -147,9 +151,8 @@ class StorefrontManualPaymentTest extends TestCase
 
         $this->assertSame(1, substr_count($content, 'name="sender_number"'));
         $this->assertSame(1, substr_count($content, 'name="trx_id"'));
-        $this->assertMatchesRegularExpression('/id="payment-method-bkash"[^>]*checked/', $content);
+        $this->assertMatchesRegularExpression('/id="payment-method-'.$bkash->getKey().'"[^>]*checked/', $content);
         $response
-            ->assertDontSee('payment-method-cod', false)
             ->assertDontSee('name="delivery_area"', false)
             ->assertSee('Detected delivery area:', false)
             ->assertSee('id="checkout-payment-method"', false)
@@ -163,14 +166,18 @@ class StorefrontManualPaymentTest extends TestCase
             'trx_id' => 'DEFAULT123',
         ])->assertRedirectContains('/checkout/success/');
 
-        $this->assertSame('manual_bkash', StorefrontPayment::withoutGlobalScopes()->first()?->gateway);
+        $payment = StorefrontPayment::withoutGlobalScopes()->first();
+        $this->assertSame('manual', $payment?->gateway);
+        $this->assertSame($bkash->getKey(), $payment?->storefront_payment_method_id);
     }
 
     public function test_checkout_is_blocked_when_no_payment_method_is_available(): void
     {
-        $company = $this->createStore('no-payment.example.test', [
-            'cod_enabled' => false,
-        ]);
+        $company = $this->createStore('no-payment.example.test');
+
+        // The store's only method is the auto-seeded COD row - disable it
+        // so checkout has nothing to offer.
+        StorefrontPaymentMethod::withoutGlobalScopes()->where('company_id', $company->getKey())->update(['is_active' => false]);
 
         app(CompanyContext::class)->set($company);
 
@@ -197,9 +204,8 @@ class StorefrontManualPaymentTest extends TestCase
 
     public function test_admin_can_verify_a_pending_manual_payment(): void
     {
-        $company = $this->createStore('verify.example.test', [
-            'manual_nagad_number' => '01700000001',
-        ]);
+        $company = $this->createStore('verify.example.test');
+        $method = $this->createManualMethod($company, 'Nagad (Send Money)', '01700000001');
 
         $payment = StorefrontPayment::query()->create([
             'company_id' => $company->getKey(),
@@ -209,7 +215,8 @@ class StorefrontManualPaymentTest extends TestCase
                 'status' => 'draft',
                 'source' => Order::SOURCE_STOREFRONT,
             ])->getKey(),
-            'gateway' => 'manual_nagad',
+            'gateway' => 'manual',
+            'storefront_payment_method_id' => $method->getKey(),
             'amount' => 500,
             'status' => StorefrontPayment::STATUS_PENDING,
             'payment_method' => '01799990000',
@@ -259,5 +266,22 @@ class StorefrontManualPaymentTest extends TestCase
         ], $settingOverrides));
 
         return $company;
+    }
+
+    /**
+     * StorefrontSetting::created() already seeds an active `cod` row for
+     * every store above - this adds an admin-managed `manual` channel
+     * alongside it, mirroring what Storefront -> Payment Methods creates.
+     */
+    private function createManualMethod(Company $company, string $name, string $accountNumber, int $sortOrder = 1): StorefrontPaymentMethod
+    {
+        return StorefrontPaymentMethod::withoutGlobalScopes()->create([
+            'company_id' => $company->getKey(),
+            'type' => StorefrontPaymentMethod::TYPE_MANUAL,
+            'name' => $name,
+            'account_number' => $accountNumber,
+            'is_active' => true,
+            'sort_order' => $sortOrder,
+        ]);
     }
 }

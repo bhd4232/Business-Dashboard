@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\StorefrontCheckoutAttempt;
 use App\Models\StorefrontCustomerActivity;
 use App\Models\StorefrontPayment;
+use App\Models\StorefrontPaymentMethod;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\PaymentGatewayResolver;
@@ -26,10 +27,12 @@ use App\Services\StorefrontPaymentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -85,24 +88,43 @@ class CheckoutController extends Controller
         $data['meta_tracking_context'] = $this->metaTracking->requestContext($request, $setting);
         $data['delivery_area'] = $this->deliveryAreas->resolve($data['address'], $setting);
         $quote = $this->delivery->quote($items, $data['delivery_area'], $setting);
-        $this->cart->startCheckout(
-            $company,
-            $this->cart->subtotal($company) + (float) $quote['fee'],
-            $data,
-        );
+        $totalAmount = $this->cart->subtotal($company) + (float) $quote['fee'];
+        $this->cart->startCheckout($company, $totalAmount, $data);
         [$data, $checkoutAttempt] = $this->checkoutPolicies->evaluate(
             $request,
             $company,
             $setting,
             $data,
-            $this->cart->subtotal($company) + (float) $quote['fee'],
+            $totalAmount,
         );
+
+        // A customer choosing to pay the full order online is orthogonal to
+        // the mandatory-advance rules below (preorder/new-customer/courier
+        // risk) — paying in full already covers whatever advance those rules
+        // would otherwise require, so this always takes the online-payment
+        // path regardless of the eligibility decision.
+        if ($data['payment_method'] === StorefrontPaymentMethod::TYPE_ONLINE_GATEWAY) {
+            $this->assertOnlinePaymentAvailable($setting, 'Online payment is not available right now.');
+            $onlineDecision = $this->fullOnlinePaymentDecision($totalAmount);
+            $this->checkoutPolicies->recordPaymentDecision($checkoutAttempt, $onlineDecision);
+
+            return $this->startCheckoutAdvancePayment(
+                $company,
+                $setting,
+                $data,
+                $items,
+                $quote,
+                $onlineDecision,
+                checkoutAttempt: $checkoutAttempt,
+            );
+        }
+
         $customer = Customer::query()->whereIn('phone', $this->checkoutPolicies->phoneVariants($data['phone']))->first();
         $decision = $this->paymentEligibility->decide(
             $company,
             $setting,
             $data['phone'],
-            $this->cart->subtotal($company) + (float) $quote['fee'],
+            $totalAmount,
             self::advanceDue($items),
             ! $customer && ($setting->new_customer_delivery_advance_enabled ?? true) ? (float) $quote['fee'] : 0,
             $customer,
@@ -141,24 +163,37 @@ class CheckoutController extends Controller
         $data = $this->validatedCheckout($request, $setting);
         $data['delivery_area'] = $this->deliveryAreas->resolve($data['address'], $setting);
         $quote = $this->delivery->quote($items, $data['delivery_area'], $setting);
-        $this->cart->startCheckout(
-            $company,
-            $this->cart->subtotal($company) + (float) $quote['fee'],
-            $data,
-        );
+        $totalAmount = $this->cart->subtotal($company) + (float) $quote['fee'];
+        $this->cart->startCheckout($company, $totalAmount, $data);
         [$data, $checkoutAttempt] = $this->checkoutPolicies->evaluate(
             $request,
             $company,
             $setting,
             $data,
-            $this->cart->subtotal($company) + (float) $quote['fee'],
+            $totalAmount,
         );
+
+        if ($data['payment_method'] === StorefrontPaymentMethod::TYPE_ONLINE_GATEWAY) {
+            $this->assertOnlinePaymentAvailable($setting, 'Online payment is not available right now.');
+
+            return $this->startCheckoutAdvancePayment(
+                $company,
+                $setting,
+                $data,
+                $items,
+                $quote,
+                $this->fullOnlinePaymentDecision($totalAmount),
+                $company->slug,
+                $checkoutAttempt,
+            );
+        }
+
         $customer = Customer::query()->whereIn('phone', $this->checkoutPolicies->phoneVariants($data['phone']))->first();
         $decision = $this->paymentEligibility->decide(
             $company,
             $setting,
             $data['phone'],
-            $this->cart->subtotal($company) + (float) $quote['fee'],
+            $totalAmount,
             self::advanceDue($items),
             ! $customer && ($setting->new_customer_delivery_advance_enabled ?? true) ? (float) $quote['fee'] : 0,
             $customer,
@@ -214,6 +249,23 @@ class CheckoutController extends Controller
         if (! $this->gateways->isConfigured($setting)) {
             throw ValidationException::withMessages(['payment' => $message.' No active online payment gateway is available right now.']);
         }
+    }
+
+    /**
+     * Same shape as StorefrontPaymentEligibilityService::decide(), for the
+     * customer's own choice to pay the full order online (a normal checkout
+     * option, not a risk-driven mandatory advance).
+     *
+     * @return array{required_advance: float, reasons: array<string, float>, courier_success_ratio: float|null, courier_lookup_status: string}
+     */
+    protected function fullOnlinePaymentDecision(float $totalAmount): array
+    {
+        return [
+            'required_advance' => round(max(0, $totalAmount), 2),
+            'reasons' => ['full_online_payment' => round(max(0, $totalAmount), 2)],
+            'courier_success_ratio' => null,
+            'courier_lookup_status' => 'not_applicable',
+        ];
     }
 
     /**
@@ -438,6 +490,7 @@ class CheckoutController extends Controller
             'subtotal' => $this->cart->subtotal($company),
             'advanceDue' => self::advanceDue($items),
             'onlinePaymentAvailable' => $this->gateways->isConfigured($setting),
+            'paymentMethods' => $this->activePaymentMethods($setting),
             'insideQuote' => $insideQuote,
             'outsideQuote' => $outsideQuote,
             'insideDhakaKeywords' => $this->deliveryAreas->keywords($setting),
@@ -445,13 +498,35 @@ class CheckoutController extends Controller
         ]);
     }
 
+    /**
+     * The dashboard-managed, company-scoped checkout payment options —
+     * any number of `cod`/`manual` rows plus at most one `online_gateway`
+     * row, which is only included when the gateway it reuses actually has
+     * credentials configured (a company can enable the row while its
+     * gateway credentials are stale/missing, e.g. mid-switch between
+     * ZiniPay and PayStation).
+     */
+    protected function activePaymentMethods(StorefrontSetting $setting): Collection
+    {
+        return StorefrontPaymentMethod::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->filter(fn (StorefrontPaymentMethod $method): bool => $method->type !== StorefrontPaymentMethod::TYPE_ONLINE_GATEWAY
+                || $this->gateways->isConfigured($setting))
+            ->values();
+    }
+
     protected function validatedCheckout(Request $request, StorefrontSetting $setting): array
     {
-        $defaultPaymentMethod = $this->defaultPaymentMethod($setting);
+        $methods = $this->activePaymentMethods($setting);
+        $allowedValues = $methods->map->paymentValue()->all();
 
-        if (! $request->filled('payment_method') && $defaultPaymentMethod !== null) {
-            $request->merge(['payment_method' => $defaultPaymentMethod]);
+        if (! $request->filled('payment_method') && $methods->isNotEmpty()) {
+            $request->merge(['payment_method' => $methods->first()->paymentValue()]);
         }
+
+        $isManualSelection = str_starts_with((string) $request->input('payment_method'), StorefrontPaymentMethod::TYPE_MANUAL.':');
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -459,22 +534,10 @@ class CheckoutController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['required', 'string', 'max:1000'],
             'note' => ['nullable', 'string', 'max:1000'],
-            'payment_method' => ['required', 'in:cod,manual_bkash,manual_nagad'],
-            'sender_number' => ['required_if:payment_method,manual_bkash,manual_nagad', 'nullable', 'string', 'max:20'],
-            'trx_id' => ['required_if:payment_method,manual_bkash,manual_nagad', 'nullable', 'string', 'max:40'],
+            'payment_method' => ['required', Rule::in($allowedValues)],
+            'sender_number' => [$isManualSelection ? 'required' : 'nullable', 'string', 'max:20'],
+            'trx_id' => [$isManualSelection ? 'required' : 'nullable', 'string', 'max:40'],
         ]);
-
-        if ($data['payment_method'] === 'cod' && ! ($setting->cod_enabled ?? true)) {
-            throw ValidationException::withMessages(['payment_method' => 'Cash on Delivery is not available right now. Please choose another payment method.']);
-        }
-
-        if ($data['payment_method'] === 'manual_bkash' && blank($setting->manual_bkash_number)) {
-            throw ValidationException::withMessages(['payment_method' => 'bKash payment is not available right now.']);
-        }
-
-        if ($data['payment_method'] === 'manual_nagad' && blank($setting->manual_nagad_number)) {
-            throw ValidationException::withMessages(['payment_method' => 'Nagad payment is not available right now.']);
-        }
 
         $data['phone'] = trim($data['phone']);
         $data['phone'] = $this->checkoutPolicies->normalizeLocalPhone($data['phone']) ?: $data['phone'];
@@ -540,11 +603,12 @@ class CheckoutController extends Controller
             $order->refresh();
             $cartRecordId = $this->cart->recordId($company);
 
-            if (in_array($data['payment_method'], ['manual_bkash', 'manual_nagad'], true)) {
+            if (str_starts_with($data['payment_method'], StorefrontPaymentMethod::TYPE_MANUAL.':')) {
                 StorefrontPayment::query()->create([
                     'company_id' => $company->getKey(),
                     'order_id' => $order->getKey(),
-                    'gateway' => $data['payment_method'],
+                    'gateway' => StorefrontPaymentMethod::TYPE_MANUAL,
+                    'storefront_payment_method_id' => (int) substr($data['payment_method'], strlen(StorefrontPaymentMethod::TYPE_MANUAL.':')),
                     'amount' => round((float) $order->total_amount, 2),
                     'status' => StorefrontPayment::STATUS_PENDING,
                     'payment_method' => $data['sender_number'],
@@ -587,30 +651,20 @@ class CheckoutController extends Controller
         }
     }
 
-    protected function defaultPaymentMethod(StorefrontSetting $setting): ?string
+    protected static function paymentMethodLabel(string $paymentValue): string
     {
-        if ($setting->cod_enabled ?? true) {
-            return 'cod';
+        if ($paymentValue === StorefrontPaymentMethod::TYPE_ONLINE_GATEWAY) {
+            return 'Paid online in full';
         }
 
-        if (filled($setting->manual_bkash_number)) {
-            return 'manual_bkash';
+        if (str_starts_with($paymentValue, StorefrontPaymentMethod::TYPE_MANUAL.':')) {
+            $methodId = (int) substr($paymentValue, strlen(StorefrontPaymentMethod::TYPE_MANUAL.':'));
+            $name = StorefrontPaymentMethod::withoutGlobalScopes()->find($methodId)?->name;
+
+            return $name ? "{$name} (Send Money, pending verification)" : 'Manual payment (pending verification)';
         }
 
-        if (filled($setting->manual_nagad_number)) {
-            return 'manual_nagad';
-        }
-
-        return null;
-    }
-
-    protected static function paymentMethodLabel(string $method): string
-    {
-        return match ($method) {
-            'manual_bkash' => 'bKash (Send Money, pending verification)',
-            'manual_nagad' => 'Nagad (Send Money, pending verification)',
-            default => 'Cash on Delivery',
-        };
+        return 'Cash on Delivery';
     }
 
     protected function domainStorefront(Request $request): array

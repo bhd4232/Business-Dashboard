@@ -19,7 +19,24 @@
 @section('content')
     @php
         $advancePayment = $order->storefrontPayments()->latest()->first();
-        $isManualPayment = $advancePayment && in_array($advancePayment->gateway, ['manual_bkash', 'manual_nagad'], true);
+        // 'manual_bkash'/'manual_nagad' are legacy literal gateway values
+        // from before payment methods became dashboard-managed
+        // (StorefrontPaymentMethod) - kept here so historical orders still
+        // display correctly. New manual payments use the generic 'manual'
+        // gateway with the channel's own name via the paymentMethod relation.
+        $isManualPayment = $advancePayment && in_array($advancePayment->gateway, ['manual', 'manual_bkash', 'manual_nagad'], true);
+        $manualPaymentLabel = match (true) {
+            ! $isManualPayment => null,
+            $advancePayment->gateway === 'manual_bkash' => 'bKash',
+            $advancePayment->gateway === 'manual_nagad' => 'Nagad',
+            default => $advancePayment->paymentMethod?->name ?? 'Manual',
+        };
+        // The "pay the full order online" checkout option reuses the same
+        // purpose as a partial advance (StorefrontPayment::PURPOSE_CHECKOUT_ADVANCE)
+        // - amount fully covering the order total is what actually
+        // distinguishes it, so it isn't mislabelled as an "advance".
+        $isFullyPaidOnline = $advancePayment && ! $isManualPayment
+            && (float) $advancePayment->amount >= (float) $order->total_amount - 0.01;
         $trackUrl = isset($previewSlug)
             ? route('storefront.preview.track.show', ['company' => $previewSlug, 'orderNo' => $order->order_number, 'phone' => $order->customer?->phone])
             : Illuminate\Support\Facades\URL::temporarySignedRoute('storefront.track.show', now()->addDays(7), ['orderNo' => $order->order_number]);
@@ -75,7 +92,7 @@
         @if ($advancePayment)
             <div class="mt-4 rounded-xl border px-5 py-4 text-left text-sm {{ $advancePayment->status === 'completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-200' }}">
                 <div class="flex flex-wrap justify-between gap-2 font-semibold">
-                    <span>{{ $isManualPayment ? ($advancePayment->gateway === 'manual_bkash' ? 'bKash payment' : 'Nagad payment') : ($advancePayment->purpose === \App\Models\StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY ? 'Delivery advance payment' : 'Pre-order advance payment') }}</span>
+                    <span>{{ $isManualPayment ? "{$manualPaymentLabel} payment" : ($isFullyPaidOnline ? 'Paid online in full' : ($advancePayment->purpose === \App\Models\StorefrontPayment::PURPOSE_NEW_CUSTOMER_DELIVERY ? 'Delivery advance payment' : 'Pre-order advance payment')) }}</span>
                     <span>{{ \App\Support\MoneyFormatter::currency((float) $order->total_amount) }} &middot; {{ \App\Models\StorefrontPayment::STATUSES[$advancePayment->status] ?? ucfirst($advancePayment->status) }}</span>
                 </div>
                 @if ($advancePayment->status !== 'completed')<p class="mt-1 text-xs">{{ $isManualPayment ? 'We are verifying your payment and will contact you if needed.' : 'The payment status updates automatically after gateway verification.' }}</p>@endif
