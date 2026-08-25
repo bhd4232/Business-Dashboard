@@ -9,6 +9,7 @@ use App\Filament\Widgets\CustomerRiskOverview;
 use App\Filament\Widgets\LowStockProducts;
 use App\Filament\Widgets\SalesPurchaseTrend;
 use App\Filament\Widgets\TopBusinessPerformers;
+use App\Http\Middleware\PreventAdminPageCaching;
 use App\Http\Middleware\SetCurrentCompany;
 use App\Http\Middleware\SyncAppUpdates;
 use App\Models\Company;
@@ -424,6 +425,7 @@ class AdminPanelProvider extends PanelProvider
                 CustomerRiskAlerts::class,
             ])
             ->middleware([
+                PreventAdminPageCaching::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

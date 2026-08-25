@@ -2,6 +2,69 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-24 - Critical: PayStation checkout "Duplicate invoice number" blocking real customer orders
+
+Reason:
+
+- Owner tested a real checkout on the live ZamZam Gadget storefront (new phone number, Outside Dhaka, weight-based delivery advance ৳110) and hit "The secure payment page could not be opened. No order was placed; please try again." Asked to fetch the actual stored error via a safe tinker command rather than guess: `payload.error` was `"PayStation payment could not be created: Duplicate invoice number."`
+
+Root cause:
+
+- `CheckoutController::startCheckoutAdvancePayment()` set `$merchantReference = (string) $payment->getKey();` and PayStation uses that value as its own `invoice_number` (PayStation never issues its own — see `PayStationClient::createPayment()`). This assumed a `StorefrontPayment` primary key is safe to reuse as a payment-gateway invoice number, but PayStation tracks invoice numbers on **its own side permanently**, independent of this app's database. Any local table reset (a demo refresh, a migration reset, a database restore) that restarts the `storefront_payments` auto-increment sequence back near 1 would resend an invoice number PayStation had already seen in an earlier round of testing/use, and PayStation correctly rejects it as a duplicate. Confirmed exactly this in production: the failing payment was row id `2`.
+
+What changed:
+
+- `$merchantReference` is now `$payment->getKey().'-'.Str::random(10)` — still traceable back to the `StorefrontPayment` row via its numeric prefix, but the random suffix makes it impossible to collide with anything PayStation has seen before, regardless of local ID reuse. ZiniPay is unaffected (it ignores `$merchantReference` entirely and derives its own invoice id from the returned `payment_url`).
+- Updated the stale docblock on `PaymentGatewayClient::createPayment()` that had documented the now-fixed (wrong) assumption.
+- Updated `StorefrontPaystationPaymentTest.php`'s hardcoded exact-match assertions (`invoice_id === (string) $payment->getKey()`, and the simulated PayStation-redirect URL) to capture and reuse the real generated value instead of assuming the old fixed format.
+
+Important changed files:
+
+- `app/Http/Controllers/Storefront/CheckoutController.php`
+- `app/Contracts/PaymentGatewayClient.php`
+- `tests/Feature/StorefrontPaystationPaymentTest.php`
+
+Verification:
+
+- `php artisan test --filter=StorefrontPaystationPaymentTest` — 4 passed.
+- `php artisan test --filter=Storefront` (every Storefront-prefixed test file, including checkout/payment/preorder/advance flows) — 149 passed, 0 failed.
+- Separately confirmed (in the same session) that the underlying weight-based new-customer-delivery-advance *rule* itself was already implemented correctly (verified the delivery-fee math against `StorefrontDeliveryService::quote()` and the passing `StorefrontCustomerAdvanceAndComplaintTest`) — this was purely the PayStation invoice-number collision, not a rule/logic gap.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md. This is a live-production-blocking bug; recommend committing/pushing and redeploying this ahead of the still-in-progress payment-methods flexibility feature.
+
+## 2026-08-24 - Header company switcher always loading the default company (browser-cache bug, not a session bug)
+
+Reason:
+
+- Owner reported: selecting any company from the header dropdown always loads the default company instead. Diagnostic questions narrowed it down: the header's own label doesn't update either, but a hard refresh (Ctrl+Shift+R) always shows the correct company. Tested as super admin.
+
+What was checked and ruled out (in order):
+
+- Traced `CompanySwitchController`/`SetCurrentCompany` middleware/`CompanyContext` end to end by reading the code, then wrote and ran two new HTTP-level regression tests (`tests/Feature/CompanySelectionPersistenceTest.php`) simulating the exact real flow (POST the switch, then GET `/admin`) for both a super admin and a non-super-admin staff user with two companies each — both passed cleanly, proving the session/backend logic itself was already correct.
+- Checked the Firebase push-notification service worker (`resources/views/firebase-messaging-sw.blade.php`) for a `fetch` handler that might intercept and cache navigation requests — it has none (only `onBackgroundMessage`/`notificationclick`), ruled out.
+- Checked `resources/js/app-updater.js`'s pending-deployment navigation guard — it only intercepts `<a>` clicks and Livewire's `livewire:navigate` custom event, never plain `<form>` submissions, ruled out.
+- Confirmed the switcher's Filament dropdown item renders as a real `<button type="submit">` inside its own `<form method="POST">` (`vendor/filament/support/.../dropdown/list/item.blade.php`), and that Livewire's `x-navigate`/SPA plugin only intercepts elements carrying its own `wire:navigate` attribute (checked `vendor/livewire/livewire/dist/livewire.js` directly) — this form has none, so it's a real, full, non-SPA browser navigation.
+- With the backend and JS both cleared, the remaining explanation matching both symptoms (stale page shown; hard refresh always fixes it) is the browser's own HTTP cache reusing a previously loaded `/admin` response — the panel's HTML responses had no `Cache-Control` header at all, so caching behavior was left entirely to browser/proxy heuristics.
+
+What changed:
+
+- New `App\Http\Middleware\PreventAdminPageCaching`, added only to `AdminPanelProvider`'s own `->middleware([...])` stack (not the global `web` group, so the public storefront's caching/SEO is untouched) — every `/admin` response now always ships `Cache-Control: no-store, no-cache, must-revalidate, private` plus `Pragma: no-cache`/`Expires: 0`, so no browser or intermediate proxy can ever answer an admin page from a stale cache again, regardless of which page or action triggered the reload.
+- Confirmed the three file-download controllers under `/admin/...` (`ConversationMediaController`, `VoucherAttachmentDownloadController`, `InvestorContractDownloadController`) are registered directly in `routes/web.php`, not through the Filament panel's own route/middleware registration, so this change does not touch them.
+- New regression test in `CompanySelectionPersistenceTest.php` asserts the `Cache-Control`/`Pragma` headers are present on every `/admin` response (assertion checks individual directives rather than an exact string, since Symfony's `ResponseHeaderBag` re-serializes `Cache-Control` from parsed directive flags — it adds `max-age=0` automatically, which only strengthens the no-cache guarantee).
+
+Important changed files:
+
+- `app/Http/Middleware/PreventAdminPageCaching.php` (new)
+- `app/Providers/Filament/AdminPanelProvider.php`
+- `tests/Feature/CompanySelectionPersistenceTest.php`
+
+Verification:
+
+- `php artisan test --filter=CompanySelectionPersistenceTest` — 7 passed (41 assertions).
+- Full `php artisan test` suite re-run to confirm the new panel-wide middleware doesn't affect any other admin page/action.
+
+Commit status: Not committed yet — pending the full suite result and owner approval, per CLAUDE.md.
+
 ## 2026-08-24 - Production `php artisan migrate --force` failure: three uniqueness-fix migrations assumed indexes that had already drifted off production
 
 Reason:
