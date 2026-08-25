@@ -2,6 +2,51 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-23 - Reseller management dashboard + self-service reseller mini-storefronts
+
+Reason:
+
+- The storefront already had a `/reseller` apply form creating a real `Customer` row with `reseller_status`, but no way to manage those applications separately from regular customers, and no way for an approved reseller to actually operate as one. Owner asked for a dedicated reseller dashboard (customers and resellers managed fully separately, not just filtered), with Approve/Reject workflow (bulk too), status filtering, and each reseller's order history. Owner then also asked, unprompted, for each approved reseller to get their own mini storefront — a curated subset of the company's products they pick themselves — reachable at a URL, with orders attributed to that reseller for future commission/payout work, and the whole module toggleable per company by a super admin only. Clarified via follow-up questions and confirmed by the owner: path-based store URLs (`{company-domain}/store/{slug}`, not a subdomain — avoids needing wildcard DNS/SSL the owner would have to configure outside this repo), reseller self-service product picking via their existing storefront login, and required order attribution.
+
+What happened:
+
+- **Data model**: `companies.reseller_module_enabled` (boolean, default off); `customers.reseller_slug` (nullable, unique per company); new `reseller_products` pivot (`customer_id`, `product_id`, `is_active`); `reseller_customer_id` added to both `orders` and `storefront_cart_records` (nullable FK to `customers`, separate from the buyer's own `customer_id` — the reseller and the buyer are different people).
+- **Company toggle**: `CompanyResource` gained a `reseller_module_enabled` Toggle, visible and dehydrated only for a super admin (field-level gate, since this resource's `canEdit()` also allows non-super-admin managers).
+- **Admin dashboard**: a new top-level **Resellers** cluster with its own `ResellerResource` (same `Customer` model as `CustomerResource`, but a fully separate Filament resource/route/table, per the owner's explicit choice) — Approve/Reject actions (single + bulk, approve auto-generates the store slug), a status filter, and two read-only relation managers (Orders, Products). `CustomerResource`'s own query now excludes anyone with `reseller_status != 'none'`, so a customer that applied to be a reseller moves entirely off the Customers list once approved/pending/rejected — one row, one home, matching the "fully separate" requirement.
+- **Self-service curation**: a new `/account/reseller` page (existing storefront Customer login, guard `customer` — no new auth system) lets an *approved* reseller edit their store's URL slug and toggle which of the company's products appear in their store.
+- **Public reseller storefront**: `/store/{resellerSlug}/...` reuses the exact same `ProductIndexController`/`ProductShowController`/`CartController`/`CheckoutController` as the main storefront rather than duplicating them, additively scoped via a new `ResolveResellerFromSlug` middleware that sets a `storefront_reseller` request attribute; each controller filters products to that reseller's active picks only when the attribute is present, and checkout stamps the resulting order's `reseller_customer_id`. When the attribute is absent, behavior is byte-for-byte unchanged (same additive-parameter approach as the earlier push-notification feature's `FirebaseHttpV1Sender::send()`).
+- Every new surface (the admin cluster, the self-service page, the public store) checks `reseller_module_enabled` and 404s/403s when off; the pre-existing `/reseller` apply form is deliberately left ungated, since gating it would have silently broken an already-live flow for every company (the new toggle defaults to off).
+- **Bug found and fixed while writing tests**: the shared storefront controllers (`ProductIndexController::__invoke()`, `ProductShowController::__invoke()`, `CartController::add()/update()/remove()`) took their product `$slug` as a method-injected parameter. Laravel resolves unmatched scalar route parameters *positionally*, not by name — so on the new `/store/{resellerSlug}/products` route (one URI parameter ahead of where `{slug}` normally sits), the reseller's own slug was silently landing in the `$slug` argument instead of the product slug, 404-ing every request. Fixed by reading `$request->route('slug')` explicitly by name in all four methods instead of relying on method injection.
+
+Important changed/added files:
+
+- `database/migrations/2026_08_23_{000000,010000,020000,030000,040000}_*.php`
+- `app/Models/Company.php`, `app/Models/Customer.php`, `app/Models/ResellerProduct.php` (new), `app/Models/Order.php`, `app/Models/StorefrontCartRecord.php`
+- `app/Filament/Resources/Companies/CompanyResource.php`
+- `app/Filament/Clusters/Resellers.php` (new), `app/Filament/Resources/Resellers/**` (new — resource, schemas, tables, pages, relation managers)
+- `app/Filament/Resources/Customers/CustomerResource.php`, `Schemas/CustomerForm.php`, `Tables/CustomersTable.php`
+- `app/Http/Controllers/Storefront/ResellerStoreController.php` (new), `ProductIndexController.php`, `ProductShowController.php`, `CartController.php`, `CheckoutController.php`
+- `app/Http/Middleware/ResolveResellerFromSlug.php` (new)
+- `app/Services/StorefrontCart.php`, `app/Services/StorefrontOrderPlacementService.php`
+- `resources/views/storefront/account/reseller.blade.php` (new), `resources/views/storefront/account/layout.blade.php`, `resources/views/storefront/account/partials/nav-icon.blade.php`
+- `routes/web.php`
+- `tests/Feature/ResellerResourceTest.php`, `ResellerSelfServiceTest.php`, `ResellerStorefrontTest.php` (new)
+- `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Notes:
+
+- Commission/payout logic on top of the captured `reseller_customer_id` attribution is intentionally not built yet — out of scope for this request, flagged for a future feature.
+- `ResellerProduct` deliberately does not use `BelongsToCompany`/`CompanyScope` — it has no independent company context of its own, only transitively through its `customer_id`/`product_id` parents (same precedent as `MobileCrashReport`), so it is not added to `MultiCompanyIsolationTest`'s model list.
+
+Verification:
+
+- `php artisan test` (plain, no `--env`) — 850/850 passed (829 pre-existing + 21 new), 0 regressions.
+- No JS/CSS changes — `npm run build` not required.
+
+Commit status:
+
+- Not committed. Commit and push require explicit owner approval.
+
 ## 2026-08-20 - Real-time push notifications for business events (Android + desktop browser)
 
 Reason:

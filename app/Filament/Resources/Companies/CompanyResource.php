@@ -80,6 +80,12 @@ class CompanyResource extends Resource
                     Toggle::make('is_active')
                         ->label('Active')
                         ->default(true),
+                    Toggle::make('reseller_module_enabled')
+                        ->label('Reseller module enabled')
+                        ->helperText('Lets this company approve resellers, who then get their own curated mini-storefront (a URL under this company\'s domain). Super Admin only.')
+                        ->default(false)
+                        ->visible(fn (): bool => Auth::user()?->isSuperAdmin() ?? false)
+                        ->dehydrated(fn (): bool => Auth::user()?->isSuperAdmin() ?? false),
                 ])
                 ->columns(2),
 
@@ -191,6 +197,11 @@ class CompanyResource extends Resource
                     ->label('Active')
                     ->boolean()
                     ->sortable(),
+                IconColumn::make('reseller_module_enabled')
+                    ->label('Resellers')
+                    ->boolean()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
                 ViewAction::make(),
