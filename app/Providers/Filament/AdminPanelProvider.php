@@ -366,6 +366,60 @@ class AdminPanelProvider extends PanelProvider
                             style.textContent = '@keyframes zz-ptr-spin { to { transform: rotate(360deg); } }';
                             document.head.appendChild(style);
                         })();
+
+                        // Full-screen loading indicator for the mobile app.
+                        // The panel is a Livewire SPA (see ->spa() below), so
+                        // tapping a nav link/menu item doesn't reload the
+                        // WebView -- it fires an AJAX-driven `livewire:navigate`
+                        // transition instead. Livewire's own top progress bar
+                        // is easy to miss inside the app, leaving a 2-5 second
+                        // gap with no feedback that anything happened. Only
+                        // shown inside the app's webview -- a real browser
+                        // already has its own address-bar loading affordance.
+                        (() => {
+                            const inAppWebView = !! window.Capacitor
+                                || /; wv\)/.test(navigator.userAgent);
+
+                            if (! inAppWebView || window.__zzPageLoader) {
+                                return;
+                            }
+                            window.__zzPageLoader = true;
+
+                            const overlay = document.createElement('div');
+                            overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.12);';
+
+                            const bubble = document.createElement('div');
+                            bubble.style.cssText = 'width:3.25rem;height:3.25rem;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;';
+                            bubble.innerHTML = '<svg viewBox="0 0 24 24" style="width:1.75rem;height:1.75rem;fill:none;stroke:rgb(217 119 6);stroke-width:2.5;stroke-linecap:round;animation:zz-page-loader-spin .7s linear infinite;"><path d="M20 11A8 8 0 1 0 18.7 16"/><path d="M20 5v6h-6"/></svg>';
+                            overlay.appendChild(bubble);
+                            document.body.appendChild(overlay);
+
+                            const style = document.createElement('style');
+                            style.textContent = '@keyframes zz-page-loader-spin { to { transform: rotate(360deg); } }';
+                            document.head.appendChild(style);
+
+                            let safetyTimer = null;
+
+                            const show = () => {
+                                clearTimeout(safetyTimer);
+                                overlay.style.pointerEvents = 'auto';
+                                overlay.style.display = 'flex';
+                                // Safety net: if a navigation silently fails or
+                                // is aborted without ever firing
+                                // `livewire:navigated`, don't leave the app
+                                // stuck behind the overlay forever.
+                                safetyTimer = setTimeout(hide, 15000);
+                            };
+
+                            const hide = () => {
+                                clearTimeout(safetyTimer);
+                                overlay.style.display = 'none';
+                                overlay.style.pointerEvents = 'none';
+                            };
+
+                            document.addEventListener('livewire:navigate', show);
+                            document.addEventListener('livewire:navigated', hide);
+                        })();
                     </script>
                 HTML),
             )
