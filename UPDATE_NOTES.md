@@ -2,6 +2,29 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-25 - Production `php artisan migrate --force` still failing after the previous fix: foreign-key-dependency ordering in the same three migrations
+
+Reason:
+
+- Owner re-ran `php artisan migrate --force` after the previous `3548b86c` fix landed. It failed again, on the very next statement: `SQLSTATE[HY000]: General error: 1553 Cannot drop index 'categories_company_lookup_index': needed in a foreign key constraint`.
+
+What happened:
+
+- `categories.company_id` carries a foreign key to `companies`, and MySQL refuses to drop an index while it is that FK's only remaining supporting index (error 1553). The previous fix's guarded `up()` still dropped the old `categories_company_lookup_index`/`products_company_lookup_index` (both `company_id`-leading) *before* creating their replacement `(company_id, slug|sku)` unique indexes — each `Schema::table()` command compiles to its own separate `ALTER TABLE` statement, so at the moment of the drop, the FK briefly had no supporting index left, and MySQL rejected it. `expense_categories`' migration never drops a `company_id`-leading index, so it was never affected by this.
+- Reordered both migrations' `up()`/`down()` to create the replacement company-scoped unique index(es) **first** (in their own `Schema::table()` call), then drop the old indexes afterward — the new index also starts with `company_id`, so the FK stays covered throughout and the drop succeeds. Production's `categories` table was left unchanged by the failed attempt (the drop that failed never committed), so this is a clean forward fix, not a repair of partially-applied state.
+
+Important changed files:
+
+- `database/migrations/2026_08_21_163643_fix_categories_slug_unique_scope_to_company.php`
+- `database/migrations/2026_08_21_170645_fix_products_sku_and_barcode_unique_scope_to_company.php`
+
+Verification:
+
+- Full `php artisan test` suite re-run after the reorder (fresh SQLite schema every run, so this exercises the full drop-then-recreate path with the new ordering).
+- Owner still needs to re-run `php artisan migrate --force` on production after this lands.
+
+Commit status: Not committed yet — pending the full suite result and owner approval, per CLAUDE.md.
+
 ## 2026-08-24 - Critical: PayStation checkout "Duplicate invoice number" blocking real customer orders
 
 Reason:
@@ -30,7 +53,7 @@ Verification:
 - `php artisan test --filter=Storefront` (every Storefront-prefixed test file, including checkout/payment/preorder/advance flows) — 149 passed, 0 failed.
 - Separately confirmed (in the same session) that the underlying weight-based new-customer-delivery-advance *rule* itself was already implemented correctly (verified the delivery-fee math against `StorefrontDeliveryService::quote()` and the passing `StorefrontCustomerAdvanceAndComplaintTest`) — this was purely the PayStation invoice-number collision, not a rule/logic gap.
 
-Commit status: Not committed yet — pending owner approval, per CLAUDE.md. This is a live-production-blocking bug; recommend committing/pushing and redeploying this ahead of the still-in-progress payment-methods flexibility feature.
+Commit status: Committed as `802a61e3`, pushed to `origin/main`.
 
 ## 2026-08-24 - Header company switcher always loading the default company (browser-cache bug, not a session bug)
 
@@ -63,7 +86,7 @@ Verification:
 - `php artisan test --filter=CompanySelectionPersistenceTest` — 7 passed (41 assertions).
 - Full `php artisan test` suite re-run to confirm the new panel-wide middleware doesn't affect any other admin page/action.
 
-Commit status: Not committed yet — pending the full suite result and owner approval, per CLAUDE.md.
+Commit status: Committed as `4ba49a00`, pushed to `origin/main`.
 
 ## 2026-08-24 - Production `php artisan migrate --force` failure: three uniqueness-fix migrations assumed indexes that had already drifted off production
 
@@ -88,7 +111,7 @@ Verification:
 - Full `php artisan test` suite re-run after the rewrite (SQLite, fresh schema every run, so this exercises the "everything exists as expected" branch of the new guards).
 - Owner still needs to re-run `php artisan migrate --force` on production after this lands — that will tell us whether production is now clean, or whether a *data*-level problem exists too (e.g. real pre-existing duplicate `(company_id, slug)` rows that would reject the new unique index outright, a different failure mode from this one and not something visible from here).
 
-Commit status: Not committed yet — pending this run's test result and owner approval, per CLAUDE.md.
+Commit status: Committed as `3548b86c`, pushed to `origin/main`. (See the 2026-08-25 entry above for a follow-up production failure this fix did not fully resolve.)
 
 ## 2026-08-24 - Steadfast courier webhooks could never authenticate (bearer token vs. HMAC mismatch)
 

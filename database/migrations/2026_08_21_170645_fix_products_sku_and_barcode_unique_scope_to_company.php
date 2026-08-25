@@ -26,11 +26,30 @@ use Illuminate\Support\Facades\Schema;
  * assumed by name - see the docblock on the sibling categories migration for
  * why: a production run found `products_sku_unique`/`products_company_lookup_index`
  * already absent, which made an unconditional `dropUnique()` fail the deploy.
+ *
+ * Ordering also matters, same as the sibling categories migration:
+ * `products.company_id` carries a foreign key to `companies`, and MySQL
+ * refuses to drop `products_company_lookup_index` while it's the FK's only
+ * remaining supporting index (error 1553). The replacement company-scoped
+ * unique indexes (also starting with `company_id`) are created FIRST, in
+ * their own `Schema::table()` call, before the old indexes are dropped.
  */
 return new class extends Migration
 {
     public function up(): void
     {
+        $indexes = collect(Schema::getIndexes('products'))->pluck('name')->all();
+
+        Schema::table('products', function (Blueprint $table) use ($indexes) {
+            if (! in_array('products_company_id_sku_unique', $indexes, true)) {
+                $table->unique(['company_id', 'sku'], 'products_company_id_sku_unique');
+            }
+
+            if (! in_array('products_company_id_barcode_unique', $indexes, true)) {
+                $table->unique(['company_id', 'barcode'], 'products_company_id_barcode_unique');
+            }
+        });
+
         $indexes = collect(Schema::getIndexes('products'))->pluck('name')->all();
 
         Schema::table('products', function (Blueprint $table) use ($indexes) {
@@ -41,19 +60,19 @@ return new class extends Migration
             if (in_array('products_company_lookup_index', $indexes, true)) {
                 $table->dropIndex('products_company_lookup_index');
             }
-
-            if (! in_array('products_company_id_sku_unique', $indexes, true)) {
-                $table->unique(['company_id', 'sku'], 'products_company_id_sku_unique');
-            }
-
-            if (! in_array('products_company_id_barcode_unique', $indexes, true)) {
-                $table->unique(['company_id', 'barcode'], 'products_company_id_barcode_unique');
-            }
         });
     }
 
     public function down(): void
     {
+        $indexes = collect(Schema::getIndexes('products'))->pluck('name')->all();
+
+        if (! in_array('products_company_lookup_index', $indexes, true)) {
+            Schema::table('products', function (Blueprint $table) {
+                $table->index(['company_id', 'sku'], 'products_company_lookup_index');
+            });
+        }
+
         $indexes = collect(Schema::getIndexes('products'))->pluck('name')->all();
 
         Schema::table('products', function (Blueprint $table) use ($indexes) {
@@ -63,10 +82,6 @@ return new class extends Migration
 
             if (in_array('products_company_id_sku_unique', $indexes, true)) {
                 $table->dropUnique('products_company_id_sku_unique');
-            }
-
-            if (! in_array('products_company_lookup_index', $indexes, true)) {
-                $table->index(['company_id', 'sku'], 'products_company_lookup_index');
             }
 
             if (! in_array('products_sku_unique', $indexes, true)) {

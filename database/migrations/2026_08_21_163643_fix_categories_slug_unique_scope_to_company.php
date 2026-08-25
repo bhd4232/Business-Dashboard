@@ -25,11 +25,28 @@ use Illuminate\Support\Facades\Schema;
  * whole deploy with "Can't DROP ...; check that column/key exists". Checking
  * `Schema::getIndexes()` first makes this migration correct regardless of
  * which of these indexes actually exist, and safely re-runnable.
+ *
+ * Ordering also matters: `categories.company_id` carries a foreign key to
+ * `companies`, and MySQL refuses to drop an index while it is the FK's only
+ * remaining supporting index (error 1553). `categories_company_lookup_index`
+ * is exactly that supporting index today, so the replacement
+ * `categories_company_id_slug_unique` (which also starts with `company_id`)
+ * must be created FIRST, in its own `Schema::table()` call, before the old
+ * indexes are dropped — otherwise the FK is briefly left uncovered and MySQL
+ * rejects the drop.
  */
 return new class extends Migration
 {
     public function up(): void
     {
+        $indexes = collect(Schema::getIndexes('categories'))->pluck('name')->all();
+
+        if (! in_array('categories_company_id_slug_unique', $indexes, true)) {
+            Schema::table('categories', function (Blueprint $table) {
+                $table->unique(['company_id', 'slug'], 'categories_company_id_slug_unique');
+            });
+        }
+
         $indexes = collect(Schema::getIndexes('categories'))->pluck('name')->all();
 
         Schema::table('categories', function (Blueprint $table) use ($indexes) {
@@ -40,10 +57,6 @@ return new class extends Migration
             if (in_array('categories_company_lookup_index', $indexes, true)) {
                 $table->dropIndex('categories_company_lookup_index');
             }
-
-            if (! in_array('categories_company_id_slug_unique', $indexes, true)) {
-                $table->unique(['company_id', 'slug'], 'categories_company_id_slug_unique');
-            }
         });
     }
 
@@ -51,13 +64,17 @@ return new class extends Migration
     {
         $indexes = collect(Schema::getIndexes('categories'))->pluck('name')->all();
 
+        if (! in_array('categories_company_lookup_index', $indexes, true)) {
+            Schema::table('categories', function (Blueprint $table) {
+                $table->index(['company_id', 'slug'], 'categories_company_lookup_index');
+            });
+        }
+
+        $indexes = collect(Schema::getIndexes('categories'))->pluck('name')->all();
+
         Schema::table('categories', function (Blueprint $table) use ($indexes) {
             if (in_array('categories_company_id_slug_unique', $indexes, true)) {
                 $table->dropUnique('categories_company_id_slug_unique');
-            }
-
-            if (! in_array('categories_company_lookup_index', $indexes, true)) {
-                $table->index(['company_id', 'slug'], 'categories_company_lookup_index');
             }
 
             if (! in_array('categories_slug_unique', $indexes, true)) {
