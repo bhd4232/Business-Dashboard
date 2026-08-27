@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.4.2] - 2026-08-27
+
+**Release type:** Patch/Fix Update
+
 ### Changed
 
 - **Marketplace Pro homepage hero is now full width**: the two "Ready to order" category cards that used to sit beside the hero banner are removed (owner request), so the banner fills the row on every screen size instead of sharing it. Mobile layout is unaffected — the hero was already single-column below tablet width.
@@ -25,7 +29,6 @@ All notable production changes to Business Dashboard are documented here.
 - **Owner also asked to hide the "Built for repeat and wholesale buyers / Open business account" card for retail-only companies** (e.g. ZamZam Gadget) while keeping it for wholesale-only companies (e.g. ZamZam International) — this already exists as a per-company toggle (Storefront Settings → Marketplace Pro Features → "Business account callouts"), so no code change was needed; just needs switching off for the retail company via the dashboard.
 - New tests: `StorefrontThemeTest::test_marketplace_hero_is_full_width_without_promo_cards_and_uses_a_real_arrow_icon`, `test_marketplace_trust_strip_scrolls_horizontally_on_mobile`.
 - Found (not fixed here — unrelated, admin-only, flagged separately): `resources/views/filament/pages/inbox.blade.php` has its own, different single-byte encoding issue.
-
 ## [2.4.1] - 2026-08-27
 
 **Release type:** Patch/Fix Update
