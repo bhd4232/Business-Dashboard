@@ -64,6 +64,7 @@ class OrdersTable
                     ->color(fn (?string $state): string => match ($state) {
                         Order::SOURCE_STOREFRONT => 'warning',
                         Order::SOURCE_OFFER => 'success',
+                        Order::SOURCE_WOOCOMMERCE => 'info',
                         default => 'gray',
                     })
                     ->sortable()

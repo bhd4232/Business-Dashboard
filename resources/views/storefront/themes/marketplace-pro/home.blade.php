@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @section('content')
     @php
@@ -18,7 +18,7 @@
         $campaignBadge = $setting->marketplace_campaign_badge ?: ($template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN ? 'SEASON-END CLEARANCE' : 'WHOLESALE OFFERS');
         $campaignHeading = $setting->marketplace_campaign_heading ?: match ($template) {
             \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN => 'Wholesale savings across essential business supplies',
-            \App\Support\StorefrontThemeRegistry::MARKETPLACE_COMPACT => 'Bulk order season — better pricing for growing businesses',
+            \App\Support\StorefrontThemeRegistry::MARKETPLACE_COMPACT => 'Bulk order season â€” better pricing for growing businesses',
             default => 'Better value on dependable products for your business',
         };
         $campaignSubheading = $setting->marketplace_campaign_subheading ?: 'Order genuine products with transparent pricing, dependable dispatch, and support from '.$company->name.'.';
@@ -60,7 +60,7 @@
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">Ready to order</p>
                                 <h2 class="mt-1 text-lg font-bold">{{ $category->name }}</h2>
-                                <span class="mt-4 inline-flex text-sm font-semibold text-[var(--storefront-brand)]">Browse category →</span>
+                                <span class="mt-4 inline-flex text-sm font-semibold text-[var(--storefront-brand)]">Browse category â†’</span>
                             </div>
                             <div class="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-100 dark:bg-white/10">
                                 @if ($category->image)
@@ -87,7 +87,7 @@
                     <div class="mx-auto mt-7 grid max-w-2xl grid-cols-3 gap-2 sm:gap-3">
                         <div class="marketplace-stat"><strong>Up to 30%</strong><span>selected offers</span></div>
                         <div class="marketplace-stat"><strong>{{ $products->count() }}+</strong><span>products ready</span></div>
-                        <div class="marketplace-stat"><strong>24–48h</strong><span>dispatch support</span></div>
+                        <div class="marketplace-stat"><strong>24â€“48h</strong><span>dispatch support</span></div>
                     </div>
                 </div>
             </section>
@@ -144,12 +144,12 @@
                     @endif
                     @if ($setting->marketplace_trust_strip_enabled)
                         <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-b border-[var(--storefront-border)] pb-4 text-xs font-semibold dark:border-[var(--storefront-dark-border)]">
-                            @foreach ($trustItems as $item)<span>✓ {{ $item['title'] }}</span>@endforeach
+                            @foreach ($trustItems as $item)<span>âœ“ {{ $item['title'] }}</span>@endforeach
                         </div>
                     @endif
                     <div class="mt-5 flex items-end justify-between gap-4">
                         <div><p class="text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">Wholesale catalog</p><h1 id="dense-products-title" class="mt-1 text-xl font-extrabold sm:text-2xl">All available products</h1></div>
-                        <a class="text-sm font-semibold text-[var(--storefront-brand)]" href="{{ $productsUrl }}">View all →</a>
+                        <a class="text-sm font-semibold text-[var(--storefront-brand)]" href="{{ $productsUrl }}">View all â†’</a>
                     </div>
                     <div class="marketplace-product-grid marketplace-product-grid-dense mt-4">
                         @forelse ($visibleProducts as $product)
@@ -163,7 +163,7 @@
         @else
             @if ($setting->marketplace_categories_enabled)
                 <section class="marketplace-section" aria-labelledby="marketplace-categories-title">
-                    <div class="marketplace-section-heading"><h2 id="marketplace-categories-title">Shop by category</h2><a href="{{ $productsUrl }}">See all →</a></div>
+                    <div class="marketplace-section-heading"><h2 id="marketplace-categories-title">Shop by category</h2><a href="{{ $productsUrl }}">See all â†’</a></div>
                     <div class="marketplace-category-grid">
                         @foreach ($categories->take(6) as $category)
                             <a class="marketplace-category-card" href="{{ $categoryUrl($category) }}">
@@ -185,7 +185,7 @@
 
             @if ($setting->marketplace_deals_enabled)
                 <section class="marketplace-section {{ $template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN ? 'marketplace-deals-surface' : '' }}" aria-labelledby="marketplace-deals-title">
-                    <div class="marketplace-section-heading"><div class="flex items-center gap-3"><h2 id="marketplace-deals-title">{{ $template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN ? 'Flash deals' : 'Featured offers' }}</h2><span class="rounded-md bg-[var(--storefront-secondary)] px-2 py-1 text-[11px] font-bold text-[var(--storefront-secondary-contrast)]">Limited time</span></div><a href="{{ $productsUrl }}">See all →</a></div>
+                    <div class="marketplace-section-heading"><div class="flex items-center gap-3"><h2 id="marketplace-deals-title">{{ $template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN ? 'Flash deals' : 'Featured offers' }}</h2><span class="rounded-md bg-[var(--storefront-secondary)] px-2 py-1 text-[11px] font-bold text-[var(--storefront-secondary-contrast)]">Limited time</span></div><a href="{{ $productsUrl }}">See all â†’</a></div>
                     <div class="marketplace-product-grid">
                         @forelse ($visibleProducts->take(5) as $product)
                             @include('storefront.partials.product-card', ['product' => $product])
@@ -218,7 +218,7 @@
             @endif
 
             <section class="marketplace-section" aria-labelledby="marketplace-products-title">
-                <div class="marketplace-section-heading"><h2 id="marketplace-products-title">Recommended for your business</h2><a href="{{ $productsUrl }}">View all products →</a></div>
+                <div class="marketplace-section-heading"><h2 id="marketplace-products-title">Recommended for your business</h2><a href="{{ $productsUrl }}">View all products â†’</a></div>
                 <div class="marketplace-product-grid">
                     @forelse ($visibleProducts->skip(5)->take(5) as $product)
                         @include('storefront.partials.product-card', ['product' => $product])

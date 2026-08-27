@@ -118,6 +118,12 @@ class CompanyResource extends Resource
                     Textarea::make('address')
                         ->rows(3)
                         ->columnSpanFull(),
+                    TextInput::make('google_maps_url')
+                        ->label('Google Maps link')
+                        ->url()
+                        ->maxLength(500)
+                        ->columnSpanFull()
+                        ->helperText('Go to your location on Google Maps, tap "Share" → "Copy link", and paste it here. Leave empty to fall back to an auto-generated (less precise) search link built from the address above.'),
                     ColorPicker::make('dashboard_color')
                         ->label('Dashboard Color')
                         ->helperText('This company\'s admin panel color (sidebar, buttons, links). Separate from any storefront branding color.')

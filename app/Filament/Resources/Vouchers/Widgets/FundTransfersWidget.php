@@ -13,12 +13,17 @@ use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Url;
 
 class FundTransfersWidget extends TableWidget
 {
     protected int|string|array $columnSpan = 'full';
 
     protected static bool $isLazy = false;
+
+    /** Deep-linked from a VoucherSummaryWidget "Fund Transfer" card - see its docblock. */
+    #[Url]
+    public ?string $ftStatus = null;
 
     public static function canView(): bool
     {
@@ -31,7 +36,9 @@ class FundTransfersWidget extends TableWidget
         return $table
             ->heading('Fund Transfers')
             ->description('Move money between company accounts without leaving the Vouchers page.')
-            ->query(fn (): Builder => FundTransfer::query()->with(['fromAccount', 'toAccount', 'requester']))
+            ->query(fn (): Builder => FundTransfer::query()
+                ->when($this->ftStatus, fn (Builder $q, string $status): Builder => $q->where('status', $status))
+                ->with(['fromAccount', 'toAccount', 'requester']))
             ->columns([
                 TextColumn::make('transfer_number')->label('Transfer #')->searchable()->sortable(),
                 TextColumn::make('fromAccount.name')->label('From'),

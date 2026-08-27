@@ -88,28 +88,29 @@
         : request()->routeIs('storefront.track.*', 'storefront.preview.track.*');
 
     // Admin-managed navigation menus (Storefront Settings → Navigation Menus).
-    $menuCategorySlugs = collect([$setting->header_menu, $setting->footer_menu])->flatten(1)->filter()->where('type', 'category')->pluck('category_id')->filter()->unique();
+    $menuCategoryIds = collect([$setting->header_menu, $setting->footer_menu])->flatten(1)->filter()->where('type', 'category')->pluck('category_id')->filter()->unique();
     $menuPageSlugs = collect([$setting->header_menu, $setting->footer_menu])->flatten(1)->filter()->where('type', 'page')->pluck('page_id')->filter()->unique();
-    $menuCategorySlugs = $menuCategorySlugs->isEmpty() ? collect() : \App\Models\Category::withoutGlobalScopes()->where('company_id', $company->getKey())->whereIn('id', $menuCategorySlugs)->where('is_active', true)->pluck('slug', 'id');
+    $menuCategoryData = $menuCategoryIds->isEmpty() ? collect() : \App\Models\Category::withoutGlobalScopes()->where('company_id', $company->getKey())->whereIn('id', $menuCategoryIds)->where('is_active', true)->get(['id', 'slug', 'icon'])->keyBy('id');
     $menuPageSlugs = $menuPageSlugs->isEmpty() ? collect() : \App\Models\StorefrontPage::withoutGlobalScopes()->where('company_id', $company->getKey())->whereIn('id', $menuPageSlugs)->where('is_published', true)->pluck('slug', 'id');
-    $resolveMenu = function (?array $items) use ($productsUrl, $trackUrl, $accountOrdersUrl, $resellerUrl, $offersUrl, $previewSlug, $menuCategorySlugs, $menuPageSlugs, $pageUrl) {
-        return collect($items ?? [])->map(function ($item) use ($productsUrl, $trackUrl, $accountOrdersUrl, $resellerUrl, $offersUrl, $previewSlug, $menuCategorySlugs, $menuPageSlugs, $pageUrl) {
+    $resolveMenu = function (?array $items) use ($productsUrl, $trackUrl, $accountOrdersUrl, $resellerUrl, $offersUrl, $previewSlug, $menuCategoryData, $menuPageSlugs, $pageUrl) {
+        return collect($items ?? [])->map(function ($item) use ($productsUrl, $trackUrl, $accountOrdersUrl, $resellerUrl, $offersUrl, $previewSlug, $menuCategoryData, $menuPageSlugs, $pageUrl) {
             $label = trim((string) ($item['label'] ?? ''));
+            $menuCategory = ($item['type'] ?? null) === 'category' ? $menuCategoryData->get($item['category_id'] ?? null) : null;
             $url = match ($item['type'] ?? null) {
                 'shop' => $productsUrl,
                 'track' => $trackUrl,
                 'account' => $accountOrdersUrl,
                 'reseller' => $resellerUrl,
                 'offers' => $offersUrl,
-                'category' => ($slug = $menuCategorySlugs->get($item['category_id'] ?? null))
-                    ? (isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $slug]) : route('storefront.categories.show', $slug))
+                'category' => $menuCategory
+                    ? (isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $menuCategory->slug]) : route('storefront.categories.show', $menuCategory->slug))
                     : null,
                 'page' => ($slug = $menuPageSlugs->get($item['page_id'] ?? null)) ? $pageUrl($slug) : null,
                 'custom' => filled($item['url'] ?? null) ? $item['url'] : null,
                 default => null,
             };
 
-            return ($label === '' || $url === null) ? null : ['label' => $label, 'url' => $url, 'new_tab' => (bool) ($item['new_tab'] ?? false)];
+            return ($label === '' || $url === null) ? null : ['label' => $label, 'url' => $url, 'new_tab' => (bool) ($item['new_tab'] ?? false), 'icon' => $menuCategory?->icon];
         })->filter()->values();
     };
     $headerMenu = $resolveMenu($setting->header_menu);
@@ -323,10 +324,12 @@
                                     <svg class="h-5 w-5 shrink-0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 1 0 3-6.708M3 4.5v5.25h5.25M12 7.5V12l3 1.5"/></svg>
                                     Track an order
                                 </a>
-                                <a class="flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white" href="{{ $resellerUrl }}" role="menuitem" @click="open = false">
-                                    <svg class="h-5 w-5 shrink-0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372A9.337 9.337 0 0 0 21 18.872M15 19.128v-.003c0-1.113-.285-2.16-.786-3.071M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766v-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></svg>
-                                    {{ in_array($authCustomer->reseller_status, [null, 'none'], true) ? 'Become a reseller' : 'Reseller status' }}
-                                </a>
+                                @if ($setting->reseller_program_enabled ?? true)
+                                    <a class="flex min-h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white" href="{{ $resellerUrl }}" role="menuitem" @click="open = false">
+                                        <svg class="h-5 w-5 shrink-0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372A9.337 9.337 0 0 0 21 18.872M15 19.128v-.003c0-1.113-.285-2.16-.786-3.071M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766v-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></svg>
+                                        {{ in_array($authCustomer->reseller_status, [null, 'none'], true) ? 'Become a reseller' : 'Reseller status' }}
+                                    </a>
+                                @endif
                                 <form class="border-t border-gray-100 pt-0.5 dark:border-gray-800" method="POST" action="{{ $logoutUrl }}">
                                     @csrf
                                     <button class="flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30" type="submit" role="menuitem">
@@ -377,7 +380,14 @@
                             href="{{ $menuItem['url'] }}"
                             @if ($isCurrentUrl($menuItem['url'])) aria-current="page" @endif
                             @if ($menuItem['new_tab']) target="_blank" rel="noopener" @endif
-                        >{{ $menuItem['label'] }}</a>
+                        >
+                            @if ($menuItem['icon'] ?? null)
+                                <span class="mr-1.5 grid h-4 w-4 place-items-center text-[var(--storefront-brand)]">
+                                    @include('storefront.partials.category-icon', ['icon' => $menuItem['icon'], 'iconClass' => 'h-4 w-4'])
+                                </span>
+                            @endif
+                            {{ $menuItem['label'] }}
+                        </a>
                     @endforeach
                 @else
                     <a class="inline-flex min-h-10 items-center border-b-2 transition hover:border-[var(--storefront-brand)] hover:text-gray-950 dark:hover:text-white {{ $isCatalogCurrent ? 'border-[var(--storefront-brand)] text-gray-950 dark:text-white' : 'border-transparent' }}" href="{{ $productsUrl }}" @if ($isCatalogCurrent) aria-current="page" @endif>Shop all</a>
@@ -436,7 +446,14 @@
             <nav class="mx-auto flex w-full max-w-7xl flex-col gap-1 px-4 py-3" aria-label="Mobile menu">
                 @if ($headerMenu->isNotEmpty())
                     @foreach ($headerMenu as $menuItem)
-                        <a class="rounded-lg px-3 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white" href="{{ $menuItem['url'] }}" @if ($isCurrentUrl($menuItem['url'])) aria-current="page" @endif @if ($menuItem['new_tab']) target="_blank" rel="noopener" @endif>{{ $menuItem['label'] }}</a>
+                        <a class="flex items-center gap-1.5 rounded-lg px-3 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white" href="{{ $menuItem['url'] }}" @if ($isCurrentUrl($menuItem['url'])) aria-current="page" @endif @if ($menuItem['new_tab']) target="_blank" rel="noopener" @endif>
+                            @if ($menuItem['icon'] ?? null)
+                                <span class="grid h-4 w-4 place-items-center text-[var(--storefront-brand)]">
+                                    @include('storefront.partials.category-icon', ['icon' => $menuItem['icon'], 'iconClass' => 'h-4 w-4'])
+                                </span>
+                            @endif
+                            {{ $menuItem['label'] }}
+                        </a>
                     @endforeach
                 @else
                     <a class="rounded-lg px-3 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white" href="{{ $productsUrl }}" @if ($isCatalogCurrent) aria-current="page" @endif>Shop all</a>
@@ -472,7 +489,13 @@
         @yield('content')
     </main>
 
-    <footer class="storefront-footer mb-16 mt-12 border-t border-gray-200 bg-gray-50 sm:mb-0 dark:border-white/10 dark:bg-white/[0.02]">
+    @php
+        $footerBlocks = collect($setting->footerBlocks());
+        $footerBottomBar = $footerBlocks->first(fn (array $block): bool => ($block['type'] ?? null) === 'bottom_bar');
+        $footerGridBlocks = $footerBlocks->reject(fn (array $block): bool => ($block['type'] ?? null) === 'bottom_bar');
+    @endphp
+
+    <footer class="storefront-footer mb-16 mt-12 border-t border-gray-200 bg-gray-50 sm:mb-0 dark:border-white/10 dark:bg-white/[0.02]" x-reveal>
         @if ($sisterCompanies->isNotEmpty())
             <div class="border-b border-gray-200 dark:border-white/10">
                 <div class="mx-auto w-full max-w-7xl px-4 py-5 sm:px-5 lg:px-6">
@@ -487,57 +510,18 @@
                 </div>
             </div>
         @endif
-        <div class="mx-auto grid w-full max-w-7xl gap-7 px-4 py-8 sm:px-5 md:grid-cols-3 lg:px-6">
-            <div>
-                <div class="text-lg font-semibold tracking-tight">{{ $company->name }}</div>
-                <p class="mt-3 max-w-sm text-sm leading-6 text-gray-500 dark:text-gray-400">
-                    Browse curated products, place direct orders, and track storefront purchases from {{ $company->name }}.
-                </p>
+
+        @if ($footerGridBlocks->isNotEmpty())
+            <div class="mx-auto grid w-full max-w-7xl gap-7 px-4 py-8 sm:px-5 md:grid-cols-3 lg:px-6">
+                @foreach ($footerGridBlocks as $block)
+                    @includeIf('storefront.partials.footer-blocks.'.$block['type'], ['data' => $block['data'] ?? []])
+                @endforeach
             </div>
-            @if ($footerMenu->isNotEmpty())
-                <div>
-                    <div class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Quick links</div>
-                    <nav class="mt-3 flex flex-col gap-2" aria-label="Footer menu">
-                        @foreach ($footerMenu as $menuItem)
-                            <a class="text-sm text-gray-600 transition hover:text-[var(--storefront-brand)] dark:text-gray-400" href="{{ $menuItem['url'] }}" @if ($isCurrentUrl($menuItem['url'])) aria-current="page" @endif @if ($menuItem['new_tab']) target="_blank" rel="noopener" @endif>
-                                {{ $menuItem['label'] }}
-                            </a>
-                        @endforeach
-                    </nav>
-                </div>
-            @elseif ($footerPages->isNotEmpty())
-                <div>
-                    <div class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Pages</div>
-                    <nav class="mt-3 flex flex-col gap-2" aria-label="Storefront pages">
-                        @foreach ($footerPages as $footerPage)
-                            <a class="text-sm text-gray-600 transition hover:text-[var(--storefront-brand)] dark:text-gray-400" href="{{ $pageUrl($footerPage->slug) }}" @if ($isCurrentUrl($pageUrl($footerPage->slug))) aria-current="page" @endif>
-                                {{ $footerPage->title }}
-                            </a>
-                        @endforeach
-                    </nav>
-                </div>
-            @endif
-            <div>
-                <div class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Contact</div>
-                <div class="mt-3 flex flex-col items-start gap-3">
-                    <a class="text-sm text-gray-600 transition hover:text-[var(--storefront-brand)] dark:text-gray-400" href="{{ isset($previewSlug) ? route('storefront.preview.contact', $previewSlug) : route('storefront.contact') }}">
-                        Contact us
-                    </a>
-                    <a class="text-sm text-gray-600 transition hover:text-[var(--storefront-brand)] dark:text-gray-400" href="{{ isset($previewSlug) ? route('storefront.preview.complaints.show', $previewSlug) : route('storefront.complaints.show') }}">
-                        Product complaint
-                    </a>
-                    <a class="text-sm text-gray-600 transition hover:text-[var(--storefront-brand)] dark:text-gray-400" href="{{ isset($previewSlug) ? route('storefront.preview.reseller.show', $previewSlug) : route('storefront.reseller.show') }}">
-                        Become a reseller
-                    </a>
-                    @if ($setting->whatsapp_number)
-                        <a class="inline-flex rounded-lg bg-[var(--storefront-brand)] px-4 py-2 text-sm font-medium text-white" href="https://wa.me/{{ preg_replace('/\D+/', '', $setting->whatsapp_number) }}" target="_blank" rel="noopener">
-                            Chat on WhatsApp
-                        </a>
-                    @endif
-                    <div class="text-sm text-gray-500 dark:text-gray-400">&copy; {{ now()->year }} {{ $company->name }}.</div>
-                </div>
-            </div>
-        </div>
+        @endif
+
+        @if ($footerBottomBar)
+            @include('storefront.partials.footer-blocks.bottom_bar', ['data' => $footerBottomBar['data'] ?? []])
+        @endif
     </footer>
 
     <nav class="storefront-mobile-nav fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-gray-200 bg-white/95 backdrop-blur sm:hidden dark:border-white/10 dark:bg-gray-950/95" style="padding-bottom: env(safe-area-inset-bottom);" aria-label="Mobile navigation">

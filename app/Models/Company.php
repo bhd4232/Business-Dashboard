@@ -52,6 +52,7 @@ class Company extends Model
         'phone',
         'email',
         'address',
+        'google_maps_url',
         'currency',
         'timezone',
         'invoice_prefix',

@@ -11,6 +11,7 @@ use App\Support\CompanyScopedUnique;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -316,9 +317,11 @@ class ProductForm
                 Section::make('Description')
                     ->columnSpanFull()
                     ->schema([
-                        Textarea::make('description')
+                        RichEditor::make('description')
                             ->label('Description')
-                            ->rows(4)
+                            ->required(false)
+                            ->fileAttachmentsDisk(fn (): string => CompanyMedia::publicDiskName())
+                            ->fileAttachmentsDirectory(fn ($record): string => CompanyMedia::publicDirectory('products/description', $record))
                             ->columnSpanFull(),
                     ])
                     ->collapsible()

@@ -24,6 +24,20 @@ class CourierHealthWidget extends StatsOverviewWidget
             && (Auth::user()?->hasPermission('sales.view') ?? false);
     }
 
+    /**
+     * Keep the overview dense on both phone and desktop while retaining
+     * Filament's native responsive grid implementation.
+     *
+     * @return array<string, int>
+     */
+    protected function getColumns(): array
+    {
+        return [
+            'default' => 2,
+            'lg' => 4,
+        ];
+    }
+
     protected function getStats(): array
     {
         $active = CourierBooking::query()

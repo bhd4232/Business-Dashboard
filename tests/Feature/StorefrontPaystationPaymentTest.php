@@ -141,11 +141,17 @@ class StorefrontPaystationPaymentTest extends TestCase
             'status' => StorefrontPayment::STATUS_PENDING,
         ]);
 
-        // hasValidSignatureWhileIgnoring only ignores invoice_number/trx_id —
-        // a request with no signature at all (or a tampered one) must still
-        // be rejected, proving the fix didn't just disable signing.
+        // hasValidSignatureWhileIgnoring only ignores invoice_number/trx_id/
+        // status/cancel — a request with no signature at all (or a tampered
+        // one) must still be rejected, proving the fix didn't just disable
+        // signing. It's now a friendly redirect back to checkout instead of
+        // a raw 403 (see CheckoutController::paymentReturn), but the payment
+        // itself must still not be finalized.
         $this->get('http://badsig.example.test/checkout/payment/'.$payment->getKey().'/return?invoice_number=1&trx_id=X')
-            ->assertForbidden();
+            ->assertRedirect('http://badsig.example.test/checkout')
+            ->assertSessionHasErrors('payment');
+
+        $this->assertSame(StorefrontPayment::STATUS_PENDING, $payment->fresh()->status);
     }
 
     public function test_paystation_webhook_fallback_marks_payment_completed_after_verification(): void

@@ -49,7 +49,7 @@ class ReleaseNotesTest extends TestCase
             ->assertOk()
             ->assertHeader('Cache-Control')
             ->assertJsonPath('version', '9.8.7')
-            ->assertJsonPath('published_version', '2.1.0')
+            ->assertJsonPath('published_version', '2.2.0')
             ->assertJsonPath('release_type', 'critical_fix')
             ->assertJsonPath('release_label', 'Critical Fix Update')
             ->assertJsonPath('release_date', '2026-06-21')
@@ -75,10 +75,10 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v2.1.0')
+            ->assertSee('v2.2.0')
             ->assertSee('Installed version')
             ->assertSee('Minor Feature')
-            ->assertSee('Released 2026-08-18')
+            ->assertSee('Released 2026-08-26')
             ->assertSee('Noor Solar Energy')
             ->assertSee('Technical Notes')
             ->assertSee('Added `three` as a production dependency')
@@ -104,7 +104,7 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v2.1.0')
+            ->assertSee('v2.2.0')
             ->assertSee('Noor Solar Energy')
             ->assertSee('Added Customer and Order risk badges')
             ->assertDontSee('Added disposable SQLite backup restore verification')
@@ -133,7 +133,7 @@ class ReleaseNotesTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/settings/release-notes')
             ->assertOk()
-            ->assertSee('Update available: v2.1.0')
+            ->assertSee('Update available: v2.2.0')
             ->assertSee('Awaiting your approval')
             ->assertSee('Installed version: v1.21.0')
             ->assertDontSee('Android update push notifications');
@@ -151,7 +151,7 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertDontSee('Awaiting your approval')
-            ->assertSee('Installed version: v2.1.0')
+            ->assertSee('Installed version: v2.2.0')
             ->assertSee('Noor Solar Energy');
     }
 }

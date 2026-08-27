@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @push('meta-events')
     @php
@@ -167,7 +167,7 @@
                 form.querySelectorAll('button[type="submit"]').forEach(function (button) {
                     button.disabled = true;
                     button.setAttribute('aria-busy', 'true');
-                    button.textContent = button.getAttribute('data-pending-label') || 'Working…';
+                    button.textContent = button.getAttribute('data-pending-label') || 'Workingâ€¦';
                 });
             }, 0);
         });

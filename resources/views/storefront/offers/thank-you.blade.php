@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @section('content')
     @php
@@ -16,13 +16,13 @@
 
         @if ($generatedPassword)
             <div class="mt-6 rounded-xl border border-[var(--storefront-brand)]/30 bg-[var(--storefront-brand)]/5 p-5 text-left text-sm leading-6">
-                <h2 class="font-semibold text-gray-950 dark:text-white">আপনার অ্যাকাউন্ট তৈরি হয়েছে</h2>
+                <h2 class="font-semibold text-gray-950 dark:text-white">à¦†à¦ªà¦¨à¦¾à¦° à¦…à§à¦¯à¦¾à¦•à¦¾à¦‰à¦¨à§à¦Ÿ à¦¤à§ˆà¦°à¦¿ à¦¹à¦¯à¦¼à§‡à¦›à§‡</h2>
                 <p class="mt-2 text-gray-700 dark:text-gray-200">
-                    লগইন: <span class="font-semibold">{{ $order->customer?->phone }}</span><br>
-                    পাসওয়ার্ড: <span class="font-semibold">{{ $generatedPassword }}</span>
+                    à¦²à¦—à¦‡à¦¨: <span class="font-semibold">{{ $order->customer?->phone }}</span><br>
+                    à¦ªà¦¾à¦¸à¦“à¦¯à¦¼à¦¾à¦°à§à¦¡: <span class="font-semibold">{{ $generatedPassword }}</span>
                 </p>
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">এই পাসওয়ার্ড শুধু একবারই দেখানো হচ্ছে — অনুগ্রহ করে সংরক্ষণ করুন। লগইন করে প্রোফাইল সেটিংস থেকে যেকোনো সময় পরিবর্তন করতে পারবেন।</p>
-                <a href="{{ $loginUrl }}" class="mt-3 inline-flex items-center text-sm font-medium text-[var(--storefront-brand)]">এখনই লগইন করুন &rarr;</a>
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">à¦à¦‡ à¦ªà¦¾à¦¸à¦“à¦¯à¦¼à¦¾à¦°à§à¦¡ à¦¶à§à¦§à§ à¦à¦•à¦¬à¦¾à¦°à¦‡ à¦¦à§‡à¦–à¦¾à¦¨à§‹ à¦¹à¦šà§à¦›à§‡ â€” à¦…à¦¨à§à¦—à§à¦°à¦¹ à¦•à¦°à§‡ à¦¸à¦‚à¦°à¦•à§à¦·à¦£ à¦•à¦°à§à¦¨à¥¤ à¦²à¦—à¦‡à¦¨ à¦•à¦°à§‡ à¦ªà§à¦°à§‹à¦«à¦¾à¦‡à¦² à¦¸à§‡à¦Ÿà¦¿à¦‚à¦¸ à¦¥à§‡à¦•à§‡ à¦¯à§‡à¦•à§‹à¦¨à§‹ à¦¸à¦®à¦¯à¦¼ à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨ à¦•à¦°à¦¤à§‡ à¦ªà¦¾à¦°à¦¬à§‡à¦¨à¥¤</p>
+                <a href="{{ $loginUrl }}" class="mt-3 inline-flex items-center text-sm font-medium text-[var(--storefront-brand)]">à¦à¦–à¦¨à¦‡ à¦²à¦—à¦‡à¦¨ à¦•à¦°à§à¦¨ &rarr;</a>
             </div>
         @endif
 

@@ -125,12 +125,15 @@ class Order extends Model
 
     public const SOURCE_OFFER = 'offer';
 
+    public const SOURCE_WOOCOMMERCE = 'woocommerce';
+
     public const SOURCES = [
         self::SOURCE_ADMIN => 'Admin',
         self::SOURCE_STOREFRONT => 'Storefront',
         self::SOURCE_CRM => 'CRM',
         self::SOURCE_CHAT => 'Chat',
         self::SOURCE_OFFER => 'Offer',
+        self::SOURCE_WOOCOMMERCE => 'WooCommerce',
     ];
 
     protected $fillable = [
@@ -151,6 +154,7 @@ class Order extends Model
         'delivery_status',
         'courier_provider_id',
         'source',
+        'external_reference',
         'note',
     ];
 

@@ -19,10 +19,12 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 
 /**
@@ -244,6 +246,26 @@ class Integrations extends Page
                                 Placeholder::make('woocommerce_note')
                                     ->hiddenLabel()
                                     ->content('Save credentials here, then run (or re-run) the actual product import from Storefront Settings → WooCommerce Import.')
+                                    ->columnSpanFull(),
+                                TextInput::make('woocommerce_credentials.webhook_secret')
+                                    ->label('Order webhook secret')
+                                    ->password()
+                                    ->revealable()
+                                    ->maxLength(255)
+                                    ->suffixAction(
+                                        Action::make('generateWoocommerceWebhookSecret')
+                                            ->icon(Heroicon::ArrowPath)
+                                            ->action(fn (Set $set) => $set('woocommerce_credentials.webhook_secret', Str::random(40))),
+                                    )
+                                    ->helperText('Must match exactly what you paste as the Secret when creating the webhook in WooCommerce.')
+                                    ->columnSpanFull(),
+                                Placeholder::make('woocommerce_webhook_url')
+                                    ->label('Webhook delivery URL')
+                                    ->content(fn (): string => $this->companyId ? route('woocommerce.webhook', $this->companyId) : 'Save the company first.')
+                                    ->columnSpanFull(),
+                                Placeholder::make('woocommerce_webhook_note')
+                                    ->hiddenLabel()
+                                    ->content('Order sync (WooCommerce → ERP) uses a webhook, not the import button above: in WordPress go to WooCommerce → Settings → Advanced → Webhooks → Add webhook. Set Topic to "Order updated" (it covers created/updated/deleted), Delivery URL to the URL above, and Secret to the same secret set above — the two must match exactly.')
                                     ->columnSpanFull(),
                             ])
                             ->columns(2),

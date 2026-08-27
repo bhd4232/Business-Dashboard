@@ -2,6 +2,172 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-26 - Version number catch-up: v2.1.0 → v2.2.0
+
+Reason:
+
+- Owner: "ভার্সন নাম্বার আপডেট হয়না। অ্যাপের ভার্সন নাম্বার আপডেটকর।" (the version number doesn't update — update the app's version number). Investigated and confirmed: **25 real commits have landed on `main` since the last version bump** (`f9bf72b3`, which published v2.1.0 on 2026-08-18) — push notifications, on-device Android crash reporting, dashboard-managed checkout payment methods, a shared stock pool, a consolidated Integrations settings page, several security fixes (race conditions, quotation-link signing, storefront-preview isolation, Steadfast webhook auth, Meta Pixel consent), and more — none of which ever bumped `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE` or turned `CHANGELOG.md`'s `[Unreleased]` section into a proper versioned entry, even though every one of those commits had correctly added its own `CHANGELOG.md` bullets under `[Unreleased]` per CLAUDE.md. The Release Notes page / `/health/version` endpoint was consequently stuck reporting v2.1.0 (2026-08-18) the whole time, regardless of what had actually shipped.
+
+What changed:
+
+- Split `CHANGELOG.md`'s `[Unreleased]` section into two: everything that was **already committed** (the 25 commits above) became a new `## [2.2.0] - 2026-08-26` entry (Minor Feature Update — dominant content is new backward-compatible features, several of which also carry Security-category fixes); everything **not yet committed** (today's earlier Dashboard drilldown/WooCommerce webhook/security-hardening work, from `09_DASHBOARD_WOOCOMMERCE_SECURITY_PLAN.md`, plus the still-pending Storefront UX Fixes and Dashboard Summary Cards work from before it) stayed under a fresh `[Unreleased]` header, so nothing uncommitted gets misrepresented as released.
+- `config/release.php`'s fallback defaults bumped to `2.2.0` / `minor` / `2026-08-26` (matches `f9bf72b3`'s own precedent of bumping this file alongside the changelog). `.env.example`, `.env.production.example`, and `docs/deployment.md`'s example `APP_VERSION`/`APP_RELEASE_DATE` values updated to match.
+- `README.md`'s "Latest Release" heading/summary and `PROJECT_GUIDE.md`'s "Current published release is **vX.X.X**" sentence updated to describe v2.2.0's actual highlights.
+- `tests/Feature/ReleaseNotesTest.php`: updated the handful of hardcoded `v2.1.0`/`2026-08-18` assertions to `v2.2.0`/`2026-08-26` (5 spots across 4 tests). Everything else those tests check (older-release content like "Noor Solar Energy", "Added Customer and Order risk badges", static page copy like "Production Update Rules") is untouched and still correct, since the Release Notes page renders the full version history, not just the newest entry.
+
+Important note for the owner — this is the local, repo-side half of the fix only:
+
+- **`config/release.php`'s bumped default only takes effect if the production server's actual `.env` does NOT already set `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE` explicitly.** Per `docs/release-policy.md`, every release is supposed to also update those three values directly in the production environment (Coolify env variables) — I cannot do that from here (no server access). If production's `.env` already has `APP_VERSION=2.1.0` etc. sitting in it, deploying this commit alone will **not** move the live site's displayed version until those three env vars are updated to `2.2.0` / `minor` / `2026-08-26` there too. Recommend setting them explicitly in Coolify regardless of whether they're currently set, and doing so as a habit on every future release so this gap doesn't reopen.
+
+Important changed files:
+
+- `CHANGELOG.md` (split `[Unreleased]` → new `[2.2.0] - 2026-08-26` + fresh `[Unreleased]`)
+- `config/release.php`, `.env.example`, `.env.production.example`, `docs/deployment.md` (version/type/date defaults)
+- `README.md`, `PROJECT_GUIDE.md` (release summary text)
+- `tests/Feature/ReleaseNotesTest.php` (5 hardcoded-version assertions)
+
+Verification:
+
+- `php artisan test --filter=ReleaseNotesTest` — 5 passed, 0 failed.
+- `php artisan test --filter="Release|Changelog|Version|AppUpdate|AppUpgrade"` — 39 passed, 0 failed.
+- `php artisan test --filter="PhaseFourAdminPagesTest|CompanySettingsTest"` — 33 passed, 0 failed (sanity check — these were touched alongside the version bump in the last `2.1.0` release commit, though for an unrelated reason; confirmed no version-number references live there needing updates).
+- Live browser check: `/health/version` now returns `"version":"2.2.0","published_version":"2.2.0"`; `/admin/settings/release-notes` shows "Installed version: v2.2.0", "Released 2026-08-26", "Minor Feature Update", with the full v2.2.0 entry rendering above the existing v2.1.0 history.
+- Full `php artisan test` suite — 912 passed, 0 failed, 5146 assertions (identical count to the pre-version-bump run — confirms the CHANGELOG.md restructure introduced zero regressions).
+- No destructive commands run; no database/migration changes in this round at all — purely documentation/config/test-assertion changes.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-26 - Dashboard drilldown, WooCommerce order webhook, security hardening (09_DASHBOARD_WOOCOMMERCE_SECURITY_PLAN.md, 3 items)
+
+Reason:
+
+- Owner: `@"09_DASHBOARD_WOOCOMMERCE_SECURITY_PLAN.md" ইমপ্লিমেন্ট কর` (implement the plan file) — a pre-existing, already-approved plan document (drafted 2026-08-15) covering 3 items grounded in real file/line references: dashboard drilldown, a real WooCommerce order-management integration, and backend/admin security hardening.
+
+What changed (mapped to the plan's step numbers):
+
+- **Step 1.1 — Responsive mobile columns**: `CustomerRiskOverview` and `CourierHealthWidget` now use `getColumns() => ['default' => 2, 'lg' => 3|4]`, same pattern `BusinessOverview` already used.
+- **Step 1.2 — Clickable dashboard drilldowns**: went with the plan's Option B (real modal, not just a link) after confirming it against the actually-installed Filament v5 source (`HasActions`/`InteractsWithActions` + `<x-filament-actions::modals />`, the same mechanism `TableWidget` already uses) rather than assuming the plan's own draft code matched this version. Every `BusinessOverview` stat card except Account Balance now opens a popup listing the real records behind that number (capped at 50, with a "Showing X of Y" note and a "See all" link into the matching filtered resource list when a matching filter already exists on that table). Account Balance keeps linking straight to Accounts, per the plan's own note that a single balance has no "list" to show.
+- **Step 2 — WooCommerce order sync via webhook**: `WooCommerceImportService` only ever imported *products*; order sync didn't exist anywhere. Built exactly what the plan specified — WooCommerce's own native webhooks (`order.created`/`order.updated`/`order.deleted`), HMAC-SHA256-signature-verified, idempotent upsert keyed on a new `orders.external_reference` column, SKU-matched line items (unmatched SKU skipped + logged, not a hard failure), phone-based customer matching (same as the storefront checkout), and a new Settings → Integrations → WooCommerce webhook-secret field + delivery URL + setup instructions.
+- **Step 3 — Security hardening**: implemented everything code-level the plan asked for (see Security section below) and verified two things the plan flagged as "check if Filament already does this" — login rate-limiting and generic-failure-message/timing-safe login — by reading Filament's actual `Login` page source rather than guessing; both were already correct, no code change needed there. 2FA (plan's step 3.5, marked explicitly optional/future) was not implemented — it's a bigger, separate piece of work.
+
+One correction made along the way, worth flagging clearly: the plan's own example code for the "see all" links used `['tableFilters' => [...]]` as the `getUrl()` parameter — this silently opens the list **completely unfiltered** in this Filament version (Livewire ignores the unrecognized query key instead of erroring). The actual correct key, confirmed by reading `Filament\Resources\Pages\ListRecords`'s source and then verified live in the browser against three different resources (Orders/Customers/Products), is `filters` — see CHANGELOG.md's Technical Notes for the full explanation, including why this doesn't contradict the existing `CourierMerchantDashboard` note about `tableFilters` being broken (different page type, never had this binding to get right or wrong in the first place).
+
+Important changed files:
+
+- `app/Filament/Widgets/BusinessOverview.php` (rewritten — modal drilldown actions), `app/Filament/Widgets/CustomerRiskOverview.php`, `app/Filament/Widgets/CourierHealthWidget.php` (`getColumns()`)
+- `resources/views/filament/widgets/business-overview.blade.php` (new), `resources/views/filament/widgets/partials/dashboard-drilldown-list.blade.php` (new)
+- `app/Services/ReportService.php` (`storefrontPendingOrders()`, `customerPayments()`/`supplierPayments()`, `comingSoonProducts()`, shared `ledgerQuery()`)
+- `resources/css/filament/admin/theme.css` (hover/cursor rule for clickable stat cards)
+- `tests/Feature/DashboardDrilldownTest.php` (new)
+- `app/Services/WooCommerceOrderSyncService.php` (new), `app/Http/Controllers/WooCommerceWebhookController.php` (new)
+- `database/migrations/2026_08_26_100000_add_external_reference_to_orders_table.php` (new), `app/Models/Order.php` (`SOURCE_WOOCOMMERCE`, `external_reference` fillable), `app/Filament/Resources/Orders/Tables/OrdersTable.php` (source badge color)
+- `routes/web.php` (new webhook route + import), `bootstrap/app.php` (CSRF exemption)
+- `app/Filament/Pages/Integrations.php` (WooCommerce tab: webhook secret + generate button + delivery URL + instructions)
+- `tests/Feature/WooCommerceOrderWebhookTest.php` (new)
+- `app/Http/Middleware/SecurityHeaders.php` (new), `bootstrap/app.php` (registered in `web` group, `withExceptions()` storefront error-page renderer)
+- `app/Support/StorefrontErrorPages.php` (new), `resources/views/components/layouts/error.blade.php` (new), `resources/views/errors/{403,404,419,429,500}.blade.php` (new)
+- `public/robots.txt` (`Disallow: /admin`, `/livewire`)
+- `tests/Feature/SecurityHardeningTest.php` (new)
+
+Verification:
+
+- `php artisan test --filter="DashboardDrilldownTest|BusinessOverviewLayoutTest"` — 5 passed, 0 failed.
+- `php artisan test --filter=WooCommerceOrderWebhookTest` — 6 passed, 0 failed.
+- `php artisan test --filter=SecurityHardeningTest` — 7 passed, 0 failed.
+- `php artisan test --filter="Storefront|Admin|Login|Auth"` — 247 passed, 0 failed (checked for regressions from the new global `SecurityHeaders` middleware + exception handler).
+- Full `php artisan test` suite — 912 passed, 0 failed, 5146 assertions, 388.14s.
+- `npm run build` — clean.
+- Live browser check (local dev server, real demo data, Main Company/Noor Solar): clicked "Today Sales" (empty state renders correctly) and "Storefront Pending" (real pending order shows, with correct columns) on the actual Dashboard — modal opens/closes correctly, "See all" link's `?filters[status][value]=draft` correctly narrows the Orders list to exactly that 1 order (screenshotted/verified the "Active filters: Status: Draft" indicator). Verified the `has_due`/`low_stock` toggle-filter shape (`?filters[name][isActive]=1`) the same way against Customers/Products. Confirmed all four security headers present on a real response via `fetch()`, confirmed `/robots.txt` serves the updated content.
+- No destructive commands run. `php artisan migrate --force` was run locally (purely additive: nullable `orders.external_reference` + a new unique index) — safe, non-destructive, and safely re-runnable.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-26 - Storefront UX fixes & footer builder (08_STOREFRONT_UX_FIXES_PLAN.md, 14 items)
+
+Reason:
+
+- Owner: "@08_STOREFRONT_UX_FIXES_PLAN ফাইল এর কাজ টা ইমপ্লিমেন্ট কর।" (implement the work in the 08_STOREFRONT_UX_FIXES_PLAN.md file) — a pre-existing, already-approved 14-item plan document (drafted 2026-08-15) covering storefront bugs/features gathered from the owner. Item 1 (adding categories) was explicitly operational/data-entry, not code, so it needed no implementation; item 6 was already merged into item 3 (footer builder) in the plan itself. The other 12 items are covered below.
+
+What changed (mapped to the plan's step numbers):
+
+- **Step 2 — Related product grid**: 2 columns on mobile / 5 on desktop (was defaulting to 1 column on mobile).
+- **Step 3 + 6 — Footer Builder**: the footer is now an admin-editable Repeater of blocks (`brand_about`, `quick_links`, `contact_info`, `social_links`, `bottom_bar`) instead of one fixed chunk of markup, under a new **Storefront Settings → Footer Builder** section. `bottom_bar` is the new "item 6" — a copyright line (`{year}`/`{company_name}` tokens) plus a row of legal links to any published Storefront Page, always rendered last. New `social_links` column (platform + URL pairs) feeds the `social_links` block. Every existing company's footer keeps rendering exactly as before via a documented `StorefrontSetting::DEFAULT_FOOTER_BLOCKS` fallback when `footer_blocks` is `NULL`; a new `php artisan storefront:seed-default-footer-blocks` command one-time-backfills that default set so the builder opens pre-arranged instead of empty on first visit.
+- **Step 4 — Theme-flexible header/footer**: `StorefrontThemeRegistry` gained a `'layout'` key per theme + a `layoutView()` resolver; all 22 storefront Blade views that hardcoded `@extends('storefront.layout')` now resolve it dynamically. All three themes currently point at the same shared layout (no visible change today) — a future theme can now get its own header/footer with a one-line registry change instead of touching every view.
+- **Step 5 — Homepage "Top categories"**: redesigned (Built-in theme) from a small round-icon horizontal scroller into a "Shop by category" card grid with hover lift/shadow.
+- **Step 7 — Rich product descriptions**: `Product` description field is now a `RichEditor` (headings/bold/lists/images), same as Storefront Pages already use. Rendered on the storefront via Filament's `RichContentRenderer` (not raw `{!! !!}`) — see Security note below.
+- **Step 8 — Payment cancel/expired-signature return**: no longer a raw 403 — redirects to checkout with a friendly message. Real payment finalization is untouched (still requires a separate successful gateway verification call); the signature is only a guard against guessing a payment's URL.
+- **Step 9 — Google Maps link**: new `companies.google_maps_url` field (Company form) overrides the previous always-auto-generated (less accurate) address-search link on the Contact page; empty keeps the old fallback.
+- **Step 10 — Scroll-reveal animation**: discovered the `x-reveal` Alpine directive itself was already implemented in `resources/js/app.js` (the plan's "dead attribute" finding was stale) — extended its use to a few more homepage sections (hero, offer countdown) and the footer that didn't have it yet.
+- **Step 11 — Hero banner overlay text**: a slide's `heading`/`subheading`/`cta_label` (already collected by the admin form) now actually render as an overlay on the banner image when at least one is filled in — previously silently ignored by `image-banner.blade.php`. A slide with none of these set still renders as image-only.
+- **Step 12 — Email OTP delivery**: root cause confirmed as no per-company SMTP configuration existing at all (global `.env` mailer only) — added the same per-company-credentials pattern already used for SMS (`notification_credentials.mail_*` fields, Storefront Settings → Customer Notifications & Reminders → new "Email (SMTP)" fields). Falls back to the server's default mailer when left empty.
+- **Step 13 — Reseller program toggle**: new `storefront_settings.reseller_program_enabled` (default `true`, backward compatible) hides "Become a reseller"/"Reseller status" from the account menu and the new footer's `contact_info` block when off; the reseller route/dashboard itself keeps working at its direct URL.
+- **Step 14 — Header category icons**: the header/mobile menu now shows a category menu item's own icon (reusing the existing `Category::$icon` + icon picker) next to its label — one source of truth shared with the homepage category cards, no separate configuration.
+
+Two things fixed along the way, found during implementation/testing rather than pre-specified in the plan:
+
+- `Illuminate\Mail\Mailer` (concrete class) was the wrong return type for `StorefrontNotificationService::companyMailer()` — `Mail::mailer($name)` returns Laravel's `MailFake` under `Mail::fake()` (tests only), which implements the `Illuminate\Contracts\Mail\Mailer` interface but is not that concrete class, so the OTP-email test crashed with a `TypeError` until the return type was loosened to the interface. Production is unaffected either way (no test doubles there), but the interface is the technically correct type regardless.
+- The rich product-description rendering used a plain `{!! $product->description !!}` in an early draft — a real stored-XSS gap if any future write path (not just the Filament form) ever put a `<script>` tag into that column. Switched to Filament's `RichContentRenderer::make()`, the same sanitizing renderer already used for Storefront Pages' rich content, before this ever shipped.
+
+Important changed files:
+
+- `resources/views/storefront/layout.blade.php` (footer block loop, reseller toggle, header/mobile menu category icons, menu category data now carries `icon`)
+- `resources/views/storefront/partials/footer-blocks/{brand_about,quick_links,contact_info,social_links,bottom_bar}.blade.php` (new), `resources/views/storefront/partials/social-icon.blade.php` (new)
+- `app/Models/StorefrontSetting.php` (`footer_blocks`/`social_links`/`reseller_program_enabled` fillable+casts, `FOOTER_BLOCK_TYPES`/`DEFAULT_FOOTER_BLOCKS`/`SOCIAL_PLATFORMS` consts, `footerBlocks()`), `app/Models/Company.php` (`google_maps_url`)
+- `database/migrations/2026_08_26_090000_add_footer_blocks_to_storefront_settings_table.php`, `..._090100_add_reseller_program_enabled_...`, `..._090200_add_google_maps_url_to_companies_table.php`, `..._090300_add_social_links_...` (all new)
+- `app/Console/Commands/SeedDefaultFooterBlocks.php` (new)
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` (new "Footer Builder" section: reseller toggle, social links repeater, footer blocks repeater), `app/Filament/Resources/Companies/CompanyResource.php` (google_maps_url field)
+- `app/Support/StorefrontThemeRegistry.php` (`layout` key + `layoutView()`), 22 storefront views' `@extends` line
+- `resources/views/storefront/home.blade.php` (category card redesign + more `x-reveal`), `resources/views/storefront/products/show.blade.php` (related-grid columns, `RichContentRenderer` description), `resources/views/storefront/partials/image-banner.blade.php` (heading/subheading/CTA overlay)
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` (description → `RichEditor`)
+- `app/Http/Controllers/Storefront/CheckoutController.php` (`paymentReturn`/`paymentReturnPreview` redirect instead of 403)
+- `resources/views/storefront/contact/show.blade.php` (`google_maps_url` override)
+- `app/Services/StorefrontNotificationService.php` (`mailConfigured()`/`companyMailer()`/`sendLoginOtpEmail()` per-company SMTP), `app/Services/CustomerAccountService.php` (call-site update), `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` (SMTP fields)
+- `resources/css/app.css` (`@tailwindcss/typography` plugin), `package.json`/`package-lock.json`
+- `tests/Feature/StorefrontUxFixesTest.php` (new, 10 tests); updated `tests/Feature/StorefrontSlideTest.php`, `tests/Feature/StorefrontBannerTest.php` (overlay now expected), `tests/Feature/StorefrontPaystationPaymentTest.php` (redirect now expected instead of 403)
+
+Verification:
+
+- `php artisan test --filter=StorefrontUxFixesTest` — 10 passed, 0 failed.
+- `php artisan test --filter="Storefront"` (all 27 Storefront-prefixed test files) — 167 passed, 0 failed.
+- `php artisan test --filter="Product|Compan"` (Product/Company resource + related regression) — 224 passed, 0 failed.
+- Full `php artisan test` suite — 896 passed, 0 failed, 5055 assertions, 348.67s.
+- `npm run build` — clean (new `@tailwindcss/typography` plugin compiles fine; pre-existing >500kB chunk warning on `three.module` is unrelated).
+- Live browser check (local dev server, the one published/live company, Noor Solar theme): confirmed real-rendered footer (brand/about text, Pages quick-links fallback, Contact block, and the bottom bar's `© 2026 Main Company. All rights reserved.` token substitution), header/mobile nav, and a product page's plain-text description inside the new `prose` wrapper — all correct. The Built-in-theme-only homepage category-card redesign (step 5) could not be visually checked this way since the only published demo company uses the Noor Solar theme, and switching its theme just to look would mutate demo data — covered instead by the existing `StorefrontFoundationTest`/`StorefrontMenuTest` regression coverage plus a straightforward, low-risk Tailwind-class-only change.
+- No destructive commands run. `php artisan migrate --force` and `php artisan storefront:seed-default-footer-blocks` were run locally (both purely additive: nullable/defaulted columns, and a `whereNull()`-only backfill) — safe, non-destructive, and idempotent if re-run.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-25 - Dashboard-style summary cards on Vouchers, Accounts, and Expenses
+
+Reason:
+
+- Owner: "ভাউচার পেজে এ ড্যাশবোর্ড এর মত কার্ড থাকবে, ক্রেডিট ভাউচার/ডেবিট ভাউচার/ফান্ড ট্রান্সফার রিকুয়েস্ট/আপ্রুভড/রিজেক্ট এর নাম্বার সহ কার্ডে শো করবে। একাউন্স পেজেও ঠিক একই ভাবে শো করবে কোন একাউন্ট এ কত টাকা আছে... কার্ডে ক্লিক করলে ঐ একাউন্টের পেজে নিয়ে যাবে। ঠিক এক্সপেন্স পেজেও একই ভাবে কার্ড বসবে, এক্সপেন্সের যতগুলো কেটাগরি আছে সবগুলো দেখাবে। এক রোতে ৫টা কার্ড থাকবে ডেস্কটপে ২ টা কার্ড থেকবে মোবাইলে।" (dashboard-style stat cards on the Vouchers, Accounts, and Expenses pages; 5 per row desktop, 2 per row mobile; clickable).
+- Two design decisions inferred from the message rather than asked, both with low rework risk and matching the explicit wording closely: (1) Voucher's "Requested" bucket groups `pending`+`verified` (both pre-final-decision states — Credit vouchers pass through `verified` before `approved`, Debit can go straight from `pending`); (2) Expense category cards show total amount spent (not a count), since the owner used "ঠিক একই ভাবে" (exactly the same way) to describe them right after explicitly saying Account cards show a money amount.
+
+What changed:
+
+- Three new `StatsOverviewWidget` widgets, each `$isLazy = false` and using the same `['default' => 2, 'lg' => 5]` grid as the Dashboard's own `BusinessOverview` cards:
+  - **`VoucherSummaryWidget`** (Vouchers page, header): 9 cards — Credit Voucher / Debit Voucher / Fund Transfer × Requested / Approved / Rejected, each a live count. Clicking a card filters the same page down to exactly that combination.
+  - **`AccountSummaryWidget`** (Accounts page, header): one card per account (every account, not just active ones) showing its live `balance()`. Clicking a card opens that account's own page.
+  - **`ExpenseCategorySummaryWidget`** (Expenses page, header): one card per expense category (every category) showing its total spend (`withSum('expenses', 'amount')`). Clicking a card opens that category's own page.
+- Voucher card click-through does **not** use Filament's native `tableFilters` query string — `CourierMerchantDashboard`'s own docblock already records that being confirmed broken on a cold GET in this Filament install. Instead reused the already-shipped, already-working pattern from `ProductStatsOverview`'s "Total Shortage" card (`BulkUpdateStock`'s `#[Url] $shortageOnly`): `ListVouchers` reads `#[Url] $cardType`/`$cardStatuses` and applies them in an overridden `getTableQuery()`; `FundTransfersWidget` (the existing footer table widget) reads its own `#[Url] $ftStatus` the same way. Account/Expense-Category cards don't need this at all — they link straight to that exact record's real `view` page.
+- No new company-owned models, no schema changes — everything reads from `Voucher`/`FundTransfer`/`Account`/`ExpenseCategory`, all already company-scoped.
+
+Important changed files:
+
+- `app/Filament/Resources/Vouchers/Widgets/VoucherSummaryWidget.php` (new), `app/Filament/Resources/Vouchers/Pages/ListVouchers.php`, `app/Filament/Resources/Vouchers/Widgets/FundTransfersWidget.php`
+- `app/Filament/Resources/Accounts/Widgets/AccountSummaryWidget.php` (new), `app/Filament/Resources/Accounts/Pages/ListAccounts.php`
+- `app/Filament/Resources/Expenses/Widgets/ExpenseCategorySummaryWidget.php` (new), `app/Filament/Resources/Expenses/Pages/ListExpenses.php`
+- `tests/Feature/DashboardSummaryCardsTest.php` (new)
+
+Verification:
+
+- `php artisan test --filter="DashboardSummaryCardsTest|VoucherWorkflowTest|VoucherIsolationTest|AccountsAndPaymentsTest|AccountingRulesTest|PermanentSystemAccountsTest|AdminNavigationClustersTest"` — 54 passed, 0 failed.
+- Full `php artisan test` suite — 885 passed, 0 failed.
+- Visual/responsive check (real browser, both breakpoints) — not done: `.env` has no `ADMIN_EMAIL`/`ADMIN_PASSWORD` configured to log into the demo database with, and creating one just for a look would mutate real demo data (against CLAUDE.md's rule). Text-content + URL assertions confirm correctness; the 5/2 responsive grid reuses `BusinessOverview`'s exact already-shipped, already-proven config rather than a new one, so it carries the same confidence without needing a fresh visual check — but the owner should give it a look on first real use.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
 ## 2026-08-25 - AI provider is now fully flexible (any OpenAI-compatible provider, e.g. DeepSeek)
 
 Reason:
@@ -68,7 +234,7 @@ Verification:
 
 Deployment note: two new migrations ship with this round (`create_storefront_payment_methods_table`, `add_payment_method_id_to_storefront_payments_table`) — `php artisan migrate --force` must run in production before this feature works, same as the FK-ordering fix below.
 
-Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+Commit status: Committed as `d047845a`, pushed to `origin/main`.
 
 ## 2026-08-25 - Production `php artisan migrate --force` still failing after the previous fix: foreign-key-dependency ordering in the same three migrations
 

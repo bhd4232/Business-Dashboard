@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @push('meta-events')
     @php
@@ -24,7 +24,7 @@
         $actualWeight = (float) $insideQuote['weight'];
         $billedWeight = (int) $insideQuote['billed_weight'];
         // $paymentMethods is the dashboard-managed, company-scoped list from
-        // CheckoutController::activePaymentMethods() — any number of manual
+        // CheckoutController::activePaymentMethods() â€” any number of manual
         // (send-money/bank-transfer) channels, plus at most one cod row and
         // one online_gateway row.
         $paymentMethodValues = $paymentMethods->map->paymentValue()->all();
@@ -340,7 +340,7 @@
                 window.clearTimeout(autosaveTimer);
                 if (submitButton) {
                     submitButton.disabled = true;
-                    submitButton.textContent = 'Processing…';
+                    submitButton.textContent = 'Processingâ€¦';
                 }
             });
 

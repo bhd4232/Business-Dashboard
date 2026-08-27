@@ -410,8 +410,18 @@ class CheckoutController extends Controller
         // when it redirects the browser back — those weren't part of the
         // originally-signed query string, so a plain hasValidSignature()
         // would reject every real PayStation return. Ignoring just those
-        // two param names is a no-op for ZiniPay (which never appends them).
-        abort_unless($request->hasValidSignatureWhileIgnoring(['invoice_number', 'trx_id']), 403);
+        // param names is a no-op for ZiniPay (which never appends them).
+        // status/cancel are ignored defensively for gateway cancel/timeout
+        // redirects that may append their own extra params.
+        if (! $request->hasValidSignatureWhileIgnoring(['invoice_number', 'trx_id', 'status', 'cancel'])) {
+            Log::info('Storefront payment return had an invalid/expired signature — redirecting to checkout.', [
+                'payment' => $payment->getKey(),
+            ]);
+
+            return redirect()->route('storefront.checkout.show')
+                ->withErrors(['payment' => 'Your payment session ended or was cancelled. Please try again.']);
+        }
+
         [$company, $setting] = $this->domainStorefront($request);
 
         return $this->completePaymentReturn($payment, $company, $setting, transactionId: $request->query('trx_id'));
@@ -419,7 +429,15 @@ class CheckoutController extends Controller
 
     public function paymentReturnPreview(Request $request, Company $company, StorefrontPayment $payment): RedirectResponse
     {
-        abort_unless($request->hasValidSignatureWhileIgnoring(['invoice_number', 'trx_id']), 403);
+        if (! $request->hasValidSignatureWhileIgnoring(['invoice_number', 'trx_id', 'status', 'cancel'])) {
+            Log::info('Storefront preview payment return had an invalid/expired signature — redirecting to checkout.', [
+                'payment' => $payment->getKey(),
+            ]);
+
+            return redirect()->route('storefront.preview.checkout.show', $company->slug)
+                ->withErrors(['payment' => 'Your payment session ended or was cancelled. Please try again.']);
+        }
+
         $setting = $this->previewStorefront($company);
 
         return $this->completePaymentReturn($payment, $company, $setting, $company->slug, $request->query('trx_id'));

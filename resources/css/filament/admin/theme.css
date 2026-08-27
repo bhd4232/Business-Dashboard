@@ -74,6 +74,22 @@
     line-height: 1.4;
 }
 
+/* Stat cards with a drilldown modal (everything except Account Balance,
+   which links straight to Accounts) act like buttons. */
+.zz-business-overview-stat[wire\:click] {
+    cursor: pointer;
+}
+
+.zz-business-overview-stat[wire\:click]:hover,
+.zz-business-overview-stat[wire\:click]:focus-visible {
+    background: var(--gray-50);
+}
+
+.dark .zz-business-overview-stat[wire\:click]:hover,
+.dark .zz-business-overview-stat[wire\:click]:focus-visible {
+    background: color-mix(in oklab, white 5%, transparent);
+}
+
 /* Keep the main module list compact while preserving a small visual rhythm. */
 .fi-sidebar-nav {
     gap: 0.75rem;

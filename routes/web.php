@@ -42,6 +42,7 @@ use App\Http\Controllers\Storefront\ProductIndexController as StorefrontProductI
 use App\Http\Controllers\Storefront\ProductReviewController as StorefrontProductReviewController;
 use App\Http\Controllers\Storefront\ProductShowController as StorefrontProductShowController;
 use App\Http\Controllers\Storefront\ResellerController;
+use App\Http\Controllers\WooCommerceWebhookController;
 use App\Http\Controllers\ZiniPayWebhookController;
 use App\Http\Middleware\ResolveCompanyFromDomain;
 use App\Models\Order;
@@ -405,6 +406,10 @@ Route::post('/webhooks/zinipay/{payment}', ZiniPayWebhookController::class)
 Route::post('/webhooks/paystation/{payment}', PayStationWebhookController::class)
     ->middleware('throttle:120,1')
     ->name('paystation.webhook');
+
+Route::post('/webhooks/woocommerce/{company}', WooCommerceWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('woocommerce.webhook');
 
 // Public and unauthenticated on purpose: the Android app uploads a saved
 // crash report on its next successful launch, which can be before login
