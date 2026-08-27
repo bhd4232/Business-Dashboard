@@ -27,6 +27,7 @@ class StorefrontCartRecord extends Model
 
     protected $fillable = [
         'company_id',
+        'reseller_customer_id',
         'session_id',
         'phone',
         'customer_name',
@@ -64,6 +65,11 @@ class StorefrontCartRecord extends Model
     public function recoveredOrder(): BelongsTo
     {
         return $this->belongsTo(Order::class, 'recovered_order_id');
+    }
+
+    public function reseller(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'reseller_customer_id');
     }
 
     public function itemCount(): int

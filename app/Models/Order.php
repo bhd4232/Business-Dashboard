@@ -140,6 +140,7 @@ class Order extends Model
         'company_id',
         'order_number',
         'customer_id',
+        'reseller_customer_id',
         'customer_name',
         'order_date',
         'subtotal',
@@ -306,6 +307,16 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * The reseller whose storefront this order was placed through (null
+     * for the normal, non-reseller storefront). Distinct from customer()
+     * above, which is the buyer.
+     */
+    public function reseller(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'reseller_customer_id');
     }
 
     /**

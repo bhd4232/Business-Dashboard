@@ -42,9 +42,11 @@ use App\Http\Controllers\Storefront\ProductIndexController as StorefrontProductI
 use App\Http\Controllers\Storefront\ProductReviewController as StorefrontProductReviewController;
 use App\Http\Controllers\Storefront\ProductShowController as StorefrontProductShowController;
 use App\Http\Controllers\Storefront\ResellerController;
+use App\Http\Controllers\Storefront\ResellerStoreController;
 use App\Http\Controllers\WooCommerceWebhookController;
 use App\Http\Controllers\ZiniPayWebhookController;
 use App\Http\Middleware\ResolveCompanyFromDomain;
+use App\Http\Middleware\ResolveResellerFromSlug;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\AppUpdateService;
@@ -189,6 +191,12 @@ Route::prefix('/storefront/{company:slug}')->group(function (): void {
         ->name('storefront.preview.account.profile.update');
     Route::put('/account/password', [StorefrontAccountProfileController::class, 'updatePasswordPreview'])
         ->name('storefront.preview.account.password.update');
+    Route::get('/account/reseller', [ResellerStoreController::class, 'editPreview'])
+        ->name('storefront.preview.account.reseller');
+    Route::patch('/account/reseller', [ResellerStoreController::class, 'updateSlugPreview'])
+        ->name('storefront.preview.account.reseller.slug');
+    Route::post('/account/reseller/products/{product}', [ResellerStoreController::class, 'toggleProductPreview'])
+        ->name('storefront.preview.account.reseller.products.toggle');
 
     Route::get('/reseller', [ResellerController::class, 'showPreview'])
         ->name('storefront.preview.reseller.show');
@@ -330,6 +338,12 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
         ->name('storefront.account.profile.update');
     Route::put('/account/password', [StorefrontAccountProfileController::class, 'updatePassword'])
         ->name('storefront.account.password.update');
+    Route::get('/account/reseller', [ResellerStoreController::class, 'edit'])
+        ->name('storefront.account.reseller');
+    Route::patch('/account/reseller', [ResellerStoreController::class, 'updateSlug'])
+        ->name('storefront.account.reseller.slug');
+    Route::post('/account/reseller/products/{product}', [ResellerStoreController::class, 'toggleProduct'])
+        ->name('storefront.account.reseller.products.toggle');
 
     Route::get('/reseller', [ResellerController::class, 'show'])
         ->name('storefront.reseller.show');
@@ -353,6 +367,43 @@ Route::middleware(ResolveCompanyFromDomain::class)->group(function (): void {
         ->name('storefront.offers.thank-you');
 
 });
+
+// A reseller's own curated mini-storefront, path-based under their
+// company's existing domain (no wildcard DNS/SSL needed -- the owner's
+// explicit choice, see UPDATE_NOTES.md). Reuses the exact same controllers
+// as the main storefront above; ResolveResellerFromSlug additively scopes
+// them via the `storefront_reseller` request attribute rather than
+// duplicating any product/cart/checkout logic.
+Route::middleware([ResolveCompanyFromDomain::class, ResolveResellerFromSlug::class])
+    ->prefix('/store/{resellerSlug}')
+    ->group(function (): void {
+        Route::get('/products', StorefrontProductIndexController::class)
+            ->name('storefront.reseller_store.products.index');
+
+        Route::get('/category/{slug}', StorefrontProductIndexController::class)
+            ->name('storefront.reseller_store.categories.show');
+
+        Route::get('/product/{slug}', StorefrontProductShowController::class)
+            ->name('storefront.reseller_store.products.show');
+
+        Route::get('/cart', [StorefrontCartController::class, 'show'])
+            ->name('storefront.reseller_store.cart.show');
+
+        Route::post('/cart/items/{slug}', [StorefrontCartController::class, 'add'])
+            ->name('storefront.reseller_store.cart.add');
+
+        Route::patch('/cart/items/{slug}', [StorefrontCartController::class, 'update'])
+            ->name('storefront.reseller_store.cart.update');
+
+        Route::delete('/cart/items/{slug}', [StorefrontCartController::class, 'remove'])
+            ->name('storefront.reseller_store.cart.remove');
+
+        Route::get('/checkout', [StorefrontCheckoutController::class, 'show'])
+            ->name('storefront.reseller_store.checkout.show');
+
+        Route::post('/checkout', [StorefrontCheckoutController::class, 'store'])
+            ->name('storefront.reseller_store.checkout.store');
+    });
 
 Route::view('/pricing', 'marketing.pricing')->name('marketing.pricing');
 

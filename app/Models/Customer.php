@@ -7,6 +7,7 @@ use App\Models\Concerns\ValidatesEmailAddress;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
@@ -49,6 +50,7 @@ class Customer extends Model implements AuthenticatableContract
         'reseller_status',
         'business_name',
         'reseller_note',
+        'reseller_slug',
         'opening_balance',
         'current_balance',
         'is_active',
@@ -101,6 +103,69 @@ class Customer extends Model implements AuthenticatableContract
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Orders placed through this reseller's storefront (distinct from
+     * orders() above, which is every order where this Customer is the
+     * buyer -- a reseller and their storefront's buyers are never
+     * conflated, even when the reseller buys from their own store).
+     */
+    public function resellerOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'reseller_customer_id');
+    }
+
+    public function resellerProducts(): HasMany
+    {
+        return $this->hasMany(ResellerProduct::class);
+    }
+
+    /**
+     * Products this reseller has picked for their storefront, regardless
+     * of the pivot's is_active flag -- callers filtering for the public
+     * storefront should additionally constrain wherePivot('is_active', true).
+     */
+    public function resellerCatalog(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'reseller_products')
+            ->withPivot(['is_active'])
+            ->withTimestamps();
+    }
+
+    public function isApprovedReseller(): bool
+    {
+        return $this->reseller_status === 'approved';
+    }
+
+    /**
+     * Generates a company-unique reseller_slug from business_name (falling
+     * back to name) the first time a reseller is approved. Never overwrites
+     * an existing slug -- once set, changing it is the reseller's own call
+     * via the self-service store page.
+     */
+    public function ensureResellerSlug(): void
+    {
+        if (filled($this->reseller_slug)) {
+            return;
+        }
+
+        $base = Str::slug($this->business_name ?: $this->name) ?: 'store';
+        $slug = $base;
+        $suffix = 2;
+
+        while (
+            static::query()
+                ->where('company_id', $this->company_id)
+                ->where('reseller_slug', $slug)
+                ->when($this->exists, fn ($query) => $query->whereKeyNot($this->getKey()))
+                ->exists()
+        ) {
+            $slug = "{$base}-{$suffix}";
+            $suffix++;
+        }
+
+        $this->reseller_slug = $slug;
     }
 
     public function storefrontActivities(): HasMany

@@ -82,6 +82,7 @@ class StorefrontOrderPlacementService
 
             $order = Order::query()->create([
                 'customer_id' => $customer->getKey(),
+                'reseller_customer_id' => $data['reseller_customer_id'] ?? null,
                 'customer_name' => $customer->name,
                 'order_date' => now()->toDateString(),
                 'discount' => 0,

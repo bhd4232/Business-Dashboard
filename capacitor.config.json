@@ -1,6 +1,6 @@
 {
   "appId": "com.zamzamint.erp",
-  "appName": "Business Dashboard",
+  "appName": "ZamZam Dashboard",
   "webDir": "mobile-shell/www",
   "server": {
     "url": "https://app.zamzamint.com",
