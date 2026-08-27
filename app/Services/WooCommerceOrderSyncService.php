@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Ingests WooCommerce order.created/order.updated/order.deleted webhooks
@@ -224,19 +225,39 @@ class WooCommerceOrderSyncService
         // customer's balance in sync automatically (see OrderWorkflowService).
         $order->items()->delete();
 
+        $unmatched = [];
+
         foreach ($lineItems as $lineItem) {
             $sku = trim((string) ($lineItem['sku'] ?? ''));
+            $name = trim((string) ($lineItem['name'] ?? ''));
+
             $product = $sku !== ''
                 ? Product::query()->where('company_id', $order->company_id)->where('sku', $sku)->first()
                 : null;
 
+            // Falls back to matching by product name (via the same slug
+            // normalization WooCommerceImportService::importProduct() uses
+            // when a product doesn't have a WooCommerce-supplied slug
+            // either) — many real WooCommerce catalogs don't set a SKU on
+            // every product, so requiring an exact SKU match alone silently
+            // dropped every line item on those orders, leaving the order
+            // with no items and a zero subtotal.
+            if (! $product && $name !== '') {
+                $product = Product::query()
+                    ->where('company_id', $order->company_id)
+                    ->where('slug', Str::slug($name))
+                    ->first();
+            }
+
             if (! $product) {
-                Log::warning('WooCommerce order line item skipped: no matching product SKU.', [
+                Log::warning('WooCommerce order line item skipped: no matching product SKU or name.', [
                     'company_id' => $order->company_id,
                     'order_id' => $order->getKey(),
                     'sku' => $sku,
-                    'name' => $lineItem['name'] ?? null,
+                    'name' => $name,
                 ]);
+
+                $unmatched[] = $name !== '' ? $name : ($sku !== '' ? "SKU {$sku}" : 'an unnamed item');
 
                 continue;
             }
@@ -248,6 +269,17 @@ class WooCommerceOrderSyncService
                 'product_id' => $product->getKey(),
                 'quantity' => $quantity,
                 'unit_price' => $lineTotal > 0 ? round($lineTotal / $quantity, 2) : (float) $product->sale_price,
+            ]);
+        }
+
+        // A silently-dropped line item was only ever visible in the server
+        // log — surface it directly on the order too, so a skipped SKU/name
+        // mismatch is obvious to whoever opens it, without needing log
+        // access. A second, separate save() (status hasn't changed here,
+        // so this never triggers the WooCommerce status-push job).
+        if ($unmatched !== []) {
+            $order->update([
+                'note' => trim($order->note."\n".count($unmatched).' item(s) could not be matched to an ERP product and were skipped: '.implode(', ', $unmatched).'.'),
             ]);
         }
     }

@@ -2,6 +2,38 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-27 - WooCommerce order line items: name-fallback matching + visible skip note
+
+Reason:
+
+- Owner (with a screenshot of a real synced order, ZMG-20260827-0002 / WooCommerce order #38032): "WooCommerce থেকে নতুন অর্ডার এসে টেস্ট করে দেখেছি, কিন্তু কোন প্রোডাক্ট অর্ডার করেছে সেটা এড হচ্ছে না, প্রাইস আসে না এখনো। প্লিজ এইটা কেয়ারফুল্লি ফিক্স কর। উকমার্স থেকে অর্ডার ডিটেইল গুলো টেনে আনতে পারছে না এখনো, ফিক্স কর।" (tested a real new order — the product ordered isn't being added, price still doesn't come; please fix this carefully, order details still aren't being pulled from WooCommerce). The screenshot showed the order itself came through correctly (customer, date, status Processing, delivery charge ৳120 — yesterday's shipping-fee fix confirmed working) but the **Items** section was completely empty and Subtotal was ৳0.
+
+Investigation:
+
+- `WooCommerceOrderSyncService::syncItems()` only ever matched a line item to an ERP product by an *exact* SKU string. Since the order-level fields (customer/date/status/shipping) all synced correctly, the payload itself was clearly arriving fine — the failure was isolated to line-item matching. The most common real-world cause of "every single item on the order fails to match" is a WooCommerce catalog that doesn't reliably set a SKU on every product (very common for smaller/newer stores) — a blank SKU never matches anything.
+- Couldn't confirm the exact SKU/name involved directly (no server log or database access from here), so the fix targets the general failure mode rather than one specific value, and separately makes the failure self-diagnosable going forward without needing my help to read a log.
+
+What changed:
+
+- `syncItems()` now falls back to matching by product **name** (normalized via `Str::slug()`, matched against `Product.slug`) whenever the SKU doesn't match or is blank — the exact same fallback strategy `WooCommerceImportService`'s own product import already uses, so a product previously imported through that flow matches correctly here too.
+- Any line item that still can't be matched now gets listed **directly on the order's Note field** (item name(s)/SKU(s), right next to the existing "Synced from WooCommerce order #..." line) — previously this only ever went to the server log, invisible without shell/log access.
+
+Important note for the owner:
+
+- **Please re-test**: either place a new WooCommerce order, or trigger a fresh delivery on the existing #38032 webhook (open that order in WordPress and just click Update, same trick as the earlier 403 investigation) once this deploys. If items still don't appear, open the ERP order and check its **Note** field — it will now say exactly which item name/SKU couldn't be matched, which tells us precisely what to compare against that product's SKU in the ERP.
+
+Important changed files:
+
+- `app/Services/WooCommerceOrderSyncService.php` (`syncItems()`)
+- `tests/Feature/WooCommerceOrderWebhookTest.php` (2 new tests)
+
+Verification:
+
+- `php artisan test --filter=WooCommerceOrderWebhookTest` — 9 passed, 0 failed (7 existing + 2 new, no regressions to the existing exact-SKU-match and shipping-fee tests).
+- Full `php artisan test` suite — 967 passed, 0 failed, 5298 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
 ## 2026-08-27 - Copy icons for phone numbers and courier tracking IDs
 
 Reason:

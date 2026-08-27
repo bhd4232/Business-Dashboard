@@ -83,6 +83,48 @@ class WooCommerceOrderWebhookTest extends TestCase
         $this->assertSame(1, $order->items()->count());
     }
 
+    /**
+     * Regression test for a real production bug: a real WooCommerce catalog
+     * that doesn't set a SKU on every product left every line item
+     * unmatched (blank SKU never matches anything), so the order synced
+     * with zero items and a zero subtotal even though the order itself
+     * came through fine. Line items now also match by product name (via
+     * the same slug normalization WooCommerceImportService already uses).
+     */
+    public function test_a_line_item_with_a_blank_sku_matches_by_product_name_instead(): void
+    {
+        $company = $this->createCompanyWithWebhookSecret('woo-secret-8');
+        $product = $this->createProduct($company, 'Matched By Name Product', 'WOO-SKU-8');
+
+        $payload = $this->orderPayload(id: 508, sku: '');
+        $payload['line_items'][0]['name'] = 'Matched By Name Product';
+
+        $this->postWebhook($company, $payload, 'order.created', 'woo-secret-8')->assertOk();
+
+        $order = Order::query()->where('company_id', $company->getKey())->where('external_reference', 'woo-508')->first();
+
+        $this->assertNotNull($order);
+        $this->assertSame(1, $order->items()->count());
+        $this->assertSame($product->getKey(), $order->items()->first()->product_id);
+    }
+
+    public function test_an_unmatched_line_item_leaves_a_visible_note_on_the_order(): void
+    {
+        $company = $this->createCompanyWithWebhookSecret('woo-secret-9');
+
+        $payload = $this->orderPayload(id: 509, sku: 'DOES-NOT-EXIST-EITHER');
+        $payload['line_items'][0]['name'] = 'Totally Unknown Product';
+
+        $this->postWebhook($company, $payload, 'order.created', 'woo-secret-9')->assertOk();
+
+        $order = Order::query()->where('company_id', $company->getKey())->where('external_reference', 'woo-509')->first();
+
+        $this->assertNotNull($order);
+        $this->assertSame(0, $order->items()->count());
+        $this->assertStringContainsString('could not be matched', $order->note);
+        $this->assertStringContainsString('Totally Unknown Product', $order->note);
+    }
+
     public function test_an_invalid_signature_is_rejected(): void
     {
         Log::spy();
