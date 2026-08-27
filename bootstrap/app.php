@@ -82,10 +82,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $status = StorefrontErrorPages::statusFor($e);
 
-            if (! view()->exists("errors.{$status}")) {
+            // Deliberately NOT resources/views/errors/{status}.blade.php:
+            // Laravel's own exception handler auto-discovers views at that
+            // exact conventional path (the "errors::" view namespace) for
+            // ANY HTML-rendering exception app-wide, completely bypassing
+            // the appliesTo() exclusion above — a webhook/admin/API request
+            // that doesn't send `Accept: application/json` would still get
+            // this branded page even though appliesTo() said no. Keeping
+            // these views under storefront.errors.* instead means they're
+            // only ever reachable through this explicit render() call.
+            if (! view()->exists("storefront.errors.{$status}")) {
                 return null;
             }
 
-            return response()->view("errors.{$status}", [], $status);
+            return response()->view("storefront.errors.{$status}", [], $status);
         });
     })->create();

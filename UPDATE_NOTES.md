@@ -2,6 +2,84 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-27 - WooCommerce webhook 403 + a real error-page bug found while investigating
+
+Reason:
+
+- Owner (with screenshots): "ওয়েবহুক সেইভ হচ্ছে কিন্তু ৪০৩ এরর দিচ্ছে, ড্যাশবোর্ড এ ঠিক ভাবেই ক্রেডেনশিয়াল সেইভ করেছি কিন্তু এরর দিচ্ছে। এই কারণ খুজে বের কর এবং ফিক্স কর।" (the webhook saves but gives a 403 error; credentials look correctly saved in the dashboard but it still errors — find the cause and fix it). WooCommerce's own webhook screen showed "Error: Delivery URL returned response code: 403" for `https://app.zamzamint.com/webhooks/woocommerce/4`, with the Secret field visually matching the "Order webhook secret" saved on Settings → Integrations.
+
+Investigation:
+
+- Confirmed `9c9595a2` (this session's earlier commit) is actually the live deployed commit via `/health/version` — the WooCommerce webhook feature is genuinely live, not a stale-deploy issue.
+- Ran live diagnostic probes directly against the production endpoint (`curl`): a nonexistent company ID correctly 404s, GET correctly 405s (route/controller pipeline is being exercised normally, ruling out a WAF/proxy blanket-blocking theory), and a manually-signed request using the exact secret shown in the dashboard screenshot still got 403 — same as a deliberately-wrong signature. Independently re-verified the HMAC computation in plain PHP (matches WooCommerce's own documented `base64_encode(hash_hmac('sha256', $payload, $secret, true))` formula exactly) — no algorithm bug. This narrows the 403 itself down to the secret pasted into WooCommerce not exactly matching what's saved in the ERP (the most common real-world cause of this class of bug — easy to have happen on a retype/partial copy, hard to see in a screenshot given ambiguous characters like `I`/`l`/`1` or `O`/`0` in a 40-character random string) — **not something fixable from the repo alone**, since I can't read the production database or WooCommerce's saved value directly.
+- **While probing, found and fixed a second, completely real, independent bug**: a plain `curl` test (no `Accept: application/json` header, mimicking what a webhook client might send) got back *this app's own branded "Access denied" HTML page* instead of a bare 403 — even though `StorefrontErrorPages::appliesTo()` explicitly excludes `webhooks/*` paths. Root cause: the brand-neutral error views built in yesterday's security-hardening round were saved at `resources/views/errors/{status}.blade.php` — Laravel's own conventional `errors::` view-namespace path, auto-registered app-wide by `Illuminate\Foundation\Exceptions\Handler`. Simply having a file there makes Laravel's *default* exception rendering use it for **any** HTML-rendering exception, completely bypassing `appliesTo()`'s exclusion — `bootstrap/app.php`'s closure returning `null` only means "fall through to Laravel's default," and that default was itself contaminated by the mere existence of these files. This didn't cause the reported 403 (WooCommerce's error message only reports the status code, not the body), but it was a real, silent violation of this app's own stated design ("API/webhook callers must keep Laravel's own error handling exactly as-is") and needed fixing regardless.
+
+What changed:
+
+- Moved `resources/views/errors/{403,404,419,429,500}.blade.php` → `resources/views/storefront/errors/*` (a path Laravel never auto-discovers) and updated `bootstrap/app.php`'s render closure to reference the new path explicitly. Excluded (webhook/admin/API/Livewire) requests now correctly fall all the way through to Laravel's own true default handling.
+- New regression test `SecurityHardeningTest::test_a_403_on_an_excluded_route_never_renders_the_branded_storefront_page` — a real HTTP round trip (not a unit-level `appliesTo()` check), since the unit-level test already in place is exactly what let this ship without being caught.
+- `WooCommerceWebhookController`: every rejected delivery (no secret configured, or signature mismatch) now logs a warning with the company ID, topic, and both the computed and received HMAC signatures — safe to log in full since neither value can be reversed back into the secret. Previously a rejected delivery left zero trace in the server log, making a real mismatch like this one impossible to diagnose after the fact.
+- **New "Send test webhook" button** on Settings → Integrations → WooCommerce: sends a real, correctly-signed request to this company's own webhook URL using the secret actually saved in the database (fetched fresh, not whatever's unsaved in the Livewire form), and reports back via a Filament notification whether it was accepted. This is the fastest way to separate "the code/network path is broken" from "the secret pasted into WooCommerce just doesn't match" — exactly the ambiguity this incident got stuck on — without needing WooCommerce's own delivery logs or a manual `curl` request next time.
+- New tests: 3 in `IntegrationsPageTest` (no-secret warning, successful round trip using the saved secret, failure-status reporting) and an extended assertion in `WooCommerceOrderWebhookTest::test_an_invalid_signature_is_rejected` confirming the new log line fires with the right context.
+
+Important note for the owner — the actual production fix is still on your side:
+
+- **This does not fix the reported 403 by itself** — that part needs your action: on Settings → Integrations → WooCommerce, click **Generate** to get a fresh webhook secret, **Save**, then **copy** (don't retype) that exact value into WooCommerce's Secret field and update the webhook there too. Once this commit deploys, use the new **"Send test webhook"** button first — if it reports success, the ERP side is confirmed correct and the remaining fix is purely re-syncing WooCommerce's Secret field to match.
+
+Important changed files:
+
+- `app/Http/Controllers/WooCommerceWebhookController.php` (logging on rejection)
+- `app/Filament/Pages/Integrations.php` (new "Send test webhook" action)
+- `app/Support/StorefrontErrorPages.php` docblock, `bootstrap/app.php` (render path fix)
+- `resources/views/storefront/errors/*.blade.php` (moved from `resources/views/errors/*.blade.php`)
+- `tests/Feature/SecurityHardeningTest.php`, `tests/Feature/IntegrationsPageTest.php`, `tests/Feature/WooCommerceOrderWebhookTest.php`
+
+Verification:
+
+- `php artisan test --filter=SecurityHardeningTest` — 8 passed, 0 failed, including the new end-to-end regression test.
+- `php artisan test --filter="WooCommerceOrderWebhookTest|IntegrationsPageTest"` — 14 passed, 0 failed.
+- Live diagnostic `curl` probes directly against production (`app.zamzamint.com`) — see Investigation above.
+- Full `php artisan test` suite — 953 passed, 0 failed, 5265 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md. This is separate from (and can be committed independently of) the still-pending "automatic release cutting" entry above.
+
+## 2026-08-27 - Automatic release cutting on every push to `main`
+
+Reason:
+
+- Owner: "প্রোডাকশনে অ্যাপ ভার্সন অটো আপডেট তো আগে হইত যাস্ট গত কিছু ডিপ্লয়মেন্টের অ্যাপ ভার্সন আপডেট হচ্ছে না। অটো অ্যাপ ভার্সন আপডেট করার জন্য কি করা লাগে কর।" (production's app version used to auto-update, just the last several deployments' didn't — do what's needed for auto app-version update). Investigated (follow-up to the previous entry's v2.1.0 → v2.2.0 catch-up): the app's actual version-display mechanism (`App\Support\AppRelease::latestPublished()`, which the Release Notes page, the in-app "Update available" banner, and push notifications all already read from) has **always** parsed `CHANGELOG.md` directly — it needs no `APP_VERSION` env var and was never broken. The real root cause of the 25-commit stall was purely a process gap: every one of those commits correctly added bullets under `[Unreleased]` per `CLAUDE.md`, but none of them ever converted `[Unreleased]` into a dated `## [x.y.z] - date` header, which is the only thing `latestPublished()`'s regex recognizes as an actual release. Presented this finding to the owner with 4 options for preventing a recurrence; owner chose **"প্রতি পুশেই অটো-রিলিজ কাট"** (auto-cut a release on every push) — restoring, without a manual step, the near-1-commit-to-1-version cadence the project's own history (`1.20.0` → `1.21.0` → `1.22.0` → `1.22.1` → `1.23.0` → `2.0.0` → `2.0.1` → `2.1.0`) already shows was the working norm before this gap opened.
+
+What changed:
+
+- New `App\Support\ReleaseCutter` (pure logic, no disk access except in `apply()`): `plan(string $changelog)` reads `[Unreleased]`'s content and returns `null` when there's nothing to cut, or a plan (`version`, `type`, `type_label`, `date`, updated changelog text) inferred from which sections actually have bullets — `Added` → Minor Feature Update (bumps MINOR); `Security` alone → Security Update; `Changed`/`Fixed` alone → Patch/Fix Update; only `Technical Notes` → Maintenance Update (these last three, plus Security, all bump PATCH per `docs/release-policy.md`'s own version table — only Major/Minor bump differently). `Added` deliberately wins over `Security` when both are present, matching this project's own `[2.2.0]`/`[2.1.0]` precedent (both real feature releases that also happened to carry security fixes, correctly labeled "Minor Feature Update" rather than "Security Update"). An explicit `**Release type:** Major Version Update` (or Critical Fix/Hotfix/Initial) line as the first line under `[Unreleased]` overrides inference — those four are never auto-inferred, only ever requested on purpose.
+- New `php artisan release:cut` command (`App\Console\Commands\CutRelease`) wraps it — `--apply` is required to actually write anything; without it, the command only ever prints what it would do (`changed=false` always, regardless of `CHANGELOG.md`'s real content), so it's always safe to run by habit and can never be run "by accident" in write mode.
+- New `.github/workflows/deploy.yml` job `cut-release`: runs after `tests` passes, only on `main`, `permissions: contents: write`; runs `php artisan release:cut --apply`, and if it changed anything, commits `CHANGELOG.md` + `config/release.php` + `.env.example` + `.env.production.example` + `docs/deployment.md` with message `chore(release): cut vX.Y.Z [skip ci]` and pushes straight to `main` (confirmed `main` has no branch protection rule that would block this). `[skip ci]` stops the bot's own commit from re-triggering the workflow (the re-run would just find `[Unreleased]` empty and no-op anyway, but this avoids the wasted CI minutes).
+- New `tests/Feature/ReleaseCutterTest.php` (16 tests): every inference branch, the explicit-override marker (and an unrecognized one falling back to inference), the version-bump math, `updateConfigDefaults()`/`updateEnvFile()` against temp files (never the real project files), a full `apply()` round trip, and a content-independent assertion that the Artisan command without `--apply` is always a safe no-op. Widened `AppRelease::parseChangelogBody()` from `protected` to `public` so `ReleaseCutter` can reuse it instead of duplicating the section-parsing regex (pure visibility change, no behavior change — `ReleaseNotesTest` still passes unchanged).
+- **Dry-run validation against the real, currently-uncommitted `CHANGELOG.md`** (this repo's actual pending `[Unreleased]` content — dashboard summary cards, storefront footer builder, dashboard drilldown, WooCommerce sync, security hardening — all from the two prior sessions today): `php artisan release:cut` (no `--apply`) correctly proposed **v2.3.0, Minor Feature Update** — exactly the classification a human would pick by hand, and proof the priority ordering (Added > Security > Fixed/Changed > Technical Notes) matches real judgment before this shipped.
+
+Important note for the owner:
+
+- **This only ever updates the repo's own fallback defaults, never the production server's actual environment.** If Coolify's production `.env` still explicitly sets `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE`, those values keep overriding the repo's auto-bumped fallback forever, silently reopening this exact problem. Since the app's actual user-facing version displays already read `CHANGELOG.md` directly (not those env vars), **recommend removing `APP_VERSION`, `APP_RELEASE_TYPE`, and `APP_RELEASE_DATE` from Coolify's production environment variables entirely** — once they're gone, the repo's auto-cut fallback always wins and this never needs a manual production-side step again.
+- **The moment this commit reaches `main`, the `cut-release` job will immediately convert the current `[Unreleased]` section into `v2.3.0`** as its very first real run (see the dry-run result above) — this is the intended, correct behavior (it's exactly the backlog this whole fix is for), not a side effect to undo, but flagging it clearly since it happens unattended right after this push, with no further approval prompt.
+
+Important changed files:
+
+- `app/Support/ReleaseCutter.php` (new), `app/Console/Commands/CutRelease.php` (new), `app/Support/AppRelease.php` (`parseChangelogBody` visibility only)
+- `.github/workflows/deploy.yml` (new `cut-release` job)
+- `tests/Feature/ReleaseCutterTest.php` (new, 16 tests)
+- `CHANGELOG.md` (this entry)
+
+Verification:
+
+- `php artisan test --filter=ReleaseCutterTest` — 16 passed, 0 failed, 40 assertions.
+- `php artisan test --filter="ReleaseNotesTest|AppRelease|AppUpdate|Changelog"` — 16 passed, 0 failed, 113 assertions (confirms the `parseChangelogBody` visibility change is behavior-neutral).
+- Manual dry-run smoke test against the real `CHANGELOG.md` (`php artisan release:cut`, no `--apply`) — see above; produced the correct classification without touching any file.
+- `.github/workflows/deploy.yml` YAML syntax validated with a YAML parser after editing.
+- Confirmed via `gh api repos/bhd4232/Business-Dashboard/branches/main/protection` that `main` has no branch protection rule that would block the bot's direct push.
+- Full `php artisan test` suite — 949 passed, 0 failed, 5250 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md. **Owner should understand before approving**: pushing this will immediately trigger `cut-release` to auto-convert the current `[Unreleased]` backlog into a real `v2.3.0` dated release commit on `main`, with no further prompt.
+
 ## 2026-08-26 - Version number catch-up: v2.1.0 → v2.2.0
 
 Reason:

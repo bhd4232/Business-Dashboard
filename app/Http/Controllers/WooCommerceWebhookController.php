@@ -21,11 +21,33 @@ class WooCommerceWebhookController extends Controller
         $setting = $company->storefrontSetting;
         $secret = (string) data_get($setting?->woocommerce_credentials, 'webhook_secret');
 
-        abort_if($secret === '', 404);
+        if ($secret === '') {
+            Log::warning('WooCommerce webhook rejected: no webhook secret is saved for this company.', [
+                'company' => $company->getKey(),
+            ]);
+
+            abort(404);
+        }
 
         $signature = base64_encode(hash_hmac('sha256', $request->getContent(), $secret, true));
+        $receivedSignature = (string) $request->header('X-WC-Webhook-Signature');
 
-        abort_unless(hash_equals($signature, (string) $request->header('X-WC-Webhook-Signature')), 403);
+        // Neither value below is the secret itself (both are one-way HMAC
+        // digests) — safe to log in full for diagnosing a real mismatch,
+        // e.g. WooCommerce's Secret field not exactly matching what's saved
+        // here (Settings → Integrations → WooCommerce → "Send test webhook"
+        // checks that specific possibility in one click).
+        if (! hash_equals($signature, $receivedSignature)) {
+            Log::warning('WooCommerce webhook rejected: signature does not match the secret saved for this company.', [
+                'company' => $company->getKey(),
+                'topic' => (string) $request->header('X-WC-Webhook-Topic'),
+                'signature_header_present' => $receivedSignature !== '',
+                'computed_signature' => $signature,
+                'received_signature' => $receivedSignature,
+            ]);
+
+            abort(403);
+        }
 
         $topic = (string) $request->header('X-WC-Webhook-Topic');
         $payload = (array) $request->json()->all();

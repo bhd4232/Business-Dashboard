@@ -244,7 +244,7 @@ class AppRelease
         return preg_match(self::TECHNICAL_ITEM_PATTERN, $item) === 1;
     }
 
-    protected static function parseChangelogBody(string $body): array
+    public static function parseChangelogBody(string $body): array
     {
         $releaseType = null;
         $sections = [];

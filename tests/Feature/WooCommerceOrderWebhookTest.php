@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\StorefrontSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class WooCommerceOrderWebhookTest extends TestCase
@@ -83,6 +84,8 @@ class WooCommerceOrderWebhookTest extends TestCase
 
     public function test_an_invalid_signature_is_rejected(): void
     {
+        Log::spy();
+
         $company = $this->createCompanyWithWebhookSecret('woo-secret-4');
         $payload = $this->orderPayload(id: 504, sku: 'WHATEVER');
 
@@ -93,6 +96,16 @@ class WooCommerceOrderWebhookTest extends TestCase
 
         $response->assertForbidden();
         $this->assertDatabaseMissing('orders', ['external_reference' => 'woo-504']);
+
+        // A rejected delivery must leave a forensic trail — this exact log
+        // line is what let a real production 403 get diagnosed at all
+        // (WooCommerce's own delivery-failure banner only ever shows the
+        // status code, never why).
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $message === 'WooCommerce webhook rejected: signature does not match the secret saved for this company.'
+                && $context['company'] === $company->getKey()
+                && $context['signature_header_present'] === true);
     }
 
     public function test_a_webhook_secret_cannot_be_used_against_a_different_companys_route(): void

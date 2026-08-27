@@ -24,6 +24,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 
@@ -139,6 +140,12 @@ class Integrations extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('testWoocommerceWebhook')
+                ->label('Send test webhook')
+                ->icon(Heroicon::OutlinedPaperAirplane)
+                ->color('gray')
+                ->action('testWoocommerceWebhook')
+                ->visible(fn (): bool => $this->hasSelectedCompany()),
             Action::make('saveChanges')
                 ->label('Save changes')
                 ->icon(Heroicon::OutlinedCheck)
@@ -147,6 +154,71 @@ class Integrations extends Page
                 ->keyBindings(['mod+s'])
                 ->visible(fn (): bool => $this->hasSelectedCompany()),
         ];
+    }
+
+    /**
+     * Sends a real, correctly-signed request to this company's own
+     * WooCommerce webhook URL using the secret actually saved in the
+     * database (not whatever's currently typed but unsaved in the form),
+     * so a signature mismatch between here and WooCommerce's own Secret
+     * field is instantly obvious without needing WooCommerce's own delivery
+     * log or a manual curl request. Exercises the exact same route,
+     * middleware, and CSRF-exemption path a real WooCommerce delivery does.
+     */
+    public function testWoocommerceWebhook(): void
+    {
+        $company = $this->selectedCompany();
+        $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->first();
+        $secret = (string) data_get($setting?->woocommerce_credentials, 'webhook_secret');
+
+        if ($secret === '') {
+            Notification::make()
+                ->title('No webhook secret saved yet')
+                ->body('Generate and save one below first.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $body = '{}';
+        $signature = base64_encode(hash_hmac('sha256', $body, $secret, true));
+
+        try {
+            $response = Http::timeout(15)
+                ->withHeaders([
+                    'X-WC-Webhook-Topic' => 'order.updated',
+                    'X-WC-Webhook-Signature' => $signature,
+                ])
+                ->withBody($body, 'application/json')
+                ->post(route('woocommerce.webhook', $company));
+        } catch (\Throwable $exception) {
+            Notification::make()
+                ->title('Could not reach the webhook URL')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        if ($response->successful()) {
+            Notification::make()
+                ->title('Webhook reachable, signature verified')
+                ->body('A correctly-signed test request using the saved secret was accepted (HTTP '.$response->status().'). WooCommerce should be able to deliver real orders here — if it still shows a delivery error, re-check that its Secret field exactly matches the one saved below (re-copy both sides after Generate, don\'t retype).')
+                ->success()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->title('Webhook test failed: HTTP '.$response->status())
+            ->body($response->status() === 403
+                ? 'The server rejected this request\'s signature even though it was computed from the secret saved below — the saved value itself may be stale (try Generate, Save, then test again).'
+                : $response->body())
+            ->danger()
+            ->send();
     }
 
     public function form(Schema $schema): Schema

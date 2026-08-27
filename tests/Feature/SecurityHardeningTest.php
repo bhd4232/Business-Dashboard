@@ -99,4 +99,40 @@ class SecurityHardeningTest extends TestCase
         $this->assertSame(404, StorefrontErrorPages::statusFor(new NotFoundHttpException()));
         $this->assertSame(500, StorefrontErrorPages::statusFor(new \RuntimeException('whatever')));
     }
+
+    /**
+     * Regression test for a real production bug: a webhook route that threw
+     * a 403 (e.g. WooCommerceWebhookController's signature check) rendered
+     * this app's OWN branded "Access denied" storefront page instead of
+     * Laravel's normal handling, even though StorefrontErrorPages::appliesTo()
+     * correctly said not to intervene. Root cause: Laravel's exception
+     * handler auto-discovers views at the exact conventional path
+     * resources/views/errors/{status}.blade.php (the "errors::" view
+     * namespace, registered by RegisterErrorViewPaths) for ANY
+     * HTML-rendering exception app-wide — completely independent of
+     * bootstrap/app.php's withExceptions() closure returning null. Simply
+     * excluding a request in appliesTo() was not enough; the fix moved
+     * these views to storefront.errors.* (a path Laravel never
+     * auto-discovers) so they're only ever reachable through the explicit
+     * render() call for genuinely-included (storefront) requests.
+     */
+    public function test_a_403_on_an_excluded_route_never_renders_the_branded_storefront_page(): void
+    {
+        $this->app['env'] = 'production';
+        config(['app.debug' => false]);
+
+        // CSRF exemption for real webhook routes is tested elsewhere
+        // (bootstrap/app.php's validateCsrfTokens list) — irrelevant here.
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class);
+
+        Route::post('/webhooks/_test-boom', function (): never {
+            abort(403);
+        })->middleware('web');
+
+        $response = $this->post('/webhooks/_test-boom');
+
+        $response->assertStatus(403);
+        $response->assertDontSeeText('Access denied');
+        $response->assertDontSeeText("You don't have permission to view this page.");
+    }
 }
