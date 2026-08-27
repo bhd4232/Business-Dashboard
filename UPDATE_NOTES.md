@@ -2,6 +2,101 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-27 - Copy icons for phone numbers and courier tracking IDs
+
+Reason:
+
+- Owner: "কাস্টমার এবং অর্ডার লিস্ট থেকে কাস্টমার নাম্বার এক লিখে কপি করা যাবে সেখানে একটা কপি আইকন সেট করবে। এরপর কুরিয়ার বুক করার পরে কুরিয়ারে যে নাম্বার বা আইডি থাকবে সেটাও কপি করা যাবে এর জন্য সেখানেও একটা কপি আইকন রাখবে।" (add a copy icon so the customer phone number can be copied in one click from the Customers and Orders lists; also add a copy icon for the courier tracking number/ID once a courier is booked).
+
+What changed:
+
+- `CustomersTable`'s existing `phone` column now has `->copyable()`.
+- `OrdersTable` didn't show phone or a tracking ID at all before this — added two new columns: **Phone** (`customer.phone`) right after the customer name, and **Tracking ID** (`latestCourierBooking.tracking_id`, blank until a courier is booked). Both are `->copyable()` and `->toggleable()` (visible by default, hideable via the column-toggle dropdown like several other columns on this table already are).
+- Added `latestCourierBooking` to the Orders list's existing eager-load (`modifyQueryUsing`) so the new Tracking ID column doesn't cause an N+1 query per row.
+
+Important changed files:
+
+- `app/Filament/Resources/Customers/Tables/CustomersTable.php`
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php`
+- `tests/Feature/CopyableColumnsTest.php` (new, 4 tests)
+
+Verification:
+
+- `php artisan test --filter=CopyableColumnsTest` — 4 passed, 0 failed. Asserts the `fi-copyable` CSS class Filament renders for an active `->copyable()` column actually appears next to the phone/tracking-ID values (not just that the list pages load), and that an unbooked order's Tracking ID column stays blank rather than showing a stray value.
+- Full `php artisan test` suite — 965 passed, 0 failed, 5289 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-27 - WooCommerce sync: delivery-charge/total fixed, status now pushes back to WooCommerce
+
+Reason:
+
+- Owner: "উকমার্স থেকে অর্ডার সিংক হচ্ছে কিন্তু কোন প্রাইস/ডেলিভারি চার্জ/টোটাল প্রাইস সিংক হচ্ছে না। এবং অ্যাপ থেকে কোন অর্ডার এর স্ট্যাটাস আপডেট হলে সেটা উকমার্সে যাচ্ছে না।" (orders sync from WooCommerce but no price/delivery-charge/total price syncs, and an order status update made in the app doesn't reach WooCommerce) — reported right after confirming the earlier 403 fix worked and orders were actually syncing.
+
+Investigation:
+
+- Read `WooCommerceOrderSyncService`/`OrderWorkflowService`/`Order` model end to end. The total formula itself (`subtotal - discount + vat + shipping_fee`) and the WooCommerce field mapping (`discount_total`, `total_tax`, `shipping_total`, `line_items[].total`) were both already correct.
+- Found the real bug in `Order::booted()`'s `creating()` hook: it auto-fills `shipping_zone`/`shipping_fee` from the ERP's own address-keyword zone calculator whenever `shipping_zone` is still `null` — correct for an admin manually creating an order (no shipping charge exists yet), wrong for a brand-new WooCommerce-synced order, which always already carries a real `shipping_total`. The hook was silently overwriting it with a guessed ERP fee, which also threw off the total (delivery charge feeds directly into it). Confirmed by temporarily reverting the fix and re-running the new regression test — got the exact predicted mismatch (`70.0` ERP-guessed vs `150.0` real WooCommerce fee) — before restoring it.
+- Item-level price mapping itself checked out as correct; flagged to the owner that if item prices are *still* wrong after this fix, it's most likely a SKU mismatch between the two systems (an unmatched SKU is skipped, already logged as a warning — nothing to fix in that path unless SKUs genuinely need reconciling on one side).
+- Confirmed the second complaint was a real, un-built feature, not a bug: the sync has only ever gone WooCommerce → ERP (webhook). Nothing existed to push an ERP-side status change back to WooCommerce.
+
+What changed:
+
+- `WooCommerceOrderSyncService::upsertOrder()` now sets `shipping_zone` (still determined via `ShippingFeeService::determineZone()`, so zone-based reporting/filtering stays meaningful) *before* filling in WooCommerce's real `shipping_fee` — this alone bypasses the `creating()` hook's overwrite, since its condition is specifically "still null".
+- **New ERP → WooCommerce status push**: changing a WooCommerce-sourced order's status in the ERP now queues `PushWooCommerceOrderStatusJob`, which calls WooCommerce's REST API (`PUT /wp-json/wc/v3/orders/{id}`, same Consumer key/secret auth `WooCommerceImportService` already uses) with a mapped status. New `WooCommerceOrderSyncService::REVERSE_STATUS_MAP` — like the existing forward map, a reasonable default flagged for the owner to confirm/adjust, not a confirmed business rule (e.g. ERP's `confirmed` and `processing` both become WooCommerce `processing`; ERP `returned` becomes WooCommerce's closest equivalent, `refunded`).
+- **Loop prevention**: a status change arriving FROM a WooCommerce webhook must never immediately queue a push of that same status straight back. New transient `Order::$suppressWooCommercePush` property (not persisted — matches the existing `$statusTransitionSource`/`$statusTransitionActorId` pattern already on this model), set by the sync service before saving any status change it applies from a webhook.
+
+Important note for the owner:
+
+- **The status mapping in both directions is a reasonable default, not a confirmed business rule** — same caveat the original WooCommerce → ERP mapping already carried. Please review `WooCommerceOrderSyncService::STATUS_MAP`/`REVERSE_STATUS_MAP` and say if any of the equivalents should be different before relying on this for anything status-sensitive.
+- If item-level prices are still wrong after this deploys, check the server log for "no matching product SKU" warnings — that means a WooCommerce line item's SKU doesn't exactly match any ERP product's SKU, which needs reconciling on one side (not a code bug).
+
+Important changed files:
+
+- `app/Services/WooCommerceOrderSyncService.php` (shipping-fee fix, `REVERSE_STATUS_MAP`, `pushStatusToWooCommerce()`)
+- `app/Models/Order.php` (`$suppressWooCommercePush` property, `updated()` hook dispatches the push job)
+- `app/Jobs/PushWooCommerceOrderStatusJob.php` (new)
+- `tests/Feature/WooCommerceOrderWebhookTest.php` (new shipping-fee regression test), `tests/Feature/WooCommerceOrderStatusPushTest.php` (new, 6 tests)
+
+Verification:
+
+- `php artisan test --filter="WooCommerceOrderWebhookTest|WooCommerceOrderStatusPushTest|OrderStatusWorkflowTest|SalesOrderTest|MultiCompanyIsolationTest"` — 30 passed, 0 failed.
+- Manually reverted the shipping-fee fix, re-ran the new regression test, confirmed it fails with the exact predicted mismatch, then restored the fix — real proof the test catches the bug, not just a green checkmark.
+- Full `php artisan test` suite — 961 passed, 0 failed, 5278 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-27 - Mobile layout fix: Courier Fraud Check button + result overlapping
+
+Reason:
+
+- Owner (with a mobile screenshot, referencing `.claude/skills/web-design-guidelines` and `.codex/skills/ui-ux-pro-max`): "মোবাইলে কাস্টমার ফ্রড চেকের রেজাল্ট সুন্দর করে আসছে না" (the customer fraud check result doesn't look good on mobile) — the screenshot showed the "Courier Fraud Check" button and its result table squeezed side by side, overlapping and unreadable on a phone-width screen.
+
+Investigation:
+
+- Loaded the `web-design-guidelines` skill (fetched the current Vercel web-interface-guidelines rules — flex/grid-based responsive stacking, overflow containment, `min-w-0` for truncation, `tabular-nums` for numeric columns) and read `.codex/skills/ui-ux-pro-max`'s reference data as supplementary context — that skill itself isn't a Claude Code-invokable skill (it's Codex-specific, lives under `.codex/`), so its CSVs were read directly rather than invoked.
+- Found the root cause in `app/Filament/Resources/Orders/Schemas/OrderForm.php`: the button and result live in a `Flex::make([...])` with no responsive breakpoint set. Filament's own `flex.css` makes an unconfigured `Flex` (`fi-from-default`) a row **at every width, including phone-narrow** — `->from($breakpoint)` is required to get `flex-col` below that breakpoint and `flex-row` above it, and nothing in this app had ever needed that option before, so it was never called here.
+
+What changed:
+
+- Added `->from('md')` to the fraud-check `Flex` — stacks vertically (button, then the full-width result below it) below tablet width, sits side by side from tablet width up, matching Filament's own documented breakpoint contract.
+- Wrapped the courier stats table in an `overflow-x:auto` container and added `font-variant-numeric:tabular-nums` to its numeric columns, as a second line of defense if the table is ever still too wide for a very small screen, and for cleaner number alignment generally.
+- New regression test `SalesOrderTest::test_order_edit_form_stacks_the_fraud_check_result_below_the_button_on_mobile` — asserts the `fi-from-md` class is actually present in the rendered page (the previous code passed every existing test because nothing asserted on responsive behavior, only that the page loads and shows the right text).
+
+Important changed files:
+
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php`
+- `tests/Feature/SalesOrderTest.php` (new test)
+
+Verification:
+
+- `php artisan test --filter=SalesOrderTest` — 5 passed, 0 failed.
+- Full `php artisan test` suite (run together with the WooCommerce sync fixes below) — 961 passed, 0 failed, 5278 assertions.
+- Confirmed `fi-from-md` is already present in the compiled `public/build/assets/theme-*.css` (Filament's own component CSS ships in full, not purge-scanned against app content) — no `npm run build` needed, this change is PHP-generated markup only, no new CSS/JS source.
+- Could not visually screenshot the fix in a live browser — no known non-demo admin credentials for the local demo database, and creating one would modify demo data (against CLAUDE.md). Verified instead by reading Filament's own `vendor/filament/schemas/resources/css/components/flex.css` source directly to confirm `fi-from-md`'s exact breakpoint behavior, plus the passing regression test above. **Recommend the owner double-checks on a real phone once deployed.**
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
 ## 2026-08-27 - Admin sidebar menu reorder + Customer Success merged under Courier
 
 Reason:

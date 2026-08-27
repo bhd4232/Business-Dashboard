@@ -40,7 +40,7 @@ class OrdersTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['customer', 'latestFraudCheck', 'latestRiskReview']))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['customer', 'latestFraudCheck', 'latestRiskReview', 'latestCourierBooking']))
             ->columns([
                 TextColumn::make('order_number')
                     ->label('Invoice Number')
@@ -51,6 +51,19 @@ class OrdersTable
                     ->label('Customer')
                     ->searchable()
                     ->sortable(),
+
+                TextColumn::make('customer.phone')
+                    ->label('Phone')
+                    ->placeholder('-')
+                    ->searchable()
+                    ->copyable()
+                    ->toggleable(),
+
+                TextColumn::make('latestCourierBooking.tracking_id')
+                    ->label('Tracking ID')
+                    ->placeholder('-')
+                    ->copyable()
+                    ->toggleable(),
 
                 TextColumn::make('order_date')
                     ->label('Sale Date')

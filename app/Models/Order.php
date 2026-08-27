@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\PushWooCommerceOrderStatusJob;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\GeneratesSequentialNumber;
 use App\Services\CustomerRiskService;
@@ -101,6 +102,16 @@ class Order extends Model
     public string $statusTransitionSource = 'direct';
 
     public ?int $statusTransitionActorId = null;
+
+    /**
+     * Set by WooCommerceOrderSyncService before saving an order it just
+     * updated FROM an incoming WooCommerce webhook, so the updated() hook
+     * below doesn't push that same status straight back to WooCommerce —
+     * without this, every WooCommerce → ERP sync would immediately trigger
+     * an ERP → WooCommerce push of the identical status, a wasteful (though
+     * not infinite, since the status wouldn't keep changing) round trip.
+     */
+    public bool $suppressWooCommercePush = false;
 
     public const DELIVERY_STATUSES = [
         CourierBooking::STATUS_NOT_BOOKED => 'Not Booked',
@@ -223,6 +234,15 @@ class Order extends Model
         });
 
         static::updated(function (Order $order): void {
+            if (
+                $order->wasChanged('status')
+                && $order->source === self::SOURCE_WOOCOMMERCE
+                && filled($order->external_reference)
+                && ! $order->suppressWooCommercePush
+            ) {
+                PushWooCommerceOrderStatusJob::dispatch($order->getKey());
+            }
+
             if (
                 ! $order->wasChanged(['status', 'delivery_status'])
                 || ! Schema::hasTable('order_status_transitions')

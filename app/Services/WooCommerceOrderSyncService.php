@@ -6,8 +6,10 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\StorefrontSetting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -35,6 +37,26 @@ class WooCommerceOrderSyncService
         'refunded' => Order::STATUS_REFUNDED,
         'failed' => Order::STATUS_CANCELLED,
         'trash' => Order::STATUS_CANCELLED,
+    ];
+
+    /**
+     * @var array<string, string> Order::STATUS_* => WooCommerce order status
+     *
+     * The reverse of STATUS_MAP, for pushing an ERP-side status change back
+     * to WooCommerce. Also a reasonable default, not a confirmed business
+     * rule — ERP has no exact equivalent of WooCommerce's single flat status
+     * list (e.g. "confirmed" and "processing" both become WooCommerce
+     * "processing"; "returned" becomes "refunded", WooCommerce's closest
+     * status). Adjust if the owner wants different equivalents.
+     */
+    public const REVERSE_STATUS_MAP = [
+        Order::STATUS_DRAFT => 'pending',
+        Order::STATUS_CONFIRMED => 'processing',
+        Order::STATUS_PROCESSING => 'processing',
+        Order::STATUS_COMPLETED => 'completed',
+        Order::STATUS_CANCELLED => 'cancelled',
+        Order::STATUS_RETURNED => 'refunded',
+        Order::STATUS_REFUNDED => 'refunded',
     ];
 
     public function __construct(
@@ -66,11 +88,19 @@ class WooCommerceOrderSyncService
             return;
         }
 
-        Order::query()
+        $order = Order::query()
             ->where('company_id', $company->getKey())
             ->where('external_reference', "woo-{$wooOrderId}")
-            ->first()
-            ?->update(['status' => Order::STATUS_CANCELLED]);
+            ->first();
+
+        if (! $order) {
+            return;
+        }
+
+        // Without this, cancelling here would immediately queue a push of
+        // the identical "cancelled" status straight back to WooCommerce.
+        $order->suppressWooCommercePush = true;
+        $order->update(['status' => Order::STATUS_CANCELLED]);
     }
 
     protected function upsertOrder(Company $company, array $payload): Order
@@ -93,6 +123,25 @@ class WooCommerceOrderSyncService
             $orderDate = $order->exists
                 ? $order->order_date
                 : $this->orderDate($payload);
+
+            // Order::creating() auto-fills shipping_zone/shipping_fee from
+            // the ERP's own zone-keyword calculator whenever shipping_zone
+            // is still null on a brand-new order — it has no way to know a
+            // WooCommerce order already carries its own real shipping_total,
+            // so on a first sync it would silently overwrite the value set
+            // below with a guessed ERP fee. Setting shipping_zone up front
+            // (never null) bypasses that hook entirely; the zone is still
+            // determined for reporting/filtering consistency where the
+            // customer's address actually matches a configured keyword.
+            if (! $order->exists) {
+                $order->shipping_zone = app(ShippingFeeService::class)
+                    ->determineZone($customer->address, $company) ?? '';
+            }
+
+            // Without this, every WooCommerce → ERP status sync would
+            // immediately queue an ERP → WooCommerce push of that same
+            // status straight back (see PushWooCommerceOrderStatusJob).
+            $order->suppressWooCommercePush = true;
 
             $order->fill([
                 'customer_id' => $customer->getKey(),
@@ -206,5 +255,94 @@ class WooCommerceOrderSyncService
     protected function mapStatus(string $wooStatus): string
     {
         return self::STATUS_MAP[$wooStatus] ?? Order::STATUS_DRAFT;
+    }
+
+    /**
+     * Pushes $order's current status to WooCommerce as a real REST API
+     * update (PUT /wp-json/wc/v3/orders/{id}), so a status change made in
+     * the ERP (e.g. an admin marking an order Completed) is reflected back
+     * on the WooCommerce order it originated from. Called from
+     * PushWooCommerceOrderStatusJob, queued by Order::booted()'s updated()
+     * hook — never called synchronously from a request.
+     *
+     * A silent no-op for anything that isn't an existing WooCommerce-sourced
+     * order with credentials configured — this is a best-effort push, not
+     * something that should ever fail the ERP-side status change itself.
+     */
+    public function pushStatusToWooCommerce(Order $order): void
+    {
+        if ($order->source !== Order::SOURCE_WOOCOMMERCE) {
+            return;
+        }
+
+        $wooOrderId = $this->externalOrderId((string) $order->external_reference);
+
+        if ($wooOrderId === null) {
+            return;
+        }
+
+        // Runs from a queued job with no request-bound CompanyContext — set
+        // it explicitly, matching handleOrderEvent()'s own pattern, even
+        // though every read below is already constrained to this specific
+        // order's own company_id via its relations regardless.
+        if ($order->company) {
+            $this->context->set($order->company);
+        }
+
+        $wooStatus = self::REVERSE_STATUS_MAP[$order->status] ?? null;
+
+        if ($wooStatus === null) {
+            return;
+        }
+
+        $setting = $order->company?->storefrontSetting;
+        $baseUrl = rtrim((string) $setting?->woocommerce_base_url, '/');
+        $key = (string) data_get($setting instanceof StorefrontSetting ? $setting->woocommerce_credentials : null, 'consumer_key');
+        $secret = (string) data_get($setting instanceof StorefrontSetting ? $setting->woocommerce_credentials : null, 'consumer_secret');
+
+        if ($baseUrl === '' || $key === '' || $secret === '') {
+            Log::warning('Could not push order status to WooCommerce: site URL or consumer key/secret is not configured.', [
+                'order_id' => $order->getKey(),
+                'company_id' => $order->company_id,
+            ]);
+
+            return;
+        }
+
+        try {
+            $response = Http::timeout(15)
+                ->retry(2, 1000)
+                ->withBasicAuth($key, $secret)
+                ->put("{$baseUrl}/wp-json/wc/v3/orders/{$wooOrderId}", ['status' => $wooStatus]);
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to push order status to WooCommerce.', [
+                'order_id' => $order->getKey(),
+                'company_id' => $order->company_id,
+                'woo_order_id' => $wooOrderId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return;
+        }
+
+        if ($response->failed()) {
+            Log::warning('WooCommerce rejected an order status push.', [
+                'order_id' => $order->getKey(),
+                'company_id' => $order->company_id,
+                'woo_order_id' => $wooOrderId,
+                'status' => $response->status(),
+            ]);
+        }
+    }
+
+    protected function externalOrderId(string $externalReference): ?int
+    {
+        if (! str_starts_with($externalReference, 'woo-')) {
+            return null;
+        }
+
+        $id = (int) substr($externalReference, 4);
+
+        return $id > 0 ? $id : null;
     }
 }

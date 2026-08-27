@@ -158,7 +158,8 @@ class OrderForm
                                     ->implode('');
 
                                 $table = $rows !== ''
-                                    ? '<table style="font-size:0.8125rem;opacity:0.85;border-collapse:collapse;">'
+                                    ? '<div style="overflow-x:auto;max-width:100%;">'
+                                        .'<table style="font-size:0.8125rem;opacity:0.85;border-collapse:collapse;font-variant-numeric:tabular-nums;white-space:nowrap;">'
                                         .'<thead><tr style="opacity:0.6;">'
                                         .'<th style="text-align:left;padding:2px 10px 2px 0;">Courier</th>'
                                         .'<th style="padding:2px 10px;text-align:right;">Total</th>'
@@ -166,16 +167,25 @@ class OrderForm
                                         .'<th style="padding:2px 10px;text-align:right;">Undelivered</th>'
                                         .'<th style="padding:2px 0;text-align:right;">Confidence</th>'
                                         .'</tr></thead><tbody>'.$rows.'</tbody></table>'
+                                        .'</div>'
                                     : '';
 
                                 return new HtmlString(
-                                    '<div style="display:flex;flex-direction:column;gap:4px;font-size:0.875rem;">'
+                                    '<div style="display:flex;flex-direction:column;gap:4px;font-size:0.875rem;min-width:0;max-width:100%;">'
                                     .'<span style="color:'.$color.';font-weight:600;">'.e($label).'</span>'
                                     .$table
                                     .'</div>'
                                 );
                             }),
                         ])
+                            // Stacks the button above the result (full width on
+                            // its own line) below tablet width — a button plus
+                            // a 5-column courier table never fit side by side
+                            // on a phone; still sits inline next to the button
+                            // from tablet width up ($fromBreakpoint's normal
+                            // "from-md" contract: flex-col below md, flex-row
+                            // from md up — see vendor/filament/schemas' flex.css).
+                            ->from('md')
                             ->verticallyAlignCenter()
                             ->columnSpanFull(),
 

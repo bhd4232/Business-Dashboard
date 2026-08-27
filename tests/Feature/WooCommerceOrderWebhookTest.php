@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Company;
+use App\Models\CourierProvider;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -120,6 +121,47 @@ class WooCommerceOrderWebhookTest extends TestCase
 
         $response->assertForbidden();
         $this->assertDatabaseMissing('orders', ['company_id' => $companyB->getKey(), 'external_reference' => 'woo-505']);
+    }
+
+    /**
+     * Regression test for a real production bug: Order::creating() auto-fills
+     * shipping_zone/shipping_fee from the ERP's own zone-keyword calculator
+     * whenever shipping_zone is still null on a brand-new order — a
+     * WooCommerce-synced order used to leave shipping_zone null, so this
+     * silently overwrote the real WooCommerce shipping_total with a guessed
+     * ERP fee. Configures a company whose ERP-calculated fee (70) would
+     * differ from WooCommerce's real one (150) if the bug were still
+     * present, so this only passes when WooCommerce's value actually wins.
+     */
+    public function test_shipping_fee_and_total_use_woocommerces_real_values_not_the_erp_zone_calculator(): void
+    {
+        $company = $this->createCompanyWithWebhookSecret('woo-secret-7');
+        $product = $this->createProduct($company, 'Webhook Product 7', 'WOO-SKU-7');
+
+        $company->update(['settings' => array_merge($company->settings ?? [], [
+            'shipping_zones' => ['inside' => ['dhaka'], 'outside' => [], 'suburb' => []],
+        ])]);
+        CourierProvider::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => 'Test Courier',
+            'driver' => 'manual',
+            'is_active' => true,
+            'settings' => ['delivery_fees' => ['inside' => 70, 'outside' => 100, 'suburb' => 90]],
+        ]);
+
+        $payload = $this->orderPayload(id: 507, sku: $product->sku);
+        $payload['shipping_total'] = '150.00';
+        $payload['discount_total'] = '10.00';
+        $payload['total_tax'] = '5.00';
+
+        $this->postWebhook($company, $payload, 'order.created', 'woo-secret-7')->assertOk();
+
+        $order = Order::query()->where('company_id', $company->getKey())->where('external_reference', 'woo-507')->first();
+
+        $this->assertNotNull($order);
+        $this->assertSame(150.0, (float) $order->shipping_fee);
+        // subtotal (200 from the 2x100 line item) - discount (10) + vat (5) + shipping (150) = 345
+        $this->assertSame(345.0, (float) $order->total_amount);
     }
 
     public function test_order_deleted_topic_cancels_the_order_instead_of_deleting_it(): void

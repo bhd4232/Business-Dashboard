@@ -27,7 +27,8 @@ class CustomersTable
                     ->sortable(),
 
                 TextColumn::make('phone')
-                    ->searchable(),
+                    ->searchable()
+                    ->copyable(),
 
                 TextColumn::make('email')
                     ->searchable()
