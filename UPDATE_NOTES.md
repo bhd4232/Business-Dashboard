@@ -2,6 +2,33 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-27 - Admin sidebar menu reorder + Customer Success merged under Courier
+
+Reason:
+
+- Owner: requested a specific sidebar order — "Dashboard, CRM, Sales, Inventory, Purchase, Courier-Customer Success কুরিয়ার মেনুর আন্ডারে থাকবে, Ads, Finance, Investment, Reports, Company Management, Site, Settings" (Customer Success should live under the Courier menu). Resellers wasn't in the list (a cluster added by another session, so an easy thing to not know about) — asked where to put it; owner said "Ads এর আগে" (right before Ads).
+
+What changed:
+
+- `navigationSort` updated across all 13 `NavigationCluster` subclasses to match: CRM=1, Sales=2, Inventory=3, Purchasing=4, Courier=5, Resellers=6, Ads=7, Finance=8, Investments=9, Reports=10, Company Management=11, Storefront ("Site")=12, Settings=13. Dashboard needs no change — Filament's own default Dashboard page already sorts at `-2`, always first regardless.
+- **Customer Success merged under Courier**: its 5 owning components (`CustomerRiskProfileResource`, `CustomerBlacklistResource`, `CustomerRiskReviewResource`, `CustomerRiskEventResource`, `CustomerRiskSettings` page) now declare `$cluster = Courier::class` instead of the now-deleted `CustomerSuccess` cluster class — they show up as sub-navigation items under Courier's own menu instead of a separate top-level entry. URLs moved from `/admin/customer-success/*` to `/admin/courier/*`.
+- Verified the final order programmatically via a quick Tinker script reading each cluster's `navigationSort` — matched the requested order exactly before shipping.
+- **Found and fixed the exact kind of test breakage the new auto-release-cut feature (yesterday's entry) can cause**: this round's own `cut-release` CI run auto-advanced `CHANGELOG.md` to `v2.3.0`, which immediately broke 3 `ReleaseNotesTest` assertions that hardcoded `v2.2.0`/`2026-08-26`/etc. Fixed those 3, and additionally rewrote all 6 hardcoded version/date/type-label literals in that file to read from `AppRelease::latestPublished()` at test time instead — so this file won't need a manual touch on the *next* auto-cut either.
+
+Important changed files:
+
+- `app/Filament/Clusters/*.php` (13 files, `navigationSort` only)
+- `app/Filament/Clusters/CustomerSuccess.php` (deleted)
+- `app/Filament/Pages/CustomerRiskSettings.php`, `app/Filament/Resources/CustomerBlacklists/CustomerBlacklistResource.php`, `app/Filament/Resources/CustomerRiskEvents/CustomerRiskEventResource.php`, `app/Filament/Resources/CustomerRiskProfiles/CustomerRiskProfileResource.php`, `app/Filament/Resources/CustomerRiskReviews/CustomerRiskReviewResource.php` (`$cluster` reassigned to `Courier::class`)
+- `tests/Feature/CustomerRiskTest.php` (URL prefix updates), `tests/Feature/ReleaseNotesTest.php` (made version-agnostic)
+
+Verification:
+
+- `php artisan test --filter="CustomerRiskTest|AdminNavigationClustersTest|ReleaseNotesTest"` — all passed.
+- Full `php artisan test` suite — 953 passed, 0 failed, 5265 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
 ## 2026-08-27 - WooCommerce webhook 403 + a real error-page bug found while investigating
 
 Reason:

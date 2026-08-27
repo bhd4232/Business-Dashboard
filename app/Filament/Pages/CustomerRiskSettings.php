@@ -2,7 +2,7 @@
 
 namespace App\Filament\Pages;
 
-use App\Filament\Clusters\CustomerSuccess;
+use App\Filament\Clusters\Courier;
 use App\Services\CustomerRiskSettingsService;
 use BackedEnum;
 use Filament\Notifications\Notification;
@@ -14,7 +14,7 @@ class CustomerRiskSettings extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAdjustmentsHorizontal;
 
-    protected static ?string $cluster = CustomerSuccess::class;
+    protected static ?string $cluster = Courier::class;
 
     protected static ?string $navigationLabel = 'Risk Settings';
 

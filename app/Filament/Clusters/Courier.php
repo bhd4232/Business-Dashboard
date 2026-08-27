@@ -12,7 +12,7 @@ class Courier extends NavigationCluster
 
     protected static ?string $navigationLabel = 'Courier';
 
-    protected static ?int $navigationSort = 7;
+    protected static ?int $navigationSort = 5;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

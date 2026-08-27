@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\CustomerRiskProfiles;
 
-use App\Filament\Clusters\CustomerSuccess;
+use App\Filament\Clusters\Courier;
 use App\Filament\Resources\CustomerRiskProfiles\Pages\ListCustomerRiskProfiles;
 use App\Models\CustomerRiskProfile;
 use BackedEnum;
@@ -20,7 +20,7 @@ class CustomerRiskProfileResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
 
-    protected static ?string $cluster = CustomerSuccess::class;
+    protected static ?string $cluster = Courier::class;
 
     protected static ?string $navigationLabel = 'Risk Profiles';
 

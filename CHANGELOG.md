@@ -4,6 +4,15 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Admin sidebar menu order rearranged** (owner request): Dashboard, CRM, Sales, Inventory, Purchasing, Courier, Resellers, Ads, Finance, Investments, Reports, Company Management, Site, Settings. **Customer Success now lives under the Courier menu** (Risk Profiles, Blacklists, Risk Reviews, Risk Events, Risk Settings) instead of its own separate top-level entry — courier delivery outcomes are this module's primary risk signal, so keeping it alongside Courier's other pages was the owner's preference over a standalone menu.
+
+### Technical Notes
+
+- Reordering was a pure `navigationSort` change across the 13 `NavigationCluster` subclasses in `app/Filament/Clusters/` — no routes changed for anything except Customer Success. The `CustomerSuccess` cluster class is now deleted; its 5 owning Resources/Pages (`CustomerRiskProfileResource`, `CustomerBlacklistResource`, `CustomerRiskReviewResource`, `CustomerRiskEventResource`, `CustomerRiskSettings`) now declare `$cluster = Courier::class`, moving their URLs from `/admin/customer-success/*` to `/admin/courier/*` (updated in `tests/Feature/CustomerRiskTest.php`). Verified the full requested order programmatically (`getNavigationSort()` per cluster) before shipping.
+- **`tests/Feature/ReleaseNotesTest.php` made version-agnostic**: 6 assertions hardcoded the exact version/date/type-label string (`v2.2.0`, `Released 2026-08-26`, `Minor Feature`), so the very next `cut-release` CI run (this round auto-cut `v2.3.0`) broke this test file again — the same class of maintenance the auto-cut feature was supposed to reduce, just one file over. All 6 now read the expected value from `AppRelease::latestPublished()` at test time instead of a literal, so this file no longer needs a manual touch on every future release cut.
+
 ## [2.3.0] - 2026-08-27
 
 **Release type:** Minor Feature Update

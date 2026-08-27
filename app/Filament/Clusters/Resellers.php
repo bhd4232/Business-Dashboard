@@ -16,7 +16,7 @@ class Resellers extends NavigationCluster
 
     protected static ?string $navigationLabel = 'Resellers';
 
-    protected static ?int $navigationSort = 9;
+    protected static ?int $navigationSort = 6;
 
     public static function canAccess(): bool
     {

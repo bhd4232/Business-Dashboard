@@ -14,7 +14,7 @@ class Crm extends NavigationCluster
 
     protected static ?string $clusterBreadcrumb = 'CRM';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 1;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

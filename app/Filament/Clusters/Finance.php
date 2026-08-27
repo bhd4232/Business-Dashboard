@@ -12,7 +12,7 @@ class Finance extends NavigationCluster
 
     protected static ?string $navigationLabel = 'Finance';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 8;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

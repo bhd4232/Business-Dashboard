@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\CustomerRiskEvents;
 
-use App\Filament\Clusters\CustomerSuccess;
+use App\Filament\Clusters\Courier;
 use App\Filament\Resources\CustomerRiskEvents\Pages\ListCustomerRiskEvents;
 use App\Models\CustomerRiskEvent;
 use BackedEnum;
@@ -19,7 +19,7 @@ class CustomerRiskEventResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
-    protected static ?string $cluster = CustomerSuccess::class;
+    protected static ?string $cluster = Courier::class;
 
     protected static ?string $navigationLabel = 'Risk Events';
 
