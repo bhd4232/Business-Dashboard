@@ -16,7 +16,7 @@
         $featuredProducts = $products->take(6);
         $featuredCategories = $categories->take(4);
         $heroHeading = $setting->hero_heading ?: 'Solar buying, re-engineered.';
-        $heroSubheading = $setting->hero_subheading ?: 'Real solar products, ERP-connected availability and project-ready quotationâ€”built for Bangladesh.';
+        $heroSubheading = $setting->hero_subheading ?: 'Real solar products, ERP-connected availability and project-ready quotation—built for Bangladesh.';
         $heroCta = $setting->hero_cta_label ?: 'Explore Modules';
         $moduleProduct = $featuredProducts->first();
     @endphp
@@ -101,7 +101,7 @@
                     <p class="noor-kicker">Start with your use-case</p>
                     <h2 id="noor-solutions-title">Find the right solar path faster.</h2>
                 </div>
-                <p>Choose an application first. Weâ€™ll narrow the suitable modules, system capacity and quotation path from there.</p>
+                <p>Choose an application first. We’ll narrow the suitable modules, system capacity and quotation path from there.</p>
             </div>
 
             <div class="noor-application-grid">
@@ -206,7 +206,7 @@
                 <div class="noor-technology-intro">
                     <p class="noor-kicker noor-kicker-gold">Manufacturing intelligence</p>
                     <h2 id="noor-technology-title">Engineering depth behind every module.</h2>
-                    <p>Technical information should help buyers compare products confidentlyâ€”without burying essential decisions inside a datasheet.</p>
+                    <p>Technical information should help buyers compare products confidently—without burying essential decisions inside a datasheet.</p>
                     <div class="noor-trace-card"><small>ERP trust layer</small><strong>SKU-level documents & traceability</strong><span>Publish only the certifications verified for the selected product and market.</span></div>
                 </div>
                 <div class="noor-technology-grid">
@@ -276,14 +276,14 @@
         </section>
 
         <section class="noor-section noor-shell" id="noor-builder" aria-labelledby="noor-builder-title">
-            <div class="noor-builder" x-data="{ application: 'Home', capacity: '1â€“3 kW', goal: 'Reduce electricity bill' }" x-reveal>
+            <div class="noor-builder" x-data="{ application: 'Home', capacity: '1–3 kW', goal: 'Reduce electricity bill' }" x-reveal>
                 <div class="noor-builder-copy">
                     <p class="noor-kicker noor-kicker-gold">Solar system builder</p>
                     <h2 id="noor-builder-title">Turn your requirement into a clearer project brief.</h2>
                     <p>Choose three essentials. The sales team can use this brief to continue the technical discussion and quotation.</p>
                     <div class="noor-builder-summary" aria-live="polite">
                         <small>Your starting brief</small>
-                        <strong x-text="application + ' Â· ' + capacity"></strong>
+                        <strong x-text="application + ' · ' + capacity"></strong>
                         <span x-text="goal"></span>
                     </div>
                 </div>
@@ -299,7 +299,7 @@
                     <fieldset>
                         <legend><span>02</span> Capacity</legend>
                         <div class="noor-choice-grid">
-                            @foreach (['1â€“3 kW', '3â€“10 kW', '10â€“50 kW', '100 kW+'] as $choice)
+                            @foreach (['1–3 kW', '3–10 kW', '10–50 kW', '100 kW+'] as $choice)
                                 <button type="button" @click="capacity = '{{ $choice }}'" :aria-pressed="(capacity === '{{ $choice }}').toString()" :class="capacity === '{{ $choice }}' ? 'is-selected' : ''">{{ $choice }}</button>
                             @endforeach
                         </div>
@@ -336,8 +336,8 @@
         <section class="noor-cta noor-shell" aria-labelledby="noor-cta-title" x-reveal>
             <div>
                 <p class="noor-kicker noor-kicker-gold">Project quotation</p>
-                <h2 id="noor-cta-title">Tell us what you need. Weâ€™ll shape the right solar path.</h2>
-                <p>Home, office, factory or EPC supplyâ€”start with a clear requirement and continue with the Noor sales team.</p>
+                <h2 id="noor-cta-title">Tell us what you need. We’ll shape the right solar path.</h2>
+                <p>Home, office, factory or EPC supply—start with a clear requirement and continue with the Noor sales team.</p>
             </div>
             <div class="noor-actions">
                 <a class="noor-button noor-button-gold" href="#noor-builder">Build My System</a>

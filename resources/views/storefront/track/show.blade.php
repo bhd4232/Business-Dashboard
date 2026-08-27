@@ -110,7 +110,7 @@
                             @foreach ($orderSteps as $step)
                                 <div class="flex items-center gap-3 rounded-lg border px-4 py-3 {{ $step['done'] ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200' : 'border-gray-200 bg-gray-50 text-gray-500 dark:border-white/10 dark:bg-gray-950 dark:text-gray-400' }}">
                                     <span class="grid h-7 w-7 place-items-center rounded-full {{ $step['done'] ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500 dark:bg-white/10' }}">
-                                        {{ $step['done'] ? 'âœ“' : 'â€¢' }}
+                                        {{ $step['done'] ? '✓' : '•' }}
                                     </span>
                                     <span class="text-sm font-medium">{{ $step['label'] }}</span>
                                 </div>
@@ -122,7 +122,7 @@
                         <div class="mt-8">
                             <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400">Delivery update</h3>
                             <div class="mt-3 flex items-center gap-3 rounded-lg border border-[var(--storefront-brand)] bg-[var(--storefront-brand)]/10 px-4 py-3 text-gray-950 dark:text-white">
-                                <span class="grid h-7 w-7 place-items-center rounded-full bg-[var(--storefront-brand)] text-white">â—</span>
+                                <span class="grid h-7 w-7 place-items-center rounded-full bg-[var(--storefront-brand)] text-white">●</span>
                                 <span class="text-sm font-medium">{{ $deliveryStatusLabel }}</span>
                             </div>
                         </div>
@@ -166,14 +166,14 @@
                                                     <span class="absolute left-1/2 top-10 h-[calc(100%+0.75rem)] w-px -translate-x-1/2 bg-gray-200 dark:bg-white/10"></span>
                                                 @endunless
                                                 <span class="relative z-10 mt-4 grid h-8 w-8 place-items-center rounded-full border-4 border-white text-sm dark:border-gray-950 {{ $isDelivery ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white' }}">
-                                                    {{ $isDelivery ? 'âœ“' : 'â†—' }}
+                                                    {{ $isDelivery ? '✓' : '↗' }}
                                                 </span>
                                             </div>
 
                                             <article class="rounded-lg border p-4 transition {{ $isLatest ? 'border-[var(--storefront-brand)] bg-[var(--storefront-brand)]/5' : 'border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-gray-950' }}">
                                                 <div class="flex gap-3 sm:gap-4">
                                                     <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm sm:hidden {{ $isDelivery ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white' }}">
-                                                        {{ $isDelivery ? 'âœ“' : 'â†—' }}
+                                                        {{ $isDelivery ? '✓' : '↗' }}
                                                     </span>
 
                                                     <div class="min-w-0 flex-1">

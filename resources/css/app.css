@@ -52,11 +52,6 @@ body[data-storefront-theme='marketplace_pro'] {
     margin-top: clamp(1.5rem, 3vw, 2.75rem);
 }
 
-.marketplace-hero-grid {
-    display: grid;
-    gap: 1rem;
-}
-
 .marketplace-hero-card {
     position: relative;
     min-width: 0;
@@ -71,11 +66,6 @@ body[data-storefront-theme='marketplace_pro'] {
     overflow-wrap: anywhere;
 }
 
-.marketplace-promo-card > div:first-child {
-    min-width: 0;
-}
-
-.marketplace-promo-card,
 .marketplace-info-card {
     display: flex;
     min-width: 0;
@@ -88,7 +78,6 @@ body[data-storefront-theme='marketplace_pro'] {
     box-shadow: var(--storefront-card-shadow);
 }
 
-.dark .marketplace-promo-card,
 .dark .marketplace-info-card {
     background: var(--storefront-dark-surface);
     box-shadow: var(--storefront-card-shadow-dark);
@@ -176,13 +165,35 @@ body[data-storefront-theme='marketplace_pro'] {
     font-size: 0.65rem;
 }
 
+/*
+ * Mobile default: a modern horizontally-scrollable strip instead of 4
+ * stacked rows — each item keeps a fixed minimum width and snaps into
+ * place, scrollbar hidden for a cleaner look (still fully scrollable via
+ * touch/drag). Switches to a proper grid from `sm` up, where there's
+ * enough width to lay all 4 items out without scrolling.
+ */
 .marketplace-trust-grid {
-    display: grid;
-    gap: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
     border-radius: var(--radius-xl);
     background: var(--storefront-surface);
     padding: 1.1rem;
     box-shadow: var(--storefront-card-shadow);
+}
+
+.marketplace-trust-grid::-webkit-scrollbar {
+    display: none;
+}
+
+.marketplace-trust-grid > div {
+    flex: 0 0 auto;
+    min-width: 11rem;
+    scroll-snap-align: start;
 }
 
 .dark .marketplace-trust-grid {
@@ -229,6 +240,21 @@ body[data-storefront-theme='marketplace_pro'] {
     color: var(--storefront-brand);
     font-size: 0.8rem;
     font-weight: 700;
+}
+
+.marketplace-link-arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    transition: gap var(--storefront-motion-duration);
+}
+
+.marketplace-link-arrow:hover {
+    gap: 0.45rem;
+}
+
+.marketplace-link-arrow svg {
+    flex: 0 0 auto;
 }
 
 .marketplace-category-grid {
@@ -398,8 +424,14 @@ body[data-storefront-theme='marketplace_pro'] {
 
 @media (min-width: 640px) {
     .marketplace-trust-grid {
+        display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow-x: visible;
         padding: 1.25rem 1.5rem;
+    }
+
+    .marketplace-trust-grid > div {
+        min-width: 0;
     }
 
     .marketplace-category-grid {
@@ -416,10 +448,6 @@ body[data-storefront-theme='marketplace_pro'] {
     .storefront-image-banner {
         height: calc(100vh / 3);
         height: calc(100svh / 3);
-    }
-
-    .marketplace-hero-grid {
-        grid-template-columns: minmax(0, 2fr) minmax(17rem, 1fr);
     }
 
     .marketplace-trust-grid {

@@ -395,7 +395,7 @@
                 input.addEventListener('change', refreshAddButton);
             });
 
-            // Steppers change values programmatically â€” watch clicks too.
+            // Steppers change values programmatically — watch clicks too.
             page.querySelectorAll('[data-variant-rows] [data-qty-decrement], [data-variant-rows] [data-qty-increment]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     setTimeout(refreshAddButton, 0);

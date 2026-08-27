@@ -156,6 +156,30 @@ class InvoiceDesignTest extends TestCase
             ->assertDontSee('@media (max-width: 720px)', false);
     }
 
+    /**
+     * Owner report: tapping "Print" on mobile did not open the device's
+     * print dialog. Root cause: window.print() was wrapped in a
+     * setTimeout(), which drops the "user activation" flag most mobile
+     * browsers require for window.print() to work — so the click handler
+     * must call it synchronously, with no delay in between.
+     */
+    public function test_print_button_calls_window_print_synchronously_on_click_for_mobile_browsers(): void
+    {
+        $order = $this->makeOrder();
+
+        $response = $this->actingAs($this->admin())
+            ->get(route('orders.print', $order))
+            ->assertOk();
+
+        $content = $response->getContent();
+        $clickHandlerStart = strpos($content, "addEventListener('click'");
+        $this->assertNotFalse($clickHandlerStart);
+
+        $clickHandlerBody = substr($content, $clickHandlerStart, 200);
+        $this->assertStringContainsString('window.print();', $clickHandlerBody);
+        $this->assertStringNotContainsString('setTimeout', $clickHandlerBody);
+    }
+
     public function test_print_typography_matches_the_compact_reference_scale(): void
     {
         $order = $this->makeOrder();

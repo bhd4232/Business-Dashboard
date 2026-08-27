@@ -52,7 +52,7 @@
     $ctaLabel = $setting->whatsapp_number ? 'Chat on WhatsApp' : 'Email us';
 
     // Tailwind's content scanner needs each full class name written literally
-    // somewhere in this file â€” string-building "lg:grid-cols-{n}" at runtime
+    // somewhere in this file — string-building "lg:grid-cols-{n}" at runtime
     // would never be picked up by the build.
     $cardsGridClass = match (min(4, max(1, $cards->count()))) {
         1 => 'lg:grid-cols-1',

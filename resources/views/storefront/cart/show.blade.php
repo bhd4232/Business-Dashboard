@@ -167,7 +167,7 @@
                 form.querySelectorAll('button[type="submit"]').forEach(function (button) {
                     button.disabled = true;
                     button.setAttribute('aria-busy', 'true');
-                    button.textContent = button.getAttribute('data-pending-label') || 'Workingâ€¦';
+                    button.textContent = button.getAttribute('data-pending-label') || 'Working…';
                 });
             }, 0);
         });

@@ -4,6 +4,28 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Marketplace Pro homepage hero is now full width**: the two "Ready to order" category cards that used to sit beside the hero banner are removed (owner request), so the banner fills the row on every screen size instead of sharing it. Mobile layout is unaffected — the hero was already single-column below tablet width.
+- **Trust/service strip (Nationwide dispatch, Easy replacement, Business pricing, Secure payment) is now a horizontally-scrollable strip on mobile** instead of 4 stacked rows — swipe/scroll sideways to see all four; switches to a proper grid from tablet width up, unchanged from before.
+
+### Fixed
+
+- **Tapping "Print" on the order invoice page did nothing on mobile** — the device's print dialog never opened, even though the same button worked fine on desktop. Fixed on both the single-order invoice and the bulk-invoice print pages.
+- **"See all"/"View all" links across the Marketplace Pro homepage showed a corrupted, meaningless character instead of an arrow** (a text arrow that had been through a character-encoding bug at some point, rendering as garbled text like `â†'` instead of `→`). Replaced with a real arrow icon (SVG) everywhere it appears on this theme's homepage.
+- **The same encoding corruption was found and fixed across the rest of the storefront**, not just the homepage: the storefront offers page, Noor Solar Energy theme's homepage, checkout, cart, product page, order tracking page, and contact page all had various punctuation (em dashes, en dashes, smart quotes, ellipses, checkmarks) silently rendering as garbled text. Also recovered a Bengali confirmation message on the storefront's post-checkout "thank you" page that had been corrupted the same way, using the last known-good version from git history rather than reconstructing it.
+
+### Technical Notes
+
+- **Mobile print fix root cause**: `window.print()` was called from inside a `setTimeout()` (added earlier to give `window.focus()` a moment to take effect). Most mobile browsers (Android Chrome, iOS Safari, and in-app WebViews) only treat `window.print()` as a genuine response to the user's tap — and open the native print dialog — when it runs *synchronously* inside the click event itself; a delay of any length, even 50ms, drops that "user activation" flag and the call is silently ignored. Desktop browsers are more lenient about this, which is why it worked there and went unnoticed. Fixed in both `resources/views/orders/print.blade.php` and `resources/views/orders/print-bulk.blade.php` by calling `window.print()` immediately in the click handler; the separate auto-print-on-page-load paths (`?print=1` on the single invoice, always-on for bulk print) aren't a click gesture either way, so they keep the short delay. New regression test `InvoiceDesignTest::test_print_button_calls_window_print_synchronously_on_click_for_mobile_browsers`.
+- Root cause of all the corrupted text above: at some point, UTF-8 bytes in these files were decoded as Windows-1252/Latin-1 and re-saved as UTF-8, corrupting every non-ASCII character (arrows, dashes, quotes, checkmarks, and — in one file — Bengali script) into a garbled multi-character sequence. Fixed via a byte-level script that detects any character run which round-trips cleanly back to valid UTF-8 through a CP1252 re-encode (the signature of this exact corruption) and restores the original character; verified programmatically (not by eye — the same class of encoding confusion can also affect how a terminal *displays* text, so visual inspection alone isn't reliable here) that zero such runs remain in any of the 9 affected files afterward. `resources/views/storefront/offers/thank-you.blade.php`'s Bengali text specifically was restored using `git show` against the last commit before the corruption (`3ab35b5e`), byte-verified as an exact match rather than reconstructed blind.
+- New `resources/views/storefront/partials/arrow-right-icon.blade.php` (reusable SVG, matches the existing hand-rolled stroke-icon style already used by the trust-strip icons) + new `.marketplace-link-arrow` CSS class for icon/text alignment.
+- `.marketplace-hero-grid`/`.marketplace-promo-card` CSS removed (dead code — no longer referenced by any Blade view after the promo cards were removed); `.marketplace-info-card` (a different, still-used card sharing some of the same rules) kept intact.
+- `.marketplace-trust-grid` default is now `display:flex; overflow-x:auto` with `scroll-snap`, switching to `display:grid` at the existing `sm`/`lg` breakpoints (unchanged from before).
+- **Owner also asked to hide the "Built for repeat and wholesale buyers / Open business account" card for retail-only companies** (e.g. ZamZam Gadget) while keeping it for wholesale-only companies (e.g. ZamZam International) — this already exists as a per-company toggle (Storefront Settings → Marketplace Pro Features → "Business account callouts"), so no code change was needed; just needs switching off for the retail company via the dashboard.
+- New tests: `StorefrontThemeTest::test_marketplace_hero_is_full_width_without_promo_cards_and_uses_a_real_arrow_icon`, `test_marketplace_trust_strip_scrolls_horizontally_on_mobile`.
+- Found (not fixed here — unrelated, admin-only, flagged separately): `resources/views/filament/pages/inbox.blade.php` has its own, different single-byte encoding issue.
+
 ## [2.4.1] - 2026-08-27
 
 **Release type:** Patch/Fix Update

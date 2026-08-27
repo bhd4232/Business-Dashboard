@@ -2,6 +2,77 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-27 - Mobile print button did not open the print dialog
+
+Reason:
+
+- Owner (with a screenshot of the invoice print page on a mobile device): "মোবাইলে প্রিন্ট বাটনে ক্লিক করলে ডিভাইসের ডিফল্ট প্রিন্ট উইন্ডো ওপেন হয়না, এইটা ফিক্স করে দেও।" (tapping the Print button on mobile doesn't open the device's default print window, please fix it).
+
+Investigation:
+
+- Both `resources/views/orders/print.blade.php` (single invoice) and `resources/views/orders/print-bulk.blade.php` (bulk invoices) call `window.print()` inside a `setTimeout(..., 50)`, added earlier alongside a `window.focus()` call. Most mobile browsers only allow `window.print()` to open the native print dialog when it's called synchronously, as a direct result of the user's tap — a `setTimeout`, even a short one, breaks that direct link and the browser silently ignores the call. Desktop browsers don't enforce this as strictly, which is why the button worked there and the bug went unnoticed until tested on a phone.
+
+What changed:
+
+- The Print button's click handler now calls `window.print()` immediately, with no delay — fixed identically on both the single-order and bulk-invoice print pages.
+- Left the *auto*-print-on-page-load paths (the single invoice's `?print=1` query param, and bulk print's always-on-load trigger) with their existing short delay — those aren't triggered by a click gesture in the first place, so the delay there was never the problem and is still useful to let the page finish laying out first.
+
+Important changed files:
+
+- `resources/views/orders/print.blade.php`
+- `resources/views/orders/print-bulk.blade.php`
+- `tests/Feature/InvoiceDesignTest.php` (1 new regression test)
+
+Verification:
+
+- `php artisan test tests/Feature/InvoiceDesignTest.php tests/Feature/OrderBulkPrintTest.php tests/Feature/CompanySettingsTest.php` — 40 passed, 0 failed, 273 assertions (no regressions to existing print-page tests).
+- Full `php artisan test` suite — 970 passed, 0 failed, 5317 assertions.
+
+Commit status: Approved by owner ("একসাথে কমিট করে পুশ কর") — committing together with the Marketplace Pro batch below.
+
+## 2026-08-27 - Marketplace Pro homepage redesign + a widespread encoding bug found and fixed
+
+Reason:
+
+- Owner (with 4 screenshots of the live storefront, offer.zamzamgadgetbd.com): "হোম পেজ ব্যানার ফুল উইধ হবে। ব্যানারের পাশে দুইটা ক্যাটাগরি কার্ড রিমুভ কর। মোবাইলে হোম পেজ ব্যানার ইমেজে দেখানো পজিশনে/রেশিওতে থাকবে, ৩নং ইমেজে দেখানো বড় লাল বক্সের USP গুলোকে মোডার্ণ হরিজন্টাল স্টাইল দেও, see all এর পাশে মিনিংলেস আইকন দেখাচ্ছে এইখানে সব জায়গায় রাইট এরো আইকন বসাবে। শেষের ইমেজে 'Built for repeat and wholesale buyers... Open business account' কার্ডটা শুধু zamzam international যেখানে পাইকারি সেল শুধু সেখানে থাকবে। খুচরা zamzam gadget এ এই টাইপের কোন ওয়য়ার্ড থাকবে না। এর জন্য তুমি ড্যাশবোর্ডে অপশন যোগ করতে পার।" (homepage banner should be full width; remove the two category cards beside it; mobile banner stays at its current position/ratio; give the USP row in the big red box a modern horizontal style; the meaningless icon next to "See all" should be a real right-arrow icon everywhere; the "Open business account" card should only show for the wholesale-only company (ZamZam International), never the retail one (ZamZam Gadget) — suggested adding a dashboard option for that last one).
+
+Investigation:
+
+- All the homepage sections referenced are in `resources/views/storefront/themes/marketplace-pro/home.blade.php` (the "Marketplace Pro" theme, `MARKETPLACE_HERO` template — confirmed this is what ZamZam Gadget/International actually use).
+- The "meaningless icon" next to "See all" was a genuine bug, not a rendering quirk: the file's arrow character had been corrupted by a character-encoding mistake at some point (UTF-8 bytes decoded as Windows-1252 and re-saved), turning a real `→` into a garbled multi-character sequence. Checked the rest of the storefront for the same pattern and found it in 8 more files.
+- The "Open business account" card is already gated by an existing per-company toggle (`Storefront Settings → Marketplace Pro Features → "Business account callouts"`) — no code was needed for that part, just flipping it off for ZamZam Gadget.
+
+What changed:
+
+- **Hero banner**: now full width — the two "Ready to order" category promo cards beside it are removed. Mobile is unaffected (it was already single-column there).
+- **Trust/USP strip**: now a horizontally-scrollable strip on mobile (was 4 stacked rows) with scroll-snap; unchanged grid layout from tablet width up.
+- **"See all"/"View all" arrows**: replaced with a real SVG arrow icon (new `storefront.partials.arrow-right-icon` partial) everywhere they appear on this theme's homepage — 4 locations.
+- **Business account card**: no code change — this is a data/configuration change the owner can make directly: **Storefront Settings → Marketplace Pro Features → turn OFF "Business account callouts" for ZamZam Gadget, keep it ON for ZamZam International.**
+- **Bonus fix (found while fixing the arrow icon)**: the same encoding corruption existed in 8 other storefront files — `home.blade.php` (offer discount banner), the Noor Solar Energy theme's homepage (7 spots — em/en dashes, smart quotes), checkout, cart (both had a corrupted "Processing…"/"Working…" ellipsis), the product page and order-tracking page (checkmarks, arrows, a status dot), the contact page, and — most importantly — a **Bengali confirmation message on the storefront's post-checkout "thank you" page** was garbled into unreadable text. All fixed; the Bengali text specifically was restored from `git show 3ab35b5e` (the last commit before it got corrupted), verified as an exact byte match rather than reconstructed by guesswork, since guessing wrong on Bengali script would have been worse than leaving it visibly broken.
+- **Found but not fixed (unrelated, flagged as a separate follow-up)**: `resources/views/filament/pages/inbox.blade.php` (admin-only CRM Inbox page) has a different, single stray byte encoding issue. Spun off as its own task since it's unrelated to the storefront and lower priority (not customer-facing).
+
+Important note for the owner:
+
+- **Please switch off "Business account callouts" for ZamZam Gadget** (Storefront Settings → Marketplace Pro Features) once this deploys — that's the actual remaining step for item 6, no further code needed from me.
+- Could not get a live screenshot of the redesigned homepage (no non-demo admin credentials available locally, and the live site needs a deploy first) — verified instead via automated tests that assert the exact HTML structure (promo cards gone, arrow icon SVG present, zero remaining corrupted characters anywhere on the page) rather than by eye, given the same encoding-confusion class of bug can also affect what a terminal *displays*, not just what's actually in a file. **Recommend the owner checks the live homepage after this deploys.**
+
+Important changed files:
+
+- `resources/views/storefront/themes/marketplace-pro/home.blade.php` (hero/trust-strip/arrow changes + its own mojibake)
+- `resources/views/storefront/partials/arrow-right-icon.blade.php` (new)
+- `resources/css/app.css` (`.marketplace-link-arrow`, trust-grid horizontal-scroll, dead-code removal)
+- `resources/views/storefront/{home,checkout/show,cart/show,contact/show,products/show,track/show}.blade.php`, `resources/views/storefront/themes/noor-solar/home.blade.php`, `resources/views/storefront/offers/thank-you.blade.php` (mojibake fixes only, no other changes)
+- `tests/Feature/StorefrontThemeTest.php` (2 new tests)
+
+Verification:
+
+- `php artisan test --filter=StorefrontThemeTest` — 9 passed, 0 failed (7 existing + 2 new, no regressions).
+- Programmatic, byte-level scan of every `.blade.php` file under `resources/views` confirming zero remaining CP1252-roundtrip-detectable corruption anywhere except the one already-flagged unrelated admin file.
+- `npm run build` — succeeded; confirmed the new `.marketplace-link-arrow` CSS class is present in the compiled `public/build/assets/app-*.css`.
+- Full `php artisan test` suite — 969 passed, 0 failed, 5313 assertions.
+
+Commit status: Approved by owner ("একসাথে কমিট করে পুশ কর") — committing together with the mobile print-button fix above.
+
 ## 2026-08-27 - WooCommerce order line items: name-fallback matching + visible skip note
 
 Reason:

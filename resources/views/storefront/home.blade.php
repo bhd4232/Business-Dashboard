@@ -106,7 +106,7 @@
                 <div class="font-semibold">
                     {{ $setting->offer_title }}
                     @if ($setting->offer_discount_percent)
-                        <span class="text-[var(--storefront-accent)]">â€” up to {{ $setting->offer_discount_percent }}% off</span>
+                        <span class="text-[var(--storefront-accent)]">— up to {{ $setting->offer_discount_percent }}% off</span>
                     @endif
                 </div>
                 <div class="flex items-center gap-1.5 font-mono text-xs" aria-label="Offer ends in">
