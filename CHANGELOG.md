@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-08-27
+
+**Release type:** Patch/Fix Update
+
 ### Fixed
 
 - **A WooCommerce order could sync with no items and a zero subtotal, even though the order itself (customer, date, status, delivery charge) came through fine.** Line items were only ever matched to an ERP product by exact SKU — a real WooCommerce catalog that doesn't set a SKU on every product (common) meant every line item on that order was silently skipped. Line items now also match by product name when the SKU doesn't match (or is blank), the same fallback strategy WooCommerce product import already uses.
@@ -12,7 +16,6 @@ All notable production changes to Business Dashboard are documented here.
 ### Technical Notes
 
 - `WooCommerceOrderSyncService::syncItems()`: SKU match first, then falls back to `Product.slug` matched against `Str::slug($lineItem['name'])` — the exact normalization `WooCommerceImportService::importProduct()` already applies when a product doesn't have its own WooCommerce-supplied slug, so a product previously imported through that flow matches correctly here too. Still skips (and now also notes) anything matching neither. New tests: `test_a_line_item_with_a_blank_sku_matches_by_product_name_instead`, `test_an_unmatched_line_item_leaves_a_visible_note_on_the_order`.
-
 ## [2.4.0] - 2026-08-27
 
 **Release type:** Minor Feature Update
