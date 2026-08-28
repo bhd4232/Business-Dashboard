@@ -43,7 +43,11 @@ class ExpenseCategorySummaryWidget extends StatsOverviewWidget
             ->map(fn (ExpenseCategory $category): Stat => Stat::make($category->name, MoneyFormatter::currency($category->expenses_sum_amount ?? 0))
                 ->icon(Heroicon::OutlinedReceiptPercent)
                 ->color('danger')
-                ->url(ExpenseCategoryResource::getUrl('view', ['record' => $category])))
+                ->url(ExpenseCategoryResource::getUrl('view', ['record' => $category]))
+                // Owner: compact these cards the same way as Vouchers' (see
+                // .zz-expense-summary-stat in theme.css) — long category
+                // names wrapped and made the cards look tall.
+                ->extraAttributes(['class' => 'zz-expense-summary-stat'], merge: true))
             ->all();
     }
 }

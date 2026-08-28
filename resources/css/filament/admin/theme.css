@@ -74,6 +74,30 @@
     line-height: 1.4;
 }
 
+/* Compact the Vouchers/Accounts/Expenses list pages' summary cards. Long or
+   multi-word labels ("Credit Voucher - Requested", longer account/category
+   names) wrapped to 2-3 lines at the default stat-card text size, making
+   the cards awkwardly tall on mobile. */
+.zz-voucher-summary-stat,
+.zz-account-summary-stat,
+.zz-expense-summary-stat {
+    padding: 10px;
+}
+
+.zz-voucher-summary-stat .fi-wi-stats-overview-stat-label,
+.zz-account-summary-stat .fi-wi-stats-overview-stat-label,
+.zz-expense-summary-stat .fi-wi-stats-overview-stat-label {
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+.zz-voucher-summary-stat .fi-wi-stats-overview-stat-value,
+.zz-account-summary-stat .fi-wi-stats-overview-stat-value,
+.zz-expense-summary-stat .fi-wi-stats-overview-stat-value {
+    font-size: 18px;
+    line-height: 1.3;
+}
+
 /* Stat cards with a drilldown modal (everything except Account Balance,
    which links straight to Accounts) act like buttons. */
 .zz-business-overview-stat[wire\:click] {

@@ -76,6 +76,24 @@ class DashboardSummaryCardsTest extends TestCase
             ->assertSee('Fund Transfer - Rejected');
     }
 
+    /**
+     * Owner: the 3-word labels ("Credit Voucher - Requested") wrapped to 3
+     * lines at Filament's default stat-card text size, making the cards
+     * look awkwardly tall on mobile. Compacted the same way BusinessOverview
+     * already compacts the main Dashboard's own stat cards.
+     */
+    public function test_voucher_summary_cards_use_the_compact_stat_style(): void
+    {
+        $company = $this->company();
+        $user = $this->admin();
+
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true])
+            ->get(VoucherResource::getUrl('index'))
+            ->assertOk()
+            ->assertSee('zz-voucher-summary-stat', false);
+    }
+
     public function test_voucher_card_link_filters_the_table_to_that_type_and_status(): void
     {
         $company = $this->company();
@@ -108,7 +126,10 @@ class DashboardSummaryCardsTest extends TestCase
             ->assertSee('৳ 15,000')
             ->assertSee('City Bank')
             ->assertSee('৳ 42,000')
-            ->assertSee(AccountResource::getUrl('view', ['record' => $bank]), false);
+            ->assertSee(AccountResource::getUrl('view', ['record' => $bank]), false)
+            // Owner: same compact stat style as Vouchers (see
+            // .zz-account-summary-stat in theme.css).
+            ->assertSee('zz-account-summary-stat', false);
     }
 
     public function test_expense_category_summary_cards_show_total_spend_per_category(): void
@@ -138,7 +159,10 @@ class DashboardSummaryCardsTest extends TestCase
             ->assertSee('৳ 7,500')
             ->assertSee('Utilities')
             ->assertSee('৳ 0')
-            ->assertSee(ExpenseCategoryResource::getUrl('view', ['record' => $utilities]), false);
+            ->assertSee(ExpenseCategoryResource::getUrl('view', ['record' => $utilities]), false)
+            // Owner: same compact stat style as Vouchers (see
+            // .zz-expense-summary-stat in theme.css).
+            ->assertSee('zz-expense-summary-stat', false);
     }
 
     protected function company(): Company

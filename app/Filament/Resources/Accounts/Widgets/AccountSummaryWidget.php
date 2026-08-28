@@ -45,7 +45,11 @@ class AccountSummaryWidget extends StatsOverviewWidget
                 return Stat::make($account->name, MoneyFormatter::currency($balance))
                     ->icon(Heroicon::OutlinedWallet)
                     ->color($balance < 0 ? 'danger' : 'success')
-                    ->url(AccountResource::getUrl('view', ['record' => $account]));
+                    ->url(AccountResource::getUrl('view', ['record' => $account]))
+                    // Owner: compact these cards the same way as Vouchers'
+                    // (see .zz-account-summary-stat in theme.css) — long
+                    // account names wrapped and made the cards look tall.
+                    ->extraAttributes(['class' => 'zz-account-summary-stat'], merge: true);
             })
             ->all();
     }

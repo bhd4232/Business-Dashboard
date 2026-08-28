@@ -19,6 +19,21 @@
         (function () {
             const printButton = document.getElementById('invoice-print-button');
 
+            // The ZamZam Dashboard Android app's WebView has no
+            // window.print() of its own (Android's WebView never
+            // implements it — calling it there is a silent no-op, unlike a
+            // real mobile browser). MainActivity registers this native
+            // bridge (see PrintBridge.java) precisely so this page can
+            // still trigger a real print dialog when running inside the app.
+            const triggerPrint = function () {
+                if (window.ZzPrintBridge && typeof window.ZzPrintBridge.print === 'function') {
+                    window.ZzPrintBridge.print();
+                    return;
+                }
+
+                window.print();
+            };
+
             // Mobile browsers (Android Chrome, iOS Safari, in-app WebViews)
             // only treat window.print() as a direct response to the user's
             // tap when it runs synchronously inside the click handler. The
@@ -28,7 +43,7 @@
             if (printButton) {
                 printButton.addEventListener('click', function () {
                     window.focus();
-                    window.print();
+                    triggerPrint();
                 });
             }
 
@@ -38,9 +53,7 @@
             // short delay to let the page finish laying out first.
             window.addEventListener('load', function () {
                 window.focus();
-                setTimeout(function () {
-                    window.print();
-                }, 50);
+                setTimeout(triggerPrint, 50);
             });
         })();
     </script>

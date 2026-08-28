@@ -104,6 +104,15 @@ class VoucherSummaryWidget extends StatsOverviewWidget
             ->color('danger')
             ->url($this->fundTransferUrl(FundTransfer::STATUS_REJECTED));
 
+        // Owner: these 3-part labels ("Credit Voucher - Requested") wrap to
+        // 3 lines at Filament's default stat-card text size, making the
+        // cards look awkwardly tall on mobile — same compacting technique
+        // BusinessOverview already uses for the main Dashboard's own cards
+        // (see .zz-voucher-summary-stat in theme.css).
+        foreach ($stats as $stat) {
+            $stat->extraAttributes(['class' => 'zz-voucher-summary-stat'], merge: true);
+        }
+
         return $stats;
     }
 

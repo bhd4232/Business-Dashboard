@@ -2,6 +2,70 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-28 - Print button still didn't work inside the ZamZam Dashboard Android app
+
+Reason:
+
+- Owner (after confirming yesterday's mobile-browser print fix works): "মোবাইলে ব্রাউজারে টেস্ট করে দেখলাম, ঠিক আছে, কিন্তু মোবাইল অ্যাপে প্রিন্ট এ ক্লিক করলে কাজ করে না।" (tested in the mobile browser, it's fine, but clicking Print inside the mobile app doesn't work).
+
+Investigation:
+
+- This app (`android/`) is a Capacitor shell — its Android build is just a `WebView` pointed at `https://app.zamzamint.com` (`capacitor.config.json`'s `server.url`). Android's WebView has never implemented `window.print()` at all; calling it is a silent no-op there, regardless of the setTimeout fix from yesterday — that fix only ever helped real mobile browsers (Chrome, Safari), which do implement it.
+- The app already has one small precedent for this exact kind of gap: `PushAvailabilityBridge.java` exposes a native check to the web app as `window.ZzNativeBridge` (registered in `MainActivity.java`) because a Capacitor plugin call would otherwise crash without it. Followed the same pattern for printing.
+
+What changed:
+
+- New `android/app/src/main/java/com/zamzamint/erp/PrintBridge.java`, registered by `MainActivity` as `window.ZzPrintBridge`. Its `print()` method drives Android's own `PrintManager` + `WebView.createPrintDocumentAdapter()` — the standard native way to print WebView content — which opens the real Android print dialog (Save as PDF, any connected printer, etc.), same as a real browser would.
+- Both invoice print pages (`orders/print.blade.php`, `orders/print-bulk.blade.php`) now check for `window.ZzPrintBridge` first and use it when present (i.e. running inside the app); otherwise they fall back to `window.print()` exactly as before (real browsers are unaffected by this change).
+
+Important note for the owner:
+
+- **This one needs a new app build to actually reach your phone** — native Android code doesn't update just by deploying the website like every other fix this week did. Once the next Android build is made and installed/updated on your device, Print should work the same way inside the app as it now does in the browser.
+
+Important changed files:
+
+- `android/app/src/main/java/com/zamzamint/erp/PrintBridge.java` (new)
+- `android/app/src/main/java/com/zamzamint/erp/MainActivity.java` (registers the bridge)
+- `resources/views/orders/print.blade.php`, `resources/views/orders/print-bulk.blade.php` (use the bridge when present)
+- `tests/Feature/InvoiceDesignTest.php` (1 new test), `tests/Feature/OrderBulkPrintTest.php` (1 new assertion)
+
+Verification:
+
+- `php artisan test tests/Feature/InvoiceDesignTest.php tests/Feature/OrderBulkPrintTest.php tests/Feature/CompanySettingsTest.php` — 41 passed, 0 failed, 278 assertions.
+- The native Java bridge itself can't be exercised by PHPUnit — no Android SDK/emulator available in this environment. It will compile-check for real when CI's `build-android` job (`./gradlew assembleDebug`) runs on push; standard Android print APIs (`PrintManager`, `PrintAttributes.Builder`, `WebView.createPrintDocumentAdapter`), same shape as the existing `PushAvailabilityBridge`.
+- Full `php artisan test` suite — 972 passed, 0 failed, 5326 assertions (confirmed together with the stat-card compacting change below).
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-28 - Compacted the Vouchers/Accounts/Expenses summary cards
+
+Reason:
+
+- Owner (with a screenshot of the Vouchers page on mobile — cards showing "Credit / Voucher - / Requested" wrapped to 3 lines above a large "0"): "ভাউচার পেজের এই কার্ডগুলো দেখতে অকওয়ার্ড লাগে। কার্ডের টাইটেল আরো ছোট করে দাও এবং ভেলু বা নাম্বার আরো ছোট করো।" (these cards on the Voucher page look awkward; make the card title smaller, and make the value/number smaller too). Followed immediately by: "একইভাবে একাউন্স এবং এক্সপেন্স পেজেও কর।" (do the same for the Accounts and Expenses pages too).
+
+Investigation:
+
+- These are Filament's native `StatsOverviewWidget`/`Stat` cards (`VoucherSummaryWidget`, `AccountSummaryWidget`, `ExpenseCategorySummaryWidget`) — the label/value text sizes are Filament's own defaults (14px label, 30px value). Vouchers' labels are the worst case: 3 words each ("Credit Voucher - Requested"), which wrap to 3 lines in a narrow 2-column mobile card and, combined with the large "0" value, made the card look oversized and awkward.
+- The main Dashboard already had this exact problem solved once before for its own cards (`BusinessOverview` widget → `.zz-business-overview-stat` in `theme.css`) — reused the same technique for all three pages instead of inventing a new one.
+
+What changed:
+
+- Card title (label) and value/number text are both smaller on all three pages: Vouchers, Accounts, Expenses.
+
+Important changed files:
+
+- `app/Filament/Resources/Vouchers/Widgets/VoucherSummaryWidget.php`, `app/Filament/Resources/Accounts/Widgets/AccountSummaryWidget.php`, `app/Filament/Resources/Expenses/Widgets/ExpenseCategorySummaryWidget.php` (each `Stat` now carries a `zz-*-summary-stat` CSS class)
+- `resources/css/filament/admin/theme.css` (new compacting rules — label 11px, value 18px, padding 10px)
+- `tests/Feature/DashboardSummaryCardsTest.php` (1 new test + 2 new assertions)
+
+Verification:
+
+- `php artisan test tests/Feature/DashboardSummaryCardsTest.php` — 5 passed, 0 failed, 29 assertions.
+- `npm run build` — succeeded; confirmed all 3 new CSS classes (`zz-voucher-summary-stat`, `zz-account-summary-stat`, `zz-expense-summary-stat`) are present in the compiled `public/build/assets/theme-*.css`.
+- Full `php artisan test` suite (together with the Android print-bridge fix above) — 972 passed, 0 failed, 5326 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
 ## 2026-08-27 - Mobile print button did not open the print dialog
 
 Reason:

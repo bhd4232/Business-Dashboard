@@ -4,6 +4,19 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Vouchers/Accounts/Expenses summary cards are more compact** (owner report, with a screenshot of the Vouchers page on mobile): the 3-word Voucher labels ("Credit Voucher - Requested") were wrapping to 3 lines, and the big count/amount below them made every card awkwardly tall. Card title and value text are both smaller now, on all three pages.
+
+### Fixed
+
+- **The "Print" button on the invoice page still didn't open a print dialog inside the ZamZam Dashboard Android app**, even after it was fixed for mobile browsers. Now works from inside the app too.
+
+### Technical Notes
+
+- **Summary card sizing**: same technique the main Dashboard's own stat cards already use (`.zz-business-overview-stat` in `theme.css`) — a CSS class added to each `Stat` via `->extraAttributes(['class' => '...'], merge: true)`, scoped so it only affects these three widgets' cards. New `.zz-voucher-summary-stat`/`.zz-account-summary-stat`/`.zz-expense-summary-stat` rules shrink the label to 11px and the value to 18px (down from Filament's defaults of 14px/30px) and tighten padding to 10px. New test: `DashboardSummaryCardsTest::test_voucher_summary_cards_use_the_compact_stat_style`, plus assertions added to the existing Account/Expense summary tests.
+- Root cause of the print-inside-the-app issue: yesterday's mobile-browser fix made `window.print()` work correctly in real mobile browsers, but Android's own WebView (which is what the app's UI actually runs inside) never implements `window.print()` at all — calling it there was always a silent no-op, browser fix or not. Added a native bridge (`android/app/src/main/java/com/zamzamint/erp/PrintBridge.java`, registered by `MainActivity` as `window.ZzPrintBridge`) that drives Android's own `PrintManager`/`WebView.createPrintDocumentAdapter()` — the standard way a WebView page is printed natively. Both invoice print pages now call `window.ZzPrintBridge.print()` when it's present (i.e. running inside the app) and fall back to `window.print()` otherwise (real browsers, unaffected). **Requires a new Android app build to reach devices** — unlike a web-only fix, this doesn't take effect just by deploying the server; the owner needs to install the next app update once built. New tests: `InvoiceDesignTest::test_print_button_falls_back_to_the_native_android_bridge_inside_the_app`, plus an assertion added to `OrderBulkPrintTest`.
+
 ## [2.4.2] - 2026-08-27
 
 **Release type:** Patch/Fix Update
