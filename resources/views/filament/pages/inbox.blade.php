@@ -772,6 +772,11 @@
                                                         >
                                                             {{ $deliveryLabels[$message->delivery_status] ?? ucfirst($message->delivery_status ?: 'pending') }}
                                                         </x-filament::badge>
+                                                        @if ($message->delivery_channel === 'sms')
+                                                            <x-filament::badge color="warning" size="sm" icon="heroicon-o-device-phone-mobile">
+                                                                via SMS
+                                                            </x-filament::badge>
+                                                        @endif
                                                     @endif
                                                 </div>
 
@@ -904,7 +909,7 @@
                                             color="info"
                                             icon="heroicon-o-shopping-bag"
                                             :heading="$selectedProduct->name"
-                                            :description="\App\Support\MoneyFormatter::currency((float) $selectedProduct->sale_price, $conversationCurrency).' · A secure order link will be added to the thread.'"
+                                            :description="\App\Support\MoneyFormatter::currency((float) $selectedProduct->sale_price, $conversationCurrency).' ï¿½ A secure order link will be added to the thread.'"
                                         />
                                     @endif
 

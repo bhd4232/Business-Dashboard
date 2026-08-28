@@ -4,6 +4,24 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Lead CRM: WhatsApp→SMS fallback, Bulk/Broadcast messaging, and follow-up auto-reminders.** Researched whether a third-party unified-messaging platform (sent.dm) was worth integrating; found that standard Bangladeshi bulk SMS routes are one-way (customers cannot reply to a masked sender ID — a real telecom-route limitation, not a gateway API gap), so true two-way SMS threading was out of scope and the existing WhatsApp Inbox stays the one real two-way channel. Built the three approved pieces natively instead, on top of the existing WhatsApp Cloud API integration and the generic HTTP SMS gateway already used for OTP/abandoned-cart (no new outside platform, no extra monthly fee):
+  - **WhatsApp → SMS fallback**: when an outgoing WhatsApp message fails for any reason (session window closed, invalid token, Meta outage), the Inbox now automatically retries the same message over the company's configured SMS gateway and logs it in the same conversation thread with a **"via SMS"** badge, instead of leaving the customer with nothing.
+  - **Bulk/Broadcast messaging** (new **CRM → Broadcasts**): send a WhatsApp (Meta-approved template only — never free-form, since this is a cold business-initiated send) and/or SMS message to a filtered list of Leads (by status/source) and/or Customers in one go, with automatic opt-out exclusion (new "Opted out" flag on Leads/Customers) and phone-number dedupe so nobody with the same number is messaged twice. The WhatsApp template picker only ever lists templates Meta has actually approved for the selected Chat Channel — fetched live, never hand-typed — so a broadcast can't be queued against a template that would just fail to send.
+  - **Follow-up auto-reminders**: when a lead's **Next Follow-up** date/time arrives, the assigned staff member is notified in-app/push immediately (reusing the existing business-alert notification system), and — when enabled per company — the lead is also messaged automatically over WhatsApp (approved template) with the same SMS fallback, using admin-configurable message content (never hardcoded copy). Runs every 15 minutes via the scheduler; moving a lead's follow-up date re-arms its reminder.
+
+### Fixed
+
+- **Storefront Settings → Integrations tab silently stopped showing "Sync WooCommerce" (and Navigation Menus/SEO moved to the wrong tab)**: caught while adding the new Lead Follow-up Reminders section above. Which tab a section belongs to is driven by a positional index→tab-key array parallel to the list of top-level form sections; inserting a new section without updating that array shifted every later section's tab assignment by one. Fixed by updating the array to match, and this positional design is worth knowing about for anyone adding a section to this form later.
+
+### Technical Notes
+
+- Three new migrations ship with the CRM round above and must run before those features work: `add_delivery_channel_to_conversation_messages_table` (nullable `delivery_channel` on `conversation_messages`), `add_lead_follow_up_reminders_to_storefront_settings_and_leads` (`lead_follow_up_reminders_enabled` on `storefront_settings`, `follow_up_reminded_at` on `leads`), and `create_broadcasts_tables` (`broadcasts` + `broadcast_recipients` tables, plus `opted_out_at` on `leads` and `customers`). Run `php artisan migrate --force` before relying on any of the three features.
+- New scheduled command `crm:send-follow-up-reminders` (registered in `bootstrap/app.php`, `everyFifteenMinutes()`) needs the existing Laravel scheduler cron entry already running in production — no new cron setup required. Broadcast sending (`App\Jobs\SendBroadcastJob`) goes through the existing queue connection like every other queued job in this app — a broadcast queued while no queue worker is running simply sits at `status: queued` until one picks it up.
+- `Broadcast` is added to `MultiCompanyIsolationTest`'s per-model scope contract; `BroadcastRecipient` is deliberately excluded, scoped only through its parent `Broadcast` — same pattern as `ConversationMessage` under `Conversation`.
+- Full `php artisan test`: 831 passed against this branch's base commit; the 52 failures present there are pre-existing and unrelated (every one is a Filament admin-page-render test failing on `Vite manifest not found` — this sandbox never had `npm install`/`npm run build` run in it) — confirmed identical before and after this round's changes via a clean `git stash -u` baseline diff. No frontend build assets changed (only a small Blade badge in `resources/views/filament/pages/inbox.blade.php`), so `npm run build` was not required for this round. Re-verified after merging in `main` (v2.5.0) — see this round's merge note in `UPDATE_NOTES.md` for the post-merge test run.
+
 ## [2.5.0] - 2026-08-28
 
 **Release type:** Minor Feature Update

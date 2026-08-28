@@ -23,7 +23,7 @@ class ConversationMessage extends Model
 
     protected $fillable = [
         'conversation_id', 'direction', 'type', 'body', 'media_path', 'media_mime',
-        'external_message_id', 'delivery_status', 'sent_by', 'generated_by',
+        'external_message_id', 'delivery_status', 'delivery_channel', 'sent_by', 'generated_by',
         'ai_confidence', 'ai_meta', 'raw_payload', 'sent_at',
     ];
 

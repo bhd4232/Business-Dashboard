@@ -86,6 +86,29 @@ class BusinessNotificationService
     }
 
     /**
+     * Notifies exactly one user (e.g. the staff member assigned to a lead),
+     * unconditionally -- no permission check, since the caller already
+     * decided this specific user should hear about it.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function notifyUser(
+        User $user,
+        string $alertKind,
+        string $title,
+        string $body,
+        array $data = [],
+        ?string $actionUrl = null,
+        ?string $actionLabel = null,
+    ): void {
+        if (! $user->is_active) {
+            return;
+        }
+
+        $this->dispatch(new Collection([$user]), $alertKind, $title, $body, $data, $actionUrl, $actionLabel);
+    }
+
+    /**
      * @param  Collection<int, User>  $recipients
      * @param  array<string, mixed>  $data
      */

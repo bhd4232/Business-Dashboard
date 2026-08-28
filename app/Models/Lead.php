@@ -32,13 +32,27 @@ class Lead extends Model
     protected $fillable = [
         'company_id', 'name', 'phone', 'email', 'source', 'status',
         'interest', 'estimated_value', 'assigned_to', 'next_follow_up_at',
-        'converted_customer_id', 'converted_order_id', 'note', 'created_by',
+        'follow_up_reminded_at', 'opted_out_at', 'converted_customer_id', 'converted_order_id',
+        'note', 'created_by',
     ];
 
     protected $casts = [
         'next_follow_up_at' => 'datetime',
+        'follow_up_reminded_at' => 'datetime',
+        'opted_out_at' => 'datetime',
         'estimated_value' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::updating(function (Lead $lead): void {
+            // Moving the follow-up date means "remind me again" -- never let
+            // a stale reminded_at from the old date suppress the new one.
+            if ($lead->isDirty('next_follow_up_at') && ! $lead->isDirty('follow_up_reminded_at')) {
+                $lead->follow_up_reminded_at = null;
+            }
+        });
+    }
 
     public function assignedUser(): BelongsTo
     {
