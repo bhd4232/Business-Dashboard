@@ -2,6 +2,71 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-28 - WooCommerce order total went wrong again when an item was unmatched
+
+Reason:
+
+- Owner (with 2 screenshots: the real WooCommerce order #38043 showing item "608 Easy Power Rechargeble Solar Fan" (SKU FAN-975, ৳1,750) + ৳120 shipping = ৳1,870 total, next to the synced ERP order ZMG-20260828-0001 showing Items empty, Subtotal ৳0, Total amount ৳120 only): "উকমার্সের অর্ডার প্রাইস এখন আবার সিংক হচ্ছে না।" (WooCommerce order price isn't syncing again).
+
+Investigation:
+
+- The ERP order's own Note already correctly said "1 item(s) could not be matched to an ERP product and were skipped: 608 Easy Power Rechargeble Solar Fan" — so the SKU/name-matching fallback from the last round is working as designed; this product genuinely doesn't exist in the ERP's product catalog yet (a real gap to close separately by importing/creating it — not a matching bug).
+- The real bug: **whenever any item is skipped, the order's total silently drops to just the shipping fee**, regardless of the skipped item's price. Traced this to `OrderWorkflowService::sync()` — the one place that computes `subtotal`/`total_amount` everywhere in the app, always recalculated purely from whichever `OrderItem` rows actually exist. A skipped item never becomes an `OrderItem`, so its price was completely invisible to that calculation. This is a different, more serious bug than the one fixed two days ago (that one fixed *item matching*; this one is about what happens to the *money* when matching still fails for any reason).
+
+What changed:
+
+- An order's total (subtotal, total amount, due amount) now always reflects WooCommerce's full reported amount, even when one or more line items couldn't be matched to an ERP product. The item itself is still correctly skipped (no fake OrderItem, no fake stock movement) and the Note still says exactly which item(s) were skipped — only the money is now right.
+
+Important note for the owner:
+
+- **The underlying gap is still there**: "608 Easy Power Rechargeble Solar Fan" (SKU FAN-975) needs to exist as a real product in the ERP catalog before it can show up as a proper line item with stock/profit tracking on future orders — either import it from WooCommerce or create it manually with that exact SKU. This fix only makes sure the *order total* is never wrong while that's pending; it doesn't create the missing product (not something to invent without you confirming the product's category/cost price/etc.).
+
+Important changed files:
+
+- `app/Services/WooCommerceOrderSyncService.php` (`syncItems()` now returns which items were unmatched; new `reconcileTotalsWithWooCommerce()`)
+- `tests/Feature/WooCommerceOrderWebhookTest.php` (2 new tests)
+
+Verification:
+
+- `php artisan test tests/Feature/WooCommerceOrderWebhookTest.php tests/Feature/WooCommerceOrderStatusPushTest.php tests/Feature/WooCommerceImportTest.php` — 23 passed, 0 failed, 92 assertions (no regressions).
+- Full `php artisan test` suite — 978 passed, 0 failed, 5356 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-28 - Voucher/Account/Expense cards open a preview popup on click
+
+Reason:
+
+- Owner: "ভাউচার একাউন্স এবং এক্সপেন্স পেজের কার্ডগুলো ক্লিকেবল আছে, এখন প্রতিটা কার্ডের প্রিভিউ পপ আপ শো করবে ঠিক মেইন ড্যাশবোর্ডের কার্ডের মত।" (the Voucher/Account/Expense page cards are clickable — now each card should show a preview popup, just like the main Dashboard's cards).
+
+Investigation:
+
+- The main Dashboard's own cards (`App\Filament\Widgets\BusinessOverview`) already have exactly this UX: clicking opens a modal listing the records behind that number, with a "See all" link to the full filtered page. These three widgets (`VoucherSummaryWidget`, `AccountSummaryWidget`, `ExpenseCategorySummaryWidget`) instead used a plain `->url()` link straight to the filtered/record page, no preview.
+- Accounts and Expenses have a *variable* number of cards (one per account/category that exists) — unlike BusinessOverview's fixed 10 named cards, there's no way to write one PHP method per card here. Solved by embedding only the clicked record's numeric ID in the card's `wire:click` and re-resolving the exact account/category inside the modal's own render logic (Filament supports this natively — an Action's closures can ask for the mounted click's arguments by naming a parameter `$arguments`).
+
+What changed:
+
+- **Voucher cards**: click shows the matching vouchers (Voucher #, Account, Purpose, Amount) for that Credit/Debit × Requested/Approved/Rejected combination; Fund Transfer cards show the matching transfers (Transfer #, From, To, Amount).
+- **Account cards**: click shows that account's recent transaction-ledger entries (Date, Type, Note, Amount).
+- **Expense category cards**: click shows that category's recent expenses (Date, Account, Note, Amount).
+- Every modal has a "See all" link through to the exact same page each card used to link to directly.
+
+Important changed files:
+
+- `app/Filament/Concerns/HasDrilldownStatCards.php` (new shared trait)
+- `app/Filament/Resources/Vouchers/Widgets/VoucherSummaryWidget.php`, `app/Filament/Resources/Accounts/Widgets/AccountSummaryWidget.php`, `app/Filament/Resources/Expenses/Widgets/ExpenseCategorySummaryWidget.php`
+- `resources/views/filament/widgets/business-overview.blade.php` (docblock updated — now shared by all 4 widgets, not just BusinessOverview; no code change)
+- `resources/css/filament/admin/theme.css` (cursor:pointer for the now-clickable cards)
+- `tests/Feature/DashboardSummaryCardsTest.php` (5 new modal-content tests; 2 existing tests' now-stale "link href visible on the initial page" assertions updated, since the link moved inside the lazily-rendered modal)
+
+Verification:
+
+- `php artisan test tests/Feature/DashboardSummaryCardsTest.php tests/Feature/DashboardDrilldownTest.php tests/Feature/BusinessOverviewLayoutTest.php tests/Feature/AdminNavigationClustersTest.php` — all passed, no regressions to BusinessOverview's own (untouched) drilldown behavior.
+- `npm run build` — succeeded.
+- Full `php artisan test` suite — 976 passed, 0 failed, 5345 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
 ## 2026-08-28 - Print button still didn't work inside the ZamZam Dashboard Android app
 
 Reason:

@@ -125,6 +125,62 @@ class WooCommerceOrderWebhookTest extends TestCase
         $this->assertStringContainsString('Totally Unknown Product', $order->note);
     }
 
+    /**
+     * Regression test for a real production bug (screenshot: WooCommerce
+     * order #38043, "608 Easy Power Rechargeble Solar Fan" / SKU FAN-975):
+     * an order with one unmatched item still showed a total of just the
+     * shipping fee (৳120) instead of the ৳1,870 the customer actually
+     * paid, because subtotal/total_amount are always recalculated purely
+     * from whichever OrderItems got created (OrderWorkflowService::sync())
+     * — an unmatched item's price was silently missing from both. The
+     * order's total should always reflect what WooCommerce actually
+     * recorded, even when a line item couldn't be tied to an ERP product.
+     */
+    public function test_an_order_with_an_unmatched_item_still_gets_woocommerces_full_total_not_just_shipping(): void
+    {
+        $company = $this->createCompanyWithWebhookSecret('woo-secret-10');
+
+        $payload = $this->orderPayload(id: 510, sku: 'DOES-NOT-EXIST');
+        $payload['line_items'][0]['name'] = 'Unmatched Fan';
+        $payload['line_items'][0]['total'] = '1750.00';
+        $payload['shipping_total'] = '120.00';
+
+        $this->postWebhook($company, $payload, 'order.created', 'woo-secret-10')->assertOk();
+
+        $order = Order::query()->where('company_id', $company->getKey())->where('external_reference', 'woo-510')->first();
+
+        $this->assertNotNull($order);
+        $this->assertSame(0, $order->items()->count());
+        $this->assertEquals(1750.0, (float) $order->subtotal);
+        $this->assertEquals(1870.0, (float) $order->total_amount);
+        $this->assertEquals(1870.0, (float) $order->due_amount);
+    }
+
+    public function test_totals_still_reconcile_correctly_when_only_some_items_are_unmatched(): void
+    {
+        $company = $this->createCompanyWithWebhookSecret('woo-secret-12');
+        $product = $this->createProduct($company, 'Matched Product Twelve', 'WOO-SKU-12');
+
+        $payload = $this->orderPayload(id: 512, sku: $product->sku);
+        $payload['line_items'][0]['total'] = '200.00';
+        $payload['line_items'][] = [
+            'sku' => 'DOES-NOT-EXIST',
+            'name' => 'Unmatched Extra Item',
+            'quantity' => 1,
+            'total' => '50.00',
+        ];
+        $payload['shipping_total'] = '30.00';
+
+        $this->postWebhook($company, $payload, 'order.created', 'woo-secret-12')->assertOk();
+
+        $order = Order::query()->where('company_id', $company->getKey())->where('external_reference', 'woo-512')->first();
+
+        $this->assertNotNull($order);
+        $this->assertSame(1, $order->items()->count());
+        $this->assertEquals(250.0, (float) $order->subtotal); // 200 matched + 50 unmatched
+        $this->assertEquals(280.0, (float) $order->total_amount); // 250 + 30 shipping
+    }
+
     public function test_an_invalid_signature_is_rejected(): void
     {
         Log::spy();

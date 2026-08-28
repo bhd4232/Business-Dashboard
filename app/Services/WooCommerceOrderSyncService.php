@@ -156,7 +156,11 @@ class WooCommerceOrderSyncService
             ]);
             $order->save();
 
-            $this->syncItems($order, (array) ($payload['line_items'] ?? []));
+            $unmatchedNames = $this->syncItems($order, (array) ($payload['line_items'] ?? []));
+
+            if ($unmatchedNames !== []) {
+                $this->reconcileTotalsWithWooCommerce($order, $payload);
+            }
 
             return $order->refresh();
         });
@@ -215,8 +219,9 @@ class WooCommerceOrderSyncService
 
     /**
      * @param  array<int, array<string, mixed>>  $lineItems
+     * @return array<int, string> names/SKUs of any line items that couldn't be matched
      */
-    protected function syncItems(Order $order, array $lineItems): void
+    protected function syncItems(Order $order, array $lineItems): array
     {
         // Every OrderItem on a WooCommerce-sourced order came from this sync,
         // so a full replace-on-each-delivery is simple and safe — no need to
@@ -279,9 +284,40 @@ class WooCommerceOrderSyncService
         // so this never triggers the WooCommerce status-push job).
         if ($unmatched !== []) {
             $order->update([
-                'note' => trim($order->note."\n".count($unmatched).' item(s) could not be matched to an ERP product and were skipped: '.implode(', ', $unmatched).'.'),
+                'note' => trim($order->note."\n".count($unmatched).' item(s) could not be matched to an ERP product and were skipped: '.implode(', ', $unmatched).". Order total was still set to WooCommerce's full reported amount."),
             ]);
         }
+
+        return $unmatched;
+    }
+
+    /**
+     * A skipped line item never becomes an OrderItem, so OrderWorkflowService::sync()
+     * (triggered by every OrderItem's own saved/deleted hook - see
+     * OrderItem::booted()) recalculates subtotal/total_amount purely from
+     * whichever items DID match, silently leaving the skipped item's price
+     * out of both — the order's own stored total ends up lower than what
+     * WooCommerce (and the customer) actually recorded, even though the
+     * skip itself is correctly noted. Corrects both using the exact same
+     * subtotal-then-total formula OrderWorkflowService::sync() itself uses
+     * (`total = subtotal - discount + vat + shipping_fee`), except the
+     * subtotal is summed directly from every line item WooCommerce
+     * reported — matched or not — instead of only the ones that became a
+     * real OrderItem row.
+     */
+    protected function reconcileTotalsWithWooCommerce(Order $order, array $payload): void
+    {
+        $lineItems = (array) ($payload['line_items'] ?? []);
+        $subtotal = collect($lineItems)->sum(fn (array $item): float => (float) ($item['total'] ?? 0));
+
+        $total = max($subtotal - (float) $order->discount + (float) $order->vat + (float) $order->shipping_fee, 0);
+        $due = max($total - (float) $order->paid_amount, 0);
+
+        $order->forceFill([
+            'subtotal' => $subtotal,
+            'total_amount' => $total,
+            'due_amount' => $due,
+        ])->saveQuietly();
     }
 
     protected function mapStatus(string $wooStatus): string

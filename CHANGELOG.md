@@ -4,6 +4,19 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Vouchers/Accounts/Expenses summary cards now open a preview popup when clicked** — the same drilldown-modal UX the main Dashboard's own stat cards already use. A Voucher card shows the matching vouchers, an Account card shows that account's recent transactions, an Expense category card shows that category's recent expenses — each with a "See all" link through to the full filtered/record page.
+
+### Fixed
+
+- **A WooCommerce order with even one unmatched line item showed a total of just the shipping fee, instead of what the customer actually paid** — e.g. an order that should have totalled ৳1,870 (item ৳1,750 + shipping ৳120) showed only ৳120, because the unmatched item's price was silently missing from the calculation. The order's total (and subtotal, and due amount) now always reflect WooCommerce's full reported amount, even when a line item couldn't be matched to an ERP product — the Note still flags exactly which item(s) were skipped, same as before.
+
+### Technical Notes
+
+- New shared trait `App\Filament\Concerns\HasDrilldownStatCards` (used by `VoucherSummaryWidget`, `AccountSummaryWidget`, `ExpenseCategorySummaryWidget`) provides the modal-building plumbing; `BusinessOverview`'s own existing drilldown code on the main Dashboard is untouched. All three widgets now reuse `BusinessOverview`'s view (`filament.widgets.business-overview` — genuinely generic markup, its docblock updated to say so) so the `<x-filament-actions::modals />` these mounted actions need actually render. Since Account/Expense have a variable number of cards (one per account/category, not a fixed set), each card's `wire:click` embeds only that record's numeric ID (never its name/text, which would need JS-string escaping) — the specific record is then re-resolved inside the modal's own closures via Filament's `array $arguments` closure-injection (any Action closure parameter literally named `$arguments` receives the mounted action's arguments). Voucher/Fund Transfer cards (a fixed, known set) pass a `type`/`bucket` or `status` argument the same way. New tests: 5 in `DashboardSummaryCardsTest` covering all three widgets' modal content.
+- **Unmatched-item total bug root cause**: `subtotal`/`total_amount` are always recalculated by `OrderWorkflowService::sync()` purely from the OrderItems that actually exist (triggered by every `OrderItem`'s own `saved`/`deleted` hook) — correct in general (it's the one place totals get computed everywhere in the app), but a line item that never became an `OrderItem` (because no ERP product matched it) was invisible to that calculation, silently vanishing from the total. `WooCommerceOrderSyncService::syncItems()` now returns which line items were unmatched; when any were, `reconcileTotalsWithWooCommerce()` recomputes `subtotal`/`total_amount`/`due_amount` using the exact same formula `OrderWorkflowService::sync()` uses, except the subtotal is summed directly from *every* line item WooCommerce reported (matched or not), not only the ones that became a real `OrderItem` row. New tests: `test_an_order_with_an_unmatched_item_still_gets_woocommerces_full_total_not_just_shipping`, `test_totals_still_reconcile_correctly_when_only_some_items_are_unmatched`.
+
 ## [2.4.3] - 2026-08-28
 
 **Release type:** Patch/Fix Update

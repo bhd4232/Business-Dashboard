@@ -104,6 +104,14 @@
     cursor: pointer;
 }
 
+/* Vouchers/Accounts/Expenses cards all open a preview modal now too (owner
+   request) — same button affordance. */
+.zz-voucher-summary-stat[wire\:click],
+.zz-account-summary-stat[wire\:click],
+.zz-expense-summary-stat[wire\:click] {
+    cursor: pointer;
+}
+
 .zz-business-overview-stat[wire\:click]:hover,
 .zz-business-overview-stat[wire\:click]:focus-visible {
     background: var(--gray-50);
