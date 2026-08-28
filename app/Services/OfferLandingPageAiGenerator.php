@@ -29,7 +29,7 @@ class OfferLandingPageAiGenerator
             throw new RuntimeException('No AI provider/API key is configured for this company. Set one up on the AI Assistant Settings page first.');
         }
 
-        $client = new AiLlmClient($settings['provider'], $settings['api_key'], $settings['model']);
+        $client = new AiLlmClient($settings['api_format'], $settings['api_key'], $settings['model'], $settings['base_url'] ?: null);
 
         $productContext = $offer->items->map(fn (OfferItem $item): array => [
             'name' => $item->product->name,

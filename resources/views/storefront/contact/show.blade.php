@@ -1,9 +1,10 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @php
     $contactEmail = $setting->contact_email ?: $company->email;
     $callNumber = $setting->phone_number ?: $company->phone;
-    $mapUrl = $company->address ? 'https://www.google.com/maps/search/?api=1&query='.urlencode($company->address) : null;
+    $mapUrl = $company->google_maps_url
+        ?: ($company->address ? 'https://www.google.com/maps/search/?api=1&query='.urlencode($company->address) : null);
 
     $cards = collect([
         [

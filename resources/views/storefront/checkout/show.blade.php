@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @push('meta-events')
     @php
@@ -23,19 +23,18 @@
         $outsideCharge = (float) $outsideQuote['fee'];
         $actualWeight = (float) $insideQuote['weight'];
         $billedWeight = (int) $insideQuote['billed_weight'];
-        $codEnabled = $setting->cod_enabled ?? true;
-        $hasBkash = filled($setting->manual_bkash_number);
-        $hasNagad = filled($setting->manual_nagad_number);
-        $availablePaymentMethods = array_values(array_filter([
-            $codEnabled ? 'cod' : null,
-            $hasBkash ? 'manual_bkash' : null,
-            $hasNagad ? 'manual_nagad' : null,
-        ]));
+        // $paymentMethods is the dashboard-managed, company-scoped list from
+        // CheckoutController::activePaymentMethods() — any number of manual
+        // (send-money/bank-transfer) channels, plus at most one cod row and
+        // one online_gateway row.
+        $paymentMethodValues = $paymentMethods->map->paymentValue()->all();
         $oldPaymentMethod = old('payment_method');
-        $defaultPaymentMethod = in_array($oldPaymentMethod, $availablePaymentMethods, true)
+        $defaultPaymentMethod = in_array($oldPaymentMethod, $paymentMethodValues, true)
             ? $oldPaymentMethod
-            : ($availablePaymentMethods[0] ?? '');
-        $hasPaymentPath = $availablePaymentMethods !== [];
+            : ($paymentMethodValues[0] ?? '');
+        $hasPaymentPath = $paymentMethods->isNotEmpty();
+        $manualPaymentMethods = $paymentMethods->where('type', \App\Models\StorefrontPaymentMethod::TYPE_MANUAL);
+        $onlineGatewayMethod = $paymentMethods->firstWhere('type', \App\Models\StorefrontPaymentMethod::TYPE_ONLINE_GATEWAY);
         $preorderPaymentBlocked = ($advanceDue ?? 0) > 0 && ! ($onlinePaymentAvailable ?? false);
         $checkoutBlocked = ! $hasPaymentPath || $preorderPaymentBlocked;
         $checkoutBlockDescription = implode(' ', array_filter([
@@ -159,57 +158,47 @@
                 >
                     <legend class="text-sm font-medium text-gray-700 dark:text-gray-200">Payment method</legend>
                     <div class="mt-2 space-y-3">
-                        @if ($codEnabled)
-                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition" :class="method === 'cod' ? 'border-[var(--storefront-brand)] ring-1 ring-[var(--storefront-brand)]' : 'border-gray-300 dark:border-white/15'">
-                                <input id="payment-method-cod" type="radio" name="payment_method" value="cod" x-model="method" class="h-4 w-4" required @checked($defaultPaymentMethod === 'cod')>
-                                <span class="font-medium text-gray-900 dark:text-white">Cash on Delivery</span>
+                        @foreach ($paymentMethods as $paymentMethod)
+                            @php $paymentMethodValue = $paymentMethod->paymentValue(); @endphp
+                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition" :class="method === {{ Illuminate\Support\Js::from($paymentMethodValue) }} ? 'border-[var(--storefront-brand)] ring-1 ring-[var(--storefront-brand)]' : 'border-gray-300 dark:border-white/15'">
+                                <input id="payment-method-{{ $paymentMethod->getKey() }}" type="radio" name="payment_method" value="{{ $paymentMethodValue }}" x-model="method" class="h-4 w-4" required @checked($defaultPaymentMethod === $paymentMethodValue)>
+                                <span class="font-medium text-gray-900 dark:text-white">{{ $paymentMethod->name }}</span>
                             </label>
-                        @endif
+                        @endforeach
 
-                        @if ($hasBkash)
-                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition" :class="method === 'manual_bkash' ? 'border-[var(--storefront-brand)] ring-1 ring-[var(--storefront-brand)]' : 'border-gray-300 dark:border-white/15'">
-                                <input id="payment-method-bkash" type="radio" name="payment_method" value="manual_bkash" x-model="method" class="h-4 w-4" required @checked($defaultPaymentMethod === 'manual_bkash')>
-                                <span class="font-medium text-gray-900 dark:text-white">bKash (Send Money)</span>
-                            </label>
-                        @endif
-
-                        @if ($hasNagad)
-                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition" :class="method === 'manual_nagad' ? 'border-[var(--storefront-brand)] ring-1 ring-[var(--storefront-brand)]' : 'border-gray-300 dark:border-white/15'">
-                                <input id="payment-method-nagad" type="radio" name="payment_method" value="manual_nagad" x-model="method" class="h-4 w-4" required @checked($defaultPaymentMethod === 'manual_nagad')>
-                                <span class="font-medium text-gray-900 dark:text-white">Nagad (Send Money)</span>
-                            </label>
-                        @endif
-
-                        @if ($hasBkash || $hasNagad)
-                            <div x-show="method === 'manual_bkash' || method === 'manual_nagad'" x-cloak class="ml-1 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-white/10 dark:bg-white/5">
-                                @if ($hasBkash)
-                                    <div id="bkash-payment-instructions" x-show="method === 'manual_bkash'">
-                                        <p class="text-gray-700 dark:text-gray-200">Send Money to <span class="font-semibold">{{ $setting->manual_bkash_number }}</span></p>
-                                        @if ($setting->manual_bkash_instructions)
-                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $setting->manual_bkash_instructions }}</p>
+                        @if ($manualPaymentMethods->isNotEmpty())
+                            <div x-show="method.startsWith('manual:')" x-cloak class="ml-1 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-white/10 dark:bg-white/5">
+                                @foreach ($manualPaymentMethods as $manualMethod)
+                                    <div id="manual-payment-instructions-{{ $manualMethod->getKey() }}" x-show="method === {{ Illuminate\Support\Js::from($manualMethod->paymentValue()) }}">
+                                        @if ($manualMethod->account_number)
+                                            <p class="text-gray-700 dark:text-gray-200">Send Money to <span class="font-semibold">{{ $manualMethod->account_number }}</span></p>
+                                        @endif
+                                        @if ($manualMethod->instructions)
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $manualMethod->instructions }}</p>
                                         @endif
                                     </div>
-                                @endif
-                                @if ($hasNagad)
-                                    <div id="nagad-payment-instructions" x-show="method === 'manual_nagad'">
-                                        <p class="text-gray-700 dark:text-gray-200">Send Money to <span class="font-semibold">{{ $setting->manual_nagad_number }}</span></p>
-                                        @if ($setting->manual_nagad_instructions)
-                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $setting->manual_nagad_instructions }}</p>
-                                        @endif
-                                    </div>
-                                @endif
+                                @endforeach
                                 <div class="mt-3 grid gap-3 sm:grid-cols-2">
                                     <label class="block">
-                                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300" x-text="method === 'manual_bkash' ? 'Your bKash number' : 'Your Nagad number'">Your sender number</span>
-                                        <input id="checkout-sender-number" class="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" type="tel" inputmode="tel" name="sender_number" autocomplete="tel" value="{{ old('sender_number') }}" x-bind:required="method === 'manual_bkash' || method === 'manual_nagad'" @error('sender_number') aria-invalid="true" aria-describedby="checkout-sender-number-error" @enderror>
+                                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Your sender number</span>
+                                        <input id="checkout-sender-number" class="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" type="tel" inputmode="tel" name="sender_number" autocomplete="tel" value="{{ old('sender_number') }}" x-bind:required="method.startsWith('manual:')" @error('sender_number') aria-invalid="true" aria-describedby="checkout-sender-number-error" @enderror>
                                         @error('sender_number') <span id="checkout-sender-number-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
                                     </label>
                                     <label class="block">
                                         <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Transaction ID</span>
-                                        <input id="checkout-transaction-id" class="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" name="trx_id" autocomplete="off" spellcheck="false" value="{{ old('trx_id') }}" x-bind:required="method === 'manual_bkash' || method === 'manual_nagad'" @error('trx_id') aria-invalid="true" aria-describedby="checkout-transaction-id-error" @enderror>
+                                        <input id="checkout-transaction-id" class="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/15 dark:bg-white/10 dark:text-white" name="trx_id" autocomplete="off" spellcheck="false" value="{{ old('trx_id') }}" x-bind:required="method.startsWith('manual:')" @error('trx_id') aria-invalid="true" aria-describedby="checkout-transaction-id-error" @enderror>
                                         @error('trx_id') <span id="checkout-transaction-id-error" class="mt-1 block text-sm text-red-600">{{ $message }}</span> @enderror
                                     </label>
                                 </div>
+                            </div>
+                        @endif
+
+                        @if ($onlineGatewayMethod)
+                            <div id="online-gateway-payment-instructions" x-show="method === {{ Illuminate\Support\Js::from($onlineGatewayMethod->paymentValue()) }}" x-cloak class="ml-1 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-white/10 dark:bg-white/5">
+                                <p class="text-gray-700 dark:text-gray-200">You'll be redirected to a secure payment page to pay the full order amount online.</p>
+                                @if ($onlineGatewayMethod->instructions)
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $onlineGatewayMethod->instructions }}</p>
+                                @endif
                             </div>
                         @endif
                     </div>

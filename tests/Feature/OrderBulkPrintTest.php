@@ -41,6 +41,11 @@ class OrderBulkPrintTest extends TestCase
             ->assertSeeInOrder(['invoice-page', 'invoice-page'], false);
 
         $response->assertSee('window.print()', false);
+
+        // Android's WebView (the ZamZam Dashboard app) has no working
+        // window.print() of its own -- falls back to the native
+        // ZzPrintBridge (PrintBridge.java) when running inside the app.
+        $response->assertSee('window.ZzPrintBridge', false);
     }
 
     public function test_bulk_print_route_only_includes_orders_belonging_to_the_current_company(): void

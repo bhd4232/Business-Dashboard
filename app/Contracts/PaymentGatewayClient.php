@@ -20,10 +20,14 @@ interface PaymentGatewayClient
      * Create a hosted invoice and return the payment URL to redirect the
      * customer to.
      *
-     * $merchantReference is a value the caller guarantees is unique (e.g.
-     * the StorefrontPayment's own primary key) — gateways that don't echo
-     * back their own invoice/payment id (PayStation) use this as the
-     * invoice id instead; gateways that do (ZiniPay) simply ignore it.
+     * $merchantReference is a value the caller guarantees is unique — not
+     * just within this app's own database (a StorefrontPayment primary key
+     * alone is not safe: the gateway tracks invoice numbers on its own side
+     * permanently, so a local table reset that restarts the auto-increment
+     * sequence can resend a number the gateway already saw and reject it as
+     * a duplicate). Gateways that don't echo back their own invoice/payment
+     * id (PayStation) use this as the invoice id instead; gateways that do
+     * (ZiniPay) simply ignore it.
      *
      * @return array{payment_url: string, invoice_id: ?string}
      */

@@ -21,6 +21,20 @@ class CustomerRiskOverview extends StatsOverviewWidget
         return Schema::hasTable('customer_risk_profiles') && (Auth::user()?->hasPermission('sales.view') ?? false);
     }
 
+    /**
+     * Keep the overview dense on both phone and desktop while retaining
+     * Filament's native responsive grid implementation.
+     *
+     * @return array<string, int>
+     */
+    protected function getColumns(): array
+    {
+        return [
+            'default' => 2,
+            'lg' => 3,
+        ];
+    }
+
     protected function getStats(): array
     {
         $highRisk = CustomerRiskProfile::query()->where('risk_level', CustomerRiskProfile::LEVEL_HIGH)->count();

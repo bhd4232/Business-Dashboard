@@ -1,4 +1,4 @@
-@extends(isset($previewSlug) && ! isset($customer) ? 'storefront.layout' : 'storefront.account.layout')
+@extends(isset($previewSlug) && ! isset($customer) ? \App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()) : 'storefront.account.layout')
 
 @php
     $currency = $company->currency ?: 'BDT';

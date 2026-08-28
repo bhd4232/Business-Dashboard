@@ -43,16 +43,8 @@ class ReportService
                 ->where('status', 'draft')
                 ->sum('total_amount'),
             'purchases_today' => $this->purchasesQuery($from, $to)->sum('total_amount'),
-            'customer_payments_today' => TransactionLedger::query()
-                ->where('type', 'customer_payment')
-                ->whereDate('transaction_date', '>=', $from->toDateString())
-                ->whereDate('transaction_date', '<=', $to->toDateString())
-                ->sum('amount'),
-            'supplier_payments_today' => TransactionLedger::query()
-                ->where('type', 'supplier_payment')
-                ->whereDate('transaction_date', '>=', $from->toDateString())
-                ->whereDate('transaction_date', '<=', $to->toDateString())
-                ->sum('amount'),
+            'customer_payments_today' => $this->ledgerQuery('customer_payment', $from, $to)->sum('amount'),
+            'supplier_payments_today' => $this->ledgerQuery('supplier_payment', $from, $to)->sum('amount'),
             'expenses_today' => $this->expensesQuery($from, $to)->sum('amount'),
             'customer_due' => app(CustomerDueAlertService::class)->totalDue(),
             'supplier_due' => Supplier::query()->sum('current_balance'),
@@ -82,6 +74,40 @@ class ReportService
         return $this->purchasesQuery($from, $to)
             ->with('supplier')
             ->orderByDesc('purchase_date')
+            ->get();
+    }
+
+    public function storefrontPendingOrders(int $limit = 50): Collection
+    {
+        return Order::query()
+            ->whereIn('source', [Order::SOURCE_STOREFRONT, Order::SOURCE_OFFER])
+            ->where('status', Order::STATUS_DRAFT)
+            ->with('customer')
+            ->orderByDesc('order_date')
+            ->limit($limit)
+            ->get();
+    }
+
+    public function customerPayments(CarbonInterface $from, CarbonInterface $to, int $limit = 50): Collection
+    {
+        return $this->ledgerQuery('customer_payment', $from, $to)
+            ->limit($limit)
+            ->get();
+    }
+
+    public function supplierPayments(CarbonInterface $from, CarbonInterface $to, int $limit = 50): Collection
+    {
+        return $this->ledgerQuery('supplier_payment', $from, $to)
+            ->limit($limit)
+            ->get();
+    }
+
+    public function comingSoonProducts(int $limit = 50): Collection
+    {
+        return Product::query()
+            ->where('status', Product::STATUS_COMING_SOON)
+            ->orderByDesc('created_at')
+            ->limit($limit)
             ->get();
     }
 
@@ -337,5 +363,15 @@ class ReportService
         return Expense::query()
             ->whereDate('expense_date', '>=', $from->toDateString())
             ->whereDate('expense_date', '<=', $to->toDateString());
+    }
+
+    protected function ledgerQuery(string $type, CarbonInterface $from, CarbonInterface $to): Builder
+    {
+        return TransactionLedger::query()
+            ->with('account')
+            ->where('type', $type)
+            ->whereDate('transaction_date', '>=', $from->toDateString())
+            ->whereDate('transaction_date', '<=', $to->toDateString())
+            ->orderByDesc('transaction_date');
     }
 }

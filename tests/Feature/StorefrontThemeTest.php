@@ -87,6 +87,61 @@ class StorefrontThemeTest extends TestCase
             ->assertDontSee('Open a business account');
     }
 
+    /**
+     * Owner request: the hero banner should be full width with the two
+     * "Ready to order" category cards beside it removed entirely, and every
+     * "See all"/"View all" link should use a real arrow icon instead of the
+     * mojibake text arrow ("â†'") that a prior encoding bug left behind.
+     */
+    public function test_marketplace_hero_is_full_width_without_promo_cards_and_uses_a_real_arrow_icon(): void
+    {
+        [$company] = $this->createMarketplaceStore();
+
+        Category::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => 'Second Category',
+            'slug' => 'second-category',
+            'is_active' => true,
+        ]);
+
+        $response = $this->get('http://marketplace.example.test/')->assertOk();
+
+        $response->assertDontSee('Ready to order')
+            ->assertDontSee('Browse category')
+            ->assertDontSee('marketplace-hero-grid', false)
+            ->assertDontSee('marketplace-promo-card', false);
+
+        // The real fix for the corrupted "â†'" text arrow: a proper SVG icon
+        // via storefront.partials.arrow-right-icon, applied everywhere a
+        // "See all"/"View all" link appears on this template.
+        $response->assertSee('marketplace-link-arrow', false)
+            ->assertSee('<path d="M5 12h14M13 6l6 6-6 6"/>', false);
+
+        // No leftover mojibake anywhere on the page (em dash, en dash,
+        // checkmark, or the corrupted arrow sequence).
+        $content = $response->getContent();
+        $this->assertStringNotContainsString('â€', $content);
+        $this->assertStringNotContainsString('â†', $content);
+    }
+
+    public function test_marketplace_trust_strip_scrolls_horizontally_on_mobile(): void
+    {
+        $this->createMarketplaceStore();
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertSee('marketplace-trust-grid', false)
+            ->assertSee('Nationwide dispatch')
+            ->assertSee('Easy replacement')
+            ->assertSee('Business pricing')
+            ->assertSee('Secure payment');
+
+        // CSS enforces the actual horizontal-scroll/grid switch (see
+        // resources/css/app.css) — this just confirms the markup itself
+        // still renders all four items in one shared container for that
+        // CSS to apply to.
+    }
+
     public function test_marketplace_announcement_bar_is_not_rendered(): void
     {
         [, $setting] = $this->createMarketplaceStore();

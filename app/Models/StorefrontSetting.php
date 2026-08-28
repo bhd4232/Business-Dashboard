@@ -255,6 +255,37 @@ class StorefrontSetting extends Model
         'lift' => 'Premium lift',
     ];
 
+    public const FOOTER_BLOCK_TYPES = [
+        'brand_about' => 'Brand & about text',
+        'quick_links' => 'Quick links',
+        'contact_info' => 'Contact info',
+        'social_links' => 'Social links',
+        'bottom_bar' => 'Bottom bar (copyright & legal links)',
+    ];
+
+    // Backward-compatible default: every company created before the footer
+    // builder shipped has footer_blocks = NULL, so footerBlocks() falls back
+    // to this set — reproducing the previously-hardcoded footer exactly,
+    // just as modular blocks instead. See also
+    // storefront:seed-default-footer-blocks, which one-time backfills this
+    // set into every existing company's footer_blocks column.
+    public const DEFAULT_FOOTER_BLOCKS = [
+        ['type' => 'brand_about', 'data' => []],
+        ['type' => 'quick_links', 'data' => []],
+        ['type' => 'contact_info', 'data' => []],
+        ['type' => 'bottom_bar', 'data' => []],
+    ];
+
+    public const SOCIAL_PLATFORMS = [
+        'facebook' => 'Facebook',
+        'instagram' => 'Instagram',
+        'youtube' => 'YouTube',
+        'tiktok' => 'TikTok',
+        'x' => 'X (Twitter)',
+        'linkedin' => 'LinkedIn',
+        'whatsapp' => 'WhatsApp',
+    ];
+
     protected $fillable = [
         'company_id',
         'storefront_theme',
@@ -386,6 +417,9 @@ class StorefrontSetting extends Model
         'meta_description',
         'header_menu',
         'footer_menu',
+        'footer_blocks',
+        'reseller_program_enabled',
+        'social_links',
         'is_published',
     ];
 
@@ -446,6 +480,9 @@ class StorefrontSetting extends Model
         'notification_credentials' => 'encrypted:array',
         'header_menu' => 'array',
         'footer_menu' => 'array',
+        'footer_blocks' => 'array',
+        'reseller_program_enabled' => 'boolean',
+        'social_links' => 'array',
         'typography_base_size' => 'integer',
         'typography_heading_weight' => 'integer',
         'typography_body_weight' => 'integer',
@@ -469,6 +506,11 @@ class StorefrontSetting extends Model
     public function whatsappGroupMessage(): string
     {
         return trim((string) $this->whatsapp_group_message) ?: self::DEFAULT_WHATSAPP_GROUP_MESSAGE;
+    }
+
+    public function footerBlocks(): array
+    {
+        return $this->footer_blocks ?: self::DEFAULT_FOOTER_BLOCKS;
     }
 
     protected static function booted(): void
@@ -531,10 +573,33 @@ class StorefrontSetting extends Model
             $setting->marketplace_bulk_pricing_enabled ??= true;
             $setting->marketplace_sidebar_enabled ??= true;
             $setting->marketplace_product_limit ??= 10;
+            $setting->reseller_program_enabled ??= true;
         });
 
         static::saved(fn (StorefrontSetting $setting) => Cache::forget("storefront-home:{$setting->company_id}"));
         static::deleted(fn (StorefrontSetting $setting) => Cache::forget("storefront-home:{$setting->company_id}"));
+
+        // Checkout payment options now live entirely in StorefrontPaymentMethod
+        // (dashboard-managed, see that model) rather than the cod_enabled/
+        // manual_* columns above. Without at least one active row, a brand
+        // new company's checkout page would have literally no payment option
+        // to offer, so every newly created setting gets a default Cash on
+        // Delivery row for free — matching cod_enabled's old implicit
+        // "true unless the owner turns it off" default. Existing companies
+        // were one-time backfilled by the
+        // 2026_08_24_160000_create_storefront_payment_methods_table migration.
+        static::created(function (StorefrontSetting $setting): void {
+            // withoutGlobalScopes(): CompanyScope filters by whatever the
+            // *current request's* CompanyContext happens to be, which is not
+            // necessarily $setting->company_id (e.g. an admin creating a
+            // second company's settings while their own company is still
+            // the active context) — scoping this lookup would miss an
+            // existing row and attempt a duplicate insert instead.
+            StorefrontPaymentMethod::withoutGlobalScopes()->firstOrCreate(
+                ['company_id' => $setting->company_id, 'type' => StorefrontPaymentMethod::TYPE_COD],
+                ['name' => 'Cash on Delivery', 'is_active' => true, 'sort_order' => 0],
+            );
+        });
     }
 
     public function hasActiveOffer(): bool

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\PushWooCommerceOrderStatusJob;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\GeneratesSequentialNumber;
 use App\Services\CustomerRiskService;
@@ -102,6 +103,16 @@ class Order extends Model
 
     public ?int $statusTransitionActorId = null;
 
+    /**
+     * Set by WooCommerceOrderSyncService before saving an order it just
+     * updated FROM an incoming WooCommerce webhook, so the updated() hook
+     * below doesn't push that same status straight back to WooCommerce —
+     * without this, every WooCommerce → ERP sync would immediately trigger
+     * an ERP → WooCommerce push of the identical status, a wasteful (though
+     * not infinite, since the status wouldn't keep changing) round trip.
+     */
+    public bool $suppressWooCommercePush = false;
+
     public const DELIVERY_STATUSES = [
         CourierBooking::STATUS_NOT_BOOKED => 'Not Booked',
         CourierBooking::STATUS_BOOKING_PENDING => 'Booking Pending',
@@ -125,18 +136,22 @@ class Order extends Model
 
     public const SOURCE_OFFER = 'offer';
 
+    public const SOURCE_WOOCOMMERCE = 'woocommerce';
+
     public const SOURCES = [
         self::SOURCE_ADMIN => 'Admin',
         self::SOURCE_STOREFRONT => 'Storefront',
         self::SOURCE_CRM => 'CRM',
         self::SOURCE_CHAT => 'Chat',
         self::SOURCE_OFFER => 'Offer',
+        self::SOURCE_WOOCOMMERCE => 'WooCommerce',
     ];
 
     protected $fillable = [
         'company_id',
         'order_number',
         'customer_id',
+        'reseller_customer_id',
         'customer_name',
         'order_date',
         'subtotal',
@@ -151,6 +166,7 @@ class Order extends Model
         'delivery_status',
         'courier_provider_id',
         'source',
+        'external_reference',
         'note',
     ];
 
@@ -218,6 +234,15 @@ class Order extends Model
         });
 
         static::updated(function (Order $order): void {
+            if (
+                $order->wasChanged('status')
+                && $order->source === self::SOURCE_WOOCOMMERCE
+                && filled($order->external_reference)
+                && ! $order->suppressWooCommercePush
+            ) {
+                PushWooCommerceOrderStatusJob::dispatch($order->getKey());
+            }
+
             if (
                 ! $order->wasChanged(['status', 'delivery_status'])
                 || ! Schema::hasTable('order_status_transitions')
@@ -302,6 +327,16 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * The reseller whose storefront this order was placed through (null
+     * for the normal, non-reseller storefront). Distinct from customer()
+     * above, which is the buyer.
+     */
+    public function reseller(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'reseller_customer_id');
     }
 
     /**

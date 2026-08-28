@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\CustomerBlacklists;
 
-use App\Filament\Clusters\CustomerSuccess;
+use App\Filament\Clusters\Courier;
 use App\Filament\Resources\CustomerBlacklists\Pages\CreateCustomerBlacklist;
 use App\Filament\Resources\CustomerBlacklists\Pages\EditCustomerBlacklist;
 use App\Filament\Resources\CustomerBlacklists\Pages\ListCustomerBlacklists;
@@ -29,7 +29,7 @@ class CustomerBlacklistResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedNoSymbol;
 
-    protected static ?string $cluster = CustomerSuccess::class;
+    protected static ?string $cluster = Courier::class;
 
     protected static ?string $navigationLabel = 'Blacklists';
 

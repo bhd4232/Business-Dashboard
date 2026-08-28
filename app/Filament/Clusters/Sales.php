@@ -12,7 +12,7 @@ class Sales extends NavigationCluster
 
     protected static ?string $navigationLabel = 'Sales';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 2;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

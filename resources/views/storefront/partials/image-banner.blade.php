@@ -92,7 +92,7 @@
                     $slideHref = $bannerLink($slide);
                     $isInitialSlide = $bannerCount > 1 ? $renderedIndex === 1 : $renderedIndex === 0;
                 @endphp
-                <div class="h-full w-full shrink-0">
+                <div class="relative h-full w-full shrink-0">
                     @if ($slideHref)
                         <a class="block h-full w-full" href="{{ $slideHref }}" aria-label="Open banner promotion">
                     @endif
@@ -112,6 +112,28 @@
                     </picture>
                     @if ($slideHref)
                         </a>
+                    @endif
+
+                    @if ($slide->heading || $slide->subheading || $slide->cta_label)
+                        {{-- Only rendered when at least one field is filled — slides with
+                             none of these fields keep showing as image-only, unchanged. --}}
+                        <div class="pointer-events-none absolute inset-0 flex items-center">
+                            <div class="mx-auto w-full max-w-7xl px-4 sm:px-5 lg:px-6">
+                                <div class="max-w-md rounded-lg bg-black/35 p-4 backdrop-blur-sm sm:p-6">
+                                    @if ($slide->heading)
+                                        <h2 class="text-xl font-semibold text-white sm:text-3xl">{{ $slide->heading }}</h2>
+                                    @endif
+                                    @if ($slide->subheading)
+                                        <p class="mt-2 text-sm text-white/90 sm:text-base">{{ $slide->subheading }}</p>
+                                    @endif
+                                    @if ($slide->cta_label)
+                                        <span class="pointer-events-auto mt-4 inline-flex items-center rounded-lg bg-[var(--storefront-brand)] px-5 py-2.5 text-sm font-medium text-white">
+                                            {{ $slide->cta_label }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
                     @endif
                 </div>
             @endforeach

@@ -156,7 +156,7 @@ class CustomerAccountService
         ])->save();
 
         $sent = $channel === 'email'
-            ? $this->notifications->sendLoginOtpEmail((string) $customer->email, $company->name, $code)
+            ? $this->notifications->sendLoginOtpEmail($setting, (string) $customer->email, $company->name, $code)
             : $this->notifications->sendSms(
                 $setting,
                 $customer->phone,

@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @php
     use Filament\Forms\Components\RichEditor\RichContentRenderer;

@@ -22,9 +22,29 @@ class StorefrontSlideTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
-    public function test_active_slide_shows_as_an_image_only_banner(): void
+    public function test_active_slide_shows_as_an_image_banner_with_no_overlay_when_fields_are_empty(): void
     {
         $company = $this->createPublishedStorefrontCompany('Gadget Store', 'slides.example.test');
+
+        app(CompanyContext::class)->set($company);
+
+        StorefrontSlide::query()->create([
+            'image' => 'storefront/slides/hero.jpg',
+            'is_active' => true,
+        ]);
+
+        $this->get('http://slides.example.test/')
+            ->assertOk()
+            ->assertSee('storefront/slides/hero.jpg', false)
+            ->assertSee('storefront-image-banner', false)
+            ->assertDontSee('Big Summer Sale')
+            ->assertDontSee('Up to 50% off electronics')
+            ->assertDontSee('Shop now');
+    }
+
+    public function test_slide_heading_subheading_and_cta_render_as_an_overlay_when_filled(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'slides-overlay.example.test');
 
         app(CompanyContext::class)->set($company);
 
@@ -36,13 +56,12 @@ class StorefrontSlideTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->get('http://slides.example.test/')
+        $this->get('http://slides-overlay.example.test/')
             ->assertOk()
             ->assertSee('storefront/slides/hero.jpg', false)
-            ->assertSee('storefront-image-banner', false)
-            ->assertDontSee('Big Summer Sale')
-            ->assertDontSee('Up to 50% off electronics')
-            ->assertDontSee('Shop now');
+            ->assertSee('Big Summer Sale')
+            ->assertSee('Up to 50% off electronics')
+            ->assertSee('Shop now');
     }
 
     public function test_inactive_and_out_of_window_slides_are_hidden(): void
@@ -101,7 +120,7 @@ class StorefrontSlideTest extends TestCase
         $this->get('http://slides-gift.example.test/')
             ->assertOk()
             ->assertSee('storefront/slides/gift.jpg', false)
-            ->assertDontSee('Gift Store Slide');
+            ->assertSee('Gift Store Slide');
     }
 
     private function createPublishedStorefrontCompany(string $name, string $domain): Company

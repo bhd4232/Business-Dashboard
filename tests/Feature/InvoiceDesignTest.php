@@ -156,6 +156,51 @@ class InvoiceDesignTest extends TestCase
             ->assertDontSee('@media (max-width: 720px)', false);
     }
 
+    /**
+     * Owner report: tapping "Print" on mobile did not open the device's
+     * print dialog. Root cause: window.print() was wrapped in a
+     * setTimeout(), which drops the "user activation" flag most mobile
+     * browsers require for window.print() to work — so the click handler
+     * must call it synchronously, with no delay in between.
+     */
+    public function test_print_button_calls_print_synchronously_on_click_for_mobile_browsers(): void
+    {
+        $order = $this->makeOrder();
+
+        $response = $this->actingAs($this->admin())
+            ->get(route('orders.print', $order))
+            ->assertOk();
+
+        $content = $response->getContent();
+        $clickHandlerStart = strpos($content, "addEventListener('click'");
+        $this->assertNotFalse($clickHandlerStart);
+
+        $clickHandlerBody = substr($content, $clickHandlerStart, 200);
+        $this->assertStringContainsString('triggerPrint();', $clickHandlerBody);
+        $this->assertStringNotContainsString('setTimeout', $clickHandlerBody);
+    }
+
+    /**
+     * Owner report (follow-up): the print button works in a real mobile
+     * browser now, but still does nothing inside the ZamZam Dashboard
+     * Android app. Root cause: Android's WebView never implements
+     * window.print() at all (unlike a real browser, where it just needed
+     * the setTimeout fix above) — it's a silent no-op. The page must fall
+     * back to the native ZzPrintBridge (PrintBridge.java, registered by
+     * MainActivity) so printing works inside the app too.
+     */
+    public function test_print_button_falls_back_to_the_native_android_bridge_inside_the_app(): void
+    {
+        $order = $this->makeOrder();
+
+        $this->actingAs($this->admin())
+            ->get(route('orders.print', $order))
+            ->assertOk()
+            ->assertSee('window.ZzPrintBridge', false)
+            ->assertSee("typeof window.ZzPrintBridge.print === 'function'", false)
+            ->assertSee('window.ZzPrintBridge.print();', false);
+    }
+
     public function test_print_typography_matches_the_compact_reference_scale(): void
     {
         $order = $this->makeOrder();

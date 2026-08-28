@@ -33,6 +33,12 @@ public class MainActivity extends BridgeActivity {
         // (no google-services.json) -- see PushAvailabilityBridge.
         webView.addJavascriptInterface(new PushAvailabilityBridge(this), "ZzNativeBridge");
 
+        // Lets the invoice print pages trigger Android's native print
+        // dialog -- the WebView has no window.print() of its own, so
+        // without this, tapping Print inside the app silently does nothing
+        // (it works fine in a real mobile browser). See PrintBridge.
+        webView.addJavascriptInterface(new PrintBridge(this, webView), "ZzPrintBridge");
+
         networkMonitor = new NetworkMonitor(this, this::onNetworkAvailable);
         networkMonitor.register();
 

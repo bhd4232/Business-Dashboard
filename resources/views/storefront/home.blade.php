@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @section('content')
     @php
@@ -12,7 +12,7 @@
     @if ($slides->isNotEmpty())
         @include('storefront.partials.image-banner', ['slides' => $slides])
     @else
-        <section class="border-b border-gray-200 dark:border-white/10">
+        <section class="border-b border-gray-200 dark:border-white/10" x-reveal>
             <div class="mx-auto grid w-full max-w-7xl gap-7 px-4 py-10 sm:px-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-6 lg:py-12">
                 <div>
                     <p class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--storefront-brand)]">
@@ -52,28 +52,30 @@
 
     @if ($categories->isNotEmpty())
         <section id="collections" class="border-b border-gray-200 dark:border-white/10" x-reveal>
-            <div class="mx-auto w-full max-w-7xl px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-                <div class="mb-4 flex items-end justify-between gap-5">
-                    <h2 class="text-base font-semibold tracking-tight sm:text-xl">Top categories</h2>
-                    <a class="inline-flex min-h-11 items-center text-xs font-medium text-gray-500 hover:text-gray-950 sm:text-sm dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">See all</a>
+            <div class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
+                <div class="mb-6 flex items-end justify-between gap-5">
+                    <div>
+                        <h2 class="text-xl font-semibold tracking-tight sm:text-2xl">Shop by category</h2>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Browse our full collection by category</p>
+                    </div>
+                    <a class="inline-flex min-h-11 items-center text-sm font-medium text-gray-500 hover:text-gray-950 dark:hover:text-white" href="{{ isset($previewSlug) ? route('storefront.preview.products.index', $previewSlug) : route('storefront.products.index') }}">See all</a>
                 </div>
-                <div class="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-1 pt-2 sm:mx-0 sm:gap-6 sm:px-0 lg:justify-between">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
                     @foreach ($categories as $category)
-                        <a class="group flex w-20 shrink-0 snap-start flex-col items-center gap-2 sm:w-24" href="{{ isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $category->slug]) : route('storefront.categories.show', $category->slug) }}">
-                            <div class="h-16 w-16 overflow-hidden rounded-full border border-gray-200 bg-gray-100 ring-[var(--storefront-brand)] transition group-hover:ring-2 sm:h-20 sm:w-20 dark:border-white/10 dark:bg-white/10">
+                        <a
+                            class="group relative flex flex-col items-center gap-3 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 transition hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-200/60 dark:border-white/10 dark:bg-gray-900 dark:hover:shadow-none"
+                            href="{{ isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $category->slug]) : route('storefront.categories.show', $category->slug) }}"
+                        >
+                            <div class="grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-[var(--storefront-brand)]/10 text-[var(--storefront-brand)] transition group-hover:bg-[var(--storefront-brand)] group-hover:text-white">
                                 @if ($category->image)
-                                    <img class="h-full w-full object-cover transition duration-300 group-hover:scale-105" src="{{ \App\Support\CompanyMedia::publicUrl($category->image, $company) }}" alt="{{ $category->name }}" width="160" height="160" loading="lazy" decoding="async">
+                                    <img class="h-full w-full object-cover" src="{{ \App\Support\CompanyMedia::publicUrl($category->image, $company) }}" alt="{{ $category->name }}" width="112" height="112" loading="lazy" decoding="async">
                                 @elseif ($category->icon)
-                                    <div class="grid h-full w-full place-items-center text-[var(--storefront-brand)] transition group-hover:scale-105">
-                                        @include('storefront.partials.category-icon', ['icon' => $category->icon, 'iconClass' => 'h-7 w-7 sm:h-8 sm:w-8'])
-                                    </div>
+                                    @include('storefront.partials.category-icon', ['icon' => $category->icon, 'iconClass' => 'h-7 w-7'])
                                 @else
-                                    <div class="grid h-full w-full place-items-center text-xl font-semibold text-gray-700 transition group-hover:text-[var(--storefront-brand)] dark:text-gray-200" data-category-initial="{{ mb_substr($category->name, 0, 1) }}">
-                                        {{ mb_substr($category->name, 0, 1) }}
-                                    </div>
+                                    <span class="text-xl font-semibold" data-category-initial="{{ mb_substr($category->name, 0, 1) }}">{{ mb_substr($category->name, 0, 1) }}</span>
                                 @endif
                             </div>
-                            <div class="w-full truncate text-center text-xs font-medium text-gray-700 group-hover:text-[var(--storefront-brand)] dark:text-gray-200">{{ $category->name }}</div>
+                            <div class="w-full truncate text-center text-sm font-medium text-gray-800 dark:text-gray-100">{{ $category->name }}</div>
                         </a>
                     @endforeach
                 </div>
@@ -84,6 +86,7 @@
     @if ($setting->hasActiveOffer())
         <section
             class="border-b border-gray-200 bg-[var(--storefront-secondary)] text-[var(--storefront-secondary-contrast)] dark:border-white/10"
+            x-reveal
             x-data="{
                 endsAt: new Date('{{ $setting->offer_ends_at->toIso8601String() }}').getTime(),
                 remaining: { d: 0, h: 0, m: 0, s: 0 },

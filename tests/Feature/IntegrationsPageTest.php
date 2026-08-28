@@ -12,6 +12,7 @@ use App\Models\UserRole;
 use App\Services\CompanyContext;
 use App\Services\Crm\AiSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -30,8 +31,12 @@ class IntegrationsPageTest extends TestCase
         // "Active gateway" Select must still validate via an explicit
         // mount()-time default, not rely on the field's own ->default().
         Livewire::test(Integrations::class)
-            ->set('data.ai_provider', 'anthropic')
-            ->set('data.ai_model', 'claude-test')
+            // Any OpenAI-compatible provider (not just OpenAI itself) can be
+            // added via the free-text label + base URL, without a code change.
+            ->set('data.ai_api_format', 'openai')
+            ->set('data.ai_provider', 'DeepSeek')
+            ->set('data.ai_base_url', 'https://api.deepseek.com/chat/completions')
+            ->set('data.ai_model', 'deepseek-chat')
             ->set('data.ai_confidence_threshold', 0.8)
             ->set('data.ai_max_consecutive_ai_replies', 3)
             ->set('data.ai_api_key', 'sk-live-test')
@@ -49,8 +54,11 @@ class IntegrationsPageTest extends TestCase
             ->assertHasNoFormErrors();
 
         $ai = app(AiSettingsService::class)->all($company);
-        $this->assertSame('claude-test', $ai['model']);
+        $this->assertSame('deepseek-chat', $ai['model']);
         $this->assertSame('sk-live-test', $ai['api_key']);
+        $this->assertSame('openai', $ai['api_format']);
+        $this->assertSame('DeepSeek', $ai['provider']);
+        $this->assertSame('https://api.deepseek.com/chat/completions', $ai['base_url']);
 
         $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->firstOrFail();
         $this->assertSame('https://shop.example.com', $setting->woocommerce_base_url);
@@ -104,7 +112,8 @@ class IntegrationsPageTest extends TestCase
         // the hidden tab in the UI) — save() must still refuse to persist them.
         Livewire::test(Integrations::class)
             ->set('data.woocommerce_base_url', 'https://staff-shop.example.com')
-            ->set('data.ai_provider', 'openai')
+            ->set('data.ai_api_format', 'openai')
+            ->set('data.ai_provider', 'OpenAI')
             ->set('data.ai_model', 'gpt-should-not-save')
             ->set('data.ai_api_key', 'sk-should-not-save')
             ->call('save')
@@ -155,6 +164,69 @@ class IntegrationsPageTest extends TestCase
         $this->get('/admin/settings/integrations')
             ->assertOk()
             ->assertSeeText('Connected');
+    }
+
+    public function test_test_webhook_action_warns_when_no_secret_is_saved_yet(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Http::fake();
+
+        Livewire::test(Integrations::class)
+            ->call('testWoocommerceWebhook')
+            ->assertNotified('No webhook secret saved yet');
+
+        Http::assertNothingSent();
+    }
+
+    public function test_test_webhook_action_reports_success_for_a_correctly_signed_round_trip(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'woocommerce_credentials' => ['webhook_secret' => 'test-secret-123'],
+        ]);
+
+        Http::fake(['*' => Http::response(['ok' => true], 200)]);
+
+        Livewire::test(Integrations::class)
+            ->call('testWoocommerceWebhook')
+            ->assertNotified('Webhook reachable, signature verified');
+
+        // The exact same request a real WooCommerce delivery would send:
+        // uses the just-saved secret, not whatever's unsaved in the form.
+        Http::assertSent(function ($request) {
+            $expectedSignature = base64_encode(hash_hmac('sha256', '{}', 'test-secret-123', true));
+
+            return $request->header('X-WC-Webhook-Signature') === [$expectedSignature]
+                && $request->header('X-WC-Webhook-Topic') === ['order.updated'];
+        });
+    }
+
+    public function test_test_webhook_action_reports_the_failure_status(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'woocommerce_credentials' => ['webhook_secret' => 'test-secret-123'],
+        ]);
+
+        Http::fake(['*' => Http::response('Forbidden', 403)]);
+
+        Livewire::test(Integrations::class)
+            ->call('testWoocommerceWebhook')
+            ->assertNotified('Webhook test failed: HTTP 403');
     }
 
     protected function assertBlank(mixed $value): void

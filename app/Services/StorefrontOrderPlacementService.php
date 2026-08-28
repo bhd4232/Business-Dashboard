@@ -58,21 +58,31 @@ class StorefrontOrderPlacementService
             ]);
             $customer->save();
 
-            $advanceReasonLabels = collect(array_keys($data['advance_reasons'] ?? []))
-                ->map(fn (string $reason): string => match ($reason) {
-                    'preorder' => 'pre-order',
-                    'new_customer_delivery' => 'new-customer delivery',
-                    'courier_no_history', 'courier_low_success_ratio' => 'checkout eligibility',
-                    default => 'checkout',
-                })
-                ->unique()
-                ->implode(', ');
-            $advanceNote = $advanceReasonLabels !== ''
-                ? "Verified online advance paid ({$advanceReasonLabels})"
-                : 'Verified online advance paid';
+            $advanceReasonKeys = array_keys($data['advance_reasons'] ?? []);
+
+            if ($advanceReasonKeys === ['full_online_payment']) {
+                // The customer chose to pay the whole order online (a normal
+                // checkout option, not a risk-driven advance) - say so
+                // plainly rather than calling it an "advance".
+                $advanceNote = 'Paid online in full';
+            } else {
+                $advanceReasonLabels = collect($advanceReasonKeys)
+                    ->map(fn (string $reason): string => match ($reason) {
+                        'preorder' => 'pre-order',
+                        'new_customer_delivery' => 'new-customer delivery',
+                        'courier_no_history', 'courier_low_success_ratio' => 'checkout eligibility',
+                        default => 'checkout',
+                    })
+                    ->unique()
+                    ->implode(', ');
+                $advanceNote = $advanceReasonLabels !== ''
+                    ? "Verified online advance paid ({$advanceReasonLabels})"
+                    : 'Verified online advance paid';
+            }
 
             $order = Order::query()->create([
                 'customer_id' => $customer->getKey(),
+                'reseller_customer_id' => $data['reseller_customer_id'] ?? null,
                 'customer_name' => $customer->name,
                 'order_date' => now()->toDateString(),
                 'discount' => 0,

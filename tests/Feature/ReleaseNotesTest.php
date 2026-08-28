@@ -40,6 +40,12 @@ class ReleaseNotesTest extends TestCase
 
     public function test_health_version_endpoint_exposes_release_metadata(): void
     {
+        // published_version is read straight from CHANGELOG.md's latest
+        // dated entry (App\Support\ReleaseCutter auto-advances it on every
+        // push to main), never hardcoded here, so this test doesn't need a
+        // manual touch every time a release is cut.
+        $latestPublishedVersion = AppRelease::latestPublished()['version'];
+
         Config::set('release.version', '9.8.7');
         Config::set('release.type', 'critical_fix');
         Config::set('release.date', '2026-06-21');
@@ -49,7 +55,7 @@ class ReleaseNotesTest extends TestCase
             ->assertOk()
             ->assertHeader('Cache-Control')
             ->assertJsonPath('version', '9.8.7')
-            ->assertJsonPath('published_version', '2.1.0')
+            ->assertJsonPath('published_version', $latestPublishedVersion)
             ->assertJsonPath('release_type', 'critical_fix')
             ->assertJsonPath('release_label', 'Critical Fix Update')
             ->assertJsonPath('release_date', '2026-06-21')
@@ -70,15 +76,16 @@ class ReleaseNotesTest extends TestCase
             'role' => 'super_admin',
             'is_active' => true,
         ]);
+        $latest = AppRelease::latestPublished();
 
         $this->actingAs($user)
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v2.1.0')
+            ->assertSee('v'.$latest['version'])
             ->assertSee('Installed version')
-            ->assertSee('Minor Feature')
-            ->assertSee('Released 2026-08-18')
+            ->assertSee($latest['type_label'])
+            ->assertSee('Released '.$latest['date'])
             ->assertSee('Noor Solar Energy')
             ->assertSee('Technical Notes')
             ->assertSee('Added `three` as a production dependency')
@@ -104,7 +111,7 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertSee('Release Notes')
-            ->assertSee('v2.1.0')
+            ->assertSee('v'.AppRelease::latestPublished()['version'])
             ->assertSee('Noor Solar Energy')
             ->assertSee('Added Customer and Order risk badges')
             ->assertDontSee('Added disposable SQLite backup restore verification')
@@ -124,6 +131,7 @@ class ReleaseNotesTest extends TestCase
             'acknowledged_app_version' => '1.21.0',
         ])->saveQuietly();
         $installedDeploymentId = $user->acknowledged_app_deployment_id;
+        $latestVersion = AppRelease::latestPublished()['version'];
 
         Config::set([
             'release.deployment_id' => 'release-notes-deployment-2',
@@ -133,7 +141,7 @@ class ReleaseNotesTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/settings/release-notes')
             ->assertOk()
-            ->assertSee('Update available: v2.1.0')
+            ->assertSee('Update available: v'.$latestVersion)
             ->assertSee('Awaiting your approval')
             ->assertSee('Installed version: v1.21.0')
             ->assertDontSee('Android update push notifications');
@@ -151,7 +159,7 @@ class ReleaseNotesTest extends TestCase
             ->get('/admin/settings/release-notes')
             ->assertOk()
             ->assertDontSee('Awaiting your approval')
-            ->assertSee('Installed version: v2.1.0')
+            ->assertSee('Installed version: v'.$latestVersion)
             ->assertSee('Noor Solar Energy');
     }
 }

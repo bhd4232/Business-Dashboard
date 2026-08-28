@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Company;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -24,7 +25,7 @@ class StorefrontCart
 
     public function __construct(protected Session $session) {}
 
-    public function add(Company $company, Product $product, int $quantity = 1, ?ProductVariant $variant = null): void
+    public function add(Company $company, Product $product, int $quantity = 1, ?ProductVariant $variant = null, ?Customer $reseller = null): void
     {
         $quantity = max(1, $quantity);
         $items = $this->raw($company);
@@ -43,7 +44,7 @@ class StorefrontCart
             'quantity' => $nextQuantity,
         ];
 
-        $this->put($company, $items);
+        $this->put($company, $items, $reseller);
     }
 
     public function update(Company $company, Product $product, int $quantity, ?ProductVariant $variant = null): void
@@ -155,6 +156,16 @@ class StorefrontCart
         return $this->cartRecord($company)?->getKey();
     }
 
+    /**
+     * The reseller this cart was attributed to (see add()'s $reseller
+     * param), if any -- read at checkout time so the resulting Order can
+     * record which reseller's store it came through.
+     */
+    public function resellerCustomerId(Company $company): ?int
+    {
+        return $this->cartRecord($company)?->reseller_customer_id;
+    }
+
     public function restore(Company $company, StorefrontCartRecord $record): void
     {
         abort_unless($record->company_id === $company->getKey() && $record->status !== StorefrontCartRecord::STATUS_CONVERTED, 404);
@@ -210,7 +221,7 @@ class StorefrontCart
         return $token;
     }
 
-    protected function persistCartRecord(Company $company, array $items): void
+    protected function persistCartRecord(Company $company, array $items, ?Customer $reseller = null): void
     {
         if (! Schema::hasTable('storefront_cart_records')) {
             return;
@@ -228,14 +239,23 @@ class StorefrontCart
             $this->session->forget('storefront_cart_token');
         }
 
+        $updates = [
+            'items' => array_values($items),
+            'status' => StorefrontCartRecord::STATUS_ACTIVE,
+            'reminded_at' => null,
+            'last_activity_at' => now(),
+        ];
+
+        // Only stamped when this add-to-cart happened under a reseller's
+        // store -- never cleared by a later, non-reseller add, so the cart
+        // keeps its "came through this reseller" attribution for checkout.
+        if ($reseller) {
+            $updates['reseller_customer_id'] = $reseller->getKey();
+        }
+
         StorefrontCartRecord::withoutGlobalScopes()->updateOrCreate(
             ['company_id' => $company->getKey(), 'session_id' => $this->cartToken()],
-            [
-                'items' => array_values($items),
-                'status' => StorefrontCartRecord::STATUS_ACTIVE,
-                'reminded_at' => null,
-                'last_activity_at' => now(),
-            ],
+            $updates,
         );
     }
 
@@ -364,11 +384,11 @@ class StorefrontCart
         return is_array($items) ? $items : [];
     }
 
-    protected function put(Company $company, array $items): void
+    protected function put(Company $company, array $items, ?Customer $reseller = null): void
     {
         $this->session->put($this->key($company), $items);
 
-        $this->persistCartRecord($company, $items);
+        $this->persistCartRecord($company, $items, $reseller);
     }
 
     protected function key(Company $company): string

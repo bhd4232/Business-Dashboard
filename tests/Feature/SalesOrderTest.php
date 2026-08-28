@@ -178,4 +178,32 @@ class SalesOrderTest extends TestCase
             ->assertSee('Booked')
             ->assertSee('In Transit');
     }
+
+    /**
+     * Regression test: the "Courier Fraud Check" button and its result (a
+     * multi-column courier stats table) sat in an always-row Flex with no
+     * responsive breakpoint, so on a phone width they were squeezed side by
+     * side into an unreadable, overlapping mess. Fixed with Flex::from('md'),
+     * which Filament's own flex.css only applies as flex-col below md and
+     * flex-row from md up — this asserts that class actually made it into
+     * the rendered page, not just that the page still loads.
+     */
+    public function test_order_edit_form_stacks_the_fraud_check_result_below_the_button_on_mobile(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+        $customer = Customer::query()->create(['name' => 'Fraud Check Admin Customer']);
+        $order = Order::query()->create([
+            'customer_id' => $customer->id,
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($user)
+            ->get("/admin/sales/orders/{$order->getKey()}/edit")
+            ->assertOk()
+            ->assertSee('Courier Fraud Check')
+            ->assertSee('fi-from-md', false);
+    }
 }

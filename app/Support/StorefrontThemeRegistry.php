@@ -82,6 +82,7 @@ final class StorefrontThemeRegistry
                 'views' => [
                     self::BUILT_IN_DEFAULT => 'storefront.home',
                 ],
+                'layout' => 'storefront.layout',
             ],
             self::MARKETPLACE_PRO => [
                 'label' => 'Marketplace Pro',
@@ -97,6 +98,13 @@ final class StorefrontThemeRegistry
                     self::MARKETPLACE_CAMPAIGN => 'storefront.themes.marketplace-pro.home',
                     self::MARKETPLACE_COMPACT => 'storefront.themes.marketplace-pro.home',
                 ],
+                // No distinct Marketplace Pro header/footer exists yet — this
+                // theme currently shares the default layout's header/footer,
+                // only its homepage content differs. Set this to a theme-
+                // specific view (e.g. 'storefront.themes.marketplace-pro.layout')
+                // once one is designed; every storefront page will pick it up
+                // automatically via layoutView(), no other file needs to change.
+                'layout' => 'storefront.layout',
             ],
             self::NOOR_SOLAR => [
                 'label' => 'Noor Solar Energy',
@@ -108,6 +116,7 @@ final class StorefrontThemeRegistry
                 'views' => [
                     self::NOOR_SOLAR_ENGINEERED => 'storefront.themes.noor-solar.home',
                 ],
+                'layout' => 'storefront.layout',
             ],
         ];
     }
@@ -152,5 +161,16 @@ final class StorefrontThemeRegistry
         $template = self::normalizeTemplate($theme, $template);
 
         return self::themes()[$theme]['views'][$template];
+    }
+
+    /**
+     * The Blade view every storefront page (home and otherwise) extends for
+     * its header/footer. Falls back to the default 'storefront.layout' for
+     * any theme that hasn't defined its own — so pointing a theme at a
+     * custom layout is a one-line change here, not a per-view migration.
+     */
+    public static function layoutView(?string $theme): string
+    {
+        return self::themes()[self::normalizeTheme($theme)]['layout'] ?? 'storefront.layout';
     }
 }

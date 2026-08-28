@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @push('meta-events')
     @php
@@ -19,6 +19,9 @@
 
 @section('content')
     @php
+        use Filament\Forms\Components\RichEditor\RichContentRenderer;
+
+        $isHtmlDescription = str_contains((string) $product->description, '<');
         $categoryUrl = $product->category
             ? (isset($previewSlug) ? route('storefront.preview.categories.show', [$previewSlug, $product->category->slug]) : route('storefront.categories.show', $product->category->slug))
             : null;
@@ -262,7 +265,15 @@
         </div>
         <div class="max-w-3xl py-6 text-sm leading-7 text-gray-600 dark:text-gray-300">
             <div id="product-panel-description" role="tabpanel" aria-labelledby="product-tab-description" tabindex="0" x-show="tab === 'description'">
-                {{ $product->description ?: 'Product details will be updated soon. Contact us for specifications, availability, and delivery details.' }}
+                <div class="prose prose-sm max-w-none dark:prose-invert">
+                    @if (! $product->description)
+                        Product details will be updated soon. Contact us for specifications, availability, and delivery details.
+                    @elseif ($isHtmlDescription)
+                        {{ RichContentRenderer::make($product->description) }}
+                    @else
+                        <p>{{ $product->description }}</p>
+                    @endif
+                </div>
             </div>
             <div id="product-panel-shipping" role="tabpanel" aria-labelledby="product-tab-shipping" tabindex="0" x-show="tab === 'shipping'" x-cloak>
                 <p>Orders are processed and shipped after confirmation. Delivery time and charges depend on your location and are confirmed at checkout.</p>
@@ -276,7 +287,7 @@
     @if ($related->isNotEmpty())
         <section class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-5 lg:px-6">
             <h2 class="mb-6 text-2xl font-semibold tracking-tight">You may also like</h2>
-            <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-5">
                 @foreach ($related as $relatedProduct)
                     @include('storefront.partials.product-card', ['product' => $relatedProduct])
                 @endforeach

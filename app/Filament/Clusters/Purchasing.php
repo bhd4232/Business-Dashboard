@@ -12,7 +12,7 @@ class Purchasing extends NavigationCluster
 
     protected static ?string $navigationLabel = 'Purchasing';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 4;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

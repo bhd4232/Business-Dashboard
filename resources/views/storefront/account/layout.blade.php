@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @php
     $accountRoute = static fn (string $name) => isset($previewSlug)
@@ -10,6 +10,13 @@
         ['url' => $accountRoute('orders'), 'active' => ['storefront.account.orders', 'storefront.preview.account.orders'], 'label' => 'Orders', 'icon' => 'bag'],
         ['url' => $accountRoute('activity'), 'active' => ['storefront.account.activity', 'storefront.preview.account.activity'], 'label' => 'Activity', 'icon' => 'activity'],
     ];
+
+    if ($customer->isApprovedReseller()) {
+        $accountLinks[] = ['url' => $accountRoute('reseller'), 'active' => ['storefront.account.reseller', 'storefront.preview.account.reseller'], 'label' => 'Your Store', 'icon' => 'store'];
+    }
+@endphp
+
+@php
     $customerInitial = mb_strtoupper(mb_substr($customer->name, 0, 1));
 @endphp
 

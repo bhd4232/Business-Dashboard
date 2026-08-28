@@ -144,16 +144,18 @@ class CustomerRiskTest extends TestCase
         app(CustomerRiskService::class)->evaluateCustomer($customer);
         $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
+        // Customer Success lives under the Courier cluster's own menu
+        // (owner's requested nav reorder), not a top-level entry.
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-success/customer-risk-profiles')->assertOk()->assertSee('Admin Risk Customer');
+            ->get('/admin/courier/customer-risk-profiles')->assertOk()->assertSee('Admin Risk Customer');
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-success/customer-blacklists')->assertOk();
+            ->get('/admin/courier/customer-blacklists')->assertOk();
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-success/customer-risk-reviews')->assertOk();
+            ->get('/admin/courier/customer-risk-reviews')->assertOk();
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-success/customer-risk-events')->assertOk();
+            ->get('/admin/courier/customer-risk-events')->assertOk();
         $this->actingAs($user)->withSession(['current_company_id' => $company->id])
-            ->get('/admin/customer-success/customer-risk-settings')->assertOk()->assertSee('Rule thresholds and deductions');
+            ->get('/admin/courier/customer-risk-settings')->assertOk()->assertSee('Rule thresholds and deductions');
     }
 
     protected function customer(string $name, string $phone, string $address): array

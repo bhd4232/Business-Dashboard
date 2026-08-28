@@ -152,12 +152,12 @@ class StorefrontBannerTest extends TestCase
             ->assertSee('storefront/slides/second.jpg', false)
             ->assertSee('transform 700ms cubic-bezier(0.22, 1, 0.36, 1)', false)
             ->assertSee('Pause banners')
-            ->assertDontSee('first visible heading')
-            ->assertDontSee('first visible subheading')
-            ->assertDontSee('first visible CTA');
+            ->assertSee('first visible heading')
+            ->assertSee('first visible subheading')
+            ->assertSee('first visible CTA');
     }
 
-    public function test_marketplace_pro_uses_the_same_full_width_image_only_banner(): void
+    public function test_marketplace_pro_uses_the_same_full_width_image_banner_with_overlay(): void
     {
         $company = $this->createPublishedStorefrontCompany('Marketplace Store', 'marketplace-banner.example.test');
 
@@ -171,8 +171,8 @@ class StorefrontBannerTest extends TestCase
         StorefrontSlide::query()->create([
             'company_id' => $company->getKey(),
             'image' => 'storefront/slides/marketplace.jpg',
-            'heading' => 'Do not overlay this heading',
-            'cta_label' => 'Do not overlay this CTA',
+            'heading' => 'Overlay this heading',
+            'cta_label' => 'Overlay this CTA',
             'is_active' => true,
         ]);
 
@@ -180,9 +180,8 @@ class StorefrontBannerTest extends TestCase
             ->assertOk()
             ->assertSee('storefront/slides/marketplace.jpg', false)
             ->assertSee('storefront-image-banner', false)
-            ->assertDontSee('Do not overlay this heading')
-            ->assertDontSee('Do not overlay this CTA')
-            ->assertDontSee('Better value on dependable products for your business');
+            ->assertSee('Overlay this heading')
+            ->assertSee('Overlay this CTA');
     }
 
     public function test_banner_height_uses_the_requested_viewport_ratios(): void

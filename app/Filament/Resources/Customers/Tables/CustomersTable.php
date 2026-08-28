@@ -27,7 +27,8 @@ class CustomersTable
                     ->sortable(),
 
                 TextColumn::make('phone')
-                    ->searchable(),
+                    ->searchable()
+                    ->copyable(),
 
                 TextColumn::make('email')
                     ->searchable()
@@ -37,19 +38,6 @@ class CustomersTable
                     ->label('Type')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): ?string => Customer::typeLabel($state))
-                    ->sortable()
-                    ->toggleable(),
-
-                TextColumn::make('reseller_status')
-                    ->label('Reseller')
-                    ->badge()
-                    ->formatStateUsing(fn (?string $state): ?string => Customer::RESELLER_STATUSES[$state] ?? $state)
-                    ->color(fn (?string $state): string => match ($state) {
-                        'approved' => 'success',
-                        'pending' => 'warning',
-                        'rejected' => 'danger',
-                        default => 'gray',
-                    })
                     ->sortable()
                     ->toggleable(),
 

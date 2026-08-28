@@ -47,7 +47,9 @@ class AiAssistantSettings extends Page
     {
         $this->validate([
             'settings.enabled' => ['boolean'],
-            'settings.provider' => ['required', 'in:anthropic,openai'],
+            'settings.provider' => ['required', 'string', 'max:100'],
+            'settings.api_format' => ['required', 'in:anthropic,openai'],
+            'settings.base_url' => ['nullable', 'string', 'max:500', 'url'],
             'settings.model' => ['required', 'string', 'max:100'],
             'settings.confidence_threshold' => ['required', 'numeric', 'min:0', 'max:1'],
             'settings.max_consecutive_ai_replies' => ['required', 'integer', 'min:1', 'max:20'],

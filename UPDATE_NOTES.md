@@ -29,7 +29,759 @@ Verification:
 - Full `php artisan test` — 831 passed, 52 failed. All 52 confirmed pre-existing and unrelated (Filament admin-page-render tests failing on a missing Vite build manifest — this sandbox never ran `npm install`/`npm run build`): diffed the exact set of failing test names against a clean `git stash -u` baseline run on the same unbuilt sandbox and they're identical, byte-for-byte, before and after this round's changes.
 - No frontend build assets changed (only a Blade badge), so `npm run build` was not required.
 
+Commit status: Approved by owner in chat on 2026-08-28 ("হ্যাঁ, কমিট এবং পুশ কর") — committed as `632e11e`, pushed to `origin/claude/lead-crm-requirements-415de2`, opened as PR #6. `main` had since moved ahead to `v2.5.0` (8 commits); merged `origin/main` into this branch to resolve the resulting conflict (`CHANGELOG.md`/`UPDATE_NOTES.md` only — every other overlapping file auto-merged cleanly) and re-ran the full test suite against the merged head before pushing.
+
+## 2026-08-28 - WooCommerce order total went wrong again when an item was unmatched
+
+Reason:
+
+- Owner (with 2 screenshots: the real WooCommerce order #38043 showing item "608 Easy Power Rechargeble Solar Fan" (SKU FAN-975, ৳1,750) + ৳120 shipping = ৳1,870 total, next to the synced ERP order ZMG-20260828-0001 showing Items empty, Subtotal ৳0, Total amount ৳120 only): "উকমার্সের অর্ডার প্রাইস এখন আবার সিংক হচ্ছে না।" (WooCommerce order price isn't syncing again).
+
+Investigation:
+
+- The ERP order's own Note already correctly said "1 item(s) could not be matched to an ERP product and were skipped: 608 Easy Power Rechargeble Solar Fan" — so the SKU/name-matching fallback from the last round is working as designed; this product genuinely doesn't exist in the ERP's product catalog yet (a real gap to close separately by importing/creating it — not a matching bug).
+- The real bug: **whenever any item is skipped, the order's total silently drops to just the shipping fee**, regardless of the skipped item's price. Traced this to `OrderWorkflowService::sync()` — the one place that computes `subtotal`/`total_amount` everywhere in the app, always recalculated purely from whichever `OrderItem` rows actually exist. A skipped item never becomes an `OrderItem`, so its price was completely invisible to that calculation. This is a different, more serious bug than the one fixed two days ago (that one fixed *item matching*; this one is about what happens to the *money* when matching still fails for any reason).
+
+What changed:
+
+- An order's total (subtotal, total amount, due amount) now always reflects WooCommerce's full reported amount, even when one or more line items couldn't be matched to an ERP product. The item itself is still correctly skipped (no fake OrderItem, no fake stock movement) and the Note still says exactly which item(s) were skipped — only the money is now right.
+
+Important note for the owner:
+
+- **The underlying gap is still there**: "608 Easy Power Rechargeble Solar Fan" (SKU FAN-975) needs to exist as a real product in the ERP catalog before it can show up as a proper line item with stock/profit tracking on future orders — either import it from WooCommerce or create it manually with that exact SKU. This fix only makes sure the *order total* is never wrong while that's pending; it doesn't create the missing product (not something to invent without you confirming the product's category/cost price/etc.).
+
+Important changed files:
+
+- `app/Services/WooCommerceOrderSyncService.php` (`syncItems()` now returns which items were unmatched; new `reconcileTotalsWithWooCommerce()`)
+- `tests/Feature/WooCommerceOrderWebhookTest.php` (2 new tests)
+
+Verification:
+
+- `php artisan test tests/Feature/WooCommerceOrderWebhookTest.php tests/Feature/WooCommerceOrderStatusPushTest.php tests/Feature/WooCommerceImportTest.php` — 23 passed, 0 failed, 92 assertions (no regressions).
+- Full `php artisan test` suite — 978 passed, 0 failed, 5356 assertions.
+
 Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-28 - Voucher/Account/Expense cards open a preview popup on click
+
+Reason:
+
+- Owner: "ভাউচার একাউন্স এবং এক্সপেন্স পেজের কার্ডগুলো ক্লিকেবল আছে, এখন প্রতিটা কার্ডের প্রিভিউ পপ আপ শো করবে ঠিক মেইন ড্যাশবোর্ডের কার্ডের মত।" (the Voucher/Account/Expense page cards are clickable — now each card should show a preview popup, just like the main Dashboard's cards).
+
+Investigation:
+
+- The main Dashboard's own cards (`App\Filament\Widgets\BusinessOverview`) already have exactly this UX: clicking opens a modal listing the records behind that number, with a "See all" link to the full filtered page. These three widgets (`VoucherSummaryWidget`, `AccountSummaryWidget`, `ExpenseCategorySummaryWidget`) instead used a plain `->url()` link straight to the filtered/record page, no preview.
+- Accounts and Expenses have a *variable* number of cards (one per account/category that exists) — unlike BusinessOverview's fixed 10 named cards, there's no way to write one PHP method per card here. Solved by embedding only the clicked record's numeric ID in the card's `wire:click` and re-resolving the exact account/category inside the modal's own render logic (Filament supports this natively — an Action's closures can ask for the mounted click's arguments by naming a parameter `$arguments`).
+
+What changed:
+
+- **Voucher cards**: click shows the matching vouchers (Voucher #, Account, Purpose, Amount) for that Credit/Debit × Requested/Approved/Rejected combination; Fund Transfer cards show the matching transfers (Transfer #, From, To, Amount).
+- **Account cards**: click shows that account's recent transaction-ledger entries (Date, Type, Note, Amount).
+- **Expense category cards**: click shows that category's recent expenses (Date, Account, Note, Amount).
+- Every modal has a "See all" link through to the exact same page each card used to link to directly.
+
+Important changed files:
+
+- `app/Filament/Concerns/HasDrilldownStatCards.php` (new shared trait)
+- `app/Filament/Resources/Vouchers/Widgets/VoucherSummaryWidget.php`, `app/Filament/Resources/Accounts/Widgets/AccountSummaryWidget.php`, `app/Filament/Resources/Expenses/Widgets/ExpenseCategorySummaryWidget.php`
+- `resources/views/filament/widgets/business-overview.blade.php` (docblock updated — now shared by all 4 widgets, not just BusinessOverview; no code change)
+- `resources/css/filament/admin/theme.css` (cursor:pointer for the now-clickable cards)
+- `tests/Feature/DashboardSummaryCardsTest.php` (5 new modal-content tests; 2 existing tests' now-stale "link href visible on the initial page" assertions updated, since the link moved inside the lazily-rendered modal)
+
+Verification:
+
+- `php artisan test tests/Feature/DashboardSummaryCardsTest.php tests/Feature/DashboardDrilldownTest.php tests/Feature/BusinessOverviewLayoutTest.php tests/Feature/AdminNavigationClustersTest.php` — all passed, no regressions to BusinessOverview's own (untouched) drilldown behavior.
+- `npm run build` — succeeded.
+- Full `php artisan test` suite — 976 passed, 0 failed, 5345 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-28 - Print button still didn't work inside the ZamZam Dashboard Android app
+
+Reason:
+
+- Owner (after confirming yesterday's mobile-browser print fix works): "মোবাইলে ব্রাউজারে টেস্ট করে দেখলাম, ঠিক আছে, কিন্তু মোবাইল অ্যাপে প্রিন্ট এ ক্লিক করলে কাজ করে না।" (tested in the mobile browser, it's fine, but clicking Print inside the mobile app doesn't work).
+
+Investigation:
+
+- This app (`android/`) is a Capacitor shell — its Android build is just a `WebView` pointed at `https://app.zamzamint.com` (`capacitor.config.json`'s `server.url`). Android's WebView has never implemented `window.print()` at all; calling it is a silent no-op there, regardless of the setTimeout fix from yesterday — that fix only ever helped real mobile browsers (Chrome, Safari), which do implement it.
+- The app already has one small precedent for this exact kind of gap: `PushAvailabilityBridge.java` exposes a native check to the web app as `window.ZzNativeBridge` (registered in `MainActivity.java`) because a Capacitor plugin call would otherwise crash without it. Followed the same pattern for printing.
+
+What changed:
+
+- New `android/app/src/main/java/com/zamzamint/erp/PrintBridge.java`, registered by `MainActivity` as `window.ZzPrintBridge`. Its `print()` method drives Android's own `PrintManager` + `WebView.createPrintDocumentAdapter()` — the standard native way to print WebView content — which opens the real Android print dialog (Save as PDF, any connected printer, etc.), same as a real browser would.
+- Both invoice print pages (`orders/print.blade.php`, `orders/print-bulk.blade.php`) now check for `window.ZzPrintBridge` first and use it when present (i.e. running inside the app); otherwise they fall back to `window.print()` exactly as before (real browsers are unaffected by this change).
+
+Important note for the owner:
+
+- **This one needs a new app build to actually reach your phone** — native Android code doesn't update just by deploying the website like every other fix this week did. Once the next Android build is made and installed/updated on your device, Print should work the same way inside the app as it now does in the browser.
+
+Important changed files:
+
+- `android/app/src/main/java/com/zamzamint/erp/PrintBridge.java` (new)
+- `android/app/src/main/java/com/zamzamint/erp/MainActivity.java` (registers the bridge)
+- `resources/views/orders/print.blade.php`, `resources/views/orders/print-bulk.blade.php` (use the bridge when present)
+- `tests/Feature/InvoiceDesignTest.php` (1 new test), `tests/Feature/OrderBulkPrintTest.php` (1 new assertion)
+
+Verification:
+
+- `php artisan test tests/Feature/InvoiceDesignTest.php tests/Feature/OrderBulkPrintTest.php tests/Feature/CompanySettingsTest.php` — 41 passed, 0 failed, 278 assertions.
+- The native Java bridge itself can't be exercised by PHPUnit — no Android SDK/emulator available in this environment. It will compile-check for real when CI's `build-android` job (`./gradlew assembleDebug`) runs on push; standard Android print APIs (`PrintManager`, `PrintAttributes.Builder`, `WebView.createPrintDocumentAdapter`), same shape as the existing `PushAvailabilityBridge`.
+- Full `php artisan test` suite — 972 passed, 0 failed, 5326 assertions (confirmed together with the stat-card compacting change below).
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-28 - Compacted the Vouchers/Accounts/Expenses summary cards
+
+Reason:
+
+- Owner (with a screenshot of the Vouchers page on mobile — cards showing "Credit / Voucher - / Requested" wrapped to 3 lines above a large "0"): "ভাউচার পেজের এই কার্ডগুলো দেখতে অকওয়ার্ড লাগে। কার্ডের টাইটেল আরো ছোট করে দাও এবং ভেলু বা নাম্বার আরো ছোট করো।" (these cards on the Voucher page look awkward; make the card title smaller, and make the value/number smaller too). Followed immediately by: "একইভাবে একাউন্স এবং এক্সপেন্স পেজেও কর।" (do the same for the Accounts and Expenses pages too).
+
+Investigation:
+
+- These are Filament's native `StatsOverviewWidget`/`Stat` cards (`VoucherSummaryWidget`, `AccountSummaryWidget`, `ExpenseCategorySummaryWidget`) — the label/value text sizes are Filament's own defaults (14px label, 30px value). Vouchers' labels are the worst case: 3 words each ("Credit Voucher - Requested"), which wrap to 3 lines in a narrow 2-column mobile card and, combined with the large "0" value, made the card look oversized and awkward.
+- The main Dashboard already had this exact problem solved once before for its own cards (`BusinessOverview` widget → `.zz-business-overview-stat` in `theme.css`) — reused the same technique for all three pages instead of inventing a new one.
+
+What changed:
+
+- Card title (label) and value/number text are both smaller on all three pages: Vouchers, Accounts, Expenses.
+
+Important changed files:
+
+- `app/Filament/Resources/Vouchers/Widgets/VoucherSummaryWidget.php`, `app/Filament/Resources/Accounts/Widgets/AccountSummaryWidget.php`, `app/Filament/Resources/Expenses/Widgets/ExpenseCategorySummaryWidget.php` (each `Stat` now carries a `zz-*-summary-stat` CSS class)
+- `resources/css/filament/admin/theme.css` (new compacting rules — label 11px, value 18px, padding 10px)
+- `tests/Feature/DashboardSummaryCardsTest.php` (1 new test + 2 new assertions)
+
+Verification:
+
+- `php artisan test tests/Feature/DashboardSummaryCardsTest.php` — 5 passed, 0 failed, 29 assertions.
+- `npm run build` — succeeded; confirmed all 3 new CSS classes (`zz-voucher-summary-stat`, `zz-account-summary-stat`, `zz-expense-summary-stat`) are present in the compiled `public/build/assets/theme-*.css`.
+- Full `php artisan test` suite (together with the Android print-bridge fix above) — 972 passed, 0 failed, 5326 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-27 - Mobile print button did not open the print dialog
+
+Reason:
+
+- Owner (with a screenshot of the invoice print page on a mobile device): "মোবাইলে প্রিন্ট বাটনে ক্লিক করলে ডিভাইসের ডিফল্ট প্রিন্ট উইন্ডো ওপেন হয়না, এইটা ফিক্স করে দেও।" (tapping the Print button on mobile doesn't open the device's default print window, please fix it).
+
+Investigation:
+
+- Both `resources/views/orders/print.blade.php` (single invoice) and `resources/views/orders/print-bulk.blade.php` (bulk invoices) call `window.print()` inside a `setTimeout(..., 50)`, added earlier alongside a `window.focus()` call. Most mobile browsers only allow `window.print()` to open the native print dialog when it's called synchronously, as a direct result of the user's tap — a `setTimeout`, even a short one, breaks that direct link and the browser silently ignores the call. Desktop browsers don't enforce this as strictly, which is why the button worked there and the bug went unnoticed until tested on a phone.
+
+What changed:
+
+- The Print button's click handler now calls `window.print()` immediately, with no delay — fixed identically on both the single-order and bulk-invoice print pages.
+- Left the *auto*-print-on-page-load paths (the single invoice's `?print=1` query param, and bulk print's always-on-load trigger) with their existing short delay — those aren't triggered by a click gesture in the first place, so the delay there was never the problem and is still useful to let the page finish laying out first.
+
+Important changed files:
+
+- `resources/views/orders/print.blade.php`
+- `resources/views/orders/print-bulk.blade.php`
+- `tests/Feature/InvoiceDesignTest.php` (1 new regression test)
+
+Verification:
+
+- `php artisan test tests/Feature/InvoiceDesignTest.php tests/Feature/OrderBulkPrintTest.php tests/Feature/CompanySettingsTest.php` — 40 passed, 0 failed, 273 assertions (no regressions to existing print-page tests).
+- Full `php artisan test` suite — 970 passed, 0 failed, 5317 assertions.
+
+Commit status: Approved by owner ("একসাথে কমিট করে পুশ কর") — committing together with the Marketplace Pro batch below.
+
+## 2026-08-27 - Marketplace Pro homepage redesign + a widespread encoding bug found and fixed
+
+Reason:
+
+- Owner (with 4 screenshots of the live storefront, offer.zamzamgadgetbd.com): "হোম পেজ ব্যানার ফুল উইধ হবে। ব্যানারের পাশে দুইটা ক্যাটাগরি কার্ড রিমুভ কর। মোবাইলে হোম পেজ ব্যানার ইমেজে দেখানো পজিশনে/রেশিওতে থাকবে, ৩নং ইমেজে দেখানো বড় লাল বক্সের USP গুলোকে মোডার্ণ হরিজন্টাল স্টাইল দেও, see all এর পাশে মিনিংলেস আইকন দেখাচ্ছে এইখানে সব জায়গায় রাইট এরো আইকন বসাবে। শেষের ইমেজে 'Built for repeat and wholesale buyers... Open business account' কার্ডটা শুধু zamzam international যেখানে পাইকারি সেল শুধু সেখানে থাকবে। খুচরা zamzam gadget এ এই টাইপের কোন ওয়য়ার্ড থাকবে না। এর জন্য তুমি ড্যাশবোর্ডে অপশন যোগ করতে পার।" (homepage banner should be full width; remove the two category cards beside it; mobile banner stays at its current position/ratio; give the USP row in the big red box a modern horizontal style; the meaningless icon next to "See all" should be a real right-arrow icon everywhere; the "Open business account" card should only show for the wholesale-only company (ZamZam International), never the retail one (ZamZam Gadget) — suggested adding a dashboard option for that last one).
+
+Investigation:
+
+- All the homepage sections referenced are in `resources/views/storefront/themes/marketplace-pro/home.blade.php` (the "Marketplace Pro" theme, `MARKETPLACE_HERO` template — confirmed this is what ZamZam Gadget/International actually use).
+- The "meaningless icon" next to "See all" was a genuine bug, not a rendering quirk: the file's arrow character had been corrupted by a character-encoding mistake at some point (UTF-8 bytes decoded as Windows-1252 and re-saved), turning a real `→` into a garbled multi-character sequence. Checked the rest of the storefront for the same pattern and found it in 8 more files.
+- The "Open business account" card is already gated by an existing per-company toggle (`Storefront Settings → Marketplace Pro Features → "Business account callouts"`) — no code was needed for that part, just flipping it off for ZamZam Gadget.
+
+What changed:
+
+- **Hero banner**: now full width — the two "Ready to order" category promo cards beside it are removed. Mobile is unaffected (it was already single-column there).
+- **Trust/USP strip**: now a horizontally-scrollable strip on mobile (was 4 stacked rows) with scroll-snap; unchanged grid layout from tablet width up.
+- **"See all"/"View all" arrows**: replaced with a real SVG arrow icon (new `storefront.partials.arrow-right-icon` partial) everywhere they appear on this theme's homepage — 4 locations.
+- **Business account card**: no code change — this is a data/configuration change the owner can make directly: **Storefront Settings → Marketplace Pro Features → turn OFF "Business account callouts" for ZamZam Gadget, keep it ON for ZamZam International.**
+- **Bonus fix (found while fixing the arrow icon)**: the same encoding corruption existed in 8 other storefront files — `home.blade.php` (offer discount banner), the Noor Solar Energy theme's homepage (7 spots — em/en dashes, smart quotes), checkout, cart (both had a corrupted "Processing…"/"Working…" ellipsis), the product page and order-tracking page (checkmarks, arrows, a status dot), the contact page, and — most importantly — a **Bengali confirmation message on the storefront's post-checkout "thank you" page** was garbled into unreadable text. All fixed; the Bengali text specifically was restored from `git show 3ab35b5e` (the last commit before it got corrupted), verified as an exact byte match rather than reconstructed by guesswork, since guessing wrong on Bengali script would have been worse than leaving it visibly broken.
+- **Found but not fixed (unrelated, flagged as a separate follow-up)**: `resources/views/filament/pages/inbox.blade.php` (admin-only CRM Inbox page) has a different, single stray byte encoding issue. Spun off as its own task since it's unrelated to the storefront and lower priority (not customer-facing).
+
+Important note for the owner:
+
+- **Please switch off "Business account callouts" for ZamZam Gadget** (Storefront Settings → Marketplace Pro Features) once this deploys — that's the actual remaining step for item 6, no further code needed from me.
+- Could not get a live screenshot of the redesigned homepage (no non-demo admin credentials available locally, and the live site needs a deploy first) — verified instead via automated tests that assert the exact HTML structure (promo cards gone, arrow icon SVG present, zero remaining corrupted characters anywhere on the page) rather than by eye, given the same encoding-confusion class of bug can also affect what a terminal *displays*, not just what's actually in a file. **Recommend the owner checks the live homepage after this deploys.**
+
+Important changed files:
+
+- `resources/views/storefront/themes/marketplace-pro/home.blade.php` (hero/trust-strip/arrow changes + its own mojibake)
+- `resources/views/storefront/partials/arrow-right-icon.blade.php` (new)
+- `resources/css/app.css` (`.marketplace-link-arrow`, trust-grid horizontal-scroll, dead-code removal)
+- `resources/views/storefront/{home,checkout/show,cart/show,contact/show,products/show,track/show}.blade.php`, `resources/views/storefront/themes/noor-solar/home.blade.php`, `resources/views/storefront/offers/thank-you.blade.php` (mojibake fixes only, no other changes)
+- `tests/Feature/StorefrontThemeTest.php` (2 new tests)
+
+Verification:
+
+- `php artisan test --filter=StorefrontThemeTest` — 9 passed, 0 failed (7 existing + 2 new, no regressions).
+- Programmatic, byte-level scan of every `.blade.php` file under `resources/views` confirming zero remaining CP1252-roundtrip-detectable corruption anywhere except the one already-flagged unrelated admin file.
+- `npm run build` — succeeded; confirmed the new `.marketplace-link-arrow` CSS class is present in the compiled `public/build/assets/app-*.css`.
+- Full `php artisan test` suite — 969 passed, 0 failed, 5313 assertions.
+
+Commit status: Approved by owner ("একসাথে কমিট করে পুশ কর") — committing together with the mobile print-button fix above.
+
+## 2026-08-27 - WooCommerce order line items: name-fallback matching + visible skip note
+
+Reason:
+
+- Owner (with a screenshot of a real synced order, ZMG-20260827-0002 / WooCommerce order #38032): "WooCommerce থেকে নতুন অর্ডার এসে টেস্ট করে দেখেছি, কিন্তু কোন প্রোডাক্ট অর্ডার করেছে সেটা এড হচ্ছে না, প্রাইস আসে না এখনো। প্লিজ এইটা কেয়ারফুল্লি ফিক্স কর। উকমার্স থেকে অর্ডার ডিটেইল গুলো টেনে আনতে পারছে না এখনো, ফিক্স কর।" (tested a real new order — the product ordered isn't being added, price still doesn't come; please fix this carefully, order details still aren't being pulled from WooCommerce). The screenshot showed the order itself came through correctly (customer, date, status Processing, delivery charge ৳120 — yesterday's shipping-fee fix confirmed working) but the **Items** section was completely empty and Subtotal was ৳0.
+
+Investigation:
+
+- `WooCommerceOrderSyncService::syncItems()` only ever matched a line item to an ERP product by an *exact* SKU string. Since the order-level fields (customer/date/status/shipping) all synced correctly, the payload itself was clearly arriving fine — the failure was isolated to line-item matching. The most common real-world cause of "every single item on the order fails to match" is a WooCommerce catalog that doesn't reliably set a SKU on every product (very common for smaller/newer stores) — a blank SKU never matches anything.
+- Couldn't confirm the exact SKU/name involved directly (no server log or database access from here), so the fix targets the general failure mode rather than one specific value, and separately makes the failure self-diagnosable going forward without needing my help to read a log.
+
+What changed:
+
+- `syncItems()` now falls back to matching by product **name** (normalized via `Str::slug()`, matched against `Product.slug`) whenever the SKU doesn't match or is blank — the exact same fallback strategy `WooCommerceImportService`'s own product import already uses, so a product previously imported through that flow matches correctly here too.
+- Any line item that still can't be matched now gets listed **directly on the order's Note field** (item name(s)/SKU(s), right next to the existing "Synced from WooCommerce order #..." line) — previously this only ever went to the server log, invisible without shell/log access.
+
+Important note for the owner:
+
+- **Please re-test**: either place a new WooCommerce order, or trigger a fresh delivery on the existing #38032 webhook (open that order in WordPress and just click Update, same trick as the earlier 403 investigation) once this deploys. If items still don't appear, open the ERP order and check its **Note** field — it will now say exactly which item name/SKU couldn't be matched, which tells us precisely what to compare against that product's SKU in the ERP.
+
+Important changed files:
+
+- `app/Services/WooCommerceOrderSyncService.php` (`syncItems()`)
+- `tests/Feature/WooCommerceOrderWebhookTest.php` (2 new tests)
+
+Verification:
+
+- `php artisan test --filter=WooCommerceOrderWebhookTest` — 9 passed, 0 failed (7 existing + 2 new, no regressions to the existing exact-SKU-match and shipping-fee tests).
+- Full `php artisan test` suite — 967 passed, 0 failed, 5298 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-27 - Copy icons for phone numbers and courier tracking IDs
+
+Reason:
+
+- Owner: "কাস্টমার এবং অর্ডার লিস্ট থেকে কাস্টমার নাম্বার এক লিখে কপি করা যাবে সেখানে একটা কপি আইকন সেট করবে। এরপর কুরিয়ার বুক করার পরে কুরিয়ারে যে নাম্বার বা আইডি থাকবে সেটাও কপি করা যাবে এর জন্য সেখানেও একটা কপি আইকন রাখবে।" (add a copy icon so the customer phone number can be copied in one click from the Customers and Orders lists; also add a copy icon for the courier tracking number/ID once a courier is booked).
+
+What changed:
+
+- `CustomersTable`'s existing `phone` column now has `->copyable()`.
+- `OrdersTable` didn't show phone or a tracking ID at all before this — added two new columns: **Phone** (`customer.phone`) right after the customer name, and **Tracking ID** (`latestCourierBooking.tracking_id`, blank until a courier is booked). Both are `->copyable()` and `->toggleable()` (visible by default, hideable via the column-toggle dropdown like several other columns on this table already are).
+- Added `latestCourierBooking` to the Orders list's existing eager-load (`modifyQueryUsing`) so the new Tracking ID column doesn't cause an N+1 query per row.
+
+Important changed files:
+
+- `app/Filament/Resources/Customers/Tables/CustomersTable.php`
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php`
+- `tests/Feature/CopyableColumnsTest.php` (new, 4 tests)
+
+Verification:
+
+- `php artisan test --filter=CopyableColumnsTest` — 4 passed, 0 failed. Asserts the `fi-copyable` CSS class Filament renders for an active `->copyable()` column actually appears next to the phone/tracking-ID values (not just that the list pages load), and that an unbooked order's Tracking ID column stays blank rather than showing a stray value.
+- Full `php artisan test` suite — 965 passed, 0 failed, 5289 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-27 - WooCommerce sync: delivery-charge/total fixed, status now pushes back to WooCommerce
+
+Reason:
+
+- Owner: "উকমার্স থেকে অর্ডার সিংক হচ্ছে কিন্তু কোন প্রাইস/ডেলিভারি চার্জ/টোটাল প্রাইস সিংক হচ্ছে না। এবং অ্যাপ থেকে কোন অর্ডার এর স্ট্যাটাস আপডেট হলে সেটা উকমার্সে যাচ্ছে না।" (orders sync from WooCommerce but no price/delivery-charge/total price syncs, and an order status update made in the app doesn't reach WooCommerce) — reported right after confirming the earlier 403 fix worked and orders were actually syncing.
+
+Investigation:
+
+- Read `WooCommerceOrderSyncService`/`OrderWorkflowService`/`Order` model end to end. The total formula itself (`subtotal - discount + vat + shipping_fee`) and the WooCommerce field mapping (`discount_total`, `total_tax`, `shipping_total`, `line_items[].total`) were both already correct.
+- Found the real bug in `Order::booted()`'s `creating()` hook: it auto-fills `shipping_zone`/`shipping_fee` from the ERP's own address-keyword zone calculator whenever `shipping_zone` is still `null` — correct for an admin manually creating an order (no shipping charge exists yet), wrong for a brand-new WooCommerce-synced order, which always already carries a real `shipping_total`. The hook was silently overwriting it with a guessed ERP fee, which also threw off the total (delivery charge feeds directly into it). Confirmed by temporarily reverting the fix and re-running the new regression test — got the exact predicted mismatch (`70.0` ERP-guessed vs `150.0` real WooCommerce fee) — before restoring it.
+- Item-level price mapping itself checked out as correct; flagged to the owner that if item prices are *still* wrong after this fix, it's most likely a SKU mismatch between the two systems (an unmatched SKU is skipped, already logged as a warning — nothing to fix in that path unless SKUs genuinely need reconciling on one side).
+- Confirmed the second complaint was a real, un-built feature, not a bug: the sync has only ever gone WooCommerce → ERP (webhook). Nothing existed to push an ERP-side status change back to WooCommerce.
+
+What changed:
+
+- `WooCommerceOrderSyncService::upsertOrder()` now sets `shipping_zone` (still determined via `ShippingFeeService::determineZone()`, so zone-based reporting/filtering stays meaningful) *before* filling in WooCommerce's real `shipping_fee` — this alone bypasses the `creating()` hook's overwrite, since its condition is specifically "still null".
+- **New ERP → WooCommerce status push**: changing a WooCommerce-sourced order's status in the ERP now queues `PushWooCommerceOrderStatusJob`, which calls WooCommerce's REST API (`PUT /wp-json/wc/v3/orders/{id}`, same Consumer key/secret auth `WooCommerceImportService` already uses) with a mapped status. New `WooCommerceOrderSyncService::REVERSE_STATUS_MAP` — like the existing forward map, a reasonable default flagged for the owner to confirm/adjust, not a confirmed business rule (e.g. ERP's `confirmed` and `processing` both become WooCommerce `processing`; ERP `returned` becomes WooCommerce's closest equivalent, `refunded`).
+- **Loop prevention**: a status change arriving FROM a WooCommerce webhook must never immediately queue a push of that same status straight back. New transient `Order::$suppressWooCommercePush` property (not persisted — matches the existing `$statusTransitionSource`/`$statusTransitionActorId` pattern already on this model), set by the sync service before saving any status change it applies from a webhook.
+
+Important note for the owner:
+
+- **The status mapping in both directions is a reasonable default, not a confirmed business rule** — same caveat the original WooCommerce → ERP mapping already carried. Please review `WooCommerceOrderSyncService::STATUS_MAP`/`REVERSE_STATUS_MAP` and say if any of the equivalents should be different before relying on this for anything status-sensitive.
+- If item-level prices are still wrong after this deploys, check the server log for "no matching product SKU" warnings — that means a WooCommerce line item's SKU doesn't exactly match any ERP product's SKU, which needs reconciling on one side (not a code bug).
+
+Important changed files:
+
+- `app/Services/WooCommerceOrderSyncService.php` (shipping-fee fix, `REVERSE_STATUS_MAP`, `pushStatusToWooCommerce()`)
+- `app/Models/Order.php` (`$suppressWooCommercePush` property, `updated()` hook dispatches the push job)
+- `app/Jobs/PushWooCommerceOrderStatusJob.php` (new)
+- `tests/Feature/WooCommerceOrderWebhookTest.php` (new shipping-fee regression test), `tests/Feature/WooCommerceOrderStatusPushTest.php` (new, 6 tests)
+
+Verification:
+
+- `php artisan test --filter="WooCommerceOrderWebhookTest|WooCommerceOrderStatusPushTest|OrderStatusWorkflowTest|SalesOrderTest|MultiCompanyIsolationTest"` — 30 passed, 0 failed.
+- Manually reverted the shipping-fee fix, re-ran the new regression test, confirmed it fails with the exact predicted mismatch, then restored the fix — real proof the test catches the bug, not just a green checkmark.
+- Full `php artisan test` suite — 961 passed, 0 failed, 5278 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-27 - Mobile layout fix: Courier Fraud Check button + result overlapping
+
+Reason:
+
+- Owner (with a mobile screenshot, referencing `.claude/skills/web-design-guidelines` and `.codex/skills/ui-ux-pro-max`): "মোবাইলে কাস্টমার ফ্রড চেকের রেজাল্ট সুন্দর করে আসছে না" (the customer fraud check result doesn't look good on mobile) — the screenshot showed the "Courier Fraud Check" button and its result table squeezed side by side, overlapping and unreadable on a phone-width screen.
+
+Investigation:
+
+- Loaded the `web-design-guidelines` skill (fetched the current Vercel web-interface-guidelines rules — flex/grid-based responsive stacking, overflow containment, `min-w-0` for truncation, `tabular-nums` for numeric columns) and read `.codex/skills/ui-ux-pro-max`'s reference data as supplementary context — that skill itself isn't a Claude Code-invokable skill (it's Codex-specific, lives under `.codex/`), so its CSVs were read directly rather than invoked.
+- Found the root cause in `app/Filament/Resources/Orders/Schemas/OrderForm.php`: the button and result live in a `Flex::make([...])` with no responsive breakpoint set. Filament's own `flex.css` makes an unconfigured `Flex` (`fi-from-default`) a row **at every width, including phone-narrow** — `->from($breakpoint)` is required to get `flex-col` below that breakpoint and `flex-row` above it, and nothing in this app had ever needed that option before, so it was never called here.
+
+What changed:
+
+- Added `->from('md')` to the fraud-check `Flex` — stacks vertically (button, then the full-width result below it) below tablet width, sits side by side from tablet width up, matching Filament's own documented breakpoint contract.
+- Wrapped the courier stats table in an `overflow-x:auto` container and added `font-variant-numeric:tabular-nums` to its numeric columns, as a second line of defense if the table is ever still too wide for a very small screen, and for cleaner number alignment generally.
+- New regression test `SalesOrderTest::test_order_edit_form_stacks_the_fraud_check_result_below_the_button_on_mobile` — asserts the `fi-from-md` class is actually present in the rendered page (the previous code passed every existing test because nothing asserted on responsive behavior, only that the page loads and shows the right text).
+
+Important changed files:
+
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php`
+- `tests/Feature/SalesOrderTest.php` (new test)
+
+Verification:
+
+- `php artisan test --filter=SalesOrderTest` — 5 passed, 0 failed.
+- Full `php artisan test` suite (run together with the WooCommerce sync fixes below) — 961 passed, 0 failed, 5278 assertions.
+- Confirmed `fi-from-md` is already present in the compiled `public/build/assets/theme-*.css` (Filament's own component CSS ships in full, not purge-scanned against app content) — no `npm run build` needed, this change is PHP-generated markup only, no new CSS/JS source.
+- Could not visually screenshot the fix in a live browser — no known non-demo admin credentials for the local demo database, and creating one would modify demo data (against CLAUDE.md). Verified instead by reading Filament's own `vendor/filament/schemas/resources/css/components/flex.css` source directly to confirm `fi-from-md`'s exact breakpoint behavior, plus the passing regression test above. **Recommend the owner double-checks on a real phone once deployed.**
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-27 - Admin sidebar menu reorder + Customer Success merged under Courier
+
+Reason:
+
+- Owner: requested a specific sidebar order — "Dashboard, CRM, Sales, Inventory, Purchase, Courier-Customer Success কুরিয়ার মেনুর আন্ডারে থাকবে, Ads, Finance, Investment, Reports, Company Management, Site, Settings" (Customer Success should live under the Courier menu). Resellers wasn't in the list (a cluster added by another session, so an easy thing to not know about) — asked where to put it; owner said "Ads এর আগে" (right before Ads).
+
+What changed:
+
+- `navigationSort` updated across all 13 `NavigationCluster` subclasses to match: CRM=1, Sales=2, Inventory=3, Purchasing=4, Courier=5, Resellers=6, Ads=7, Finance=8, Investments=9, Reports=10, Company Management=11, Storefront ("Site")=12, Settings=13. Dashboard needs no change — Filament's own default Dashboard page already sorts at `-2`, always first regardless.
+- **Customer Success merged under Courier**: its 5 owning components (`CustomerRiskProfileResource`, `CustomerBlacklistResource`, `CustomerRiskReviewResource`, `CustomerRiskEventResource`, `CustomerRiskSettings` page) now declare `$cluster = Courier::class` instead of the now-deleted `CustomerSuccess` cluster class — they show up as sub-navigation items under Courier's own menu instead of a separate top-level entry. URLs moved from `/admin/customer-success/*` to `/admin/courier/*`.
+- Verified the final order programmatically via a quick Tinker script reading each cluster's `navigationSort` — matched the requested order exactly before shipping.
+- **Found and fixed the exact kind of test breakage the new auto-release-cut feature (yesterday's entry) can cause**: this round's own `cut-release` CI run auto-advanced `CHANGELOG.md` to `v2.3.0`, which immediately broke 3 `ReleaseNotesTest` assertions that hardcoded `v2.2.0`/`2026-08-26`/etc. Fixed those 3, and additionally rewrote all 6 hardcoded version/date/type-label literals in that file to read from `AppRelease::latestPublished()` at test time instead — so this file won't need a manual touch on the *next* auto-cut either.
+
+Important changed files:
+
+- `app/Filament/Clusters/*.php` (13 files, `navigationSort` only)
+- `app/Filament/Clusters/CustomerSuccess.php` (deleted)
+- `app/Filament/Pages/CustomerRiskSettings.php`, `app/Filament/Resources/CustomerBlacklists/CustomerBlacklistResource.php`, `app/Filament/Resources/CustomerRiskEvents/CustomerRiskEventResource.php`, `app/Filament/Resources/CustomerRiskProfiles/CustomerRiskProfileResource.php`, `app/Filament/Resources/CustomerRiskReviews/CustomerRiskReviewResource.php` (`$cluster` reassigned to `Courier::class`)
+- `tests/Feature/CustomerRiskTest.php` (URL prefix updates), `tests/Feature/ReleaseNotesTest.php` (made version-agnostic)
+
+Verification:
+
+- `php artisan test --filter="CustomerRiskTest|AdminNavigationClustersTest|ReleaseNotesTest"` — all passed.
+- Full `php artisan test` suite — 953 passed, 0 failed, 5265 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-27 - WooCommerce webhook 403 + a real error-page bug found while investigating
+
+Reason:
+
+- Owner (with screenshots): "ওয়েবহুক সেইভ হচ্ছে কিন্তু ৪০৩ এরর দিচ্ছে, ড্যাশবোর্ড এ ঠিক ভাবেই ক্রেডেনশিয়াল সেইভ করেছি কিন্তু এরর দিচ্ছে। এই কারণ খুজে বের কর এবং ফিক্স কর।" (the webhook saves but gives a 403 error; credentials look correctly saved in the dashboard but it still errors — find the cause and fix it). WooCommerce's own webhook screen showed "Error: Delivery URL returned response code: 403" for `https://app.zamzamint.com/webhooks/woocommerce/4`, with the Secret field visually matching the "Order webhook secret" saved on Settings → Integrations.
+
+Investigation:
+
+- Confirmed `9c9595a2` (this session's earlier commit) is actually the live deployed commit via `/health/version` — the WooCommerce webhook feature is genuinely live, not a stale-deploy issue.
+- Ran live diagnostic probes directly against the production endpoint (`curl`): a nonexistent company ID correctly 404s, GET correctly 405s (route/controller pipeline is being exercised normally, ruling out a WAF/proxy blanket-blocking theory), and a manually-signed request using the exact secret shown in the dashboard screenshot still got 403 — same as a deliberately-wrong signature. Independently re-verified the HMAC computation in plain PHP (matches WooCommerce's own documented `base64_encode(hash_hmac('sha256', $payload, $secret, true))` formula exactly) — no algorithm bug. This narrows the 403 itself down to the secret pasted into WooCommerce not exactly matching what's saved in the ERP (the most common real-world cause of this class of bug — easy to have happen on a retype/partial copy, hard to see in a screenshot given ambiguous characters like `I`/`l`/`1` or `O`/`0` in a 40-character random string) — **not something fixable from the repo alone**, since I can't read the production database or WooCommerce's saved value directly.
+- **While probing, found and fixed a second, completely real, independent bug**: a plain `curl` test (no `Accept: application/json` header, mimicking what a webhook client might send) got back *this app's own branded "Access denied" HTML page* instead of a bare 403 — even though `StorefrontErrorPages::appliesTo()` explicitly excludes `webhooks/*` paths. Root cause: the brand-neutral error views built in yesterday's security-hardening round were saved at `resources/views/errors/{status}.blade.php` — Laravel's own conventional `errors::` view-namespace path, auto-registered app-wide by `Illuminate\Foundation\Exceptions\Handler`. Simply having a file there makes Laravel's *default* exception rendering use it for **any** HTML-rendering exception, completely bypassing `appliesTo()`'s exclusion — `bootstrap/app.php`'s closure returning `null` only means "fall through to Laravel's default," and that default was itself contaminated by the mere existence of these files. This didn't cause the reported 403 (WooCommerce's error message only reports the status code, not the body), but it was a real, silent violation of this app's own stated design ("API/webhook callers must keep Laravel's own error handling exactly as-is") and needed fixing regardless.
+
+What changed:
+
+- Moved `resources/views/errors/{403,404,419,429,500}.blade.php` → `resources/views/storefront/errors/*` (a path Laravel never auto-discovers) and updated `bootstrap/app.php`'s render closure to reference the new path explicitly. Excluded (webhook/admin/API/Livewire) requests now correctly fall all the way through to Laravel's own true default handling.
+- New regression test `SecurityHardeningTest::test_a_403_on_an_excluded_route_never_renders_the_branded_storefront_page` — a real HTTP round trip (not a unit-level `appliesTo()` check), since the unit-level test already in place is exactly what let this ship without being caught.
+- `WooCommerceWebhookController`: every rejected delivery (no secret configured, or signature mismatch) now logs a warning with the company ID, topic, and both the computed and received HMAC signatures — safe to log in full since neither value can be reversed back into the secret. Previously a rejected delivery left zero trace in the server log, making a real mismatch like this one impossible to diagnose after the fact.
+- **New "Send test webhook" button** on Settings → Integrations → WooCommerce: sends a real, correctly-signed request to this company's own webhook URL using the secret actually saved in the database (fetched fresh, not whatever's unsaved in the Livewire form), and reports back via a Filament notification whether it was accepted. This is the fastest way to separate "the code/network path is broken" from "the secret pasted into WooCommerce just doesn't match" — exactly the ambiguity this incident got stuck on — without needing WooCommerce's own delivery logs or a manual `curl` request next time.
+- New tests: 3 in `IntegrationsPageTest` (no-secret warning, successful round trip using the saved secret, failure-status reporting) and an extended assertion in `WooCommerceOrderWebhookTest::test_an_invalid_signature_is_rejected` confirming the new log line fires with the right context.
+
+Important note for the owner — the actual production fix is still on your side:
+
+- **This does not fix the reported 403 by itself** — that part needs your action: on Settings → Integrations → WooCommerce, click **Generate** to get a fresh webhook secret, **Save**, then **copy** (don't retype) that exact value into WooCommerce's Secret field and update the webhook there too. Once this commit deploys, use the new **"Send test webhook"** button first — if it reports success, the ERP side is confirmed correct and the remaining fix is purely re-syncing WooCommerce's Secret field to match.
+
+Important changed files:
+
+- `app/Http/Controllers/WooCommerceWebhookController.php` (logging on rejection)
+- `app/Filament/Pages/Integrations.php` (new "Send test webhook" action)
+- `app/Support/StorefrontErrorPages.php` docblock, `bootstrap/app.php` (render path fix)
+- `resources/views/storefront/errors/*.blade.php` (moved from `resources/views/errors/*.blade.php`)
+- `tests/Feature/SecurityHardeningTest.php`, `tests/Feature/IntegrationsPageTest.php`, `tests/Feature/WooCommerceOrderWebhookTest.php`
+
+Verification:
+
+- `php artisan test --filter=SecurityHardeningTest` — 8 passed, 0 failed, including the new end-to-end regression test.
+- `php artisan test --filter="WooCommerceOrderWebhookTest|IntegrationsPageTest"` — 14 passed, 0 failed.
+- Live diagnostic `curl` probes directly against production (`app.zamzamint.com`) — see Investigation above.
+- Full `php artisan test` suite — 953 passed, 0 failed, 5265 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md. This is separate from (and can be committed independently of) the still-pending "automatic release cutting" entry above.
+
+## 2026-08-27 - Automatic release cutting on every push to `main`
+
+Reason:
+
+- Owner: "প্রোডাকশনে অ্যাপ ভার্সন অটো আপডেট তো আগে হইত যাস্ট গত কিছু ডিপ্লয়মেন্টের অ্যাপ ভার্সন আপডেট হচ্ছে না। অটো অ্যাপ ভার্সন আপডেট করার জন্য কি করা লাগে কর।" (production's app version used to auto-update, just the last several deployments' didn't — do what's needed for auto app-version update). Investigated (follow-up to the previous entry's v2.1.0 → v2.2.0 catch-up): the app's actual version-display mechanism (`App\Support\AppRelease::latestPublished()`, which the Release Notes page, the in-app "Update available" banner, and push notifications all already read from) has **always** parsed `CHANGELOG.md` directly — it needs no `APP_VERSION` env var and was never broken. The real root cause of the 25-commit stall was purely a process gap: every one of those commits correctly added bullets under `[Unreleased]` per `CLAUDE.md`, but none of them ever converted `[Unreleased]` into a dated `## [x.y.z] - date` header, which is the only thing `latestPublished()`'s regex recognizes as an actual release. Presented this finding to the owner with 4 options for preventing a recurrence; owner chose **"প্রতি পুশেই অটো-রিলিজ কাট"** (auto-cut a release on every push) — restoring, without a manual step, the near-1-commit-to-1-version cadence the project's own history (`1.20.0` → `1.21.0` → `1.22.0` → `1.22.1` → `1.23.0` → `2.0.0` → `2.0.1` → `2.1.0`) already shows was the working norm before this gap opened.
+
+What changed:
+
+- New `App\Support\ReleaseCutter` (pure logic, no disk access except in `apply()`): `plan(string $changelog)` reads `[Unreleased]`'s content and returns `null` when there's nothing to cut, or a plan (`version`, `type`, `type_label`, `date`, updated changelog text) inferred from which sections actually have bullets — `Added` → Minor Feature Update (bumps MINOR); `Security` alone → Security Update; `Changed`/`Fixed` alone → Patch/Fix Update; only `Technical Notes` → Maintenance Update (these last three, plus Security, all bump PATCH per `docs/release-policy.md`'s own version table — only Major/Minor bump differently). `Added` deliberately wins over `Security` when both are present, matching this project's own `[2.2.0]`/`[2.1.0]` precedent (both real feature releases that also happened to carry security fixes, correctly labeled "Minor Feature Update" rather than "Security Update"). An explicit `**Release type:** Major Version Update` (or Critical Fix/Hotfix/Initial) line as the first line under `[Unreleased]` overrides inference — those four are never auto-inferred, only ever requested on purpose.
+- New `php artisan release:cut` command (`App\Console\Commands\CutRelease`) wraps it — `--apply` is required to actually write anything; without it, the command only ever prints what it would do (`changed=false` always, regardless of `CHANGELOG.md`'s real content), so it's always safe to run by habit and can never be run "by accident" in write mode.
+- New `.github/workflows/deploy.yml` job `cut-release`: runs after `tests` passes, only on `main`, `permissions: contents: write`; runs `php artisan release:cut --apply`, and if it changed anything, commits `CHANGELOG.md` + `config/release.php` + `.env.example` + `.env.production.example` + `docs/deployment.md` with message `chore(release): cut vX.Y.Z [skip ci]` and pushes straight to `main` (confirmed `main` has no branch protection rule that would block this). `[skip ci]` stops the bot's own commit from re-triggering the workflow (the re-run would just find `[Unreleased]` empty and no-op anyway, but this avoids the wasted CI minutes).
+- New `tests/Feature/ReleaseCutterTest.php` (16 tests): every inference branch, the explicit-override marker (and an unrecognized one falling back to inference), the version-bump math, `updateConfigDefaults()`/`updateEnvFile()` against temp files (never the real project files), a full `apply()` round trip, and a content-independent assertion that the Artisan command without `--apply` is always a safe no-op. Widened `AppRelease::parseChangelogBody()` from `protected` to `public` so `ReleaseCutter` can reuse it instead of duplicating the section-parsing regex (pure visibility change, no behavior change — `ReleaseNotesTest` still passes unchanged).
+- **Dry-run validation against the real, currently-uncommitted `CHANGELOG.md`** (this repo's actual pending `[Unreleased]` content — dashboard summary cards, storefront footer builder, dashboard drilldown, WooCommerce sync, security hardening — all from the two prior sessions today): `php artisan release:cut` (no `--apply`) correctly proposed **v2.3.0, Minor Feature Update** — exactly the classification a human would pick by hand, and proof the priority ordering (Added > Security > Fixed/Changed > Technical Notes) matches real judgment before this shipped.
+
+Important note for the owner:
+
+- **This only ever updates the repo's own fallback defaults, never the production server's actual environment.** If Coolify's production `.env` still explicitly sets `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE`, those values keep overriding the repo's auto-bumped fallback forever, silently reopening this exact problem. Since the app's actual user-facing version displays already read `CHANGELOG.md` directly (not those env vars), **recommend removing `APP_VERSION`, `APP_RELEASE_TYPE`, and `APP_RELEASE_DATE` from Coolify's production environment variables entirely** — once they're gone, the repo's auto-cut fallback always wins and this never needs a manual production-side step again.
+- **The moment this commit reaches `main`, the `cut-release` job will immediately convert the current `[Unreleased]` section into `v2.3.0`** as its very first real run (see the dry-run result above) — this is the intended, correct behavior (it's exactly the backlog this whole fix is for), not a side effect to undo, but flagging it clearly since it happens unattended right after this push, with no further approval prompt.
+
+Important changed files:
+
+- `app/Support/ReleaseCutter.php` (new), `app/Console/Commands/CutRelease.php` (new), `app/Support/AppRelease.php` (`parseChangelogBody` visibility only)
+- `.github/workflows/deploy.yml` (new `cut-release` job)
+- `tests/Feature/ReleaseCutterTest.php` (new, 16 tests)
+- `CHANGELOG.md` (this entry)
+
+Verification:
+
+- `php artisan test --filter=ReleaseCutterTest` — 16 passed, 0 failed, 40 assertions.
+- `php artisan test --filter="ReleaseNotesTest|AppRelease|AppUpdate|Changelog"` — 16 passed, 0 failed, 113 assertions (confirms the `parseChangelogBody` visibility change is behavior-neutral).
+- Manual dry-run smoke test against the real `CHANGELOG.md` (`php artisan release:cut`, no `--apply`) — see above; produced the correct classification without touching any file.
+- `.github/workflows/deploy.yml` YAML syntax validated with a YAML parser after editing.
+- Confirmed via `gh api repos/bhd4232/Business-Dashboard/branches/main/protection` that `main` has no branch protection rule that would block the bot's direct push.
+- Full `php artisan test` suite — 949 passed, 0 failed, 5250 assertions.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md. **Owner should understand before approving**: pushing this will immediately trigger `cut-release` to auto-convert the current `[Unreleased]` backlog into a real `v2.3.0` dated release commit on `main`, with no further prompt.
+
+## 2026-08-26 - Version number catch-up: v2.1.0 → v2.2.0
+
+Reason:
+
+- Owner: "ভার্সন নাম্বার আপডেট হয়না। অ্যাপের ভার্সন নাম্বার আপডেটকর।" (the version number doesn't update — update the app's version number). Investigated and confirmed: **25 real commits have landed on `main` since the last version bump** (`f9bf72b3`, which published v2.1.0 on 2026-08-18) — push notifications, on-device Android crash reporting, dashboard-managed checkout payment methods, a shared stock pool, a consolidated Integrations settings page, several security fixes (race conditions, quotation-link signing, storefront-preview isolation, Steadfast webhook auth, Meta Pixel consent), and more — none of which ever bumped `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE` or turned `CHANGELOG.md`'s `[Unreleased]` section into a proper versioned entry, even though every one of those commits had correctly added its own `CHANGELOG.md` bullets under `[Unreleased]` per CLAUDE.md. The Release Notes page / `/health/version` endpoint was consequently stuck reporting v2.1.0 (2026-08-18) the whole time, regardless of what had actually shipped.
+
+What changed:
+
+- Split `CHANGELOG.md`'s `[Unreleased]` section into two: everything that was **already committed** (the 25 commits above) became a new `## [2.2.0] - 2026-08-26` entry (Minor Feature Update — dominant content is new backward-compatible features, several of which also carry Security-category fixes); everything **not yet committed** (today's earlier Dashboard drilldown/WooCommerce webhook/security-hardening work, from `09_DASHBOARD_WOOCOMMERCE_SECURITY_PLAN.md`, plus the still-pending Storefront UX Fixes and Dashboard Summary Cards work from before it) stayed under a fresh `[Unreleased]` header, so nothing uncommitted gets misrepresented as released.
+- `config/release.php`'s fallback defaults bumped to `2.2.0` / `minor` / `2026-08-26` (matches `f9bf72b3`'s own precedent of bumping this file alongside the changelog). `.env.example`, `.env.production.example`, and `docs/deployment.md`'s example `APP_VERSION`/`APP_RELEASE_DATE` values updated to match.
+- `README.md`'s "Latest Release" heading/summary and `PROJECT_GUIDE.md`'s "Current published release is **vX.X.X**" sentence updated to describe v2.2.0's actual highlights.
+- `tests/Feature/ReleaseNotesTest.php`: updated the handful of hardcoded `v2.1.0`/`2026-08-18` assertions to `v2.2.0`/`2026-08-26` (5 spots across 4 tests). Everything else those tests check (older-release content like "Noor Solar Energy", "Added Customer and Order risk badges", static page copy like "Production Update Rules") is untouched and still correct, since the Release Notes page renders the full version history, not just the newest entry.
+
+Important note for the owner — this is the local, repo-side half of the fix only:
+
+- **`config/release.php`'s bumped default only takes effect if the production server's actual `.env` does NOT already set `APP_VERSION`/`APP_RELEASE_TYPE`/`APP_RELEASE_DATE` explicitly.** Per `docs/release-policy.md`, every release is supposed to also update those three values directly in the production environment (Coolify env variables) — I cannot do that from here (no server access). If production's `.env` already has `APP_VERSION=2.1.0` etc. sitting in it, deploying this commit alone will **not** move the live site's displayed version until those three env vars are updated to `2.2.0` / `minor` / `2026-08-26` there too. Recommend setting them explicitly in Coolify regardless of whether they're currently set, and doing so as a habit on every future release so this gap doesn't reopen.
+
+Important changed files:
+
+- `CHANGELOG.md` (split `[Unreleased]` → new `[2.2.0] - 2026-08-26` + fresh `[Unreleased]`)
+- `config/release.php`, `.env.example`, `.env.production.example`, `docs/deployment.md` (version/type/date defaults)
+- `README.md`, `PROJECT_GUIDE.md` (release summary text)
+- `tests/Feature/ReleaseNotesTest.php` (5 hardcoded-version assertions)
+
+Verification:
+
+- `php artisan test --filter=ReleaseNotesTest` — 5 passed, 0 failed.
+- `php artisan test --filter="Release|Changelog|Version|AppUpdate|AppUpgrade"` — 39 passed, 0 failed.
+- `php artisan test --filter="PhaseFourAdminPagesTest|CompanySettingsTest"` — 33 passed, 0 failed (sanity check — these were touched alongside the version bump in the last `2.1.0` release commit, though for an unrelated reason; confirmed no version-number references live there needing updates).
+- Live browser check: `/health/version` now returns `"version":"2.2.0","published_version":"2.2.0"`; `/admin/settings/release-notes` shows "Installed version: v2.2.0", "Released 2026-08-26", "Minor Feature Update", with the full v2.2.0 entry rendering above the existing v2.1.0 history.
+- Full `php artisan test` suite — 912 passed, 0 failed, 5146 assertions (identical count to the pre-version-bump run — confirms the CHANGELOG.md restructure introduced zero regressions).
+- No destructive commands run; no database/migration changes in this round at all — purely documentation/config/test-assertion changes.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-26 - Dashboard drilldown, WooCommerce order webhook, security hardening (09_DASHBOARD_WOOCOMMERCE_SECURITY_PLAN.md, 3 items)
+
+Reason:
+
+- Owner: `@"09_DASHBOARD_WOOCOMMERCE_SECURITY_PLAN.md" ইমপ্লিমেন্ট কর` (implement the plan file) — a pre-existing, already-approved plan document (drafted 2026-08-15) covering 3 items grounded in real file/line references: dashboard drilldown, a real WooCommerce order-management integration, and backend/admin security hardening.
+
+What changed (mapped to the plan's step numbers):
+
+- **Step 1.1 — Responsive mobile columns**: `CustomerRiskOverview` and `CourierHealthWidget` now use `getColumns() => ['default' => 2, 'lg' => 3|4]`, same pattern `BusinessOverview` already used.
+- **Step 1.2 — Clickable dashboard drilldowns**: went with the plan's Option B (real modal, not just a link) after confirming it against the actually-installed Filament v5 source (`HasActions`/`InteractsWithActions` + `<x-filament-actions::modals />`, the same mechanism `TableWidget` already uses) rather than assuming the plan's own draft code matched this version. Every `BusinessOverview` stat card except Account Balance now opens a popup listing the real records behind that number (capped at 50, with a "Showing X of Y" note and a "See all" link into the matching filtered resource list when a matching filter already exists on that table). Account Balance keeps linking straight to Accounts, per the plan's own note that a single balance has no "list" to show.
+- **Step 2 — WooCommerce order sync via webhook**: `WooCommerceImportService` only ever imported *products*; order sync didn't exist anywhere. Built exactly what the plan specified — WooCommerce's own native webhooks (`order.created`/`order.updated`/`order.deleted`), HMAC-SHA256-signature-verified, idempotent upsert keyed on a new `orders.external_reference` column, SKU-matched line items (unmatched SKU skipped + logged, not a hard failure), phone-based customer matching (same as the storefront checkout), and a new Settings → Integrations → WooCommerce webhook-secret field + delivery URL + setup instructions.
+- **Step 3 — Security hardening**: implemented everything code-level the plan asked for (see Security section below) and verified two things the plan flagged as "check if Filament already does this" — login rate-limiting and generic-failure-message/timing-safe login — by reading Filament's actual `Login` page source rather than guessing; both were already correct, no code change needed there. 2FA (plan's step 3.5, marked explicitly optional/future) was not implemented — it's a bigger, separate piece of work.
+
+One correction made along the way, worth flagging clearly: the plan's own example code for the "see all" links used `['tableFilters' => [...]]` as the `getUrl()` parameter — this silently opens the list **completely unfiltered** in this Filament version (Livewire ignores the unrecognized query key instead of erroring). The actual correct key, confirmed by reading `Filament\Resources\Pages\ListRecords`'s source and then verified live in the browser against three different resources (Orders/Customers/Products), is `filters` — see CHANGELOG.md's Technical Notes for the full explanation, including why this doesn't contradict the existing `CourierMerchantDashboard` note about `tableFilters` being broken (different page type, never had this binding to get right or wrong in the first place).
+
+Important changed files:
+
+- `app/Filament/Widgets/BusinessOverview.php` (rewritten — modal drilldown actions), `app/Filament/Widgets/CustomerRiskOverview.php`, `app/Filament/Widgets/CourierHealthWidget.php` (`getColumns()`)
+- `resources/views/filament/widgets/business-overview.blade.php` (new), `resources/views/filament/widgets/partials/dashboard-drilldown-list.blade.php` (new)
+- `app/Services/ReportService.php` (`storefrontPendingOrders()`, `customerPayments()`/`supplierPayments()`, `comingSoonProducts()`, shared `ledgerQuery()`)
+- `resources/css/filament/admin/theme.css` (hover/cursor rule for clickable stat cards)
+- `tests/Feature/DashboardDrilldownTest.php` (new)
+- `app/Services/WooCommerceOrderSyncService.php` (new), `app/Http/Controllers/WooCommerceWebhookController.php` (new)
+- `database/migrations/2026_08_26_100000_add_external_reference_to_orders_table.php` (new), `app/Models/Order.php` (`SOURCE_WOOCOMMERCE`, `external_reference` fillable), `app/Filament/Resources/Orders/Tables/OrdersTable.php` (source badge color)
+- `routes/web.php` (new webhook route + import), `bootstrap/app.php` (CSRF exemption)
+- `app/Filament/Pages/Integrations.php` (WooCommerce tab: webhook secret + generate button + delivery URL + instructions)
+- `tests/Feature/WooCommerceOrderWebhookTest.php` (new)
+- `app/Http/Middleware/SecurityHeaders.php` (new), `bootstrap/app.php` (registered in `web` group, `withExceptions()` storefront error-page renderer)
+- `app/Support/StorefrontErrorPages.php` (new), `resources/views/components/layouts/error.blade.php` (new), `resources/views/errors/{403,404,419,429,500}.blade.php` (new)
+- `public/robots.txt` (`Disallow: /admin`, `/livewire`)
+- `tests/Feature/SecurityHardeningTest.php` (new)
+
+Verification:
+
+- `php artisan test --filter="DashboardDrilldownTest|BusinessOverviewLayoutTest"` — 5 passed, 0 failed.
+- `php artisan test --filter=WooCommerceOrderWebhookTest` — 6 passed, 0 failed.
+- `php artisan test --filter=SecurityHardeningTest` — 7 passed, 0 failed.
+- `php artisan test --filter="Storefront|Admin|Login|Auth"` — 247 passed, 0 failed (checked for regressions from the new global `SecurityHeaders` middleware + exception handler).
+- Full `php artisan test` suite — 912 passed, 0 failed, 5146 assertions, 388.14s.
+- `npm run build` — clean.
+- Live browser check (local dev server, real demo data, Main Company/Noor Solar): clicked "Today Sales" (empty state renders correctly) and "Storefront Pending" (real pending order shows, with correct columns) on the actual Dashboard — modal opens/closes correctly, "See all" link's `?filters[status][value]=draft` correctly narrows the Orders list to exactly that 1 order (screenshotted/verified the "Active filters: Status: Draft" indicator). Verified the `has_due`/`low_stock` toggle-filter shape (`?filters[name][isActive]=1`) the same way against Customers/Products. Confirmed all four security headers present on a real response via `fetch()`, confirmed `/robots.txt` serves the updated content.
+- No destructive commands run. `php artisan migrate --force` was run locally (purely additive: nullable `orders.external_reference` + a new unique index) — safe, non-destructive, and safely re-runnable.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-26 - Storefront UX fixes & footer builder (08_STOREFRONT_UX_FIXES_PLAN.md, 14 items)
+
+Reason:
+
+- Owner: "@08_STOREFRONT_UX_FIXES_PLAN ফাইল এর কাজ টা ইমপ্লিমেন্ট কর।" (implement the work in the 08_STOREFRONT_UX_FIXES_PLAN.md file) — a pre-existing, already-approved 14-item plan document (drafted 2026-08-15) covering storefront bugs/features gathered from the owner. Item 1 (adding categories) was explicitly operational/data-entry, not code, so it needed no implementation; item 6 was already merged into item 3 (footer builder) in the plan itself. The other 12 items are covered below.
+
+What changed (mapped to the plan's step numbers):
+
+- **Step 2 — Related product grid**: 2 columns on mobile / 5 on desktop (was defaulting to 1 column on mobile).
+- **Step 3 + 6 — Footer Builder**: the footer is now an admin-editable Repeater of blocks (`brand_about`, `quick_links`, `contact_info`, `social_links`, `bottom_bar`) instead of one fixed chunk of markup, under a new **Storefront Settings → Footer Builder** section. `bottom_bar` is the new "item 6" — a copyright line (`{year}`/`{company_name}` tokens) plus a row of legal links to any published Storefront Page, always rendered last. New `social_links` column (platform + URL pairs) feeds the `social_links` block. Every existing company's footer keeps rendering exactly as before via a documented `StorefrontSetting::DEFAULT_FOOTER_BLOCKS` fallback when `footer_blocks` is `NULL`; a new `php artisan storefront:seed-default-footer-blocks` command one-time-backfills that default set so the builder opens pre-arranged instead of empty on first visit.
+- **Step 4 — Theme-flexible header/footer**: `StorefrontThemeRegistry` gained a `'layout'` key per theme + a `layoutView()` resolver; all 22 storefront Blade views that hardcoded `@extends('storefront.layout')` now resolve it dynamically. All three themes currently point at the same shared layout (no visible change today) — a future theme can now get its own header/footer with a one-line registry change instead of touching every view.
+- **Step 5 — Homepage "Top categories"**: redesigned (Built-in theme) from a small round-icon horizontal scroller into a "Shop by category" card grid with hover lift/shadow.
+- **Step 7 — Rich product descriptions**: `Product` description field is now a `RichEditor` (headings/bold/lists/images), same as Storefront Pages already use. Rendered on the storefront via Filament's `RichContentRenderer` (not raw `{!! !!}`) — see Security note below.
+- **Step 8 — Payment cancel/expired-signature return**: no longer a raw 403 — redirects to checkout with a friendly message. Real payment finalization is untouched (still requires a separate successful gateway verification call); the signature is only a guard against guessing a payment's URL.
+- **Step 9 — Google Maps link**: new `companies.google_maps_url` field (Company form) overrides the previous always-auto-generated (less accurate) address-search link on the Contact page; empty keeps the old fallback.
+- **Step 10 — Scroll-reveal animation**: discovered the `x-reveal` Alpine directive itself was already implemented in `resources/js/app.js` (the plan's "dead attribute" finding was stale) — extended its use to a few more homepage sections (hero, offer countdown) and the footer that didn't have it yet.
+- **Step 11 — Hero banner overlay text**: a slide's `heading`/`subheading`/`cta_label` (already collected by the admin form) now actually render as an overlay on the banner image when at least one is filled in — previously silently ignored by `image-banner.blade.php`. A slide with none of these set still renders as image-only.
+- **Step 12 — Email OTP delivery**: root cause confirmed as no per-company SMTP configuration existing at all (global `.env` mailer only) — added the same per-company-credentials pattern already used for SMS (`notification_credentials.mail_*` fields, Storefront Settings → Customer Notifications & Reminders → new "Email (SMTP)" fields). Falls back to the server's default mailer when left empty.
+- **Step 13 — Reseller program toggle**: new `storefront_settings.reseller_program_enabled` (default `true`, backward compatible) hides "Become a reseller"/"Reseller status" from the account menu and the new footer's `contact_info` block when off; the reseller route/dashboard itself keeps working at its direct URL.
+- **Step 14 — Header category icons**: the header/mobile menu now shows a category menu item's own icon (reusing the existing `Category::$icon` + icon picker) next to its label — one source of truth shared with the homepage category cards, no separate configuration.
+
+Two things fixed along the way, found during implementation/testing rather than pre-specified in the plan:
+
+- `Illuminate\Mail\Mailer` (concrete class) was the wrong return type for `StorefrontNotificationService::companyMailer()` — `Mail::mailer($name)` returns Laravel's `MailFake` under `Mail::fake()` (tests only), which implements the `Illuminate\Contracts\Mail\Mailer` interface but is not that concrete class, so the OTP-email test crashed with a `TypeError` until the return type was loosened to the interface. Production is unaffected either way (no test doubles there), but the interface is the technically correct type regardless.
+- The rich product-description rendering used a plain `{!! $product->description !!}` in an early draft — a real stored-XSS gap if any future write path (not just the Filament form) ever put a `<script>` tag into that column. Switched to Filament's `RichContentRenderer::make()`, the same sanitizing renderer already used for Storefront Pages' rich content, before this ever shipped.
+
+Important changed files:
+
+- `resources/views/storefront/layout.blade.php` (footer block loop, reseller toggle, header/mobile menu category icons, menu category data now carries `icon`)
+- `resources/views/storefront/partials/footer-blocks/{brand_about,quick_links,contact_info,social_links,bottom_bar}.blade.php` (new), `resources/views/storefront/partials/social-icon.blade.php` (new)
+- `app/Models/StorefrontSetting.php` (`footer_blocks`/`social_links`/`reseller_program_enabled` fillable+casts, `FOOTER_BLOCK_TYPES`/`DEFAULT_FOOTER_BLOCKS`/`SOCIAL_PLATFORMS` consts, `footerBlocks()`), `app/Models/Company.php` (`google_maps_url`)
+- `database/migrations/2026_08_26_090000_add_footer_blocks_to_storefront_settings_table.php`, `..._090100_add_reseller_program_enabled_...`, `..._090200_add_google_maps_url_to_companies_table.php`, `..._090300_add_social_links_...` (all new)
+- `app/Console/Commands/SeedDefaultFooterBlocks.php` (new)
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` (new "Footer Builder" section: reseller toggle, social links repeater, footer blocks repeater), `app/Filament/Resources/Companies/CompanyResource.php` (google_maps_url field)
+- `app/Support/StorefrontThemeRegistry.php` (`layout` key + `layoutView()`), 22 storefront views' `@extends` line
+- `resources/views/storefront/home.blade.php` (category card redesign + more `x-reveal`), `resources/views/storefront/products/show.blade.php` (related-grid columns, `RichContentRenderer` description), `resources/views/storefront/partials/image-banner.blade.php` (heading/subheading/CTA overlay)
+- `app/Filament/Resources/Products/Schemas/ProductForm.php` (description → `RichEditor`)
+- `app/Http/Controllers/Storefront/CheckoutController.php` (`paymentReturn`/`paymentReturnPreview` redirect instead of 403)
+- `resources/views/storefront/contact/show.blade.php` (`google_maps_url` override)
+- `app/Services/StorefrontNotificationService.php` (`mailConfigured()`/`companyMailer()`/`sendLoginOtpEmail()` per-company SMTP), `app/Services/CustomerAccountService.php` (call-site update), `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` (SMTP fields)
+- `resources/css/app.css` (`@tailwindcss/typography` plugin), `package.json`/`package-lock.json`
+- `tests/Feature/StorefrontUxFixesTest.php` (new, 10 tests); updated `tests/Feature/StorefrontSlideTest.php`, `tests/Feature/StorefrontBannerTest.php` (overlay now expected), `tests/Feature/StorefrontPaystationPaymentTest.php` (redirect now expected instead of 403)
+
+Verification:
+
+- `php artisan test --filter=StorefrontUxFixesTest` — 10 passed, 0 failed.
+- `php artisan test --filter="Storefront"` (all 27 Storefront-prefixed test files) — 167 passed, 0 failed.
+- `php artisan test --filter="Product|Compan"` (Product/Company resource + related regression) — 224 passed, 0 failed.
+- Full `php artisan test` suite — 896 passed, 0 failed, 5055 assertions, 348.67s.
+- `npm run build` — clean (new `@tailwindcss/typography` plugin compiles fine; pre-existing >500kB chunk warning on `three.module` is unrelated).
+- Live browser check (local dev server, the one published/live company, Noor Solar theme): confirmed real-rendered footer (brand/about text, Pages quick-links fallback, Contact block, and the bottom bar's `© 2026 Main Company. All rights reserved.` token substitution), header/mobile nav, and a product page's plain-text description inside the new `prose` wrapper — all correct. The Built-in-theme-only homepage category-card redesign (step 5) could not be visually checked this way since the only published demo company uses the Noor Solar theme, and switching its theme just to look would mutate demo data — covered instead by the existing `StorefrontFoundationTest`/`StorefrontMenuTest` regression coverage plus a straightforward, low-risk Tailwind-class-only change.
+- No destructive commands run. `php artisan migrate --force` and `php artisan storefront:seed-default-footer-blocks` were run locally (both purely additive: nullable/defaulted columns, and a `whereNull()`-only backfill) — safe, non-destructive, and idempotent if re-run.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-25 - Dashboard-style summary cards on Vouchers, Accounts, and Expenses
+
+Reason:
+
+- Owner: "ভাউচার পেজে এ ড্যাশবোর্ড এর মত কার্ড থাকবে, ক্রেডিট ভাউচার/ডেবিট ভাউচার/ফান্ড ট্রান্সফার রিকুয়েস্ট/আপ্রুভড/রিজেক্ট এর নাম্বার সহ কার্ডে শো করবে। একাউন্স পেজেও ঠিক একই ভাবে শো করবে কোন একাউন্ট এ কত টাকা আছে... কার্ডে ক্লিক করলে ঐ একাউন্টের পেজে নিয়ে যাবে। ঠিক এক্সপেন্স পেজেও একই ভাবে কার্ড বসবে, এক্সপেন্সের যতগুলো কেটাগরি আছে সবগুলো দেখাবে। এক রোতে ৫টা কার্ড থাকবে ডেস্কটপে ২ টা কার্ড থেকবে মোবাইলে।" (dashboard-style stat cards on the Vouchers, Accounts, and Expenses pages; 5 per row desktop, 2 per row mobile; clickable).
+- Two design decisions inferred from the message rather than asked, both with low rework risk and matching the explicit wording closely: (1) Voucher's "Requested" bucket groups `pending`+`verified` (both pre-final-decision states — Credit vouchers pass through `verified` before `approved`, Debit can go straight from `pending`); (2) Expense category cards show total amount spent (not a count), since the owner used "ঠিক একই ভাবে" (exactly the same way) to describe them right after explicitly saying Account cards show a money amount.
+
+What changed:
+
+- Three new `StatsOverviewWidget` widgets, each `$isLazy = false` and using the same `['default' => 2, 'lg' => 5]` grid as the Dashboard's own `BusinessOverview` cards:
+  - **`VoucherSummaryWidget`** (Vouchers page, header): 9 cards — Credit Voucher / Debit Voucher / Fund Transfer × Requested / Approved / Rejected, each a live count. Clicking a card filters the same page down to exactly that combination.
+  - **`AccountSummaryWidget`** (Accounts page, header): one card per account (every account, not just active ones) showing its live `balance()`. Clicking a card opens that account's own page.
+  - **`ExpenseCategorySummaryWidget`** (Expenses page, header): one card per expense category (every category) showing its total spend (`withSum('expenses', 'amount')`). Clicking a card opens that category's own page.
+- Voucher card click-through does **not** use Filament's native `tableFilters` query string — `CourierMerchantDashboard`'s own docblock already records that being confirmed broken on a cold GET in this Filament install. Instead reused the already-shipped, already-working pattern from `ProductStatsOverview`'s "Total Shortage" card (`BulkUpdateStock`'s `#[Url] $shortageOnly`): `ListVouchers` reads `#[Url] $cardType`/`$cardStatuses` and applies them in an overridden `getTableQuery()`; `FundTransfersWidget` (the existing footer table widget) reads its own `#[Url] $ftStatus` the same way. Account/Expense-Category cards don't need this at all — they link straight to that exact record's real `view` page.
+- No new company-owned models, no schema changes — everything reads from `Voucher`/`FundTransfer`/`Account`/`ExpenseCategory`, all already company-scoped.
+
+Important changed files:
+
+- `app/Filament/Resources/Vouchers/Widgets/VoucherSummaryWidget.php` (new), `app/Filament/Resources/Vouchers/Pages/ListVouchers.php`, `app/Filament/Resources/Vouchers/Widgets/FundTransfersWidget.php`
+- `app/Filament/Resources/Accounts/Widgets/AccountSummaryWidget.php` (new), `app/Filament/Resources/Accounts/Pages/ListAccounts.php`
+- `app/Filament/Resources/Expenses/Widgets/ExpenseCategorySummaryWidget.php` (new), `app/Filament/Resources/Expenses/Pages/ListExpenses.php`
+- `tests/Feature/DashboardSummaryCardsTest.php` (new)
+
+Verification:
+
+- `php artisan test --filter="DashboardSummaryCardsTest|VoucherWorkflowTest|VoucherIsolationTest|AccountsAndPaymentsTest|AccountingRulesTest|PermanentSystemAccountsTest|AdminNavigationClustersTest"` — 54 passed, 0 failed.
+- Full `php artisan test` suite — 885 passed, 0 failed.
+- Visual/responsive check (real browser, both breakpoints) — not done: `.env` has no `ADMIN_EMAIL`/`ADMIN_PASSWORD` configured to log into the demo database with, and creating one just for a look would mutate real demo data (against CLAUDE.md's rule). Text-content + URL assertions confirm correctness; the 5/2 responsive grid reuses `BusinessOverview`'s exact already-shipped, already-proven config rather than a new one, so it carries the same confidence without needing a fresh visual check — but the owner should give it a look on first real use.
+
+Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+
+## 2026-08-25 - AI provider is now fully flexible (any OpenAI-compatible provider, e.g. DeepSeek)
+
+Reason:
+
+- Owner: "offer পেজে ai connection error দেখাচ্ছে আমি deepseek api connect করেছিলাম।" — the Offer "Generate Landing Page with AI" action failed with `Could not generate the landing page: HTTP request returned status code 401: Incorrect API key provided: sk-1c6c0****...ec02` (screenshot of the admin panel). That "Incorrect API key provided" text is OpenAI's own error message — `AiAssistantSettings`/`Integrations`' AI tab only ever offered a closed **Anthropic | OpenAI** choice, and `AiLlmClient` hardcoded OpenAI's own endpoint for the "openai" choice. DeepSeek's API is OpenAI-compatible but is a different company with its own endpoint (`api.deepseek.com`) and its own keys — a DeepSeek key pasted into the "OpenAI" slot was sent straight to OpenAI's real API and rejected instantly, since that key was never valid there.
+- Follow-up owner request in the same turn: "ai integration কে ফ্লেক্সিবল করে দেও যাতে যে কোন api provider এড করা যায়।" (make the AI integration flexible so any API provider can be added) — so this went beyond just adding DeepSeek as a third hardcoded option.
+
+What changed:
+
+- `AiSettingsService`'s stored AI settings shape changed from a closed `provider: anthropic|openai` enum to three fields: `provider` (free-text label — type any name: "DeepSeek", "Groq", "OpenRouter", "My local Ollama", ...), `api_format` (`anthropic` or `openai` — the actual request/response wire protocol; "openai" covers virtually every non-Anthropic provider today since they all speak the same Chat Completions shape), and `base_url` (optional — the exact endpoint URL to call; blank defaults to that format's own official endpoint). Adding a brand-new provider is now just: pick "OpenAI-compatible", type a label, paste that provider's base URL + model name + API key — no code change.
+- `AiLlmClient` (shared by CRM auto-reply, the Meta Ads AI assistant, and the Offer AI landing-page generator) now takes `$apiFormat`/`$baseUrl` instead of a `$provider` string, and dispatches purely on wire format.
+- Settings saved before this upgrade (the old closed enum, including any `deepseek` value from before this fix existed) are mapped forward automatically on read (`AiSettingsService::migrateLegacySettings()`) — no migration/backfill needed, no behavior change for already-configured companies.
+- Both live AI-settings UI surfaces (the dedicated **AI Assistant Settings** page and the **Integrations** page's AI tab — they write through the same `AiSettingsService`) updated together: API format selector + free-text provider label + optional base URL field, each with inline examples (DeepSeek/Groq/OpenRouter endpoint URLs).
+
+Important changed files:
+
+- `app/Services/Crm/AiSettingsService.php`, `app/Services/Crm/AiLlmClient.php`
+- `app/Services/Crm/AiReplyService.php`, `app/Services/MetaAdsAiAssistantService.php`, `app/Services/OfferLandingPageAiGenerator.php`
+- `app/Filament/Pages/AiAssistantSettings.php`, `resources/views/filament/pages/ai-assistant-settings.blade.php`, `app/Filament/Pages/Integrations.php`
+- `tests/Feature/AiSettingsServiceTest.php` (new), `tests/Feature/OfferLandingPageAiGeneratorTest.php`, `tests/Feature/IntegrationsPageTest.php`
+
+Verification:
+
+- `php artisan test --filter="OfferLandingPageAiGeneratorTest|AiAutoReplyTest|IntegrationsPageTest|MetaAdsAiAssistantServiceTest|MetaAdsAiAssistantPageTest|AdminNavigationClustersTest|AiSettingsServiceTest"` — 55 passed, 0 failed.
+- Full `php artisan test` suite — 881 passed, 0 failed.
+- `npm run build` — clean.
+- No schema change — `companies.settings` is an existing JSON column, no migration needed.
+
+Commit status: Committed as `5d639a04`, pushed to `origin/main`.
+
+## 2026-08-25 - Flexible, dashboard-managed checkout payment methods
+
+Reason:
+
+- Owner: "চেকআউটে অন্য পেমেন্ট পেমেন্ট গেটওয়েগুলো এড হচ্ছেনা। এইটাকে ফ্লেক্সিবল করে দেও যাতে ড্যাশবোর্ড থেকে যে গেটওয়য়ে ইনেবল করা হবে সেটাই কেবল চেকয়াউট পেজে শো করবে।" (checkout only ever offered Cash on Delivery, bKash, and Nagad — each hardcoded and gated by its own StorefrontSetting column — so adding any other channel meant a code change).
+- Confirmed via two rounds of questions: (1) wants a fully dynamic, admin-managed list (any number of named "manual" channels like Rocket/Upay/Bank Transfer, addable without code changes) rather than just adding a couple more hardcoded options; (2) also wants the existing online gateway (ZiniPay/PayStation) to appear as a normal selectable checkout option for paying the full order online, not just the existing mandatory new-customer/pre-order advance flow.
+
+What changed:
+
+- New `storefront_payment_methods` table (`App\Models\StorefrontPaymentMethod`, company-scoped): any number of `manual` (send-money/bank-transfer) rows, plus at most one `cod` row and one `online_gateway` row per company. New **Storefront → Payment Methods** Filament resource (reorderable, active toggle, name/account-number/instructions fields for manual channels) — a company-scoped uniqueness rule blocks a second `cod`/`online_gateway` row per company.
+- A migration one-time-backfills every existing company's current Cash on Delivery/bKash/Nagad settings into this table exactly as they behave today (including a new, default-**off** `online_gateway` row, since paying the full order online didn't exist as a checkout choice before this). `StorefrontSetting::created()` now also auto-seeds a default active `cod` row for every newly created company going forward, so a brand-new storefront is never left with zero payment options.
+- `CheckoutController` rewritten to validate `payment_method` dynamically against the company's active methods (`Rule::in(...)`) instead of a hardcoded `in:cod,manual_bkash,manual_nagad`; a manual selection carries the method's id (`manual:{id}`) and dynamically requires sender_number/trx_id; `storefront_payments.storefront_payment_method_id` (new nullable FK) links a manual payment back to the exact channel it was made through.
+- Choosing the `online_gateway` option now takes the customer through the same secure-payment-page flow already used for mandatory advances (`startCheckoutAdvancePayment()`), but for the **full order total** instead of a partial advance — and always takes this path regardless of what the existing preorder/new-customer/courier-risk eligibility rules would otherwise have required, since paying in full already covers any of those. The order is created only after the gateway verifies the full payment (`paid_amount` = full total), with its note reading "Paid online in full" rather than "advance paid".
+- Checkout view (`storefront/checkout/show.blade.php`) and the success page now loop over the dashboard-managed list instead of hardcoded COD/bKash/Nagad blocks; `StorefrontPaymentResource` (admin Payments list) and the success page both generalize their gateway-label/verify-reject logic to a `'manual'` + `paymentMethod` relation while keeping old `'manual_bkash'`/`'manual_nagad'` literal rows (pre-existing data) displaying correctly.
+- Storefront Settings' Cash-on-Delivery/bKash/Nagad fields are kept (relabeled "Offer pages: ...") since the separate single-product Offer checkout funnel (`OfferCheckoutController`) still reads them directly and was intentionally **not** touched in this round (its own hardcoded `in:cod,manual_bkash,manual_nagad` pattern is a known, deliberately deferred follow-up) — a note in that section now points admins to the new Payment Methods resource for the main checkout instead.
+- `StorefrontPaymentMethod` added to `MultiCompanyIsolationTest`'s company-scope contract per CLAUDE.md.
+
+Important changed files:
+
+- `database/migrations/2026_08_24_160000_create_storefront_payment_methods_table.php`, `database/migrations/2026_08_24_160100_add_payment_method_id_to_storefront_payments_table.php` (new)
+- `app/Models/StorefrontPaymentMethod.php` (new), `app/Models/StorefrontPayment.php`, `app/Models/StorefrontSetting.php`
+- `app/Filament/Resources/StorefrontPaymentMethods/**` (new resource + pages)
+- `app/Http/Controllers/Storefront/CheckoutController.php`, `app/Services/StorefrontOrderPlacementService.php`
+- `resources/views/storefront/checkout/show.blade.php`, `resources/views/storefront/checkout/success.blade.php`
+- `app/Filament/Resources/StorefrontPayments/StorefrontPaymentResource.php`, `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`
+- `tests/Feature/MultiCompanyIsolationTest.php`, `tests/Feature/StorefrontManualPaymentTest.php` (rewritten for the dynamic system), `tests/Feature/StorefrontOnlineGatewayCheckoutTest.php` (new), `tests/Feature/StorefrontPaymentMethodResourceTest.php` (new)
+
+Verification:
+
+- `php artisan test --filter=StorefrontManualPaymentTest` — 7 passed. `php artisan test --filter=StorefrontOnlineGatewayCheckoutTest` — 3 passed. `php artisan test --filter=StorefrontPaymentMethodResourceTest` — 4 passed.
+- `php artisan test --filter="Storefront(Paystation|ZiniPay|CustomerAdvance|RiskPayment|CheckoutPolicy|IncompleteCheckout)"` — 21 passed (confirms the pre-existing mandatory-advance/eligibility flows are unaffected).
+- `php artisan test --filter="IntegrationsPageTest|OfferCheckoutTest"` and `php artisan test --filter="PhaseFourAdminPagesTest|AdminNavigationClustersTest"` — all passed (confirms the untouched Offer funnel and the Storefront Settings form still work).
+- Full `php artisan test` suite (re-run after the AI provider flexibility commit above) — 881 passed, 0 failed.
+
+Deployment note: two new migrations ship with this round (`create_storefront_payment_methods_table`, `add_payment_method_id_to_storefront_payments_table`) — `php artisan migrate --force` must run in production before this feature works, same as the FK-ordering fix below.
+
+Commit status: Committed as `d047845a`, pushed to `origin/main`.
+
+## 2026-08-25 - Production `php artisan migrate --force` still failing after the previous fix: foreign-key-dependency ordering in the same three migrations
+
+Reason:
+
+- Owner re-ran `php artisan migrate --force` after the previous `3548b86c` fix landed. It failed again, on the very next statement: `SQLSTATE[HY000]: General error: 1553 Cannot drop index 'categories_company_lookup_index': needed in a foreign key constraint`.
+
+What happened:
+
+- `categories.company_id` carries a foreign key to `companies`, and MySQL refuses to drop an index while it is that FK's only remaining supporting index (error 1553). The previous fix's guarded `up()` still dropped the old `categories_company_lookup_index`/`products_company_lookup_index` (both `company_id`-leading) *before* creating their replacement `(company_id, slug|sku)` unique indexes — each `Schema::table()` command compiles to its own separate `ALTER TABLE` statement, so at the moment of the drop, the FK briefly had no supporting index left, and MySQL rejected it. `expense_categories`' migration never drops a `company_id`-leading index, so it was never affected by this.
+- Reordered both migrations' `up()`/`down()` to create the replacement company-scoped unique index(es) **first** (in their own `Schema::table()` call), then drop the old indexes afterward — the new index also starts with `company_id`, so the FK stays covered throughout and the drop succeeds. Production's `categories` table was left unchanged by the failed attempt (the drop that failed never committed), so this is a clean forward fix, not a repair of partially-applied state.
+
+Important changed files:
+
+- `database/migrations/2026_08_21_163643_fix_categories_slug_unique_scope_to_company.php`
+- `database/migrations/2026_08_21_170645_fix_products_sku_and_barcode_unique_scope_to_company.php`
+
+Verification:
+
+- Full `php artisan test` suite re-run after the reorder (fresh SQLite schema every run, so this exercises the full drop-then-recreate path with the new ordering) — 875 passed, 0 failed.
+- Owner still needs to re-run `php artisan migrate --force` on production after this lands.
+
+Commit status: Committed as `894dd4e0`, pushed to `origin/main`.
+
+## 2026-08-24 - Critical: PayStation checkout "Duplicate invoice number" blocking real customer orders
+
+Reason:
+
+- Owner tested a real checkout on the live ZamZam Gadget storefront (new phone number, Outside Dhaka, weight-based delivery advance ৳110) and hit "The secure payment page could not be opened. No order was placed; please try again." Asked to fetch the actual stored error via a safe tinker command rather than guess: `payload.error` was `"PayStation payment could not be created: Duplicate invoice number."`
+
+Root cause:
+
+- `CheckoutController::startCheckoutAdvancePayment()` set `$merchantReference = (string) $payment->getKey();` and PayStation uses that value as its own `invoice_number` (PayStation never issues its own — see `PayStationClient::createPayment()`). This assumed a `StorefrontPayment` primary key is safe to reuse as a payment-gateway invoice number, but PayStation tracks invoice numbers on **its own side permanently**, independent of this app's database. Any local table reset (a demo refresh, a migration reset, a database restore) that restarts the `storefront_payments` auto-increment sequence back near 1 would resend an invoice number PayStation had already seen in an earlier round of testing/use, and PayStation correctly rejects it as a duplicate. Confirmed exactly this in production: the failing payment was row id `2`.
+
+What changed:
+
+- `$merchantReference` is now `$payment->getKey().'-'.Str::random(10)` — still traceable back to the `StorefrontPayment` row via its numeric prefix, but the random suffix makes it impossible to collide with anything PayStation has seen before, regardless of local ID reuse. ZiniPay is unaffected (it ignores `$merchantReference` entirely and derives its own invoice id from the returned `payment_url`).
+- Updated the stale docblock on `PaymentGatewayClient::createPayment()` that had documented the now-fixed (wrong) assumption.
+- Updated `StorefrontPaystationPaymentTest.php`'s hardcoded exact-match assertions (`invoice_id === (string) $payment->getKey()`, and the simulated PayStation-redirect URL) to capture and reuse the real generated value instead of assuming the old fixed format.
+
+Important changed files:
+
+- `app/Http/Controllers/Storefront/CheckoutController.php`
+- `app/Contracts/PaymentGatewayClient.php`
+- `tests/Feature/StorefrontPaystationPaymentTest.php`
+
+Verification:
+
+- `php artisan test --filter=StorefrontPaystationPaymentTest` — 4 passed.
+- `php artisan test --filter=Storefront` (every Storefront-prefixed test file, including checkout/payment/preorder/advance flows) — 149 passed, 0 failed.
+- Separately confirmed (in the same session) that the underlying weight-based new-customer-delivery-advance *rule* itself was already implemented correctly (verified the delivery-fee math against `StorefrontDeliveryService::quote()` and the passing `StorefrontCustomerAdvanceAndComplaintTest`) — this was purely the PayStation invoice-number collision, not a rule/logic gap.
+
+Commit status: Committed as `802a61e3`, pushed to `origin/main`.
+
+## 2026-08-24 - Header company switcher always loading the default company (browser-cache bug, not a session bug)
+
+Reason:
+
+- Owner reported: selecting any company from the header dropdown always loads the default company instead. Diagnostic questions narrowed it down: the header's own label doesn't update either, but a hard refresh (Ctrl+Shift+R) always shows the correct company. Tested as super admin.
+
+What was checked and ruled out (in order):
+
+- Traced `CompanySwitchController`/`SetCurrentCompany` middleware/`CompanyContext` end to end by reading the code, then wrote and ran two new HTTP-level regression tests (`tests/Feature/CompanySelectionPersistenceTest.php`) simulating the exact real flow (POST the switch, then GET `/admin`) for both a super admin and a non-super-admin staff user with two companies each — both passed cleanly, proving the session/backend logic itself was already correct.
+- Checked the Firebase push-notification service worker (`resources/views/firebase-messaging-sw.blade.php`) for a `fetch` handler that might intercept and cache navigation requests — it has none (only `onBackgroundMessage`/`notificationclick`), ruled out.
+- Checked `resources/js/app-updater.js`'s pending-deployment navigation guard — it only intercepts `<a>` clicks and Livewire's `livewire:navigate` custom event, never plain `<form>` submissions, ruled out.
+- Confirmed the switcher's Filament dropdown item renders as a real `<button type="submit">` inside its own `<form method="POST">` (`vendor/filament/support/.../dropdown/list/item.blade.php`), and that Livewire's `x-navigate`/SPA plugin only intercepts elements carrying its own `wire:navigate` attribute (checked `vendor/livewire/livewire/dist/livewire.js` directly) — this form has none, so it's a real, full, non-SPA browser navigation.
+- With the backend and JS both cleared, the remaining explanation matching both symptoms (stale page shown; hard refresh always fixes it) is the browser's own HTTP cache reusing a previously loaded `/admin` response — the panel's HTML responses had no `Cache-Control` header at all, so caching behavior was left entirely to browser/proxy heuristics.
+
+What changed:
+
+- New `App\Http\Middleware\PreventAdminPageCaching`, added only to `AdminPanelProvider`'s own `->middleware([...])` stack (not the global `web` group, so the public storefront's caching/SEO is untouched) — every `/admin` response now always ships `Cache-Control: no-store, no-cache, must-revalidate, private` plus `Pragma: no-cache`/`Expires: 0`, so no browser or intermediate proxy can ever answer an admin page from a stale cache again, regardless of which page or action triggered the reload.
+- Confirmed the three file-download controllers under `/admin/...` (`ConversationMediaController`, `VoucherAttachmentDownloadController`, `InvestorContractDownloadController`) are registered directly in `routes/web.php`, not through the Filament panel's own route/middleware registration, so this change does not touch them.
+- New regression test in `CompanySelectionPersistenceTest.php` asserts the `Cache-Control`/`Pragma` headers are present on every `/admin` response (assertion checks individual directives rather than an exact string, since Symfony's `ResponseHeaderBag` re-serializes `Cache-Control` from parsed directive flags — it adds `max-age=0` automatically, which only strengthens the no-cache guarantee).
+
+Important changed files:
+
+- `app/Http/Middleware/PreventAdminPageCaching.php` (new)
+- `app/Providers/Filament/AdminPanelProvider.php`
+- `tests/Feature/CompanySelectionPersistenceTest.php`
+
+Verification:
+
+- `php artisan test --filter=CompanySelectionPersistenceTest` — 7 passed (41 assertions).
+- Full `php artisan test` suite re-run to confirm the new panel-wide middleware doesn't affect any other admin page/action.
+
+Commit status: Committed as `4ba49a00`, pushed to `origin/main`.
 
 ## 2026-08-24 - Production `php artisan migrate --force` failure: three uniqueness-fix migrations assumed indexes that had already drifted off production
 
@@ -54,7 +806,7 @@ Verification:
 - Full `php artisan test` suite re-run after the rewrite (SQLite, fresh schema every run, so this exercises the "everything exists as expected" branch of the new guards).
 - Owner still needs to re-run `php artisan migrate --force` on production after this lands — that will tell us whether production is now clean, or whether a *data*-level problem exists too (e.g. real pre-existing duplicate `(company_id, slug)` rows that would reject the new unique index outright, a different failure mode from this one and not something visible from here).
 
-Commit status: Not committed yet — pending this run's test result and owner approval, per CLAUDE.md.
+Commit status: Committed as `3548b86c`, pushed to `origin/main`. (See the 2026-08-25 entry above for a follow-up production failure this fix did not fully resolve.)
 
 ## 2026-08-24 - Steadfast courier webhooks could never authenticate (bearer token vs. HMAC mismatch)
 
@@ -378,6 +1130,83 @@ Verification:
 Commit status:
 
 - Approved by owner in chat — commit and push this fix only (unrelated pending changes in the working tree — an in-progress currency-symbol display update, among others — are intentionally left out).
+
+## 2026-08-25 - Renamed the mobile app to "ZamZam Dashboard" + full-screen page-loading indicator
+
+Reason:
+
+- Owner asked for the Android app's display name to change to **ZamZam Dashboard**. Owner also reported that tapping a button or a menu/submenu item inside the mobile app gives no feedback that anything happened — the screen just sits still for 2-5 seconds until the next page suddenly appears — and asked for a loading indicator that runs from the moment something is tapped until the destination page has fully loaded, scoped to the mobile app only.
+
+What happened:
+
+- **App rename**: `capacitor.config.json`'s `appName`, `android/app/src/main/res/values/strings.xml`'s `app_name`/`title_activity_main`, and `mobile-shell/www/index.html`'s `<title>` all changed from "Business Dashboard" to "ZamZam Dashboard". The Laravel web app's own `APP_NAME` (`config/app.php`, `.env.production.example`) and the Android `appId`/package name (`com.zamzamint.erp`) are unrelated and were left untouched.
+- **Page-loading indicator**: the admin panel runs as a Livewire SPA (`AdminPanelProvider::panel()->spa()`), so in-app navigation is an AJAX-driven `livewire:navigate` transition, not a WebView reload — Livewire's own top progress bar exists but is easy to miss inside the app. Added a full-screen overlay (centered spinner bubble, matching the existing pull-to-refresh indicator's look) shown on `livewire:navigate` and hidden on `livewire:navigated`, with a 15s safety-net timeout so a silently failed navigation can never leave it stuck on screen. Reuses the exact `inAppWebView` detection (`window.Capacitor` / WebView user-agent check) already used by the existing mobile-only pull-to-refresh script in the same file, so it only appears inside the Android app — a normal browser is unaffected.
+
+Important changed/added files:
+
+- `capacitor.config.json`, `android/app/src/main/res/values/strings.xml`, `mobile-shell/www/index.html`
+- `app/Providers/Filament/AdminPanelProvider.php`
+- `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Notes:
+
+- No database/schema changes, no new npm/Composer dependencies.
+- `strings.xml` is normally regenerated by `npm run mobile:sync` from `capacitor.config.json`, but since it's checked into git and this sandbox has no Android/Gradle toolchain, it was edited directly to match.
+
+Verification:
+
+- `php artisan test` (plain, no `--env`) — 850/850 passed, 0 regressions.
+- `php artisan route:list` confirms the panel provider still boots with no syntax/render errors.
+- A real device/emulator check of the Android WebView isn't possible in this sandbox; no JS/CSS build step is involved (plain inline `<script>` in a PHP render hook), so `npm run build` is not required.
+
+Commit status:
+
+- Not committed. Commit and push require explicit owner approval.
+
+## 2026-08-23 - Reseller management dashboard + self-service reseller mini-storefronts
+
+Reason:
+
+- The storefront already had a `/reseller` apply form creating a real `Customer` row with `reseller_status`, but no way to manage those applications separately from regular customers, and no way for an approved reseller to actually operate as one. Owner asked for a dedicated reseller dashboard (customers and resellers managed fully separately, not just filtered), with Approve/Reject workflow (bulk too), status filtering, and each reseller's order history. Owner then also asked, unprompted, for each approved reseller to get their own mini storefront — a curated subset of the company's products they pick themselves — reachable at a URL, with orders attributed to that reseller for future commission/payout work, and the whole module toggleable per company by a super admin only. Clarified via follow-up questions and confirmed by the owner: path-based store URLs (`{company-domain}/store/{slug}`, not a subdomain — avoids needing wildcard DNS/SSL the owner would have to configure outside this repo), reseller self-service product picking via their existing storefront login, and required order attribution.
+
+What happened:
+
+- **Data model**: `companies.reseller_module_enabled` (boolean, default off); `customers.reseller_slug` (nullable, unique per company); new `reseller_products` pivot (`customer_id`, `product_id`, `is_active`); `reseller_customer_id` added to both `orders` and `storefront_cart_records` (nullable FK to `customers`, separate from the buyer's own `customer_id` — the reseller and the buyer are different people).
+- **Company toggle**: `CompanyResource` gained a `reseller_module_enabled` Toggle, visible and dehydrated only for a super admin (field-level gate, since this resource's `canEdit()` also allows non-super-admin managers).
+- **Admin dashboard**: a new top-level **Resellers** cluster with its own `ResellerResource` (same `Customer` model as `CustomerResource`, but a fully separate Filament resource/route/table, per the owner's explicit choice) — Approve/Reject actions (single + bulk, approve auto-generates the store slug), a status filter, and two read-only relation managers (Orders, Products). `CustomerResource`'s own query now excludes anyone with `reseller_status != 'none'`, so a customer that applied to be a reseller moves entirely off the Customers list once approved/pending/rejected — one row, one home, matching the "fully separate" requirement.
+- **Self-service curation**: a new `/account/reseller` page (existing storefront Customer login, guard `customer` — no new auth system) lets an *approved* reseller edit their store's URL slug and toggle which of the company's products appear in their store.
+- **Public reseller storefront**: `/store/{resellerSlug}/...` reuses the exact same `ProductIndexController`/`ProductShowController`/`CartController`/`CheckoutController` as the main storefront rather than duplicating them, additively scoped via a new `ResolveResellerFromSlug` middleware that sets a `storefront_reseller` request attribute; each controller filters products to that reseller's active picks only when the attribute is present, and checkout stamps the resulting order's `reseller_customer_id`. When the attribute is absent, behavior is byte-for-byte unchanged (same additive-parameter approach as the earlier push-notification feature's `FirebaseHttpV1Sender::send()`).
+- Every new surface (the admin cluster, the self-service page, the public store) checks `reseller_module_enabled` and 404s/403s when off; the pre-existing `/reseller` apply form is deliberately left ungated, since gating it would have silently broken an already-live flow for every company (the new toggle defaults to off).
+- **Bug found and fixed while writing tests**: the shared storefront controllers (`ProductIndexController::__invoke()`, `ProductShowController::__invoke()`, `CartController::add()/update()/remove()`) took their product `$slug` as a method-injected parameter. Laravel resolves unmatched scalar route parameters *positionally*, not by name — so on the new `/store/{resellerSlug}/products` route (one URI parameter ahead of where `{slug}` normally sits), the reseller's own slug was silently landing in the `$slug` argument instead of the product slug, 404-ing every request. Fixed by reading `$request->route('slug')` explicitly by name in all four methods instead of relying on method injection.
+
+Important changed/added files:
+
+- `database/migrations/2026_08_23_{000000,010000,020000,030000,040000}_*.php`
+- `app/Models/Company.php`, `app/Models/Customer.php`, `app/Models/ResellerProduct.php` (new), `app/Models/Order.php`, `app/Models/StorefrontCartRecord.php`
+- `app/Filament/Resources/Companies/CompanyResource.php`
+- `app/Filament/Clusters/Resellers.php` (new), `app/Filament/Resources/Resellers/**` (new — resource, schemas, tables, pages, relation managers)
+- `app/Filament/Resources/Customers/CustomerResource.php`, `Schemas/CustomerForm.php`, `Tables/CustomersTable.php`
+- `app/Http/Controllers/Storefront/ResellerStoreController.php` (new), `ProductIndexController.php`, `ProductShowController.php`, `CartController.php`, `CheckoutController.php`
+- `app/Http/Middleware/ResolveResellerFromSlug.php` (new)
+- `app/Services/StorefrontCart.php`, `app/Services/StorefrontOrderPlacementService.php`
+- `resources/views/storefront/account/reseller.blade.php` (new), `resources/views/storefront/account/layout.blade.php`, `resources/views/storefront/account/partials/nav-icon.blade.php`
+- `routes/web.php`
+- `tests/Feature/ResellerResourceTest.php`, `ResellerSelfServiceTest.php`, `ResellerStorefrontTest.php` (new)
+- `CHANGELOG.md`, `UPDATE_NOTES.md`
+
+Notes:
+
+- Commission/payout logic on top of the captured `reseller_customer_id` attribution is intentionally not built yet — out of scope for this request, flagged for a future feature.
+- `ResellerProduct` deliberately does not use `BelongsToCompany`/`CompanyScope` — it has no independent company context of its own, only transitively through its `customer_id`/`product_id` parents (same precedent as `MobileCrashReport`), so it is not added to `MultiCompanyIsolationTest`'s model list.
+
+Verification:
+
+- `php artisan test` (plain, no `--env`) — 850/850 passed (829 pre-existing + 21 new), 0 regressions.
+- No JS/CSS changes — `npm run build` not required.
+
+Commit status:
+
+- Committed and pushed to `claude/android-app-issue-6ed2hc` (`a2f9245`).
 
 ## 2026-08-20 - Real-time push notifications for business events (Android + desktop browser)
 

@@ -12,7 +12,7 @@ class Settings extends NavigationCluster
 
     protected static ?string $navigationLabel = 'Settings';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 13;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

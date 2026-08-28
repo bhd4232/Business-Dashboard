@@ -150,11 +150,51 @@ class OfferLandingPageAiGeneratorTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_a_freely_named_openai_compatible_provider_calls_its_own_base_url_not_openais(): void
+    {
+        // Regression test: any OpenAI-compatible provider (DeepSeek here, but
+        // equally Groq/OpenRouter/a self-hosted endpoint/...) can be added
+        // via a free-text label + base URL override, without a code change.
+        // Before this became flexible, only a closed 'anthropic'|'openai'
+        // enum existed and every non-'openai' value silently fell through to
+        // the hardcoded Anthropic branch.
+        app(AiSettingsService::class)->save($this->company, [
+            'enabled' => true,
+            'api_format' => 'openai',
+            'provider' => 'DeepSeek',
+            'base_url' => 'https://api.deepseek.com/chat/completions',
+            'model' => 'deepseek-chat',
+            'api_key' => 'sk-deepseek-test',
+        ]);
+        $this->company->refresh();
+
+        Http::fake([
+            'api.deepseek.com/*' => Http::response($this->openAiText(json_encode([
+                ['id' => 'b1', 'type' => 'hero', 'data' => ['headline' => 'ডিপসিক অফার']],
+            ], JSON_UNESCAPED_UNICODE))),
+        ]);
+
+        $blocks = app(OfferLandingPageAiGenerator::class)->generate($this->offer);
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame('ডিপসিক অফার', $blocks[0]['data']['headline']);
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://api.deepseek.com/chat/completions');
+        Http::assertNotSent(fn ($request): bool => str_contains($request->url(), 'api.openai.com'));
+    }
+
     protected function anthropicText(string $text): array
     {
         return [
             'content' => [['type' => 'text', 'text' => $text]],
             'usage' => ['input_tokens' => 10, 'output_tokens' => 10],
+        ];
+    }
+
+    protected function openAiText(string $text): array
+    {
+        return [
+            'choices' => [['message' => ['content' => $text]]],
+            'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 10],
         ];
     }
 }

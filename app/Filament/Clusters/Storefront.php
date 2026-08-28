@@ -14,7 +14,7 @@ class Storefront extends NavigationCluster
 
     protected static ?string $clusterBreadcrumb = 'Site';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 12;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

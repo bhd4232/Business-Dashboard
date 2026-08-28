@@ -12,7 +12,7 @@ class Ads extends NavigationCluster
 
     protected static ?string $navigationLabel = 'Ads';
 
-    protected static ?int $navigationSort = 8;
+    protected static ?int $navigationSort = 7;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

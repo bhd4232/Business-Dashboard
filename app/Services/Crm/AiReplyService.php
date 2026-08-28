@@ -133,7 +133,7 @@ class AiReplyService
         $this->groundedAmounts = [];
         $this->toolTrace = [];
 
-        $client = new AiLlmClient($settings['provider'], $settings['api_key'], $settings['model']);
+        $client = new AiLlmClient($settings['api_format'], $settings['api_key'], $settings['model'], $settings['base_url'] ?: null);
         $messages = $this->conversationContext($conversation);
         $usage = [];
 
@@ -169,7 +169,7 @@ class AiReplyService
                 $results[] = ['id' => $call['id'], 'result' => $result];
             }
 
-            $this->appendToolExchange($messages, $settings['provider'], $response, $results);
+            $this->appendToolExchange($messages, $settings['api_format'], $response, $results);
         }
 
         $this->escalate($conversation, 'AI could not reach an answer within the tool budget.');
@@ -567,9 +567,9 @@ PROMPT;
         ));
     }
 
-    protected function appendToolExchange(array &$messages, string $provider, array $response, array $results): void
+    protected function appendToolExchange(array &$messages, string $apiFormat, array $response, array $results): void
     {
-        if ($provider === 'openai') {
+        if ($apiFormat === 'openai') {
             $messages[] = [
                 'role' => 'assistant',
                 'content' => $response['text'],

@@ -668,8 +668,10 @@ class StorefrontSettingResource extends Resource
                 ->columnSpanFull()
                 ->description('Controls shown on the one-page storefront checkout.')
                 ->schema([
+                    Text::make('The main checkout page\'s payment methods (Cash on Delivery, bKash, Nagad, and any other manual or online channel) are managed in Storefront → Payment Methods — add, reorder, enable/disable, or edit instructions for each one there. The fields below are still used only by the single-product Offer checkout pages.')
+                        ->columnSpanFull(),
                     Toggle::make('cod_enabled')
-                        ->label('Enable Cash on Delivery')
+                        ->label('Offer pages: enable Cash on Delivery')
                         ->default(true),
                     TextInput::make('delivery_first_kg_inside')
                         ->label('First 1 kg — inside Dhaka')
@@ -709,21 +711,21 @@ class StorefrontSettingResource extends Resource
                         ->placeholder(StorefrontSetting::DEFAULT_NEW_CUSTOMER_ADVANCE_MESSAGE)
                         ->columnSpanFull(),
                     TextInput::make('manual_bkash_number')
-                        ->label('bKash Send Money number')
+                        ->label('Offer pages: bKash Send Money number')
                         ->maxLength(20)
                         ->placeholder('01XXXXXXXXX'),
                     Textarea::make('manual_bkash_instructions')
-                        ->label('bKash instructions')
+                        ->label('Offer pages: bKash instructions')
                         ->rows(2)
                         ->maxLength(500)
                         ->placeholder('Send Money to this number, then enter the Transaction ID below.')
                         ->columnSpanFull(),
                     TextInput::make('manual_nagad_number')
-                        ->label('Nagad Send Money number')
+                        ->label('Offer pages: Nagad Send Money number')
                         ->maxLength(20)
                         ->placeholder('01XXXXXXXXX'),
                     Textarea::make('manual_nagad_instructions')
-                        ->label('Nagad instructions')
+                        ->label('Offer pages: Nagad instructions')
                         ->rows(2)
                         ->maxLength(500)
                         ->columnSpanFull(),
@@ -946,6 +948,36 @@ class StorefrontSettingResource extends Resource
                         ->default(6)
                         ->minValue(1)
                         ->maxValue(168),
+                    TextInput::make('notification_credentials.mail_host')
+                        ->label('SMTP host')
+                        ->maxLength(255)
+                        ->placeholder('smtp.gmail.com')
+                        ->helperText('Used for customer login OTP emails. Leave empty to keep using the server\'s default mailer.')
+                        ->columnSpanFull(),
+                    TextInput::make('notification_credentials.mail_port')
+                        ->label('SMTP port')
+                        ->numeric()
+                        ->placeholder('587'),
+                    Select::make('notification_credentials.mail_encryption')
+                        ->label('SMTP encryption')
+                        ->options(['tls' => 'TLS', 'ssl' => 'SSL', '' => 'None'])
+                        ->default('tls'),
+                    TextInput::make('notification_credentials.mail_username')
+                        ->label('SMTP username')
+                        ->maxLength(255),
+                    TextInput::make('notification_credentials.mail_password')
+                        ->label('SMTP password')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255),
+                    TextInput::make('notification_credentials.mail_from_address')
+                        ->label('From address')
+                        ->email()
+                        ->maxLength(255)
+                        ->helperText('Defaults to the SMTP username if left empty.'),
+                    TextInput::make('notification_credentials.mail_from_name')
+                        ->label('From name')
+                        ->maxLength(255),
                     TextInput::make('notification_credentials.sms_api_url')
                         ->label('SMS gateway URL template')
                         ->maxLength(500)
@@ -1068,6 +1100,100 @@ class StorefrontSettingResource extends Resource
                 ->collapsible()
                 ->collapsed(),
 
+            Section::make('Footer Builder')
+                ->columnSpanFull()
+                ->description('Add, remove, and reorder the sections shown in the public footer. Leave empty to use the automatic default footer (brand, quick links, contact, bottom bar).')
+                ->schema([
+                    Toggle::make('reseller_program_enabled')
+                        ->label('Show reseller program')
+                        ->default(true)
+                        ->helperText('Off hides "Become a reseller" from the account menu and footer. The reseller pages and dashboard keep working at their direct URL — only the links are hidden.')
+                        ->columnSpanFull(),
+
+                    Repeater::make('social_links')
+                        ->label('Social links')
+                        ->columnSpanFull()
+                        ->reorderable()
+                        ->defaultItems(0)
+                        ->itemLabel(fn (array $state): ?string => StorefrontSetting::SOCIAL_PLATFORMS[$state['platform'] ?? ''] ?? null)
+                        ->addActionLabel('Add social link')
+                        ->schema([
+                            Select::make('platform')
+                                ->options(StorefrontSetting::SOCIAL_PLATFORMS)
+                                ->required(),
+                            TextInput::make('url')
+                                ->label('Profile URL')
+                                ->url()
+                                ->required()
+                                ->maxLength(500),
+                        ])
+                        ->columns(2),
+
+                    Repeater::make('footer_blocks')
+                        ->label('Footer sections')
+                        ->columnSpanFull()
+                        ->reorderable()
+                        ->collapsible()
+                        ->defaultItems(0)
+                        ->default(StorefrontSetting::DEFAULT_FOOTER_BLOCKS)
+                        ->itemLabel(fn (array $state): ?string => StorefrontSetting::FOOTER_BLOCK_TYPES[$state['type'] ?? ''] ?? null)
+                        ->addActionLabel('Add footer section')
+                        ->schema([
+                            Select::make('type')
+                                ->options(StorefrontSetting::FOOTER_BLOCK_TYPES)
+                                ->live()
+                                ->required(),
+
+                            TextInput::make('data.heading')
+                                ->label('Heading')
+                                ->maxLength(100)
+                                ->visible(fn (Get $get): bool => in_array($get('type'), ['quick_links', 'contact_info', 'social_links'], true)),
+
+                            Toggle::make('data.show_logo')
+                                ->label('Show logo instead of company name')
+                                ->visible(fn (Get $get): bool => $get('type') === 'brand_about'),
+                            Textarea::make('data.text')
+                                ->label('About text')
+                                ->rows(2)
+                                ->maxLength(500)
+                                ->placeholder('Browse curated products, place direct orders, and track storefront purchases from {company name}.')
+                                ->visible(fn (Get $get): bool => $get('type') === 'brand_about'),
+
+                            TextInput::make('data.copyright_text')
+                                ->label('Copyright text')
+                                ->maxLength(255)
+                                ->placeholder('© {year} {company_name}. All rights reserved.')
+                                ->helperText('Supports {year} and {company_name} tokens.')
+                                ->columnSpanFull()
+                                ->visible(fn (Get $get): bool => $get('type') === 'bottom_bar'),
+                            Repeater::make('data.legal_links')
+                                ->label('Legal links')
+                                ->schema([
+                                    TextInput::make('label')->required()->maxLength(60),
+                                    Select::make('page_id')
+                                        ->label('Page')
+                                        ->options(function (?StorefrontSetting $record): array {
+                                            $companyId = $record?->company_id ?: app(CompanyContext::class)->company()?->getKey();
+
+                                            return $companyId ? StorefrontPage::withoutGlobalScopes()
+                                                ->where('company_id', $companyId)
+                                                ->where('is_published', true)
+                                                ->orderBy('title')
+                                                ->pluck('title', 'id')
+                                                ->all() : [];
+                                        })
+                                        ->required(),
+                                ])
+                                ->columns(2)
+                                ->defaultItems(0)
+                                ->addActionLabel('Add legal link')
+                                ->visible(fn (Get $get): bool => $get('type') === 'bottom_bar'),
+                        ])
+                        ->columns(1),
+                ])
+                ->collapsible()
+                ->collapsed(),
+
             Section::make('SEO')
                 ->columnSpanFull()
                 ->schema([
@@ -1102,6 +1228,7 @@ class StorefrontSettingResource extends Resource
             'notifications',
             'notifications',
             'integrations',
+            'navigation_seo',
             'navigation_seo',
             'navigation_seo',
         ];

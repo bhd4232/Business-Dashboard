@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Storefront;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\ResellerProduct;
 use App\Models\StorefrontCartRecord;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
@@ -37,10 +39,10 @@ class CartController extends Controller
         return $this->cartView($company, $setting, $company->slug);
     }
 
-    public function add(Request $request, string $slug): RedirectResponse
+    public function add(Request $request): RedirectResponse
     {
         [$company] = $this->domainStorefront($request);
-        $product = $this->product($slug);
+        $product = $this->product($this->routeSlug($request));
 
         return $this->addToCart($request, $company, $product);
     }
@@ -61,10 +63,11 @@ class CartController extends Controller
     protected function addToCart(Request $request, Company $company, Product $product): RedirectResponse
     {
         $buyNow = $request->boolean('buy_now');
+        $reseller = $this->resellerContext($request, $product);
 
         if (! $product->has_variants) {
             $quantity = max(1, (int) $request->integer('quantity', 1));
-            $this->cart->add($company, $product, $quantity);
+            $this->cart->add($company, $product, $quantity, reseller: $reseller);
             $this->flashAddToCartEvent($product, $quantity, $product->priceForQuantity($quantity) * $quantity);
 
             if ($buyNow) {
@@ -105,7 +108,7 @@ class CartController extends Controller
                 continue;
             }
 
-            $this->cart->add($company, $product, $quantity, $variant);
+            $this->cart->add($company, $product, $quantity, $variant, $reseller);
             $addedLines++;
             $addedQuantity += $quantity;
             $addedValue += $variant->effectiveSalePrice() * $quantity;
@@ -119,6 +122,31 @@ class CartController extends Controller
         }
 
         return back()->with('storefront_status', "{$product->name} added to cart ({$addedLines} ".($addedLines === 1 ? 'option' : 'options').').');
+    }
+
+    /**
+     * When adding to cart under a reseller's store (/store/{slug}/...), the
+     * product must actually be one that reseller picked -- rejects a
+     * tampered request for a product outside their curated catalog -- and
+     * returns the reseller so the cart record can be attributed to them.
+     */
+    protected function resellerContext(Request $request, Product $product): ?Customer
+    {
+        $reseller = $request->attributes->get('storefront_reseller');
+
+        if (! $reseller instanceof Customer) {
+            return null;
+        }
+
+        $inCatalog = ResellerProduct::query()
+            ->where('customer_id', $reseller->getKey())
+            ->where('product_id', $product->getKey())
+            ->where('is_active', true)
+            ->exists();
+
+        abort_unless($inCatalog, 404);
+
+        return $reseller;
     }
 
     protected function redirectToCheckout(Request $request, Company $company): RedirectResponse
@@ -145,10 +173,10 @@ class CartController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $slug): RedirectResponse
+    public function update(Request $request): RedirectResponse
     {
         [$company] = $this->domainStorefront($request);
-        $product = $this->product($slug);
+        $product = $this->product($this->routeSlug($request));
 
         $this->cart->update($company, $product, (int) $request->integer('quantity'), $this->resolveVariant($request, $product));
 
@@ -165,10 +193,10 @@ class CartController extends Controller
         return back()->with('storefront_status', 'Cart updated.');
     }
 
-    public function remove(Request $request, string $slug): RedirectResponse
+    public function remove(Request $request): RedirectResponse
     {
         [$company] = $this->domainStorefront($request);
-        $product = $this->product($slug);
+        $product = $this->product($this->routeSlug($request));
         $this->flashRemoveFromCartEvent($product);
         $this->cart->remove($company, $product, $this->resolveVariant($request, $product));
 
@@ -266,6 +294,19 @@ class CartController extends Controller
             'meta_title' => $company->name,
             'is_published' => true,
         ]);
+    }
+
+    /**
+     * Reads the `{slug}` route parameter explicitly by name rather than via
+     * method-injection: add()/update()/remove() are also mounted under
+     * /store/{resellerSlug}/cart/items/{slug}, and Laravel resolves
+     * unmatched scalar route parameters positionally, not by name -- the
+     * extra leading {resellerSlug} segment would otherwise land in a
+     * method-injected $slug argument instead of the actual product slug.
+     */
+    protected function routeSlug(Request $request): string
+    {
+        return (string) $request->route('slug');
     }
 
     protected function product(string $slug): Product

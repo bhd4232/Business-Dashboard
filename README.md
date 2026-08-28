@@ -141,9 +141,9 @@ php artisan up
 
 Do not run destructive migration commands or broad seeders against a live database after real business data exists. See [Production Update Safety](docs/update-safety.md).
 
-## Latest Release: 2.1.0
+## Latest Release: 2.2.0
 
-Release 2.1.0 adds the Noor Solar Energy storefront theme, PayStation/ZiniPay gateway selection, offers and reviews, WhatsApp Business App Coexistence support, CRM quick replies, compact responsive admin headers and inbox layout, and an app-wide monetary formatter. See [CHANGELOG.md](CHANGELOG.md) for the complete release notes.
+Release 2.2.0 adds real-time push notifications (Android + web), dashboard-managed storefront checkout payment methods, a shared stock pool across companies, on-device Android crash reporting, and a consolidated Integrations settings page — plus a security pass closing several stock/voucher race conditions, an unguessable quotation link, storefront-preview cross-company access, and a courier webhook authentication gap. See [CHANGELOG.md](CHANGELOG.md) for the complete release notes.
 
 Required GitHub Actions secrets for the included deploy workflow:
 

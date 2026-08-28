@@ -65,6 +65,7 @@ use App\Models\StorefrontMetaAttribution;
 use App\Models\StorefrontMetaEvent;
 use App\Models\StorefrontPage;
 use App\Models\StorefrontPayment;
+use App\Models\StorefrontPaymentMethod;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
 use App\Models\Supplier;
@@ -94,7 +95,7 @@ class MultiCompanyIsolationTest extends TestCase
             Product::class, Purchase::class, PurchaseItem::class,
             StockMovement::class, Supplier::class, SupplierPayment::class, TransactionLedger::class,
             Container::class, Shipment::class, StorefrontPage::class, StorefrontSetting::class,
-            ProductCarousel::class, StorefrontPayment::class,
+            ProductCarousel::class, StorefrontPayment::class, StorefrontPaymentMethod::class,
             StorefrontCartRecord::class,
             StorefrontCheckoutAttempt::class,
             StorefrontMetaAttribution::class, StorefrontMetaEvent::class,

@@ -6,6 +6,8 @@ use App\Mail\StorefrontLoginOtp;
 use App\Models\ConversationChannel;
 use App\Models\StorefrontSetting;
 use App\Services\Meta\MetaGraphService;
+use Illuminate\Contracts\Mail\Mailer;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -21,6 +23,9 @@ use Illuminate\Support\Facades\Mail;
  * - whatsapp_token, whatsapp_phone_number_id, whatsapp_template_name,
  *   whatsapp_recovery_template_name, whatsapp_template_language (default
  *   "bn")
+ * - mail_host, mail_port, mail_encryption, mail_username, mail_password,
+ *   mail_from_address, mail_from_name: per-company SMTP for login OTP
+ *   emails. Falls back to the global .env mailer when unset.
  */
 class StorefrontNotificationService
 {
@@ -56,10 +61,37 @@ class StorefrontNotificationService
         }
     }
 
-    public function sendLoginOtpEmail(string $email, string $companyName, string $code): bool
+    public function mailConfigured(StorefrontSetting $setting): bool
+    {
+        return filled(data_get($setting->notification_credentials, 'mail_host'))
+            && filled(data_get($setting->notification_credentials, 'mail_username'));
+    }
+
+    protected function companyMailer(StorefrontSetting $setting): Mailer
+    {
+        $credentials = (array) $setting->notification_credentials;
+
+        Config::set('mail.mailers.storefront_dynamic', [
+            'transport' => 'smtp',
+            'host' => $credentials['mail_host'] ?? null,
+            'port' => (int) ($credentials['mail_port'] ?? 587),
+            'encryption' => ($credentials['mail_encryption'] ?? 'tls') ?: null,
+            'username' => $credentials['mail_username'] ?? null,
+            'password' => $credentials['mail_password'] ?? null,
+        ]);
+        Config::set('mail.from', [
+            'address' => $credentials['mail_from_address'] ?? $credentials['mail_username'] ?? config('mail.from.address'),
+            'name' => $credentials['mail_from_name'] ?? config('mail.from.name'),
+        ]);
+
+        return Mail::mailer('storefront_dynamic');
+    }
+
+    public function sendLoginOtpEmail(StorefrontSetting $setting, string $email, string $companyName, string $code): bool
     {
         try {
-            Mail::to($email)->send(new StorefrontLoginOtp($companyName, $code));
+            $mailer = $this->mailConfigured($setting) ? $this->companyMailer($setting) : Mail::mailer();
+            $mailer->to($email)->send(new StorefrontLoginOtp($companyName, $code));
 
             return true;
         } catch (\Throwable $exception) {

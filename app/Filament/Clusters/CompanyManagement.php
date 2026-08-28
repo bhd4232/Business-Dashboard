@@ -12,7 +12,7 @@ class CompanyManagement extends NavigationCluster
 
     protected static ?string $navigationLabel = 'Company Management';
 
-    protected static ?int $navigationSort = 0;
+    protected static ?int $navigationSort = 11;
 
     protected static ?SubNavigationPosition $subNavigationPosition = SubNavigationPosition::Top;
 

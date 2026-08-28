@@ -1,4 +1,4 @@
-@extends('storefront.layout')
+@extends(\App\Support\StorefrontThemeRegistry::layoutView($setting->storefrontTheme()))
 
 @php
     $applyUrl = isset($previewSlug) ? route('storefront.preview.reseller.store', $previewSlug) : route('storefront.reseller.store');

@@ -74,7 +74,7 @@ class MetaAdsAiAssistantService
 
         $this->groundedProductIds = [];
 
-        $client = new AiLlmClient($settings['provider'], $settings['api_key'], $settings['model']);
+        $client = new AiLlmClient($settings['api_format'], $settings['api_key'], $settings['model'], $settings['base_url'] ?: null);
         $messages = [[
             'role' => 'user',
             'content' => 'Recommend which in-stock product(s) are worth advertising on Meta right now.',
@@ -104,7 +104,7 @@ class MetaAdsAiAssistantService
                 $results[] = ['id' => $call['id'], 'result' => $result];
             }
 
-            $this->appendToolExchange($messages, $settings['provider'], $response, $results);
+            $this->appendToolExchange($messages, $settings['api_format'], $response, $results);
         }
 
         throw new RuntimeException('The AI could not reach a recommendation within the tool budget.');
@@ -435,9 +435,9 @@ PROMPT;
     }
 
     /** Same normalized-message-append logic as AiReplyService::appendToolExchange. */
-    protected function appendToolExchange(array &$messages, string $provider, array $response, array $results): void
+    protected function appendToolExchange(array &$messages, string $apiFormat, array $response, array $results): void
     {
-        if ($provider === 'openai') {
+        if ($apiFormat === 'openai') {
             $messages[] = [
                 'role' => 'assistant',
                 'content' => $response['text'],

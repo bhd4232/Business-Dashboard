@@ -19,10 +19,13 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 
 /**
@@ -84,7 +87,9 @@ class Integrations extends Page
         // fail validation on first save with no visible reason otherwise.
         $this->form->fill([
             'ai_enabled' => $ai['enabled'],
+            'ai_api_format' => $ai['api_format'],
             'ai_provider' => $ai['provider'],
+            'ai_base_url' => $ai['base_url'],
             'ai_model' => $ai['model'],
             'ai_confidence_threshold' => $ai['confidence_threshold'],
             'ai_max_consecutive_ai_replies' => $ai['max_consecutive_ai_replies'],
@@ -135,6 +140,12 @@ class Integrations extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('testWoocommerceWebhook')
+                ->label('Send test webhook')
+                ->icon(Heroicon::OutlinedPaperAirplane)
+                ->color('gray')
+                ->action('testWoocommerceWebhook')
+                ->visible(fn (): bool => $this->hasSelectedCompany()),
             Action::make('saveChanges')
                 ->label('Save changes')
                 ->icon(Heroicon::OutlinedCheck)
@@ -143,6 +154,71 @@ class Integrations extends Page
                 ->keyBindings(['mod+s'])
                 ->visible(fn (): bool => $this->hasSelectedCompany()),
         ];
+    }
+
+    /**
+     * Sends a real, correctly-signed request to this company's own
+     * WooCommerce webhook URL using the secret actually saved in the
+     * database (not whatever's currently typed but unsaved in the form),
+     * so a signature mismatch between here and WooCommerce's own Secret
+     * field is instantly obvious without needing WooCommerce's own delivery
+     * log or a manual curl request. Exercises the exact same route,
+     * middleware, and CSRF-exemption path a real WooCommerce delivery does.
+     */
+    public function testWoocommerceWebhook(): void
+    {
+        $company = $this->selectedCompany();
+        $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->first();
+        $secret = (string) data_get($setting?->woocommerce_credentials, 'webhook_secret');
+
+        if ($secret === '') {
+            Notification::make()
+                ->title('No webhook secret saved yet')
+                ->body('Generate and save one below first.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $body = '{}';
+        $signature = base64_encode(hash_hmac('sha256', $body, $secret, true));
+
+        try {
+            $response = Http::timeout(15)
+                ->withHeaders([
+                    'X-WC-Webhook-Topic' => 'order.updated',
+                    'X-WC-Webhook-Signature' => $signature,
+                ])
+                ->withBody($body, 'application/json')
+                ->post(route('woocommerce.webhook', $company));
+        } catch (\Throwable $exception) {
+            Notification::make()
+                ->title('Could not reach the webhook URL')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        if ($response->successful()) {
+            Notification::make()
+                ->title('Webhook reachable, signature verified')
+                ->body('A correctly-signed test request using the saved secret was accepted (HTTP '.$response->status().'). WooCommerce should be able to deliver real orders here — if it still shows a delivery error, re-check that its Secret field exactly matches the one saved below (re-copy both sides after Generate, don\'t retype).')
+                ->success()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->title('Webhook test failed: HTTP '.$response->status())
+            ->body($response->status() === 403
+                ? 'The server rejected this request\'s signature even though it was computed from the secret saved below — the saved value itself may be stale (try Generate, Save, then test again).'
+                : $response->body())
+            ->danger()
+            ->send();
     }
 
     public function form(Schema $schema): Schema
@@ -160,11 +236,28 @@ class Integrations extends Page
                                 Toggle::make('ai_enabled')
                                     ->label('Enable AI auto-reply for this company')
                                     ->columnSpanFull(),
-                                Select::make('ai_provider')
-                                    ->label('LLM Provider')
-                                    ->options(['anthropic' => 'Anthropic (Claude)', 'openai' => 'OpenAI'])
+                                Select::make('ai_api_format')
+                                    ->label('API format')
+                                    ->options([
+                                        'anthropic' => 'Anthropic (Claude Messages API)',
+                                        'openai' => 'OpenAI-compatible (Chat Completions)',
+                                    ])
+                                    ->helperText('Almost every non-Anthropic provider (OpenAI, DeepSeek, Groq, Mistral, OpenRouter, xAI, a self-hosted Ollama/vLLM, ...) speaks the "OpenAI-compatible" format — pick that and set the base URL below to add any of them.')
                                     ->required()
                                     ->native(false),
+                                TextInput::make('ai_provider')
+                                    ->label('Provider name (label only)')
+                                    ->placeholder('e.g. DeepSeek, Groq, OpenRouter')
+                                    ->helperText("Just for your own reference — doesn't affect the request.")
+                                    ->required()
+                                    ->maxLength(100),
+                                TextInput::make('ai_base_url')
+                                    ->label('Base URL (optional)')
+                                    ->url()
+                                    ->maxLength(500)
+                                    ->placeholder("Leave blank for the API format's own default endpoint")
+                                    ->helperText('e.g. DeepSeek: https://api.deepseek.com/chat/completions')
+                                    ->columnSpanFull(),
                                 TextInput::make('ai_model')
                                     ->label('Model')
                                     ->placeholder('claude-haiku-4-5-20251001')
@@ -225,6 +318,26 @@ class Integrations extends Page
                                 Placeholder::make('woocommerce_note')
                                     ->hiddenLabel()
                                     ->content('Save credentials here, then run (or re-run) the actual product import from Storefront Settings → WooCommerce Import.')
+                                    ->columnSpanFull(),
+                                TextInput::make('woocommerce_credentials.webhook_secret')
+                                    ->label('Order webhook secret')
+                                    ->password()
+                                    ->revealable()
+                                    ->maxLength(255)
+                                    ->suffixAction(
+                                        Action::make('generateWoocommerceWebhookSecret')
+                                            ->icon(Heroicon::ArrowPath)
+                                            ->action(fn (Set $set) => $set('woocommerce_credentials.webhook_secret', Str::random(40))),
+                                    )
+                                    ->helperText('Must match exactly what you paste as the Secret when creating the webhook in WooCommerce.')
+                                    ->columnSpanFull(),
+                                Placeholder::make('woocommerce_webhook_url')
+                                    ->label('Webhook delivery URL')
+                                    ->content(fn (): string => $this->companyId ? route('woocommerce.webhook', $this->companyId) : 'Save the company first.')
+                                    ->columnSpanFull(),
+                                Placeholder::make('woocommerce_webhook_note')
+                                    ->hiddenLabel()
+                                    ->content('Order sync (WooCommerce → ERP) uses a webhook, not the import button above: in WordPress go to WooCommerce → Settings → Advanced → Webhooks → Add webhook. Set Topic to "Order updated" (it covers created/updated/deleted), Delivery URL to the URL above, and Secret to the same secret set above — the two must match exactly.')
                                     ->columnSpanFull(),
                             ])
                             ->columns(2),
@@ -305,7 +418,9 @@ class Integrations extends Page
         if ($this->canManageAi()) {
             $aiSettings->save($company, [
                 'enabled' => $state['ai_enabled'] ?? false,
+                'api_format' => $state['ai_api_format'] ?? null,
                 'provider' => $state['ai_provider'] ?? null,
+                'base_url' => $state['ai_base_url'] ?? null,
                 'model' => $state['ai_model'] ?? null,
                 'confidence_threshold' => $state['ai_confidence_threshold'] ?? null,
                 'max_consecutive_ai_replies' => $state['ai_max_consecutive_ai_replies'] ?? null,
