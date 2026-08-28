@@ -70,6 +70,37 @@ class MetaGraphService
         }
     }
 
+    /**
+     * Approved message templates for this WABA -- the only templates Meta
+     * will actually deliver for a cold, business-initiated send (broadcasts,
+     * follow-up reminders). Never surface PENDING/REJECTED templates to a
+     * picker; queuing a send against one of those just fails at Meta.
+     *
+     * @return array<int, array{name: string, language: string, category: ?string}>
+     */
+    public function listMessageTemplates(ConversationChannel $channel): array
+    {
+        $this->requireWhatsAppWaba($channel);
+
+        $response = $this->request(
+            'GET',
+            rawurlencode((string) $channel->waba_id).'/message_templates',
+            (string) $channel->access_token,
+            ['fields' => 'name,status,language,category', 'limit' => 200],
+        );
+
+        return collect((array) ($response['data'] ?? []))
+            ->filter(fn (mixed $template): bool => is_array($template) && ($template['status'] ?? null) === 'APPROVED')
+            ->map(fn (array $template): array => [
+                'name' => (string) $template['name'],
+                'language' => (string) ($template['language'] ?? 'en'),
+                'category' => $template['category'] ?? null,
+            ])
+            ->unique(fn (array $template): string => $template['name'].'|'.$template['language'])
+            ->values()
+            ->all();
+    }
+
     /** @return array<string, mixed> */
     public function subscribeWhatsApp(ConversationChannel $channel): array
     {

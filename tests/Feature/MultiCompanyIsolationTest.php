@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Account;
 use App\Models\AuditLog;
+use App\Models\Broadcast;
 use App\Models\Category;
 use App\Models\ChannelPartnerPayout;
 use App\Models\ChatOrderLink;
@@ -109,6 +110,7 @@ class MultiCompanyIsolationTest extends TestCase
             SettlementPayout::class, ChannelPartnerPayout::class,
             MetaAdAccount::class, MetaAdCampaign::class, MetaAdSet::class, MetaAd::class, MetaAdProposal::class, MetaAudience::class,
             Offer::class, OfferItem::class, ProductReview::class,
+            Broadcast::class,
         ];
 
         foreach ($models as $modelClass) {

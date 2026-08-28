@@ -52,6 +52,7 @@ class Customer extends Model implements AuthenticatableContract
         'opening_balance',
         'current_balance',
         'is_active',
+        'opted_out_at',
     ];
 
     protected $hidden = [
@@ -76,6 +77,7 @@ class Customer extends Model implements AuthenticatableContract
         'login_otp_expires_at' => 'datetime',
         'login_otp_sent_at' => 'datetime',
         'login_otp_attempts' => 'integer',
+        'opted_out_at' => 'datetime',
     ];
 
     protected static function booted(): void

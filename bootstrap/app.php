@@ -24,6 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->hourly()
             ->withoutOverlapping()
             ->onOneServer();
+        $schedule->command('crm:send-follow-up-reminders')
+            ->everyFifteenMinutes()
+            ->withoutOverlapping()
+            ->onOneServer();
         $schedule->command('storefront:retry-meta-events')
             ->everyTenMinutes()
             ->withoutOverlapping()

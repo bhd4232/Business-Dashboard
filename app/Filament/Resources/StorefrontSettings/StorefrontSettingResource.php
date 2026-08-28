@@ -1006,6 +1006,30 @@ class StorefrontSettingResource extends Resource
                 ->collapsible()
                 ->collapsed(),
 
+            Section::make('Lead Follow-up Reminders')
+                ->columnSpanFull()
+                ->description('When a lead\'s next follow-up date arrives, the assigned staff member is notified in-app, and (when enabled here) the lead is messaged over WhatsApp with an SMS fallback. Runs every 15 minutes via the scheduler. Uses the same SMS gateway and WhatsApp Chat Channel configured above.')
+                ->schema([
+                    Toggle::make('lead_follow_up_reminders_enabled')
+                        ->label('Message the lead automatically')
+                        ->default(false)
+                        ->helperText('Staff are always notified in-app when a follow-up is due, regardless of this toggle.')
+                        ->columnSpanFull(),
+                    TextInput::make('notification_credentials.lead_follow_up_whatsapp_template_name')
+                        ->label('WhatsApp template name')
+                        ->maxLength(100)
+                        ->helperText('Meta-approved template with one body variable: the lead\'s name.'),
+                    Textarea::make('notification_credentials.lead_follow_up_sms_body')
+                        ->label('SMS fallback message')
+                        ->rows(3)
+                        ->maxLength(500)
+                        ->placeholder('Hi {{name}}, following up on your interest — reply to this SMS or call us any time.')
+                        ->helperText('Sent when the WhatsApp template is empty, unset, or fails to deliver. Use {{name}} as a placeholder.'),
+                ])
+                ->columns(2)
+                ->collapsible()
+                ->collapsed(),
+
             Section::make('WooCommerce Import')
                 ->columnSpanFull()
                 ->description('Optional. Save these credentials first, then run the sync here to pull published products from the old WooCommerce site.')
@@ -1075,6 +1099,7 @@ class StorefrontSettingResource extends Resource
             'checkout',
             'integrations',
             'integrations',
+            'notifications',
             'notifications',
             'integrations',
             'navigation_seo',
