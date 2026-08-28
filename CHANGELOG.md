@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-08-28
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **Lead CRM: WhatsApp→SMS fallback, Bulk/Broadcast messaging, and follow-up auto-reminders.** Researched whether a third-party unified-messaging platform (sent.dm) was worth integrating; found that standard Bangladeshi bulk SMS routes are one-way (customers cannot reply to a masked sender ID — a real telecom-route limitation, not a gateway API gap), so true two-way SMS threading was out of scope and the existing WhatsApp Inbox stays the one real two-way channel. Built the three approved pieces natively instead, on top of the existing WhatsApp Cloud API integration and the generic HTTP SMS gateway already used for OTP/abandoned-cart (no new outside platform, no extra monthly fee):
@@ -21,7 +25,6 @@ All notable production changes to Business Dashboard are documented here.
 - New scheduled command `crm:send-follow-up-reminders` (registered in `bootstrap/app.php`, `everyFifteenMinutes()`) needs the existing Laravel scheduler cron entry already running in production — no new cron setup required. Broadcast sending (`App\Jobs\SendBroadcastJob`) goes through the existing queue connection like every other queued job in this app — a broadcast queued while no queue worker is running simply sits at `status: queued` until one picks it up.
 - `Broadcast` is added to `MultiCompanyIsolationTest`'s per-model scope contract; `BroadcastRecipient` is deliberately excluded, scoped only through its parent `Broadcast` — same pattern as `ConversationMessage` under `Conversation`.
 - Full `php artisan test`: 831 passed against this branch's base commit; the 52 failures present there are pre-existing and unrelated (every one is a Filament admin-page-render test failing on `Vite manifest not found` — this sandbox never had `npm install`/`npm run build` run in it) — confirmed identical before and after this round's changes via a clean `git stash -u` baseline diff. No frontend build assets changed (only a small Blade badge in `resources/views/filament/pages/inbox.blade.php`), so `npm run build` was not required for this round. Re-verified after merging in `main` (v2.5.0) — see this round's merge note in `UPDATE_NOTES.md` for the post-merge test run.
-
 ## [2.5.0] - 2026-08-28
 
 **Release type:** Minor Feature Update
