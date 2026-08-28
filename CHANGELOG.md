@@ -4,6 +4,14 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The homepage hero banner was cropped wrong on both desktop and mobile** — its container's height was driven by a fraction of the browser's viewport height, completely unrelated to the banner image's actual width:height ratio. On any window where those didn't line up (most of them), the banner zoomed in and cut off the image's own headline text and bottom content. The banner now sizes itself from its declared ratio (3:1 desktop, ~2.8:1 mobile — the same ratio the Hero Slides admin form already tells you to upload at), and on mobile it now shows the full image with no cropping ("fit to screen") instead of cutting off the edges.
+
+### Technical Notes
+
+- `resources/css/app.css`'s `.storefront-image-banner` rule changed from `height: calc(100vh / N)` to `aspect-ratio` (`45 / 16` mobile, `3 / 1` desktop from `1024px` up), matching `App\Support\StorefrontThemeRegistry::BANNER_SPECS`. Mobile now uses `object-fit: contain` on the slide `<img>` (was `object-fit: cover` via a Tailwind class on the element, removed so the CSS above is the single source of truth); desktop keeps `cover`. Also made the ratio itself explicit at the front of each Hero Slides form field's helper text (`StorefrontThemeRegistry::BANNER_SPECS['note']`) instead of only mentioning it mid-sentence. Regression test `StorefrontBannerTest::test_banner_height_uses_the_requested_viewport_ratios` (which had locked in the old, buggy vh-based CSS) replaced with `test_banner_height_is_driven_by_its_declared_aspect_ratio_not_viewport_height` and `test_banner_fits_to_screen_on_mobile_without_cropping`.
+
 ## [2.5.0] - 2026-08-28
 
 **Release type:** Minor Feature Update

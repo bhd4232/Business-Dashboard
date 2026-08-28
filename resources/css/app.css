@@ -36,9 +36,25 @@ body[data-storefront-theme='marketplace_pro'] {
     color: var(--storefront-dark-text);
 }
 
+/*
+ * Sized by the banner's actual aspect ratio (see
+ * App\Support\StorefrontThemeRegistry::BANNER_SPECS), not by viewport
+ * height -- the old `height: 100vh / N` rule ignored the image's real
+ * width:height ratio entirely, so on any window whose height didn't
+ * happen to match that fraction, object-cover zoomed in and cropped off
+ * the banner's own headline/icons (reported by the owner on Marketplace
+ * Pro's homepage). Mobile uses `object-fit: contain` ("fit to screen")
+ * so nothing is ever cropped on narrow screens even if an older slide
+ * image predates the ratio-locked upload editor; desktop keeps
+ * `cover` since the wide banner has room to fill edge-to-edge.
+ */
 .storefront-image-banner {
-    height: calc(100vh / 6);
-    height: calc(100svh / 6);
+    width: 100%;
+    aspect-ratio: 45 / 16;
+}
+
+.storefront-image-banner img {
+    object-fit: contain;
 }
 
 .marketplace-container,
@@ -446,8 +462,11 @@ body[data-storefront-theme='marketplace_pro'] {
 
 @media (min-width: 1024px) {
     .storefront-image-banner {
-        height: calc(100vh / 3);
-        height: calc(100svh / 3);
+        aspect-ratio: 3 / 1;
+    }
+
+    .storefront-image-banner img {
+        object-fit: cover;
     }
 
     .marketplace-trust-grid {

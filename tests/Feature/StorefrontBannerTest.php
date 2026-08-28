@@ -184,12 +184,34 @@ class StorefrontBannerTest extends TestCase
             ->assertSee('Overlay this CTA');
     }
 
-    public function test_banner_height_uses_the_requested_viewport_ratios(): void
+    public function test_banner_height_is_driven_by_its_declared_aspect_ratio_not_viewport_height(): void
     {
+        // Regression guard: the banner container must size itself from the
+        // image's own ratio (matching StorefrontThemeRegistry::BANNER_SPECS),
+        // not a viewport-height fraction — a vh-based height ignores the
+        // image's actual width:height ratio, so object-cover ends up
+        // zooming in and cropping off the banner's own headline/icons on
+        // any window whose height doesn't happen to match that fraction.
         $css = file_get_contents(resource_path('css/app.css'));
 
-        $this->assertStringContainsString('height: calc(100svh / 6);', $css);
-        $this->assertStringContainsString('height: calc(100svh / 3);', $css);
+        $this->assertStringContainsString('aspect-ratio: 45 / 16;', $css);
+        $this->assertStringContainsString('aspect-ratio: 3 / 1;', $css);
+        $this->assertStringNotContainsString('100vh / 6', $css);
+        $this->assertStringNotContainsString('100vh / 3', $css);
+    }
+
+    public function test_banner_fits_to_screen_on_mobile_without_cropping(): void
+    {
+        // Mobile uses object-fit: contain ("fit to screen") so a slide
+        // image is never cropped on a narrow screen, even one uploaded
+        // before the ratio-locked image editor existed; desktop keeps
+        // object-fit: cover since the wide banner has room to fill
+        // edge-to-edge.
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString('.storefront-image-banner img {', $css);
+        $this->assertStringContainsString('object-fit: contain;', $css);
+        $this->assertStringContainsString('object-fit: cover;', $css);
     }
 
     private function createPublishedStorefrontCompany(string $name, string $domain): Company

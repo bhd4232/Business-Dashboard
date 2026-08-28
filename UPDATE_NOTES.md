@@ -2,6 +2,39 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-28 - Hero banner image cropped wrong on desktop and mobile
+
+Reason:
+
+- Owner (screenshot of offer.zamzamgadgetbd.com's homepage banner, badly cropped — the "RECHARGEABLE SOLAR FAN EP-606" headline cut off at the top edge, the icon-label row cut off at the bottom, only the middle fan graphic fully visible): "banner এর রেশিও অনুযায়ী ইমেজ ঠিকভাবে নেই, এই ব্যানারের রেশিও কত সেটা hero slides এ যুক্ত কর। এবং মোবাইলের জন্য ফিট টু স্ক্রিন অপশন সেট করবে।" (the image isn't fitted properly to the banner's ratio; add what ratio this banner is to the Hero Slides admin form, and set a fit-to-screen option for mobile).
+
+Investigation:
+
+- The Hero Slides admin form (`StorefrontSlideResource`) already told admins the recommended ratio (~3:1, 1920×640) and locked the image editor to it on upload — that part existed. The actual bug was in how the banner is *displayed*: `.storefront-image-banner` in `resources/css/app.css` set its height from a fraction of the browser's viewport height (`calc(100vh / 6)` mobile, `calc(100vh / 3)` desktop) — completely unrelated to the image's real 3:1 ratio. Combined with `object-fit: cover`, any window whose height didn't happen to match that fraction (nearly all of them) made the banner zoom in and crop off the top/bottom of the image — exactly the screenshot. Verified with a synthetic 1920×640 test banner rendered at the reported window size (1864px wide): the old CSS cropped off both the top and bottom bars; confirmed by direct comparison, not guesswork.
+
+What changed:
+
+- The banner container now sizes itself from its declared aspect ratio (`aspect-ratio: 45/16` mobile, `3/1` desktop) instead of viewport height, so it always matches the ratio the Hero Slides form already tells admins to upload at.
+- On mobile, the image now uses `object-fit: contain` ("fit to screen") instead of `cover`, so the full banner is always visible with no cropping, even for an older slide image uploaded before the ratio-locked editor existed. Desktop keeps `cover` since the wide banner has room to fill edge-to-edge.
+- The Hero Slides form's helper text now leads with the ratio explicitly ("Ratio 3:1 — ...", "Ratio 2.8:1 (optional) — ...") instead of mentioning it mid-sentence.
+
+Important changed files:
+
+- `resources/css/app.css` (`.storefront-image-banner` rule, both breakpoints)
+- `resources/views/storefront/partials/image-banner.blade.php` (removed the Tailwind `object-cover` class from the slide `<img>` so the CSS above is the single source of truth for object-fit)
+- `app/Support/StorefrontThemeRegistry.php` (`BANNER_SPECS` helper-text wording)
+- `tests/Feature/StorefrontBannerTest.php` (replaced the test that had locked in the old, buggy vh-based CSS with two tests covering the new aspect-ratio + fit-to-screen behavior)
+
+Verification:
+
+- `php artisan test tests/Feature/StorefrontBannerTest.php tests/Feature/StorefrontSlideTest.php` — 12 passed, 0 failed, 52 assertions.
+- `php artisan test --filter=Storefront` (full Storefront-related surface) — 184 passed, 0 failed, 1405 assertions.
+- `npm run build` — succeeded.
+- Manually verified in the browser preview with a synthetic banner image at the exact reported window size (1864×900) and at mobile (375×812): old CSS crops the top/bottom off; new CSS shows the full image at both sizes, with visible letterboxing (not cropping) on mobile.
+- Full `php artisan test` suite — 979 passed, 0 failed, 5361 assertions.
+
+Commit status: Committed and pushed (approved by owner: "কমিট এবং পুশ কর, সকল আন কমিট করা কাজ সহ পুশ করে দেও").
+
 ## 2026-08-28 - WooCommerce order total went wrong again when an item was unmatched
 
 Reason:
@@ -31,7 +64,7 @@ Verification:
 - `php artisan test tests/Feature/WooCommerceOrderWebhookTest.php tests/Feature/WooCommerceOrderStatusPushTest.php tests/Feature/WooCommerceImportTest.php` — 23 passed, 0 failed, 92 assertions (no regressions).
 - Full `php artisan test` suite — 978 passed, 0 failed, 5356 assertions.
 
-Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+Commit status: Committed and pushed as `fa2f1588` (approved by owner: "কমিট করে পুশ কর"), together with the Voucher/Account/Expense preview-popup feature below.
 
 ## 2026-08-28 - Voucher/Account/Expense cards open a preview popup on click
 
@@ -65,7 +98,7 @@ Verification:
 - `npm run build` — succeeded.
 - Full `php artisan test` suite — 976 passed, 0 failed, 5345 assertions.
 
-Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+Commit status: Committed and pushed as `fa2f1588` (approved by owner: "কমিট করে পুশ কর"), together with the WooCommerce order-total fix above.
 
 ## 2026-08-28 - Print button still didn't work inside the ZamZam Dashboard Android app
 
@@ -100,7 +133,7 @@ Verification:
 - The native Java bridge itself can't be exercised by PHPUnit — no Android SDK/emulator available in this environment. It will compile-check for real when CI's `build-android` job (`./gradlew assembleDebug`) runs on push; standard Android print APIs (`PrintManager`, `PrintAttributes.Builder`, `WebView.createPrintDocumentAdapter`), same shape as the existing `PushAvailabilityBridge`.
 - Full `php artisan test` suite — 972 passed, 0 failed, 5326 assertions (confirmed together with the stat-card compacting change below).
 
-Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+Commit status: Committed and pushed as `d3be342a` (approved by owner: "কমিট এবং পুশ কর"), together with the stat-card compacting change below. Auto-cut to v2.4.3.
 
 ## 2026-08-28 - Compacted the Vouchers/Accounts/Expenses summary cards
 
@@ -129,7 +162,7 @@ Verification:
 - `npm run build` — succeeded; confirmed all 3 new CSS classes (`zz-voucher-summary-stat`, `zz-account-summary-stat`, `zz-expense-summary-stat`) are present in the compiled `public/build/assets/theme-*.css`.
 - Full `php artisan test` suite (together with the Android print-bridge fix above) — 972 passed, 0 failed, 5326 assertions.
 
-Commit status: Not committed yet — pending owner approval, per CLAUDE.md.
+Commit status: Committed and pushed as `d3be342a` (approved by owner: "কমিট এবং পুশ কর"), together with the Android print-bridge fix above. Auto-cut to v2.4.3.
 
 ## 2026-08-27 - Mobile print button did not open the print dialog
 

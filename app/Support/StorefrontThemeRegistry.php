@@ -34,31 +34,31 @@ final class StorefrontThemeRegistry
             'desktop' => [
                 'width' => 1920,
                 'height' => 640,
-                'note' => 'Extra-wide banner, at least 1920×640px (about 3:1). It fills the viewport width and is cropped to one-third of the desktop screen height.',
+                'note' => 'Ratio 3:1 — extra-wide banner, at least 1920×640px. Shown edge-to-edge across the desktop screen width, cropped to fit the ratio.',
             ],
             'mobile' => [
                 'width' => 900,
                 'height' => 320,
-                'note' => 'Optional. Use a wide mobile banner, at least 900×320px. It is cropped to one-sixth of the mobile screen height.',
+                'note' => 'Ratio 2.8:1 (optional) — wide mobile banner, at least 900×320px. Shown in full on phones without cropping ("fit to screen").',
             ],
         ],
         self::MARKETPLACE_PRO => [
             'desktop' => [
                 'width' => 1920,
                 'height' => 640,
-                'note' => 'Extra-wide banner, at least 1920×640px (about 3:1), same as Built-in — every Marketplace Pro homepage template shares this banner slot.',
+                'note' => 'Ratio 3:1 — extra-wide banner, at least 1920×640px, same as Built-in. Shown edge-to-edge across the desktop screen width, cropped to fit the ratio. Every Marketplace Pro homepage template shares this banner slot.',
             ],
             'mobile' => [
                 'width' => 900,
                 'height' => 320,
-                'note' => 'Optional. Use a wide mobile banner, at least 900×320px. It is cropped to one-sixth of the mobile screen height.',
+                'note' => 'Ratio 2.8:1 (optional) — wide mobile banner, at least 900×320px. Shown in full on phones without cropping ("fit to screen").',
             ],
         ],
         self::NOOR_SOLAR => [
             'desktop' => [
                 'width' => 1200,
                 'height' => 900,
-                'note' => 'Hero visual, at least 1200×900px (4:3). Noor Solar shows only the first slide as a single hero image, not a carousel.',
+                'note' => 'Ratio 4:3 — hero visual, at least 1200×900px. Noor Solar shows only the first slide as a single hero image, not a carousel.',
             ],
             'mobile' => null,
         ],
