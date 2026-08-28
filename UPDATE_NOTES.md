@@ -35,6 +35,61 @@ Verification:
 
 Commit status: Committed and pushed (approved by owner: "কমিট এবং পুশ কর, সকল আন কমিট করা কাজ সহ পুশ করে দেও").
 
+## 2026-08-28 - Lead CRM: WhatsApp→SMS fallback, Bulk/Broadcast messaging, follow-up auto-reminders
+
+Reason:
+
+- Owner asked whether sent.dm (a unified WhatsApp/SMS/iMessage/RCS messaging platform) had any use for the Lead CRM. Researched it plus Bangladeshi SMS gateway pricing (BulkSMSBD/Alpha SMS/Greenweb/MiMSMS etc.) before answering: standard Bangladeshi bulk SMS routes are one-way — a customer cannot reply to a masked sender ID, a real telecom-route limitation confirmed via sent.dm's own BD guidance, not something specific to any one gateway. True two-way SMS needs a separate "dedicated long code" product (e.g. MiMSMS ~৳499/month) the owner hasn't asked for. Recommended against adopting sent.dm (US-centric pricing/infra, and it would compete with rather than complement the already-deep WhatsApp Cloud API integration) and instead proposed building the real value natively: SMS fallback when WhatsApp fails, bulk/broadcast messaging, and follow-up auto-reminders — all on top of the existing WhatsApp Inbox and the generic SMS gateway already used for storefront OTP/abandoned-cart. Owner picked all three via the options presented, then asked to research the cheapest BD SMS gateways (informational only, no code changes from that), then asked to plan and build.
+- Clarified scope before planning: follow-up reminders notify both the assigned staff member and the lead/customer; WhatsApp fallback triggers on any failure, not just delivery-specific ones; broadcasts target both Leads and Customers; SMS stays one-way/outbound only (no inbound webhook — confirmed impractical for the standard BD route, not attempted).
+
+What happened:
+
+- **WhatsApp → SMS fallback** (`app/Services/Crm/ConversationMessengerService.php`): when an outgoing WhatsApp send throws (any reason — closed reply window, invalid token, Meta outage), the existing failure bookkeeping is unchanged, but a new `attemptSmsFallback()` now also looks up the company's `StorefrontSetting` and — if an SMS gateway is configured — resends the same body over SMS and logs a second `ConversationMessage` in the same thread with a new `delivery_channel = 'sms'` column, so the Inbox shows "WhatsApp failed → sent via SMS" instead of a dead end. New migration `add_delivery_channel_to_conversation_messages_table`. Inbox blade shows a "via SMS" badge on that message.
+- **Bulk/Broadcast messaging** (new **CRM → Broadcasts**): new `Broadcast`/`BroadcastRecipient` models (migration `create_broadcasts_tables`, also adds `opted_out_at` to `leads`/`customers`), `App\Services\Crm\BroadcastService` (`buildRecipients()` resolves Lead/Customer filters, excludes opted-out and blank-phone rows, dedupes by normalized phone; `send()` goes WhatsApp-template-first with SMS fallback per recipient, chunked and rate-limited), `App\Jobs\SendBroadcastJob` (queued, `CompanyContext`-scoped like `MarkConversationReadJob`), and a full `BroadcastResource` under the existing `Crm` cluster (`crm.manage`-gated). `MetaGraphService::listMessageTemplates()` is new — fetches only Meta-`APPROVED` templates for the selected WABA live, so the picker can never queue a broadcast against an unapproved/mistyped template.
+- **Follow-up auto-reminders**: new `App\Console\Commands\SendLeadFollowUpReminders` (`crm:send-follow-up-reminders`, registered `everyFifteenMinutes()` in `bootstrap/app.php`), migration `add_lead_follow_up_reminders_to_storefront_settings_and_leads` (`follow_up_reminded_at` on `leads`, cleared automatically by a new `Lead::booted()` hook whenever `next_follow_up_at` changes; `lead_follow_up_reminders_enabled` toggle on `storefront_settings`). Staff notification reuses the existing bell/push infrastructure via a new `BusinessNotificationService::notifyUser()` (single-recipient sibling of the existing `notifyCompany()`/`notifySuperAdmins()`). Customer-facing message content (WhatsApp template name, SMS fallback body with `{{name}}`/`{{company}}` placeholders) is admin-configurable under Storefront Settings → new "Lead Follow-up Reminders" section — never hardcoded, per CLAUDE.md.
+- **Bug found and fixed while adding that new settings section**: `StorefrontSettingResource`'s tab layout (Publishing/Theme/Design/.../Integrations/Notifications/...) is driven by a positional index→tab-key array parallel to its list of top-level form sections. Inserting the new section without updating that array silently shifted every later section (WooCommerce Import, Navigation Menus, SEO) onto the wrong tab — caught by an existing test (`PhaseFourAdminPagesTest::test_storefront_settings_edit_synchronizes_company_domain_fields`) failing after the change, not by inspection. Fixed by inserting the matching key into the array.
+
+Important changed files:
+
+- `app/Services/Crm/ConversationMessengerService.php`, `app/Models/ConversationMessage.php`, `database/migrations/2026_08_28_000100_add_delivery_channel_to_conversation_messages_table.php`, `resources/views/filament/pages/inbox.blade.php`
+- `app/Models/Broadcast.php`, `app/Models/BroadcastRecipient.php`, `app/Services/Crm/BroadcastService.php`, `app/Jobs/SendBroadcastJob.php`, `app/Filament/Resources/Broadcasts/**`, `app/Services/Meta/MetaGraphService.php` (`listMessageTemplates()`), `database/migrations/2026_08_28_000300_create_broadcasts_tables.php`, `app/Models/Lead.php`, `app/Models/Customer.php`
+- `app/Console/Commands/SendLeadFollowUpReminders.php`, `app/Services/BusinessNotificationService.php` (`notifyUser()`), `app/Models/StorefrontSetting.php`, `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`, `bootstrap/app.php`, `database/migrations/2026_08_28_000200_add_lead_follow_up_reminders_to_storefront_settings_and_leads.php`
+- `tests/Feature/WhatsAppSmsFallbackTest.php`, `tests/Feature/BroadcastTest.php`, `tests/Feature/LeadFollowUpReminderTest.php`, `tests/Feature/MultiCompanyIsolationTest.php` (added `Broadcast::class`)
+
+Verification:
+
+- `php artisan test --filter=WhatsAppSmsFallbackTest` — 3 passed. `--filter=BroadcastTest` — 6 passed (includes a Livewire form smoke test for the new resource). `--filter=LeadFollowUpReminderTest` — 9 passed. `--filter=MultiCompanyIsolationTest` — the model-scope-contract test passed.
+- Full `php artisan test` — 831 passed, 52 failed. All 52 confirmed pre-existing and unrelated (Filament admin-page-render tests failing on a missing Vite build manifest — this sandbox never ran `npm install`/`npm run build`): diffed the exact set of failing test names against a clean `git stash -u` baseline run on the same unbuilt sandbox and they're identical, byte-for-byte, before and after this round's changes.
+- No frontend build assets changed (only a Blade badge), so `npm run build` was not required.
+
+Commit status: Approved by owner in chat on 2026-08-28 ("হ্যাঁ, কমিট এবং পুশ কর") — committed as `632e11e`, pushed to `origin/claude/lead-crm-requirements-415de2`, opened as PR #6. `main` had since moved ahead to `v2.5.0` (8 commits); merged `origin/main` into this branch to resolve the resulting conflict (`CHANGELOG.md`/`UPDATE_NOTES.md` only — every other overlapping file auto-merged cleanly) and re-ran the full test suite against the merged head before pushing.
+
+## 2026-08-28 - Push Notification Settings: info tooltip on every field showing exactly where to find it in Firebase Console
+
+Reason:
+
+- Owner reported "মোবাইল অ্যাপে তো কোন নটিফিকেশন আশে না" (no notifications arriving on the mobile app). Diagnosis found the actual cause: on the **Settings → Push Notification Settings** page, "Enable push notifications" was checked, but every other field (API Key, Auth Domain, Project ID, Storage Bucket, Messaging Sender ID, App ID, VAPID Key, Service Account JSON) was still blank — so `FirebaseHttpV1Sender::isConfigured()` never has real credentials to send with, and no push has ever gone out. This isn't a code bug — it just wasn't clear from the page alone exactly which Firebase Console screen and field name each input corresponds to. Owner asked for an (i) info icon on every field showing its exact path.
+
+What changed:
+
+- Added an `x-filament::icon-button` info icon (`heroicon-o-information-circle`, matching the existing tooltip-icon pattern already used elsewhere in the admin panel, e.g. `inbox.blade.php`) next to every field label on the page. Hovering/tapping it shows the exact Firebase Console path and field name to copy (e.g. "Project settings → General → Your apps → Web app → SDK config snippet → apiKey", or "Project settings → Service accounts → Generate new private key → paste the downloaded file's content"). Purely a UI/documentation addition — no behavior, validation, or storage changes.
+
+Important changed files:
+
+- `resources/views/filament/pages/push-notification-settings.blade.php`
+
+Notes:
+
+- The actual fix for "no notifications arriving" is operational, not code: the owner has since filled in the Web SDK Configuration/VAPID Key/Service Account JSON fields with their real Firebase project's values (confirmed via screenshots) and added a `FIREBASE_ANDROID_GOOGLE_SERVICES_JSON_BASE64` GitHub Actions repository secret so `build-android` can embed a real `google-services.json`. A fresh APK build (triggered by this push landing on `main`) still needs to be installed on the device, replacing the currently-installed pre-Firebase build, before push notifications can actually arrive there.
+
+Verification:
+
+- `php artisan test --filter=PushNotificationSettingsTest` — 4/4 passed.
+- Full `php artisan test` suite — 902/902 passed, 0 regressions.
+- No JS/CSS changes — `npm run build` not required.
+
+Commit status: Approved by owner in chat — committing and pushing to `main` now.
+
 ## 2026-08-28 - WooCommerce order total went wrong again when an item was unmatched
 
 Reason:

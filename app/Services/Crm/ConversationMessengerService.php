@@ -6,9 +6,11 @@ use App\Jobs\MarkConversationReadJob;
 use App\Models\Conversation;
 use App\Models\ConversationChannel;
 use App\Models\ConversationMessage;
+use App\Models\StorefrontSetting;
 use App\Models\User;
 use App\Services\Meta\MetaGraphException;
 use App\Services\Meta\MetaGraphService;
+use App\Services\StorefrontNotificationService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +22,10 @@ use Throwable;
  */
 class ConversationMessengerService
 {
-    public function __construct(protected MetaGraphService $meta) {}
+    public function __construct(
+        protected MetaGraphService $meta,
+        protected StorefrontNotificationService $notifications,
+    ) {}
 
     public function send(
         Conversation $conversation,
@@ -181,6 +186,8 @@ class ConversationMessengerService
                 $channel->recordDiagnosticError($safeMessage, 'outbound');
             }
 
+            $this->attemptSmsFallback($message, $conversation);
+
             return $message->refresh();
         }
 
@@ -204,6 +211,62 @@ class ConversationMessengerService
         }
 
         return $message->refresh();
+    }
+
+    /**
+     * Bangladesh's standard bulk SMS routes are one-way, so this can never
+     * become a reply thread -- it only exists to make sure the customer
+     * still hears from us when WhatsApp fails for any reason (session
+     * window closed, invalid token, Meta outage, etc). Runs best-effort:
+     * a fallback failure never turns an already-recorded WhatsApp failure
+     * into an exception.
+     */
+    protected function attemptSmsFallback(ConversationMessage $failedMessage, Conversation $conversation): void
+    {
+        if ($conversation->provider !== 'whatsapp') {
+            return;
+        }
+
+        $phone = trim((string) $conversation->contact_phone);
+
+        if ($phone === '' || blank($failedMessage->body)) {
+            return;
+        }
+
+        try {
+            $setting = StorefrontSetting::withoutGlobalScopes()
+                ->where('company_id', $conversation->company_id)
+                ->first();
+
+            if (! $setting || ! $this->notifications->smsConfigured($setting)) {
+                return;
+            }
+
+            if (! $this->notifications->sendSms($setting, $phone, (string) $failedMessage->body)) {
+                return;
+            }
+        } catch (Throwable $exception) {
+            Log::warning('WhatsApp SMS fallback failed.', [
+                'conversation_id' => $conversation->getKey(),
+                'exception' => $exception::class,
+            ]);
+
+            return;
+        }
+
+        ConversationMessage::query()->create([
+            'conversation_id' => $conversation->getKey(),
+            'direction' => 'outgoing',
+            'type' => $failedMessage->type,
+            'body' => $failedMessage->body,
+            'delivery_status' => 'sent',
+            'delivery_channel' => 'sms',
+            'sent_by' => $failedMessage->sent_by,
+            'generated_by' => $failedMessage->generated_by,
+            'sent_at' => now(),
+        ]);
+
+        $conversation->forceFill(['last_message_at' => now()])->saveQuietly();
     }
 
     protected function validateDelivery(Conversation $conversation, ?ConversationChannel $channel): void
