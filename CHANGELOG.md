@@ -196,6 +196,7 @@ All notable production changes to Business Dashboard are documented here.
 
 - Company Management's **Companies** list now follows the top-bar company switcher: a selected company shows only its own row, while **All Companies** shows the full permitted company list.
 - Monetary values now begin with a currency symbol throughout the app: Bangladeshi Taka renders as **৳** instead of `BDT`, while other supported currencies use their own familiar symbols. All BDT amount inputs use the same **৳** prefix, and currency-code fields clarify the expected `BDT (৳)` value.
+- **Settings → Push Notification Settings** now shows an (i) info icon next to every field, with the exact Firebase Console path and field name to copy (e.g. Project settings → General → Your apps → Web app → `apiKey`, or Project settings → Service accounts → Generate new private key). Helps pin down why push notifications aren't going out — most commonly because "Enable push notifications" was turned on but the actual credential fields underneath were never filled in and saved.
 
 ### Fixed
 

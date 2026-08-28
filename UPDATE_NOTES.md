@@ -31,6 +31,32 @@ Verification:
 
 Commit status: Approved by owner in chat on 2026-08-28 ("হ্যাঁ, কমিট এবং পুশ কর") — committed as `632e11e`, pushed to `origin/claude/lead-crm-requirements-415de2`, opened as PR #6. `main` had since moved ahead to `v2.5.0` (8 commits); merged `origin/main` into this branch to resolve the resulting conflict (`CHANGELOG.md`/`UPDATE_NOTES.md` only — every other overlapping file auto-merged cleanly) and re-ran the full test suite against the merged head before pushing.
 
+## 2026-08-28 - Push Notification Settings: info tooltip on every field showing exactly where to find it in Firebase Console
+
+Reason:
+
+- Owner reported "মোবাইল অ্যাপে তো কোন নটিফিকেশন আশে না" (no notifications arriving on the mobile app). Diagnosis found the actual cause: on the **Settings → Push Notification Settings** page, "Enable push notifications" was checked, but every other field (API Key, Auth Domain, Project ID, Storage Bucket, Messaging Sender ID, App ID, VAPID Key, Service Account JSON) was still blank — so `FirebaseHttpV1Sender::isConfigured()` never has real credentials to send with, and no push has ever gone out. This isn't a code bug — it just wasn't clear from the page alone exactly which Firebase Console screen and field name each input corresponds to. Owner asked for an (i) info icon on every field showing its exact path.
+
+What changed:
+
+- Added an `x-filament::icon-button` info icon (`heroicon-o-information-circle`, matching the existing tooltip-icon pattern already used elsewhere in the admin panel, e.g. `inbox.blade.php`) next to every field label on the page. Hovering/tapping it shows the exact Firebase Console path and field name to copy (e.g. "Project settings → General → Your apps → Web app → SDK config snippet → apiKey", or "Project settings → Service accounts → Generate new private key → paste the downloaded file's content"). Purely a UI/documentation addition — no behavior, validation, or storage changes.
+
+Important changed files:
+
+- `resources/views/filament/pages/push-notification-settings.blade.php`
+
+Notes:
+
+- The actual fix for "no notifications arriving" is operational, not code: the owner has since filled in the Web SDK Configuration/VAPID Key/Service Account JSON fields with their real Firebase project's values (confirmed via screenshots) and added a `FIREBASE_ANDROID_GOOGLE_SERVICES_JSON_BASE64` GitHub Actions repository secret so `build-android` can embed a real `google-services.json`. A fresh APK build (triggered by this push landing on `main`) still needs to be installed on the device, replacing the currently-installed pre-Firebase build, before push notifications can actually arrive there.
+
+Verification:
+
+- `php artisan test --filter=PushNotificationSettingsTest` — 4/4 passed.
+- Full `php artisan test` suite — 902/902 passed, 0 regressions.
+- No JS/CSS changes — `npm run build` not required.
+
+Commit status: Approved by owner in chat — committing and pushing to `main` now.
+
 ## 2026-08-28 - WooCommerce order total went wrong again when an item was unmatched
 
 Reason:
