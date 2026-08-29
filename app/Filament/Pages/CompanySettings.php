@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Clusters\CompanyManagement;
 use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Models\Company;
 use App\Services\CompanyContext;
 use App\Services\CompanySettingsService;
@@ -30,6 +31,7 @@ use Livewire\Attributes\Locked;
 class CompanySettings extends Page
 {
     use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
 
@@ -295,6 +297,7 @@ class CompanySettings extends Page
             ->getOpenableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
             ->getDownloadableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
             ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
+            ->hintAction(static::selectFromMediaHubAction(fn (): Company => $this->selectedCompany()))
             ->imageEditor()
             ->openable()
             ->downloadable();

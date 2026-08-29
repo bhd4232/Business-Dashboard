@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Categories\Schemas;
 
 use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Filament\Forms\Components\CategoryIconPicker;
 use App\Support\CompanyMedia;
 use App\Support\StorefrontCategoryIcons;
@@ -15,6 +16,7 @@ use Filament\Schemas\Schema;
 class CategoryForm
 {
     use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
 
     public static function configure(Schema $schema): Schema
     {
@@ -54,6 +56,7 @@ class CategoryForm
             ->disabled(fn ($record): bool => ! CompanyMedia::canResolve($record))
             ->imageEditor()
             ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
+            ->hintAction(static::selectFromMediaHubAction())
             ->downloadable()
             ->openable()
             ->columnSpanFull();

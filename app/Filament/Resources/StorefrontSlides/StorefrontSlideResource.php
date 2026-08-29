@@ -4,6 +4,7 @@ namespace App\Filament\Resources\StorefrontSlides;
 
 use App\Filament\Clusters\Storefront;
 use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Filament\Resources\StorefrontSlides\Pages\CreateStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\EditStorefrontSlide;
 use App\Filament\Resources\StorefrontSlides\Pages\ListStorefrontSlides;
@@ -37,6 +38,7 @@ use Illuminate\Support\Facades\Auth;
 class StorefrontSlideResource extends Resource
 {
     use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
 
     protected static ?string $model = StorefrontSlide::class;
 
@@ -96,6 +98,7 @@ class StorefrontSlideResource extends Resource
                         ->imageResizeTargetWidth(fn (Get $get): string => (string) StorefrontThemeRegistry::bannerSpec($get('theme'))['desktop']['width'])
                         ->imageResizeTargetHeight(fn (Get $get): string => (string) StorefrontThemeRegistry::bannerSpec($get('theme'))['desktop']['height'])
                         ->saveUploadedFileUsing(static::optimizeImageUpload())
+                        ->hintAction(static::selectFromMediaHubAction())
                         ->required(),
                     FileUpload::make('image_mobile')
                         ->label('Image (mobile)')
@@ -111,7 +114,8 @@ class StorefrontSlideResource extends Resource
                         ->disabled(fn (Get $get, ?StorefrontSlide $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
                         ->imageEditorAspectRatios(fn (Get $get): array => [static::bannerAspectRatio($get('theme'), 'mobile')])
-                        ->saveUploadedFileUsing(static::optimizeImageUpload()),
+                        ->saveUploadedFileUsing(static::optimizeImageUpload())
+                        ->hintAction(static::selectFromMediaHubAction()),
                     TextInput::make('cta_url')
                         ->label('Banner link (optional)')
                         ->url()

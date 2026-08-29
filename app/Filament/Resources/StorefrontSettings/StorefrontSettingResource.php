@@ -170,6 +170,11 @@ class StorefrontSettingResource extends Resource
                     Toggle::make('marketplace_business_accounts_enabled')
                         ->label('Business account callouts')
                         ->default(true),
+                    Toggle::make('marketplace_business_strip_enabled')
+                        ->label('Wholesale buyers banner')
+                        ->default(false)
+                        ->helperText('The "Built for repeat and wholesale buyers" banner with the Open business account button, shown near the bottom of the hero homepage.')
+                        ->visible(fn (Get $get): bool => $get('homepage_template') === StorefrontThemeRegistry::MARKETPLACE_HERO),
                     Toggle::make('marketplace_trust_strip_enabled')
                         ->label('Trust and service strip')
                         ->default(true),

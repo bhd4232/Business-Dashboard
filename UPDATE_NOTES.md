@@ -2,6 +2,43 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-29 - Media Hub: per-company image library with "Select From Media" on every image field
+
+Reason:
+
+- Owner: "মিডিয়া মেনেজের জন্য একটা মিডিয়া হাব বানাও যেখানে যেকোন মিডিয়া যুক্ত করা যাবে। অবশ্যই প্রত্যেক কম্পানির মিডিয়া আলাদা আলাদা হবে। আর যখন কোন ইমেজ/মিডিয়া ফাইল কোন ফিল্ডে যুক্ত করতে হয় তখন চাইলে মিডিয়া হাব থেকেও আগে থেকে আপলোড করা ফাইল থেকে মিডিয়া সিলেক্ট করতে পারবে... নতুন আপলোড করা ফাইলগুলো মিডিয়াতে শো করবে। এখন ইমেজ ফিল্ড যেমন এমনই থাকবে সেখানে শুধু 'Select From Media' অপশন যুক্ত করবে।" — build a Media Hub for managing media, company-isolated; any image field should be able to pick a previously-uploaded file from it instead of always uploading new; newly uploaded files should show up there automatically; existing image fields stay exactly as they are, just gain a "Select From Media" option. Confirmed scope: images only for now (owner's own follow-up line), R2/`public` storage stays exactly as configured today.
+- Follow-up, same day: "আগের এবং নতুন আপলোড হওয়া ইমেজ গুলোও তো শো করবে, এইটা তো স্বাভাবিক বিষয়। আগের আপ্লোড করা ইমেজও শো করবে।" — images uploaded *before* the Media Hub existed should show up too, not just new ones. Added a one-time backfill command for this (see below) rather than shipping the Hub with everyone's history empty.
+
+What changed:
+
+- **New Media Hub page** (Settings → Media Hub): a per-company grid of every image ever uploaded — upload any number of images at once, delete ones no longer needed. Each company only ever sees and can add/delete its own images (same `BelongsToCompany`/`CompanyScope` contract as everything else).
+- **"Select From Media" on every existing image field** — a small button next to the field opens a searchable picker (with thumbnails) of that company's Media Hub images; picking one drops it straight into the field exactly as if it had just been uploaded there, with a live preview before confirming. Works for both single-image and multi-image (gallery) fields. Every other option on these fields (crop/aspect-ratio editor, helper text, WebP compression) is unchanged.
+  - Applied to: Product (featured image, gallery images, variation images), Category image, Offer cover image, Storefront Page cover image, Hero Slides (desktop + mobile image), Storefront Settings (light/dark logo), Company logo, Company Settings (light/dark logo).
+- **Every image saved anywhere now also registers itself in the Media Hub automatically** — no extra step, it just starts appearing there the next time you open the Hub or the picker.
+- **New one-time command, `php artisan media:backfill`** — registers every image already sitting in Products (featured/gallery/variation), Categories, Offers, Storefront Pages/Slides/Settings, and Company logos, so existing images show up in the Media Hub too, not just new ones. Safe to re-run (already-registered paths are skipped, backed by a database-level unique index too); a path whose file no longer exists on disk is skipped without erroring. Not wired into any deploy step — run it once manually after this ships. Ran it locally: backfilled 39 images from the local demo data.
+
+Important changed files:
+
+- `database/migrations/2026_08_29_000000_create_media_table.php` (new `media` table, `(company_id, path)` unique index)
+- `app/Models/Media.php` (new — `recordUpload()`, `deleteFile()`)
+- `app/Console/Commands/BackfillMediaHub.php` (new — `media:backfill`)
+- `app/Filament/Concerns/OptimizesUploadedImages.php` (now also calls `Media::recordUpload()` after every optimized upload)
+- `app/Filament/Concerns/SelectableFromMediaHub.php` (new — the reusable "Select From Media" hint action)
+- `app/Filament/Resources/Media/MediaResource.php` + `app/Filament/Resources/Media/Pages/ListMedia.php` (new — the Media Hub page)
+- `app/Filament/Resources/Products/Schemas/ProductForm.php`, `app/Filament/Resources/Categories/Schemas/CategoryForm.php`, `app/Filament/Resources/Offers/Schemas/OfferForm.php`, `app/Filament/Resources/StorefrontPages/StorefrontPageResource.php`, `app/Filament/Resources/StorefrontSlides/StorefrontSlideResource.php`, `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`, `app/Filament/Resources/Companies/CompanyResource.php`, `app/Filament/Pages/CompanySettings.php` (each image field gains `->hintAction(static::selectFromMediaHubAction())`; OfferForm's `cover_image` also gained the standard WebP-compression save hook it was missing)
+- `tests/Feature/MediaHubTest.php`, `tests/Feature/MediaHubBackfillTest.php` (new), `tests/Feature/MultiCompanyIsolationTest.php` (`Media` added to the per-model scope contract)
+
+Verification:
+
+- `php artisan test tests/Feature/MediaHubTest.php tests/Feature/MediaHubBackfillTest.php tests/Feature/MultiCompanyIsolationTest.php` — 16 passed, 207 assertions.
+- `php artisan test tests/Feature/CategoryMediaTest.php tests/Feature/AdminNavigationClustersTest.php tests/Feature/CompanyScopedUniquenessTest.php tests/Feature/ProductCsvTest.php tests/Feature/ProductStockCsvTest.php tests/Feature/ProductStockFormTest.php tests/Feature/CompanySettingsTest.php tests/Feature/StorefrontSlideTest.php tests/Feature/StorefrontBannerTest.php` — all passed (one pre-existing test, `AdminNavigationClustersTest::test_settings_cluster_opens_the_page_available_to_non_admin_users`, needed `MediaResource`'s `navigationSort` moved from `6` to `7` to stop tying with `ReleaseNotes`, which the test hard-codes as the fallback page for a low-privilege role — fixed, not a real regression).
+- `php artisan media:backfill` run against the local demo database — backfilled 39 pre-existing images; re-ran immediately after — backfilled 0 (confirmed idempotent).
+- Full `php artisan test` (no `--env` flag, per CLAUDE.md), run after adding the backfill command — **1007 passed, 0 failed, 5469 assertions.** That run also included a separate, unrelated "Wholesale buyers banner" feature that happened to be sitting uncommitted in the same working tree at the time (from a different session); it is not part of this commit.
+- No frontend build assets changed (PHP + a new Filament resource/console command only), so `npm run build` was not required.
+- Not yet checked in a real browser — the picker's Livewire round-trip is verified via `callFormComponentAction` in `MediaHubTest`, but a manual click-through is worth doing before relying on it heavily.
+
+Commit status: NOT committed. Awaiting owner approval.
+
 ## 2026-08-28 - Hero banner image cropped wrong on desktop and mobile
 
 Reason:

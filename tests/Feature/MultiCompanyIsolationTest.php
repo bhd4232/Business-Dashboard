@@ -34,6 +34,7 @@ use App\Models\InvestmentProject;
 use App\Models\Investor;
 use App\Models\InvestorSecurityInstrument;
 use App\Models\Lead;
+use App\Models\Media;
 use App\Models\MetaAd;
 use App\Models\MetaAdAccount;
 use App\Models\MetaAdCampaign;
@@ -111,7 +112,7 @@ class MultiCompanyIsolationTest extends TestCase
             SettlementPayout::class, ChannelPartnerPayout::class,
             MetaAdAccount::class, MetaAdCampaign::class, MetaAdSet::class, MetaAd::class, MetaAdProposal::class, MetaAudience::class,
             Offer::class, OfferItem::class, ProductReview::class,
-            Broadcast::class,
+            Broadcast::class, Media::class,
         ];
 
         foreach ($models as $modelClass) {

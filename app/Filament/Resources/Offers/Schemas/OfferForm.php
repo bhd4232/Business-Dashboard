@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Offers\Schemas;
 
+use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Models\Offer;
 use App\Models\Product;
 use App\Models\ProductReview;
@@ -24,6 +26,9 @@ use Filament\Schemas\Schema;
 
 class OfferForm
 {
+    use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
+
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
@@ -70,12 +75,15 @@ class OfferForm
                         ->helperText('Used as the landing page hero banner and social share image. Automatically compressed to WebP.')
                         ->image()
                         ->maxSize(2048)
+                        ->tap(static::browserImagePrecompression())
                         ->disk(fn (): string => CompanyMedia::publicDiskName())
                         ->directory(fn (Get $get, ?Offer $record): string => CompanyMedia::publicDirectory('offers', $record, $get('company_id')))
                         ->fetchFileInformation(false)
                         ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
                         ->disabled(fn (Get $get, ?Offer $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
+                        ->saveUploadedFileUsing(static::optimizeImageUpload())
+                        ->hintAction(static::selectFromMediaHubAction())
                         ->columnSpanFull(),
                     Toggle::make('online_payment_required')
                         ->label('Require full online payment')

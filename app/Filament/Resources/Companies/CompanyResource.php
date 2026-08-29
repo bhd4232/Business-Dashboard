@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Companies;
 
 use App\Filament\Clusters\CompanyManagement;
 use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Filament\Resources\Companies\Pages\CreateCompany;
 use App\Filament\Resources\Companies\Pages\EditCompany;
 use App\Filament\Resources\Companies\Pages\ListCompanies;
@@ -45,6 +46,7 @@ use Illuminate\Validation\ValidationException;
 class CompanyResource extends Resource
 {
     use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
 
     protected static ?string $model = Company::class;
 
@@ -113,6 +115,7 @@ class CompanyResource extends Resource
                         ->disabled(fn (?Company $record): bool => ! $record?->exists || ! CompanyMedia::canResolve($record))
                         ->imageEditor()
                         ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
+                        ->hintAction(static::selectFromMediaHubAction())
                         ->downloadable()
                         ->openable(),
                     TextInput::make('phone')

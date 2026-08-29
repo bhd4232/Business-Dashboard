@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Filament\Resources\Categories\Schemas\CategoryForm;
 use App\Models\Category;
 use App\Models\Product;
@@ -23,6 +24,7 @@ use Illuminate\Support\Str;
 class ProductForm
 {
     use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
 
     public static function configure(Schema $schema): Schema
     {
@@ -217,6 +219,7 @@ class ProductForm
                             ->disabled(fn ($record): bool => ! CompanyMedia::canResolve($record))
                             ->imageEditor()
                             ->saveUploadedFileUsing(static::optimizeImageUpload())
+                            ->hintAction(static::selectFromMediaHubAction())
                             ->downloadable()
                             ->openable(),
                         FileUpload::make('gallery_images')
@@ -237,6 +240,7 @@ class ProductForm
                             ->disabled(fn ($record): bool => ! CompanyMedia::canResolve($record))
                             ->imageEditor()
                             ->saveUploadedFileUsing(static::optimizeImageUpload())
+                            ->hintAction(static::selectFromMediaHubAction())
                             ->downloadable()
                             ->openable(),
                     ])
@@ -301,6 +305,7 @@ class ProductForm
                                     ->disabled(fn ($record): bool => ! CompanyMedia::canResolve($record))
                                     ->imageEditor()
                                     ->saveUploadedFileUsing(static::optimizeImageUpload())
+                                    ->hintAction(static::selectFromMediaHubAction())
                                     ->columnSpanFull(),
                             ])
                             ->columns(2)

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Concerns;
 
+use App\Models\Media;
 use App\Services\ImageOptimizerService;
 use Closure;
 use Filament\Forms\Components\BaseFileUpload;
@@ -32,14 +33,26 @@ trait OptimizesUploadedImages
         int $maxWidth = ImageOptimizerService::MAX_WIDTH_STANDARD,
         int $quality = 82,
     ): Closure {
-        return static function (BaseFileUpload $component, TemporaryUploadedFile $file) use ($maxWidth, $quality): ?string {
-            return app(ImageOptimizerService::class)->optimizeAndStore(
+        return static function (BaseFileUpload $component, TemporaryUploadedFile $file, $record = null) use ($maxWidth, $quality): ?string {
+            $path = app(ImageOptimizerService::class)->optimizeAndStore(
                 $file,
                 $component->getDirectory(),
                 $component->getDiskName(),
                 $maxWidth,
                 $quality,
             );
+
+            // Every image saved through this shared upload path also shows
+            // up in the company's Media Hub, so it can be reused on another
+            // field later via "Select From Media" without re-uploading.
+            // Best-effort: a Media Hub bookkeeping failure (e.g. no company
+            // can be resolved yet on a brand-new, unsaved record) must never
+            // block the image upload itself.
+            if ($path !== null) {
+                rescue(fn () => Media::recordUpload($component->getDiskName(), $path, $record, file: $file), report: false);
+            }
+
+            return $path;
         };
     }
 

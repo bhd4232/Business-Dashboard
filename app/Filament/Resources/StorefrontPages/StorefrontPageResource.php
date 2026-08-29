@@ -4,6 +4,7 @@ namespace App\Filament\Resources\StorefrontPages;
 
 use App\Filament\Clusters\Storefront;
 use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Filament\Resources\StorefrontPages\Pages\CreateStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\EditStorefrontPage;
 use App\Filament\Resources\StorefrontPages\Pages\ListStorefrontPages;
@@ -34,6 +35,7 @@ use Illuminate\Support\Facades\Schema as SchemaFacade;
 class StorefrontPageResource extends Resource
 {
     use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
 
     protected static ?string $model = StorefrontPage::class;
 
@@ -94,6 +96,7 @@ class StorefrontPageResource extends Resource
                         ->disabled(fn (Get $get, ?StorefrontPage $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
                         ->saveUploadedFileUsing(static::optimizeImageUpload())
+                        ->hintAction(static::selectFromMediaHubAction())
                         ->columnSpanFull(),
                     RichEditor::make('content')
                         ->required()
