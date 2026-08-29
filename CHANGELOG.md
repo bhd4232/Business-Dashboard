@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-08-29
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **Storefront Settings → Site Theme → Marketplace Pro Features now has a "Wholesale buyers banner" toggle.** It controls the dark "Built for repeat and wholesale buyers / Open business account" banner shown near the bottom of the hero homepage (Marketplace Pro theme, Hero-driven template). The toggle only appears while that template is selected.
@@ -16,7 +20,6 @@ All notable production changes to Business Dashboard are documented here.
 
 - New migration `2026_08_29_000100_add_marketplace_business_strip_enabled_to_storefront_settings_table` adds `marketplace_business_strip_enabled` (boolean, default `false`) to `storefront_settings`. Run `php artisan migrate --force`. Existing rows receive `false`, so the banner disappears from any live hero storefront until an owner re-enables it.
 - `resources/views/storefront/themes/marketplace-pro/home.blade.php`'s hero bottom banner now gates on `marketplace_business_strip_enabled` alone (was `marketplace_business_accounts_enabled`); the campaign template's "Open a business account" card and its section wrapper still use `marketplace_business_accounts_enabled`. New regression test `StorefrontThemeTest::test_hero_wholesale_buyers_banner_is_hidden_by_default_and_shown_by_its_dedicated_toggle`. Blade + PHP only — no frontend build assets changed, so `npm run build` was not required.
-
 ## [2.7.0] - 2026-08-29
 
 **Release type:** Minor Feature Update
