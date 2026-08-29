@@ -2,6 +2,31 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-29 - Fix: the automatic-migration deploy step broke production startup
+
+Reason:
+
+- Owner pasted the real Coolify deploy log right after the previous commit went live: migrations ran correctly (`2026_08_29_010000_create_deployment_errors_table ... DONE`), but every one of the ~10 subsequent healthcheck attempts logged `/bin/bash: line 1: heroku-php-apache2: command not found`, and Coolify rolled the new container back to the last known-good one each time.
+- Diagnosed immediately: `nixpacks.toml`'s `[start]` override (added in commit `9d186960`) hardcoded `heroku-php-apache2 /app/public` as the web-server start command — a Railway/Heroku-buildpack assumption that doesn't hold on this app's actual host (a Contabo VPS running Coolify, confirmed by the owner earlier this session). Nixpacks' own auto-detected start command for this app is something else entirely; overriding it with a guess broke every deploy's container from ever passing its healthcheck.
+- The `;` (not `&&`) chaining I'd deliberately used worked exactly as designed in the sense that mattered most: the site itself never went down (Coolify's rollback-on-unhealthy caught it every time) — but no new deploy could ever go live either, which defeats the point.
+
+What changed:
+
+- Removed the `[start]` override from `nixpacks.toml` entirely — back to Nixpacks' own auto-detected start command (the one already proven working in production before this).
+- `php artisan deploy:migrate` now runs via **Coolify's native "Post-deployment Command"** setting for this application (Configuration → Advanced tab in the Coolify dashboard) instead of being chained into the container's own start command. This runs *inside* the container after Coolify has already confirmed it's healthy, so it never needs to know or guess how the app server itself is started — the exact class of mistake that caused this incident structurally can't recur here.
+- No PHP code changed — `App\Console\Commands\DeployMigrate` and everything downstream of it (`DeploymentErrorReporter`, the notification, the Deploy Error Logs page) is unaffected and already confirmed working from the real deploy log.
+
+Important changed files:
+
+- `nixpacks.toml`
+
+Verification:
+
+- No test suite impact (config-only change, no PHP/Blade touched) — the existing `DeployMigrateCommandTest`/`DeploymentErrorReporterTest` coverage still applies unchanged to the command itself.
+- Still needs the owner to add `php artisan deploy:migrate` as this application's Post-deployment Command in the Coolify dashboard, then trigger a redeploy to confirm the container now passes its healthcheck.
+
+Commit status: NOT committed. Awaiting owner approval.
+
 ## 2026-08-29 - App version rollback: roll back to a previous deployment from inside the dashboard
 
 Reason:

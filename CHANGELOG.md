@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **v2.10.0's automatic-migration deploy step broke production startup**: the `nixpacks.toml` `[start]` override hardcoded `heroku-php-apache2` as the web-server command (a Railway/Heroku-buildpack assumption), which doesn't exist on this app's actual host (a Contabo VPS running Coolify) — every deploy's new container failed its healthcheck with `heroku-php-apache2: command not found`. Coolify's own rollback-on-unhealthy behavior caught this automatically each time (the site never actually went down), but no new deploy could ever go live. The `[start]` override is removed entirely — Nixpacks' own auto-detected start command (already proven working) is used again — and `php artisan deploy:migrate` now runs via **Coolify's native "Post-deployment Command"** setting instead, which executes inside the already-healthy container rather than needing to know how it was started.
+
 ## [2.10.0] - 2026-08-29
 
 **Release type:** Minor Feature Update

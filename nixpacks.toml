@@ -3,14 +3,12 @@ NIXPACKS_NODE_VERSION = "22"
 NIXPACKS_PHP_ROOT_DIR = "/app/public"
 NIXPACKS_PHP_FALLBACK_PATH = "/index.php"
 
-[start]
-# Runs pending migrations before serving traffic. `;` (not `&&`) on purpose:
-# `deploy:migrate` already reports a failure to super admins itself (see
-# App\Console\Commands\DeployMigrate) and always exits 0, but this is a
-# second, independent safety net -- even a total crash in that command must
-# never stop heroku-php-apache2 from starting the site. Without this step
-# nothing on the deploy path ever ran migrations at all (composer install
-# only runs `migrate` on a brand-new `create-project`, never on a normal
-# deploy), which is what left production on a stale schema for two real
-# incidents -- see CHANGELOG.md.
-cmd = "php artisan deploy:migrate; heroku-php-apache2 /app/public"
+# `php artisan deploy:migrate` (see App\Console\Commands\DeployMigrate) is
+# run automatically via Coolify's own "Post-deployment Command" setting for
+# this application (Configuration -> Advanced), NOT from a [start] override
+# here -- an earlier attempt to chain it into [start] hardcoded
+# `heroku-php-apache2` as the web-server command, which doesn't exist on
+# this Coolify/Nixpacks setup and broke the container's healthcheck (see
+# CHANGELOG.md). Coolify's post-deployment command runs inside the new
+# container after it's already confirmed healthy, so it never needs to know
+# or guess how the app server itself is started.
