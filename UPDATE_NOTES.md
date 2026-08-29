@@ -2,6 +2,38 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-29 - App version rollback: roll back to a previous deployment from inside the dashboard
+
+Reason:
+
+- Owner (mid-session, after the deploy-error-notification work below): "আরেকটা বিষয় যুক্ত করবে। আমাদের অ্যাপের ভিতরেই অ্যাপের ভার্সন গুলো রোলব্যাক করার অপশন রাখা যায় কিনা যাতে কোন সমস্যা ইমিডিয়েট আগের ভার্সনে রোল ব্যাক করা যায়। এইটা ইমপ্লিমেন্ট করার আগে আমার সাথে পরামর্শ করে নিবে।" — wants an in-app option to roll the app back to its immediately-previous version if something breaks; asked to be consulted before building it.
+- Consulted via three questions before writing any code: (1) hosting platform — owner corrected an earlier assumption of Railway: **it's actually a Contabo VPS running the Coolify control panel**; (2) rollback scope — owner chose **code-only rollback** (never attempt a database/migration rollback, which risks real data loss); (3) history depth — **last 5 versions** is enough.
+- Verified Coolify's actual rollback-capable API directly against its own source (`coollabsio/coolify` on GitHub, not guessed from marketing docs) before writing any integration code: `POST /api/v1/applications/{uuid}/rollback` with `{"commit": "<sha>"}` queues a redeploy of that exact commit (`rollback: true` internally, never touches the database), and `GET /api/v1/deployments/applications/{uuid}` lists deployment history with each entry's `commit`/`commit_message`/`status`/`created_at`.
+
+What changed:
+
+- New `App\Support\CoolifySettings` — Coolify instance URL, API token (encrypted), and this app's Application UUID, stored via the existing global `AppSetting` key/value store (same shape as `FirebaseSettings`) — per CLAUDE.md, an external credential like this is always an admin-configurable encrypted setting, never `.env`.
+- New `App\Services\CoolifyDeploymentService`: `rollbackCandidates(int $limit = 5)` fetches recent deployments, keeps only `status === 'finished'` ones, and drops the first (the currently-live version, since rolling back to it would be a no-op) before capping to `$limit`; `rollback(string $commit)` posts the rollback request and returns Coolify's queued-deployment message, or throws a friendly `RuntimeException` on failure.
+- New **Settings → Deployment Settings** page (`App\Filament\Pages\CoolifyDeploymentSettings`) — instance URL / API token / Application UUID form, secret-blanking pattern identical to Push Notification Settings, plus a "Test Connection" button that calls Coolify live and reports what it found.
+- New **Settings → App Versions** page (`App\Filament\Pages\AppVersions`) — lists the last 5 rollback-eligible deployments (short commit sha, commit message, "deployed X ago"), each with a "Rollback to this version" button that opens a confirmation modal (explicitly states this only changes code, never the database) before calling `CoolifyDeploymentService::rollback()`. Shows a friendly "not connected yet" state before Deployment Settings is configured, and surfaces any Coolify connection error inline instead of crashing the page.
+- Both new pages are super-admin only (`canAccess()` gated on `isSuperAdmin()`, same convention as every other platform-level settings page in this app).
+
+Important changed files:
+
+- `app/Support/CoolifySettings.php` (new)
+- `app/Services/CoolifyDeploymentService.php` (new)
+- `app/Filament/Pages/CoolifyDeploymentSettings.php` + `resources/views/filament/pages/coolify-deployment-settings.blade.php` (new)
+- `app/Filament/Pages/AppVersions.php` + `resources/views/filament/pages/app-versions.blade.php` (new)
+
+Verification:
+
+- `php artisan test tests/Feature/CoolifyDeploymentSettingsTest.php tests/Feature/CoolifyDeploymentServiceTest.php tests/Feature/AppVersionsPageTest.php` — 9 passed. The service test uses `Http::fake()` and asserts the *exact* request shape sent to Coolify (method, URL, `Authorization: Bearer`, body) rather than just mocking the return value, and one test drives the real rollback confirmation-modal action through Livewire (`mountAction('rollback', ...)->callMountedAction()`), not just the underlying service method.
+- Full `php artisan test`: **1023 passed, 0 failed**.
+- No frontend build assets changed (Blade + inline styles only, matching the rest of this app's settings pages), so `npm run build` was not required.
+- Not yet manually verified against the owner's real Coolify instance (no access to it) — the owner should fill in Deployment Settings, click "Test Connection", and try one real rollback in a low-risk moment before relying on it during an actual incident.
+
+Commit status: Committed and pushed (owner approved both features together).
+
 ## 2026-08-29 - Deploy pipeline now runs migrations automatically, and reports failures to super admins
 
 Reason:
@@ -37,7 +69,7 @@ Verification:
 - No frontend assets changed, so `npm run build` was not required.
 - Not yet manually verified against the real production deploy (no production access) — the owner should watch the next deploy's logs once this ships, and confirm both the Media Hub page and checkout now work.
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: Committed and pushed (owner approved both features together).
 
 ## 2026-08-29 - Invoice: show the courier's Parcel ID, not just the Tracking ID
 
