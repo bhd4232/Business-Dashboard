@@ -39,6 +39,40 @@ Verification:
 
 Commit status: NOT committed. Awaiting owner approval.
 
+## 2026-08-29 - Hide the hero "wholesale buyers" banner behind its own Site Settings toggle
+
+Reason:
+
+- Owner (screenshot of offer.zamzamgadgetbd.com's hero homepage): "এই পেজের নিচের Open business account এর একটা কার্ড আছে সেটা হাইড কর এবং সাইট সেটিংস এ একটা টোগল যুক্ত কর।" — hide the "Built for repeat and wholesale buyers / Open business account" banner near the bottom of the page, and add a toggle for it in Site Settings.
+
+What changed:
+
+- New `marketplace_business_strip_enabled` boolean on `storefront_settings` (migration `2026_08_29_000100_...`, default `false`).
+- Storefront Settings → Site Theme → "Marketplace Pro Features" gains a **"Wholesale buyers banner"** toggle, visible only when the Hero-driven homepage template is selected (same pattern as the existing template-specific "Bulk pricing panel" / "Category sidebar" toggles). Default off.
+- `resources/views/storefront/themes/marketplace-pro/home.blade.php`: the hero bottom banner (`.marketplace-business-strip`, "Built for repeat and wholesale buyers") now renders only when `marketplace_business_strip_enabled` is true. It previously rendered whenever `marketplace_business_accounts_enabled` (default true) was on for the hero template, so it showed on every Marketplace Pro hero storefront. The campaign template's separate "Open a business account" card still uses `marketplace_business_accounts_enabled`.
+- Model: added to `$fillable`, `$casts` (boolean), and the `creating` defaults (`??= false`).
+
+Concurrent-session collision (worth knowing): the Filament `Toggle::make('marketplace_business_strip_enabled')` line in `StorefrontSettingResource.php` was written by this session but got swept into the sibling **Media Hub commit `b19beecd`** — both sessions were editing that same file, and `b19beecd`'s `git add` picked it up. The reverse also happened: `b19beecd` **lost its own** `use SelectableFromMediaHub` import/trait and the two `->hintAction(static::selectFromMediaHubAction())` calls on this file's `logo` / `logo_dark` fields (clobbered by this session's edit before `b19beecd` committed). The Media Hub session needs a fixup commit to restore those two hint actions. This banner commit therefore contains the migration, model, Blade gate, test, and notes — the toggle field itself is already in `b19beecd`.
+
+Important changed files (this commit):
+
+- `database/migrations/2026_08_29_000100_add_marketplace_business_strip_enabled_to_storefront_settings_table.php`
+- `app/Models/StorefrontSetting.php`
+- `resources/views/storefront/themes/marketplace-pro/home.blade.php`
+- `tests/Feature/StorefrontThemeTest.php` (new `test_hero_wholesale_buyers_banner_is_hidden_by_default_and_shown_by_its_dedicated_toggle`)
+- (`app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` — the toggle field, landed in `b19beecd` per the note above)
+
+Verification:
+
+- `php artisan test tests/Feature/StorefrontThemeTest.php` — 10 passed, 77 assertions.
+- `php artisan test --filter=Storefront` — 185 passed, 1415 assertions.
+- Full `php artisan test` — 1004 passed, 0 failed, 5461 assertions (see the Media Hub entry above for the later 1007-passed run, after the Media Hub's backfill command was added).
+- No frontend build assets changed (Blade + PHP only), so `npm run build` not required.
+
+Environment note (not a code change): the first full-suite run failed en masse with "Class App\Filament\Resources\Media\Pages\ListMedia not found" and then "bootstrap/cache directory must be present and writable". Root cause was a stale Composer classmap (the sibling Media Hub work above added new PHP classes) plus the Windows ReadOnly attribute on `bootstrap/cache` making PHP's `is_writable()` return false. Fixed the environment with `attrib -r bootstrap\cache`, `composer dump-autoload`, and `php artisan package:discover`.
+
+Commit status: Committed and pushed (approved by owner: "কমিট এবং পুশ করো").
+
 ## 2026-08-28 - Hero banner image cropped wrong on desktop and mobile
 
 Reason:

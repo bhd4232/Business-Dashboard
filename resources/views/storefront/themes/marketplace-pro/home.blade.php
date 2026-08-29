@@ -207,7 +207,7 @@
                 </div>
             </section>
 
-            @if ($setting->marketplace_business_accounts_enabled && $template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_HERO)
+            @if ($setting->marketplace_business_strip_enabled && $template === \App\Support\StorefrontThemeRegistry::MARKETPLACE_HERO)
                 <section class="marketplace-section">
                     <div class="marketplace-business-strip">
                         <div><h2 class="text-lg font-extrabold sm:text-xl">Built for repeat and wholesale buyers</h2><p class="mt-1 text-sm text-white/70">Apply for a business account and get purchasing support from {{ $company->name }}.</p></div>

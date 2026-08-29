@@ -87,6 +87,39 @@ class StorefrontThemeTest extends TestCase
             ->assertDontSee('Open a business account');
     }
 
+    public function test_hero_wholesale_buyers_banner_is_hidden_by_default_and_shown_by_its_dedicated_toggle(): void
+    {
+        [, $setting] = $this->createMarketplaceStore();
+
+        // Default (marketplace_business_strip_enabled = false): the bottom
+        // "Built for repeat and wholesale buyers" banner is not rendered.
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertSee('data-homepage-template="'.StorefrontThemeRegistry::MARKETPLACE_HERO.'"', false)
+            ->assertDontSee('Built for repeat and wholesale buyers')
+            ->assertDontSee('marketplace-business-strip', false);
+
+        // Turning the dedicated toggle on brings the banner back.
+        $setting->forceFill(['marketplace_business_strip_enabled' => true])->save();
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertSee('Built for repeat and wholesale buyers')
+            ->assertSee('Open business account')
+            ->assertSee('marketplace-business-strip', false);
+
+        // The broad "Business account callouts" toggle no longer governs this
+        // hero banner — the dedicated toggle is the single control.
+        $setting->forceFill([
+            'marketplace_business_accounts_enabled' => false,
+            'marketplace_business_strip_enabled' => true,
+        ])->save();
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertSee('Built for repeat and wholesale buyers');
+    }
+
     /**
      * Owner request: the hero banner should be full width with the two
      * "Ready to order" category cards beside it removed entirely, and every

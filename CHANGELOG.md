@@ -4,6 +4,19 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Storefront Settings → Site Theme → Marketplace Pro Features now has a "Wholesale buyers banner" toggle.** It controls the dark "Built for repeat and wholesale buyers / Open business account" banner shown near the bottom of the hero homepage (Marketplace Pro theme, Hero-driven template). The toggle only appears while that template is selected.
+
+### Changed
+
+- **The hero homepage's "Built for repeat and wholesale buyers" banner is now off by default.** It previously piggybacked on the broader "Business account callouts" toggle (default on), so every Marketplace Pro hero storefront displayed it. It now has its own dedicated toggle and starts hidden — turn on "Wholesale buyers banner" in Storefront Settings to show it again.
+
+### Technical Notes
+
+- New migration `2026_08_29_000100_add_marketplace_business_strip_enabled_to_storefront_settings_table` adds `marketplace_business_strip_enabled` (boolean, default `false`) to `storefront_settings`. Run `php artisan migrate --force`. Existing rows receive `false`, so the banner disappears from any live hero storefront until an owner re-enables it.
+- `resources/views/storefront/themes/marketplace-pro/home.blade.php`'s hero bottom banner now gates on `marketplace_business_strip_enabled` alone (was `marketplace_business_accounts_enabled`); the campaign template's "Open a business account" card and its section wrapper still use `marketplace_business_accounts_enabled`. New regression test `StorefrontThemeTest::test_hero_wholesale_buyers_banner_is_hidden_by_default_and_shown_by_its_dedicated_toggle`. Blade + PHP only — no frontend build assets changed, so `npm run build` was not required.
+
 ## [2.7.0] - 2026-08-29
 
 **Release type:** Minor Feature Update
@@ -15,6 +28,7 @@ All notable production changes to Business Dashboard are documented here.
 ### Technical Notes
 
 - New `media` table (`App\Models\Media`, company-scoped via `BelongsToCompany`/`CompanyScope`, added to `MultiCompanyIsolationTest`) records every image saved through the shared `App\Filament\Concerns\OptimizesUploadedImages` upload path (`Media::recordUpload()`, best-effort — never blocks the actual upload) plus anything added directly on the new Media Hub page. `mime_type`/`size` are read back from disk after `ImageOptimizerService` re-encodes the file, not from the original upload, since most raster images end up re-encoded to WebP. New `App\Filament\Concerns\SelectableFromMediaHub` trait supplies the reusable `selectFromMediaHubAction()` hint action (a Filament field-level action with its own modal `Select`, searchable, thumbnails via `allowHtml()`) wired onto every relevant `FileUpload::make(...)->image()` field; it re-resolves and re-checks the target company inside its own `action()` closure (not just when building the option list) so a tampered `media_id` can never attach another company's image. New `App\Filament\Resources\Media\MediaResource` (Settings cluster, `navigationSort = 7`, open to any panel user — same visibility as the image fields it complements) has no create/edit pages; uploading is a header action, deleting (`Media::deleteFile()`) removes the underlying object via `CompanyStorageService::locatePublic()` before the DB row. New `php artisan media:backfill` command (`App\Console\Commands\BackfillMediaHub`) registers every image already sitting in Products/Categories/Offers/Storefront Pages/Slides/Settings/Company logos before this feature existed; safe to re-run (skips paths already registered, and a `(company_id, path)` unique index on `media` backs that at the database level too), and silently skips a path whose file no longer exists on disk. Run it once after this ships — it isn't wired into any deploy step automatically. New `tests/Feature/MediaHubTest.php` and `tests/Feature/MediaHubBackfillTest.php`. OfferForm's `cover_image` field also picked up the standard `saveUploadedFileUsing(static::optimizeImageUpload())`/WebP-compression it was missing before (needed so it participates in the Media Hub the same as every other image field). No frontend build assets changed, so `npm run build` was not required.
+
 ## [2.6.1] - 2026-08-28
 
 **Release type:** Patch/Fix Update
