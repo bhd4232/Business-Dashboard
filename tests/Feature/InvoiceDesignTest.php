@@ -97,14 +97,18 @@ class InvoiceDesignTest extends TestCase
             'recipient_phone' => '+8801828076292',
             'recipient_address' => 'K-195/1, Khilkhet, Dhaka-1229',
             'cod_amount' => 3200,
+            'provider_reference' => 'SF-CONSIGN-9911',
         ]);
 
-        $this->actingAs($this->admin())
+        $response = $this->actingAs($this->admin())
             ->get(route('orders.print', $order))
             ->assertOk()
             ->assertSee('Hotline: 01811754232')
             ->assertSee('Delivery Partner:')
             ->assertSee('Steadfast')
+            // Parcel ID shown between Delivery Partner and Date, both on the
+            // main invoice and the courier cut-slip in the footer.
+            ->assertSee('Parcel ID: <strong>SF-CONSIGN-9911</strong>', false)
             ->assertSee('1.8 kg')
             ->assertSee('Item Name')
             ->assertSee('Weight')
@@ -118,6 +122,39 @@ class InvoiceDesignTest extends TestCase
             ->assertSee(substr(Code128::svg($order->order_number), 0, 60), false)
             ->assertSee('id="courier-slip"', false)
             ->assertSee('Invoice No: <strong>'.$order->order_number.'</strong>', false);
+
+        $this->assertSame(2, substr_count($response->getContent(), 'Parcel ID: <strong>SF-CONSIGN-9911</strong>'));
+    }
+
+    /**
+     * Parcel ID is dynamic — most couriers' `provider_reference` duplicates
+     * their tracking_id, but a manual/unbooked courier has neither, so the
+     * line must not render a stray "Parcel ID:" label at all.
+     */
+    public function test_invoice_hides_parcel_id_when_the_booking_has_no_provider_reference(): void
+    {
+        $order = $this->makeOrder();
+
+        $provider = CourierProvider::query()->create([
+            'name' => 'Manual Courier',
+            'driver' => 'manual',
+            'is_active' => true,
+        ]);
+
+        CourierBooking::query()->create([
+            'order_id' => $order->id,
+            'courier_provider_id' => $provider->id,
+            'status' => 'booked',
+            'tracking_id' => 'MAN-1-20260829',
+            'recipient_name' => 'Shakil',
+            'cod_amount' => 3200,
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('orders.print', $order))
+            ->assertOk()
+            ->assertSee('Delivery Partner:')
+            ->assertDontSee('Parcel ID:');
     }
 
     public function test_invoice_settings_toggles_hide_optional_sections(): void

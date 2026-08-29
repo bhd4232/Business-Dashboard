@@ -80,6 +80,9 @@ class OrderInfolist
                         TextEntry::make('latestCourierBooking.tracking_id')
                             ->label('Tracking ID')
                             ->placeholder('Not booked'),
+                        TextEntry::make('latestCourierBooking.provider_reference')
+                            ->label('Parcel ID')
+                            ->placeholder('Not booked'),
                         TextEntry::make('latestCourierBooking.status')
                             ->label('Courier Status')
                             ->badge()

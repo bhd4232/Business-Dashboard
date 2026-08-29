@@ -23,6 +23,7 @@
     $paid = (float) $order->paid_amount;
     $due = (float) $order->due_amount;
     $deliveryPartner = $order->latestCourierBooking?->provider?->name;
+    $parcelId = $order->latestCourierBooking?->provider_reference;
     $invoiceDate = optional($order->order_date)->format($company['date_format'] ?? 'd M Y');
     $customerName = $order->customer?->name ?? $order->customer_name;
     $customerPhone = $order->customer?->phone;
@@ -70,6 +71,9 @@
                 <p>Invoice No: <strong>{{ $order->order_number }}</strong></p>
                 @if ($deliveryPartner)
                     <p>Delivery Partner: <strong>{{ $deliveryPartner }}</strong></p>
+                @endif
+                @if ($parcelId)
+                    <p>Parcel ID: <strong>{{ $parcelId }}</strong></p>
                 @endif
                 <p>Date: <strong>{{ $invoiceDate }}</strong></p>
             </div>
@@ -240,6 +244,9 @@
                             <p>Invoice No: <strong>{{ $order->order_number }}</strong></p>
                             @if ($deliveryPartner)
                                 <p>Delivery Partner: <strong>{{ $deliveryPartner }}</strong></p>
+                            @endif
+                            @if ($parcelId)
+                                <p>Parcel ID: <strong>{{ $parcelId }}</strong></p>
                             @endif
                             <p>Date: <strong>{{ $invoiceDate }}</strong></p>
                             <div class="slip-due">Due Amount: {{ $money($due) }}</div>

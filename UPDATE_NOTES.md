@@ -2,6 +2,68 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-29 - Deploy pipeline now runs migrations automatically, and reports failures to super admins
+
+Reason:
+
+- Owner reported the Media Hub page (`app.zamzamint.com/admin/settings/media`) throwing a 500. Diagnosed: its migration (`2026_08_29_000000_create_media_table`) had shipped in code but never actually run in production, because the deploy pipeline has no automatic `php artisan migrate` step at all — `composer.json`'s `post-create-project-cmd` only runs `migrate` on a brand-new `composer create-project`, never on a normal redeploy of existing code. This is the same root cause already suspected for the earlier storefront checkout 500 (missing `orders.reseller_customer_id`).
+- Owner: "ওকে কর, এবং সাথে এইটাও যোগ করবে যে কখনো ডিপ্লয়ের/মাইগ্রেশনের সময় যদি কোন এরর আসে এবং ডিপ্লয়/মাইগ্রেশন রান না হয় তখন যেন আমাদের ড্যাশবোর্ডের super admin এর কাছে এরর লগ সহ নটিফিকেশন যায়। নটিফিকেশন এ কোথায় কি এরর হয়েছে সেটা শো করবে এবং একটা ক্লিক টু কপি এরর লগ বাটন রাখবে যাতে এরর কপি করে এজেন্টকে দিইয়ে সলভ করানো যায়। যদি একাধিক জায়গায় একসাথে এরর আসে তাহলে একাধিক বাটন শো করবে। যদি নটিফিকেশন ক্লিয়ার ও করে ফেলে তাহলে যে এরর লগ কপি করতে পারে সেজন্য সেটিংস এ একটা লগ পেজ যুক্ত করবে।" — approved running migrations automatically on deploy, and asked for: a dashboard notification (with error location/log) to super admins whenever a deploy/migration step fails and doesn't run, a click-to-copy error-log button per notification (multiple buttons if multiple things fail at once, so the log can be handed straight to an agent to fix), and a Settings log page so the log is still recoverable after the notification is cleared.
+
+What changed:
+
+- `nixpacks.toml` gained a `[start]` command: `php artisan deploy:migrate; heroku-php-apache2 /app/public` — runs pending migrations before the app starts serving traffic, on every deploy, automatically.
+- New `php artisan deploy:migrate` command (`App\Console\Commands\DeployMigrate`) runs `migrate --force --isolated` (isolated: safe if multiple replicas start at once) wrapped in a try/catch, and **always exits 0** — a broken migration must never take the whole site down. On failure it hands the exception to the new `DeploymentErrorReporter` service instead of just crashing.
+- New `App\Services\DeploymentErrorReporter`: logs the failure, persists a new `deployment_errors` row (full stack trace + context), then notifies every active `role = 'super_admin'` user via a new database notification, `App\Notifications\DeploymentErrorAlert` (red/`danger()`, title names which deploy step failed). If even persisting the error record fails (e.g. the database is totally unreachable, not just missing a migration), it still logs a critical entry to the normal app log — nothing is silently lost.
+- The notification carries two actions: **"Copy Error Log"** (client-side only, no server round-trip — reuses the exact Alpine `navigator.clipboard.writeText(...); $tooltip(...)` snippet Filament's own `->copyable()` columns use, extracted into `App\Support\ClipboardCopy` so both the notification and the new Logs page share it) and **"View Full Log"** (links straight to the record). Each failed deploy step gets its own notification, so two things failing at once shows two separate "Copy Error Log" buttons, per the ask.
+- New **Settings → Deploy Error Logs** page (`App\Filament\Resources\DeploymentErrors\DeploymentErrorResource`, super-admin only, list + view, row-level "Copy Log", delete/bulk-delete for housekeeping) — the durable copy of every log, so it's still there after the bell notification is cleared or marked read.
+- New `App\Models\DeploymentError` — deliberately **not** company-scoped (a deploy failure isn't inside any one company's data), same precedent as the existing `MobileCrashReport`; excluded from `MultiCompanyIsolationTest` on purpose, per the same doc-comment pattern.
+
+Important changed files:
+
+- `nixpacks.toml`
+- `app/Console/Commands/DeployMigrate.php` (new)
+- `app/Services/DeploymentErrorReporter.php` (new)
+- `app/Notifications/DeploymentErrorAlert.php` (new)
+- `app/Models/DeploymentError.php` (new)
+- `app/Support/ClipboardCopy.php` (new)
+- `app/Filament/Resources/DeploymentErrors/DeploymentErrorResource.php` + `Pages/ListDeploymentErrors.php` + `Pages/ViewDeploymentError.php` (new)
+- `database/migrations/2026_08_29_010000_create_deployment_errors_table.php` (new)
+
+Verification:
+
+- `php artisan test tests/Feature/DeploymentErrorReporterTest.php tests/Feature/DeployMigrateCommandTest.php` — 6 passed. `DeployMigrateCommandTest` forces a **real** migration failure (a throwaway migration file under `storage/framework/testing/`, run via `deploy:migrate --path=`, never touching `database/migrations`) rather than mocking the exception, and confirms the command still exits 0.
+- `php artisan test tests/Feature/MultiCompanyIsolationTest.php` — 7 passed (confirms `DeploymentError`'s deliberate exclusion doesn't break the contract test).
+- Full `php artisan test`: **1014 passed, 0 failed**.
+- No frontend assets changed, so `npm run build` was not required.
+- Not yet manually verified against the real production deploy (no production access) — the owner should watch the next deploy's logs once this ships, and confirm both the Media Hub page and checkout now work.
+
+Commit status: NOT committed. Awaiting owner approval.
+
+## 2026-08-29 - Invoice: show the courier's Parcel ID, not just the Tracking ID
+
+Reason:
+
+- Owner: "Order কুরিয়ারে বুক করার পর পার্সেল আইডি আসে না। শুধু ট্রাকিং আইডি আসে। পার্সেল আইডিও আসতে হবে এবং সেটা ইনভয়েসে delivery partner এবং Date এর মাঝে Parcel ID নামে ডায়নামিকভাবে শো করবে। ফুটারেও যুক্ত হবে।" — after booking an order with a courier, only the Tracking ID shows up, not the Parcel ID; Parcel ID should show too, on the invoice between "Delivery Partner" and "Date" (labeled "Parcel ID", dynamic), and also in the footer.
+
+What changed:
+
+- Checked how each courier integration books orders (`CourierService`): the courier's own parcel/consignment reference was already being captured and stored in `courier_bookings.provider_reference` for every non-manual courier (e.g. Steadfast's `consignment_id`) — it just wasn't shown anywhere the owner would see it after booking.
+- **Order screen**: the Courier section now shows "Parcel ID" right next to "Tracking ID" (was previously only visible three clicks away, on Courier → Bookings, labeled "Consignment ID").
+- **Invoice**: a new "Parcel ID" line renders between "Delivery Partner" and "Date" — on both the main invoice and the courier cut-slip in the footer — only when the booking actually has one (dynamic; manual courier bookings have none and show nothing, same pattern "Delivery Partner" already used).
+
+Important changed files:
+
+- `resources/views/orders/partials/invoice.blade.php` (new `$parcelId` + two "Parcel ID:" lines — main invoice ref block and the footer slip)
+- `app/Filament/Resources/Orders/Schemas/OrderInfolist.php` (Courier section — new `latestCourierBooking.provider_reference` entry labeled "Parcel ID")
+
+Verification:
+
+- `php artisan test tests/Feature/InvoiceDesignTest.php` — 11 passed, updated `test_invoice_shows_barcode_weight_delivery_partner_and_cut_slip` to assert the Parcel ID line appears exactly twice (main + slip), new `test_invoice_hides_parcel_id_when_the_booking_has_no_provider_reference` confirms it's absent for a manual booking.
+- No dedicated test added for the `OrderInfolist` change — no existing test in this repo exercises that Filament page (prior notes record Filament admin-page-render tests failing here on a missing Vite manifest); the change is a one-line `TextEntry` identical in shape to the already-working `tracking_id` entry right above it.
+- No frontend build assets changed, so `npm run build` was not required.
+
+Commit status: NOT committed. Awaiting owner approval.
+
 ## 2026-08-29 - Fix production migration failure: idempotent guards on the broadcasts-tables migration
 
 Reason:
