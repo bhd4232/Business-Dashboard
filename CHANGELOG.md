@@ -4,10 +4,13 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-08-29
+
+**Release type:** Maintenance Update
+
 ### Technical Notes
 
 - **Fixed a production `php artisan migrate --force` failure**: `2026_08_28_000300_create_broadcasts_tables` errored with `Duplicate column name 'opted_out_at'` when re-run, because an earlier deploy's run of it had been interrupted partway through — MySQL DDL isn't transactional, so `leads.opted_out_at` had already been added even though Laravel never recorded the migration as complete, and the retry replayed the whole thing from the top. All four schema changes in that migration's `up()` (`leads.opted_out_at`, `customers.opted_out_at`, `broadcasts`, `broadcast_recipients`) are now guarded with `Schema::hasColumn`/`Schema::hasTable`, so it can be safely re-run from any partially-applied state; `down()` is unchanged. No schema/behavior change on a fresh database. Deploy note: after this ships, re-run `php artisan migrate --force` in production — it will skip the already-applied `leads` column and create the rest. Full `php artisan test`: 1007 passed, 0 failed.
-
 ## [2.8.0] - 2026-08-29
 
 **Release type:** Minor Feature Update
