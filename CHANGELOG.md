@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-08-29
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **Media Hub: a per-company image library, with "Select From Media" on every image field.** Settings → Media Hub lists every image a company has ever uploaded (grid view, newest first), lets you upload new images there directly (any number at once), and delete ones no longer needed. Every image FileUpload field across the admin panel (Products — featured/gallery/variation images, Categories, Offers, Hero Slides, Storefront Settings logos, Company logos, Company Settings logos) now has a "Select From Media" button next to it, so an image already uploaded somewhere else can be reused instantly instead of re-uploading and re-compressing it. Each company only ever sees and can pick from its own images. Existing image fields are otherwise unchanged — same helper text, same crop/aspect-ratio tools, same WebP compression. Images already uploaded before this feature existed are backfilled too — see the one-time `media:backfill` command below.
@@ -11,7 +15,6 @@ All notable production changes to Business Dashboard are documented here.
 ### Technical Notes
 
 - New `media` table (`App\Models\Media`, company-scoped via `BelongsToCompany`/`CompanyScope`, added to `MultiCompanyIsolationTest`) records every image saved through the shared `App\Filament\Concerns\OptimizesUploadedImages` upload path (`Media::recordUpload()`, best-effort — never blocks the actual upload) plus anything added directly on the new Media Hub page. `mime_type`/`size` are read back from disk after `ImageOptimizerService` re-encodes the file, not from the original upload, since most raster images end up re-encoded to WebP. New `App\Filament\Concerns\SelectableFromMediaHub` trait supplies the reusable `selectFromMediaHubAction()` hint action (a Filament field-level action with its own modal `Select`, searchable, thumbnails via `allowHtml()`) wired onto every relevant `FileUpload::make(...)->image()` field; it re-resolves and re-checks the target company inside its own `action()` closure (not just when building the option list) so a tampered `media_id` can never attach another company's image. New `App\Filament\Resources\Media\MediaResource` (Settings cluster, `navigationSort = 7`, open to any panel user — same visibility as the image fields it complements) has no create/edit pages; uploading is a header action, deleting (`Media::deleteFile()`) removes the underlying object via `CompanyStorageService::locatePublic()` before the DB row. New `php artisan media:backfill` command (`App\Console\Commands\BackfillMediaHub`) registers every image already sitting in Products/Categories/Offers/Storefront Pages/Slides/Settings/Company logos before this feature existed; safe to re-run (skips paths already registered, and a `(company_id, path)` unique index on `media` backs that at the database level too), and silently skips a path whose file no longer exists on disk. Run it once after this ships — it isn't wired into any deploy step automatically. New `tests/Feature/MediaHubTest.php` and `tests/Feature/MediaHubBackfillTest.php`. OfferForm's `cover_image` field also picked up the standard `saveUploadedFileUsing(static::optimizeImageUpload())`/WebP-compression it was missing before (needed so it participates in the Media Hub the same as every other image field). No frontend build assets changed, so `npm run build` was not required.
-
 ## [2.6.1] - 2026-08-28
 
 **Release type:** Patch/Fix Update
