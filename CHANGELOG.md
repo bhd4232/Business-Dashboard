@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-08-29
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **Invoice now shows a Parcel ID line** — between "Delivery Partner" and "Date," on both the main invoice and the courier cut-slip in the footer — whenever the booked courier reports one (e.g. Steadfast's consignment ID). Hidden entirely when the booking has no parcel/consignment reference (manual courier bookings).
@@ -15,7 +19,6 @@ All notable production changes to Business Dashboard are documented here.
 ### Technical Notes
 
 - Parcel ID uses the existing `courier_bookings.provider_reference` column — no new migration. `resources/views/orders/partials/invoice.blade.php` reads `$order->latestCourierBooking?->provider_reference`; `OrderInfolist.php`'s Courier section gained a matching `TextEntry` right after Tracking ID. New/updated tests: `InvoiceDesignTest::test_invoice_shows_barcode_weight_delivery_partner_and_cut_slip` and `test_invoice_hides_parcel_id_when_the_booking_has_no_provider_reference`.
-
 ## [2.8.1] - 2026-08-29
 
 **Release type:** Maintenance Update
