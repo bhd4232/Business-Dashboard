@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Technical Notes
+
+- **Fixed a production `php artisan migrate --force` failure**: `2026_08_28_000300_create_broadcasts_tables` errored with `Duplicate column name 'opted_out_at'` when re-run, because an earlier deploy's run of it had been interrupted partway through — MySQL DDL isn't transactional, so `leads.opted_out_at` had already been added even though Laravel never recorded the migration as complete, and the retry replayed the whole thing from the top. All four schema changes in that migration's `up()` (`leads.opted_out_at`, `customers.opted_out_at`, `broadcasts`, `broadcast_recipients`) are now guarded with `Schema::hasColumn`/`Schema::hasTable`, so it can be safely re-run from any partially-applied state; `down()` is unchanged. No schema/behavior change on a fresh database. Deploy note: after this ships, re-run `php artisan migrate --force` in production — it will skip the already-applied `leads` column and create the rest. Full `php artisan test`: 1007 passed, 0 failed.
+
 ## [2.8.0] - 2026-08-29
 
 **Release type:** Minor Feature Update
@@ -20,6 +24,7 @@ All notable production changes to Business Dashboard are documented here.
 
 - New migration `2026_08_29_000100_add_marketplace_business_strip_enabled_to_storefront_settings_table` adds `marketplace_business_strip_enabled` (boolean, default `false`) to `storefront_settings`. Run `php artisan migrate --force`. Existing rows receive `false`, so the banner disappears from any live hero storefront until an owner re-enables it.
 - `resources/views/storefront/themes/marketplace-pro/home.blade.php`'s hero bottom banner now gates on `marketplace_business_strip_enabled` alone (was `marketplace_business_accounts_enabled`); the campaign template's "Open a business account" card and its section wrapper still use `marketplace_business_accounts_enabled`. New regression test `StorefrontThemeTest::test_hero_wholesale_buyers_banner_is_hidden_by_default_and_shown_by_its_dedicated_toggle`. Blade + PHP only — no frontend build assets changed, so `npm run build` was not required.
+
 ## [2.7.0] - 2026-08-29
 
 **Release type:** Minor Feature Update

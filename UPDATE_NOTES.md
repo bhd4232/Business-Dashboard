@@ -2,6 +2,30 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-29 - Fix production migration failure: idempotent guards on the broadcasts-tables migration
+
+Reason:
+
+- Owner pasted a production `php artisan migrate --force` failure: `SQLSTATE[42S21]: Column already exists: 1060 Duplicate column name 'opted_out_at'` on `database/migrations/2026_08_28_000300_create_broadcasts_tables.php`.
+
+What changed:
+
+- Diagnosed: MySQL DDL isn't transactional, so an earlier deploy's run of this migration was interrupted after `leads.opted_out_at` was added but before the whole migration finished — so Laravel never recorded it as run. The next `migrate --force` replayed `up()` from scratch and collided with the already-applied column.
+- Fixed by guarding all four schema mutations in this migration's `up()` (`leads.opted_out_at`, `customers.opted_out_at`, `broadcasts`, `broadcast_recipients`) with `Schema::hasColumn`/`Schema::hasTable` checks, so it's safe to re-run from any partially-applied state, regardless of exactly how far the interrupted attempt got. `down()` left unchanged — rollback isn't the failure path here.
+
+Important changed files:
+
+- `database/migrations/2026_08_28_000300_create_broadcasts_tables.php`
+
+Verification:
+
+- `php artisan test tests/Feature/BroadcastTest.php tests/Feature/MultiCompanyIsolationTest.php` — 13 passed, 182 assertions.
+- Full `php artisan test` (no `--env` flag, per CLAUDE.md) — 1007 passed, 0 failed, 5469 assertions.
+- No frontend build assets changed, so `npm run build` was not required.
+- Deploy note for the owner: deploy this fix, then re-run `php artisan migrate --force` in production — it will skip `leads.opted_out_at` (already applied there) and create `customers.opted_out_at`, `broadcasts`, and `broadcast_recipients`.
+
+Commit status: committed and pushed, per owner approval ("কমিট এবং পুশ কর").
+
 ## 2026-08-29 - Media Hub: per-company image library with "Select From Media" on every image field
 
 Reason:
