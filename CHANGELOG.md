@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-08-29
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **Deploy/migration failures now notify every active super admin** in the dashboard's own notification bell — one notification per failed step, each with a one-click "Copy Error Log" button (so several simultaneous failures show several buttons) and a "View Full Log" link. A new **Settings → Deploy Error Logs** page keeps every log permanently, so it's still recoverable after the bell notification is cleared or marked read.
@@ -18,7 +22,6 @@ All notable production changes to Business Dashboard are documented here.
 - **Deploy error notifications**: new `nixpacks.toml` `[start]` command runs `php artisan deploy:migrate; heroku-php-apache2 /app/public` (`;` not `&&` — a total crash in the command must never stop the site from starting). New `App\Console\Commands\DeployMigrate` wraps `migrate --force --isolated` in a try/catch and always exits 0; a failure is handed to the new `App\Services\DeploymentErrorReporter`, which logs it, persists a new `deployment_errors` row (`App\Models\DeploymentError` — deliberately not company-scoped, same precedent as `MobileCrashReport`, excluded from `MultiCompanyIsolationTest` on purpose), and notifies every active `role = 'super_admin'` user via a new `App\Notifications\DeploymentErrorAlert` database notification (`danger()`, two actions: "Copy Error Log" using the identical Alpine `navigator.clipboard.writeText` + `$tooltip` snippet Filament's own `->copyable()` uses — extracted into `App\Support\ClipboardCopy` — and "View Full Log"). New super-admin-only `App\Filament\Resources\DeploymentErrors\DeploymentErrorResource` at Settings → Deploy Error Logs (list + view, row-level "Copy Log", delete/bulk-delete for housekeeping) is where the log survives after the notification is gone. New migration `2026_08_29_010000_create_deployment_errors_table`. New tests `DeploymentErrorReporterTest` (persistence + notification targeting/actions) and `DeployMigrateCommandTest` (a real forced migration failure via a throwaway `--path`, not a mock, confirms the command still exits 0).
 - **App version rollback**: new `App\Support\CoolifySettings` (global `AppSetting`-backed, encrypted — `base_url`, `api_token`, `application_uuid` — same pattern as `FirebaseSettings`) and `App\Services\CoolifyDeploymentService`, which calls Coolify's own public API (verified directly against `coollabsio/coolify`'s source, not guessed): `GET /api/v1/deployments/applications/{uuid}` to list recent deployments (filtered to `status === 'finished'`, current live one excluded) and `POST /api/v1/applications/{uuid}/rollback` (`{"commit": "<sha>"}`) to queue a redeploy of an older commit. New `App\Filament\Pages\CoolifyDeploymentSettings` (Settings → Deployment Settings, credential form + a "Test Connection" button) and `App\Filament\Pages\AppVersions` (Settings → App Versions, lists the last 5 rollback-eligible deployments with a confirm-then-rollback button per row) — both super-admin only. New tests `CoolifyDeploymentSettingsTest`, `CoolifyDeploymentServiceTest` (via `Http::fake`, including the exact request shape sent to Coolify), and `AppVersionsPageTest` (drives the real rollback action through Livewire).
 - Full `php artisan test` for both features together: 1023 passed, 0 failed. No frontend build assets changed (Blade + inline styles only), so `npm run build` was not required.
-
 ## [2.9.0] - 2026-08-29
 
 **Release type:** Minor Feature Update
