@@ -4,10 +4,13 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-08-30
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **Settings → Integrations → WooCommerce has a new "Sync an order now" button.** Pulls one order straight from WooCommerce's own REST API by its order ID and runs it through the exact same sync logic a real webhook delivery uses. Two uses in one: manually backfilling an order a webhook never delivered (e.g. one sent before a secret was saved), and diagnosing *why* a sync fails — any error is shown verbatim in the notification, instead of only in a server log or WooCommerce's own delivery log (which hides response bodies unless `WP_DEBUG` is on).
-
 ## [2.10.3] - 2026-08-30
 
 **Release type:** Patch/Fix Update
