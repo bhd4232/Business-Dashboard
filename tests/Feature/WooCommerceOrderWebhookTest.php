@@ -196,6 +196,17 @@ class WooCommerceOrderWebhookTest extends TestCase
         $response->assertForbidden();
         $this->assertDatabaseMissing('orders', ['external_reference' => 'woo-504']);
 
+        // WooCommerce's own delivery-failure banner only ever shows the
+        // status code, never why — the response body is the owner's only
+        // self-serve diagnostic (no server/log access needed), so it must
+        // confirm the signature header did arrive without leaking either
+        // secret or signature.
+        $response->assertJson([
+            'ok' => false,
+            'error' => 'signature_mismatch',
+            'signature_header_present' => true,
+        ]);
+
         // A rejected delivery must leave a forensic trail — this exact log
         // line is what let a real production 403 get diagnosed at all
         // (WooCommerce's own delivery-failure banner only ever shows the
@@ -205,6 +216,33 @@ class WooCommerceOrderWebhookTest extends TestCase
             ->withArgs(fn (string $message, array $context): bool => $message === 'WooCommerce webhook rejected: signature does not match the secret saved for this company.'
                 && $context['company'] === $company->getKey()
                 && $context['signature_header_present'] === true);
+    }
+
+    public function test_a_missing_webhook_secret_is_reported_with_a_self_serve_hint(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Woo Webhook Company No Secret',
+            'slug' => 'woo-webhook-company-no-secret',
+            'invoice_prefix' => 'NOSC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+
+        StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'woocommerce_base_url' => 'https://example-store.test',
+            'woocommerce_credentials' => [
+                'consumer_key' => 'ck_test',
+                'consumer_secret' => 'cs_test',
+            ],
+        ]);
+
+        $response = $this->postWebhook($company, $this->orderPayload(id: 505, sku: 'WHATEVER'), 'order.created', 'irrelevant-since-no-secret-is-saved');
+
+        $response->assertNotFound();
+        $response->assertJson(['ok' => false, 'error' => 'no_webhook_secret_saved']);
+        $this->assertDatabaseMissing('orders', ['external_reference' => 'woo-505']);
     }
 
     public function test_a_webhook_secret_cannot_be_used_against_a_different_companys_route(): void

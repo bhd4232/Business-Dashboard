@@ -26,7 +26,16 @@ class WooCommerceWebhookController extends Controller
                 'company' => $company->getKey(),
             ]);
 
-            abort(404);
+            // A plain abort(404) leaves WooCommerce's own delivery log
+            // showing nothing but the status code — the owner has no way to
+            // see *why* without server access. This body is safe to expose
+            // (no secret, no signature): it turns WooCommerce's "Recent
+            // Deliveries" → response tab into a self-serve diagnostic.
+            return response()->json([
+                'ok' => false,
+                'error' => 'no_webhook_secret_saved',
+                'hint' => 'No webhook secret is saved for this company in ZamZam ERP yet. Go to Settings → Integrations → WooCommerce, generate one, save changes, then paste it into this webhook\'s Secret field.',
+            ], 404);
         }
 
         $signature = base64_encode(hash_hmac('sha256', $request->getContent(), $secret, true));
@@ -46,7 +55,17 @@ class WooCommerceWebhookController extends Controller
                 'received_signature' => $receivedSignature,
             ]);
 
-            abort(403);
+            // Same reasoning as the 404 above: expose enough in the response
+            // body (still nothing secret) for the owner to tell, from
+            // WooCommerce's own delivery log alone, whether the signature
+            // header even arrived versus a genuine secret mismatch.
+            return response()->json([
+                'ok' => false,
+                'error' => 'signature_mismatch',
+                'hint' => 'This webhook\'s Secret field does not match the "Order webhook secret" saved in ZamZam ERP → Settings → Integrations → WooCommerce. Re-copy it fresh (click the eye icon, select all, copy) into this webhook\'s Secret field and save again.',
+                'signature_header_present' => $receivedSignature !== '',
+                'request_body_length' => strlen($request->getContent()),
+            ], 403);
         }
 
         $topic = (string) $request->header('X-WC-Webhook-Topic');

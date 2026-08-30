@@ -50,7 +50,35 @@ Verification:
 - No frontend build assets changed (Blade + inline styles only), so `npm run build` was not required.
 - Owner still needs to set Company Settings → Invoice Prefix to `ZMG` (or whatever prefix is wanted) for the new numbers to read `ZMG-...` — the code change only affects the digit width, the prefix was already configurable.
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: Committed and pushed (`b44d2c05`, owner approved: "কমিট এবং পুশ কর").
+
+## 2026-08-30 - WooCommerce webhook: self-serve rejection diagnostics
+
+Reason — right after the commit above went live, owner reported (with screenshots, no text): "উকমার্সের লেটেস্ট অর্ডার এখন ড্যাশবোর্ড এ সিংক হচ্ছে না।" (WooCommerce's latest order isn't syncing to the dashboard) — order #38044 never appeared in the ERP.
+
+Investigation (multi-round, owner supplying screenshots each round):
+
+1. A WooCommerce delivery-log screenshot of the **old** webhook (ID 1) showed a genuine Laravel/Cloudflare response — real `x-ratelimit-limit: 120` header (matches this route's own `throttle:120,1`), fresh session/XSRF cookies — on an **HTTP 404**. Traced to `WooCommerceWebhookController`: `abort(404)` fires when `StorefrontSetting.woocommerce_credentials.webhook_secret` is blank for the company — i.e. no webhook secret had ever been saved, so every delivery to that webhook was rejected from the very first line.
+2. Asked the owner to run the ERP's own **Settings → Integrations → WooCommerce → "Send test webhook"** button to disambiguate a blank secret from a URL/company-id/network problem. It succeeded (HTTP 200, "signature verified") — confirming the route, company id, and the secret *now* saved in the database all work correctly together, once a secret exists.
+3. Owner then created a **brand-new** WooCommerce webhook using that same saved secret. WooCommerce's own save-time test of it returned **"Error: Delivery URL returned response code: 403"** — a *different* failure (signature mismatch, not a missing secret) despite the Secret field looking identical to the ERP's saved value in both screenshots.
+4. Owner re-copied the secret carefully (per my instructions: reveal via the eye icon, select all, copy, paste fresh, save) and re-tested — still failing. At this point neither of us can tell, from a status code alone, whether: (a) the secret genuinely still doesn't match byte-for-byte, or (b) something in between (a proxy/WAF/host) is stripping or altering the `X-WC-Webhook-Signature` header before it reaches Laravel, or (c) something else entirely — and the owner has no practical way to pull `storage/logs/laravel.log` from the production server themselves to see the exact computed-vs-received signatures the controller already logs.
+
+What changed — since neither of us can inspect production logs live, made the failure self-diagnosing from a surface the owner *can* already reach (WooCommerce's own "Recent Deliveries" → response tab, which the owner has already used twice this session):
+
+- `app/Http/Controllers/WooCommerceWebhookController.php` — the 404 ("no secret saved") and 403 ("signature mismatch") paths now return a small JSON body instead of a bare `abort()`: `{"ok": false, "error": "no_webhook_secret_saved" | "signature_mismatch", "hint": "<plain-language next step>", ...}`. The 403 body additionally reports `signature_header_present` (bool) and `request_body_length` (int) — enough to tell whether the signature header even arrived at all, without ever exposing the secret or either signature value. Existing `Log::warning(...)` calls (which already log the full computed/received signatures for anyone who *can* reach the server logs) are unchanged.
+
+Important changed files:
+
+- `app/Http/Controllers/WooCommerceWebhookController.php`
+- `tests/Feature/WooCommerceOrderWebhookTest.php` — extended `test_an_invalid_signature_is_rejected` to assert the new 403 body; added `test_a_missing_webhook_secret_is_reported_with_a_self_serve_hint` for the 404 body.
+
+Verification:
+
+- Targeted run — `WooCommerceOrderWebhookTest`: **12 passed**.
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1032 passed, 0 failed** (was 1031 before this change; +1 net for the new test here, one existing test extended in place).
+- Not yet resolved: this change only makes the *next* failed delivery self-explanatory in WooCommerce's own UI — it doesn't yet tell us why the current one is failing. Once deployed, the owner needs to re-save/re-test the webhook once more and share what the response tab now shows; that will settle whether it's a genuine remaining secret mismatch or a header being stripped in transit.
+
+Commit status: Not yet committed — awaiting the owner's explicit approval per CLAUDE.md, and full-suite confirmation.
 
 ## 2026-08-29 - Fix: the automatic-migration deploy step broke production startup
 
