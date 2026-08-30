@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.10.2] - 2026-08-30
+
+**Release type:** Patch/Fix Update
+
 ### Changed
 
 - **Invoice/order numbers now use a 3-digit daily sequence** (e.g. `ZMG-20260830-001`) instead of 4 digits (`-0001`). The date segment still matches the invoice's own creation date, and the sequence still restarts at `001` each day per company; the prefix stays whatever is set on Company Settings → Invoice Prefix (e.g. `ZMG`). Also fixed a latent overflow bug this change would otherwise have made much easier to hit: once a single day's count passes 999, the next number correctly continues as `-1000`, `-1001`, ... instead of wrapping the suffix back down to `-000` and re-issuing an already-used number.
@@ -13,7 +17,6 @@ All notable production changes to Business Dashboard are documented here.
 - **Recording a payment on an order's edit page could silently undo itself.** Paid Amount/Due Amount on the edit form are read-only once an order exists (corrections go through the Payments History ledger below), but read-only alone didn't stop their stale, page-load-time values from being resubmitted — saving the order after adding a payment there could overwrite the just-recorded amount back to what it was before, so the invoice's Paid/Due lines never reflected it either. Those two fields are no longer written by the edit form at all now; only the Payments History ledger can change them. The order screen also refreshes its own Paid/Due Amount immediately after a payment is added, edited, or deleted, instead of only on the next page load.
 - **Every list in the app now shows its newest record on top by default** — Orders, Customers, Products, Users, and every other list/relation table that didn't already set its own sort order previously showed the oldest record first and the newest at the very bottom (Filament's own built-in fallback sorts by ID ascending). A list that already had an intentional sort (alphabetical, drag-to-reorder, etc.) is unaffected.
 - **The order "Change status" action now reports a real error instead of appearing to do nothing** if something unexpected goes wrong mid-transition (a database error, a courier-sync failure, etc.) — previously an error here could fail without any visible feedback. The success notification also now names the resulting status (e.g. "MAIN-20260830-001 is now Confirmed.") instead of a generic message.
-
 ## [2.10.1] - 2026-08-29
 
 **Release type:** Patch/Fix Update
