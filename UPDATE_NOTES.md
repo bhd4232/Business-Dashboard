@@ -2,6 +2,56 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-30 - Order status action, payment sync, list ordering, invoice number format
+
+Reason — owner reported four issues in one message:
+
+1. "ড্যাশবোর্ড এ অর্ডার ম্যানুয়ালি তৈরি হওয়ার পর অর্ডার স্ট্যাটাস পরিবর্তন বাটন এ ক্লিক করে কনফার্ম সিলেক্ট করলে কোন একশন হচ্ছে না। আর অর্ডার স্ট্যাটাস আপডেট আরো স্মুদ করতে হবে।" — the order status change action seemed to do nothing; wants it smoother.
+2. "অর্ডার তৈরি হওয়ার পর এডিট পেজে গিয়ে পেমেন্ট এড করলে পেডামাউন্টে সেটা যুক্ত হয় না এবং ইনভয়েসেও পেমেন্ট ইনফো আপডেট হচ্ছে না।" — a payment added on the edit page doesn't reflect in Paid Amount or the invoice.
+3. "অর্ডার লিস্ট বা যে কোন লিস্ট কিংবা অ্যাপ এর যে কোন লিস্ট গুলো লেটেস্ট লিস্ট একদম নিচে দেখায়। ডিফল্ট ভিউতে লেটেস্ট লিস্ট সবার উপরে শো করবে এবং এটা পুরো অ্যাপ এর জন্য এপ্লিক্যাবল।" — every list should default to newest-first, app-wide.
+4. "ইনভয়েস নাম্বার প্যাটার্ন এমন হবে, ZMG-20260829-001 ... শুধু শেষের ডিজিট ক্রমানুসারে আগাবে ... তারিখ যেই তারিখে ইনভয়েস ক্রিয়েট হবে ওই তারিখের অনুযায়ী ... শেষের অংশের নাম্বার গুলো ক্রমানুসারে বসবে।" — invoice number should be `PREFIX-YYYYMMDD-001` with a 3-digit daily sequence.
+
+Investigation:
+
+- **#1**: reproduced the exact flow live (draft order → Edit page → Change status → Confirmed → submit) against the running app in a real browser. The backend transition (`OrderStatusWorkflowService::transition()`) and the Livewire/Alpine modal both worked correctly every time a click actually registered — no deterministic backend bug found. What the action was missing: any unexpected (non-validation) exception mid-transition had no explicit handling, so a failure there could look exactly like "nothing happened" instead of a clear error; and the success notification was a generic "Order status updated" with no indication of what actually changed.
+- **#2**: root-caused precisely. `OrderForm`'s `paid_amount`/`due_amount` fields are `readOnly()` on the edit form (by design — they're derived from the Payments History ledger, see `Order::recalculatePaidAmount()`), but `readOnly()` only blocks typing; Filament still dehydrates (submits) a readOnly field's value unless told otherwise. Add a payment via Payments History (correctly recomputes the DB values), then save the edit form (still holding the *pre-payment* values from when the page loaded) — the save silently overwrote the just-recorded ledger totals back to their stale values, so both the order screen and every invoice built from `$order->paid_amount`/`due_amount` showed the payment as if it never happened.
+- **#3**: confirmed against Filament's own source (`CanSortRecords::applySortingToTableQuery()`) — a table with no `->defaultSort()` still gets an explicit `ORDER BY <primary key> ASC` appended as Filament's own fallback tie-break, which is exactly "oldest on top, newest at the bottom." 10 of 20 resource `Tables/*.php` classes and 8 of 17 relation managers had no `->defaultSort()` at all.
+- **#4**: the invoice number *is* `orders.order_number` (confirmed in `resources/views/orders/partials/invoice.blade.php`) — one field drives both. The prefix is already a per-company admin-configurable field (Company Settings → Invoice Prefix), so getting `ZMG-...` needs no code change, only the owner setting it. The digit width (`0001` → `001`) is code-level, in `Order::nextOrderNumber()`.
+
+What changed:
+
+- `app/Filament/Resources/Orders/Actions/ChangeOrderWorkflowAction.php` — unexpected exceptions during a transition are now caught, `report()`-ed, and shown as a clear danger notification (`$action->halt()` to skip the generic success message); `ValidationException` still passes through unchanged so it renders as an inline field error like before. Success notification now names the resulting status (e.g. "MAIN-20260830-001 is now Confirmed.").
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php` — `paid_amount` is `dehydrated(false)` on the edit operation (still normal/saved at create, where it seeds the first ledger row); `due_amount` is `dehydrated(false)` unconditionally (always recomputed by `OrderWorkflowService::sync()` right after every save anyway). Helper text on `paid_amount` now points at "Payments History below" instead of a separate view page.
+- `app/Filament/Resources/Orders/RelationManagers/PaymentsRelationManager.php` — its Create/Edit/Delete actions now dispatch `order-payment-updated` after completing.
+- `app/Filament/Resources/Orders/Pages/EditOrder.php` / `ViewOrder.php` — listen for `order-payment-updated` and refresh (`refreshFormData(['paid_amount', 'due_amount'])` on Edit; `$this->record->refresh()` on View) so the screen reflects a new/edited/deleted payment immediately, without needing a manual page reload.
+- `app/Support/DefaultTableSort.php` (new) + `app/Providers/AppServiceProvider.php` — registers a global `Table::configureUsing()` fallback: any Filament table (resource table, relation manager, widget) that doesn't set its own `->defaultSort()` now sorts by `created_at desc` (or the primary key, for the rare table without timestamps) instead of Filament's own ascending-key fallback. A resource/relation manager's own explicit `->defaultSort()` is unaffected — it's applied after this one and simply replaces it.
+- `app/Filament/Resources/Broadcasts/RelationManagers/RecipientsRelationManager.php` — its one ambiguous `->defaultSort('id')` (implicitly ascending) made explicit as `desc`, for consistency with every other explicit sort in the app.
+- `app/Models/Order.php` (`nextOrderNumber()`) — sequence padding changed from 4 digits to 3 (`ZMG-20260830-001`). Also fixed a latent bug the narrower width made much more likely to actually hit: the old suffix-parsing (`substr($lastNumber, -4)`/`-3`) would truncate an overflowed, wider suffix (e.g. `-1000`) back down to its last 3/4 characters and could re-mint an already-used number; it now reads everything after the fixed-length date+prefix instead, so `-999` correctly continues as `-1000`, `-1001`, ... with no collision.
+- `resources/views/storefront/track/show.blade.php` — order-number search placeholder updated to match (`-001` instead of `-0001`).
+
+Important changed files:
+
+- `app/Filament/Resources/Orders/Actions/ChangeOrderWorkflowAction.php`
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php`
+- `app/Filament/Resources/Orders/RelationManagers/PaymentsRelationManager.php`
+- `app/Filament/Resources/Orders/Pages/EditOrder.php`
+- `app/Filament/Resources/Orders/Pages/ViewOrder.php`
+- `app/Support/DefaultTableSort.php` (new)
+- `app/Providers/AppServiceProvider.php`
+- `app/Filament/Resources/Broadcasts/RelationManagers/RecipientsRelationManager.php`
+- `app/Models/Order.php`
+- `resources/views/storefront/track/show.blade.php`
+- New tests: `tests/Feature/ChangeOrderWorkflowActionTest.php`, `tests/Feature/DefaultTableSortTest.php`; extended `tests/Feature/OrderFormTest.php` and `tests/Feature/InvoiceDesignTest.php`.
+
+Verification:
+
+- Targeted run — `ChangeOrderWorkflowActionTest`, `DefaultTableSortTest`, `OrderFormTest`, `InvoiceDesignTest`, `SequentialNumberConcurrencyTest` — all passed.
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1031 passed, 0 failed** (was 1023 before this change; +8 for the new/extended tests here).
+- No frontend build assets changed (Blade + inline styles only), so `npm run build` was not required.
+- Owner still needs to set Company Settings → Invoice Prefix to `ZMG` (or whatever prefix is wanted) for the new numbers to read `ZMG-...` — the code change only affects the digit width, the prefix was already configurable.
+
+Commit status: NOT committed. Awaiting owner approval.
+
 ## 2026-08-29 - Fix: the automatic-migration deploy step broke production startup
 
 Reason:
@@ -25,7 +75,7 @@ Verification:
 - No test suite impact (config-only change, no PHP/Blade touched) — the existing `DeployMigrateCommandTest`/`DeploymentErrorReporterTest` coverage still applies unchanged to the command itself.
 - Still needs the owner to add `php artisan deploy:migrate` as this application's Post-deployment Command in the Coolify dashboard, then trigger a redeploy to confirm the container now passes its healthcheck.
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: Committed and pushed (`f495f1f2`, owner approved: "Yes, commit and push the fix"). Confirmed by a follow-up deploy log: the `heroku-php-apache2` error is gone and `composer install`/`filament:upgrade` both completed; that same log then hit an unrelated `npm ci` `ECONNRESET` — a transient registry network error during the build's `npm ci` step, not caused by this change (nothing here touches `package.json`/npm config) — owner advised to just retry the deploy.
 
 ## 2026-08-29 - App version rollback: roll back to a previous deployment from inside the dashboard
 

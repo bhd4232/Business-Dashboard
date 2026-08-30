@@ -400,16 +400,20 @@ class Order extends Model
             ->when($company, fn ($query) => $query->where('company_id', $company->getKey()))
             ->where('order_number', 'like', $base.'%')
             // Same-prefix numbers can differ in digit count once the daily
-            // sequence passes 9999, at which point a plain string ORDER BY
-            // would rank "...-10000" below "...-9999". Sorting by length
+            // sequence passes 999, at which point a plain string ORDER BY
+            // would rank "...-1000" below "...-999". Sorting by length
             // first keeps the numerically-largest suffix on top.
             ->orderByRaw('LENGTH(order_number) desc')
             ->orderByDesc('order_number')
             ->value('order_number');
 
-        $sequence = $lastNumber ? ((int) substr($lastNumber, -4)) + 1 : 1;
+        // Read everything after the fixed-length $base prefix rather than a
+        // hardcoded substr(-3) -- once the daily count passes 999 the suffix
+        // itself grows past 3 digits (e.g. "...-1000"), and a fixed -3 would
+        // silently truncate that back down to "000" and re-mint duplicates.
+        $sequence = $lastNumber ? ((int) substr($lastNumber, strlen($base))) + 1 : 1;
 
-        return $base.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+        return $base.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
     }
 
     public function syncTotalsStockAndCustomerBalance(): void

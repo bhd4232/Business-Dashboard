@@ -20,8 +20,14 @@ use Filament\Tables\Table;
  * Order-level "Payments History" ledger (OrderPayment) — every add/edit/
  * delete here recomputes Order::paid_amount/due_amount via
  * OrderPayment::booted() -> Order::recalculatePaidAmount(). See
- * Order::payments() and OrderForm's now-readOnly-on-edit paid_amount
- * field for the rest of this flow.
+ * Order::payments() and OrderForm's dehydrated(false)-on-edit paid_amount/
+ * due_amount fields for the rest of this flow.
+ *
+ * Each action below dispatches 'order-payment-updated' after it completes,
+ * so EditOrder/ViewOrder (the pages that embed this relation manager) can
+ * refresh their own display of paid_amount/due_amount immediately — those
+ * two fields live on the *parent* record, not this table, so nothing here
+ * would otherwise tell the parent page anything changed underneath it.
  */
 class PaymentsRelationManager extends RelationManager
 {
@@ -75,7 +81,15 @@ class PaymentsRelationManager extends RelationManager
                 TextColumn::make('note')->limit(40)->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('paid_at', 'desc')
-            ->headerActions([CreateAction::make()])
-            ->recordActions([EditAction::make(), DeleteAction::make()]);
+            ->headerActions([
+                CreateAction::make()
+                    ->after(fn () => $this->dispatch('order-payment-updated')),
+            ])
+            ->recordActions([
+                EditAction::make()
+                    ->after(fn () => $this->dispatch('order-payment-updated')),
+                DeleteAction::make()
+                    ->after(fn () => $this->dispatch('order-payment-updated')),
+            ]);
     }
 }

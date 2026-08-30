@@ -30,7 +30,7 @@
                         class="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm outline-none transition focus:border-[var(--storefront-brand)] focus:ring-1 focus:ring-[var(--storefront-brand)] dark:border-white/10 dark:bg-gray-950"
                         id="order_number"
                         name="order_number"
-                        placeholder="Example: {{ $company->invoice_prefix }}-{{ now()->format('Ymd') }}-0001"
+                        placeholder="Example: {{ $company->invoice_prefix }}-{{ now()->format('Ymd') }}-001"
                         type="text"
                         value="{{ $orderNumber }}"
                     >

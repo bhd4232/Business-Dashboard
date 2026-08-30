@@ -8,6 +8,7 @@ use App\Filament\Resources\Orders\OrderResource;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ViewAction;
 use Filament\Resources\Pages\EditRecord;
+use Livewire\Attributes\On;
 
 class EditOrder extends EditRecord
 {
@@ -23,5 +24,17 @@ class EditOrder extends EditRecord
             ViewAction::make(),
             DeleteAction::make(),
         ];
+    }
+
+    /**
+     * PaymentsRelationManager dispatches this after every add/edit/delete of
+     * a payment row, so the form's paid_amount/due_amount (dehydrated(false)
+     * on this page — see OrderForm) pick up the ledger-recalculated values
+     * right away instead of only on the next full page load.
+     */
+    #[On('order-payment-updated')]
+    public function refreshPaymentTotals(): void
+    {
+        $this->refreshFormData(['paid_amount', 'due_amount']);
     }
 }

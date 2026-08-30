@@ -7,8 +7,11 @@ use App\Services\OrderStatusWorkflowService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class ChangeOrderWorkflowAction
 {
@@ -36,15 +39,41 @@ class ChangeOrderWorkflowAction
                     ->helperText('Required for cancellation, return, and refund so the history remains actionable.'),
             ])
             ->requiresConfirmation()
-            ->action(function (Order $record, array $data): void {
-                app(OrderStatusWorkflowService::class)->transition(
-                    $record,
-                    $data['stage'],
-                    $data['reason'] ?? null,
-                );
+            ->action(function (Order $record, array $data, Action $action): void {
+                try {
+                    app(OrderStatusWorkflowService::class)->transition(
+                        $record,
+                        $data['stage'],
+                        $data['reason'] ?? null,
+                    );
+                } catch (ValidationException $exception) {
+                    // Let Filament turn this into an inline field error on the
+                    // modal, same as any other form validation failure.
+                    throw $exception;
+                } catch (Throwable $exception) {
+                    // Anything else (an unexpected DB error, a courier-sync
+                    // failure mid-transition, etc.) must never look like the
+                    // click "did nothing" -- report it and surface it plainly
+                    // instead of letting a generic, easy-to-miss error bubble
+                    // up on its own.
+                    report($exception);
+
+                    Notification::make()
+                        ->danger()
+                        ->title('Could not update the order status')
+                        ->body('Something unexpected went wrong and the order was left unchanged. Please try again — if it keeps happening, share this with support: '.$exception->getMessage())
+                        ->send();
+
+                    $action->halt();
+                }
 
                 $record->refresh();
             })
-            ->successNotificationTitle('Order status updated');
+            ->successNotification(
+                fn (Order $record): Notification => Notification::make()
+                    ->success()
+                    ->title('Order status updated')
+                    ->body("{$record->order_number} is now ".(Order::WORKFLOW_STAGES[$record->workflowStage()] ?? ucfirst($record->status)).'.')
+            );
     }
 }

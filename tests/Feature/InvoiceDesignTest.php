@@ -391,4 +391,35 @@ class InvoiceDesignTest extends TestCase
             ->assertOk()
             ->assertSee('PDF-CONTENT');
     }
+
+    public function test_order_numbers_use_a_three_digit_daily_sequence_and_survive_overflow(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Sequence Co',
+            'slug' => 'sequence-co',
+            'invoice_prefix' => 'ZMG',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($company);
+
+        $today = now()->format('Ymd');
+
+        $first = Order::query()->create(['customer_name' => 'Buyer One', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
+        $this->assertSame("ZMG-{$today}-001", $first->order_number);
+
+        $second = Order::query()->create(['customer_name' => 'Buyer Two', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
+        $this->assertSame("ZMG-{$today}-002", $second->order_number);
+
+        // Once the daily count passes 999 the suffix grows past 3 digits --
+        // the next number must read the whole numeric remainder (not just
+        // its last 3 characters) or it would wrap back to "-000" and collide
+        // with a number already used earlier today.
+        $second->forceFill(['order_number' => "ZMG-{$today}-999"])->saveQuietly();
+        $this->assertSame("ZMG-{$today}-1000", Order::nextOrderNumber($company));
+
+        $second->forceFill(['order_number' => "ZMG-{$today}-1000"])->saveQuietly();
+        $this->assertSame("ZMG-{$today}-1001", Order::nextOrderNumber($company));
+    }
 }

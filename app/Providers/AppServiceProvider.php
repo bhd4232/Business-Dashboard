@@ -44,11 +44,14 @@ use App\Observers\OrderNotificationObserver;
 use App\Services\CompanyContext;
 use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
+use App\Support\DefaultTableSort;
 use App\Support\MoneyFormatter;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Livewire\Notifications;
 use Filament\Tables\Columns\Summarizers\Summarizer;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
@@ -152,6 +155,13 @@ class AppServiceProvider extends ServiceProvider
         if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
+
+        // App-wide "newest first" default for every Filament table that
+        // doesn't set its own ->defaultSort() -- see DefaultTableSort's
+        // docblock for why this is needed at all.
+        Table::configureUsing(function (Table $table): void {
+            $table->defaultSort(fn (Builder $query): string => DefaultTableSort::column($query), 'desc');
+        });
 
         $this->configureCloudStorage();
 

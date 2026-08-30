@@ -33,7 +33,7 @@ class RecipientsRelationManager extends RelationManager
                 TextColumn::make('error')->limit(60)->tooltip(fn (?BroadcastRecipient $record): ?string => $record?->error)->placeholder('-'),
                 TextColumn::make('sent_at')->dateTime()->placeholder('-'),
             ])
-            ->defaultSort('id')
+            ->defaultSort('id', 'desc')
             ->filters([
                 SelectFilter::make('status')->options(BroadcastRecipient::STATUSES),
             ]);

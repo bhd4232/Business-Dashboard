@@ -21,6 +21,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Livewire\Attributes\On;
 
 class ViewOrder extends ViewRecord
 {
@@ -118,6 +119,18 @@ class ViewOrder extends ViewRecord
                 ->openUrlInNewTab(),
             EditAction::make(),
         ];
+    }
+
+    /**
+     * PaymentsRelationManager dispatches this after every add/edit/delete of
+     * a payment row. The infolist reads straight off $this->record, so a
+     * refresh here is enough to show the ledger-recalculated paid_amount/
+     * due_amount right away instead of only on the next full page load.
+     */
+    #[On('order-payment-updated')]
+    public function refreshPaymentTotals(): void
+    {
+        $this->record->refresh();
     }
 
     protected function courierBookingForm(bool $includeProvider = true): array

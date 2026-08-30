@@ -401,21 +401,33 @@ class OrderForm
                             ->afterStateUpdated(fn (Get $get, Set $set) => self::setOrderTotals($get, $set))
                             // Once the order exists, paid_amount is derived from the
                             // Payments History ledger (OrderPayment rows, recomputed by
-                            // Order::recalculatePaidAmount()) shown on the order's view
-                            // page — corrections go through that ledger (add/edit/delete
-                            // a payment row) instead of typing a new total here, so the
-                            // two write paths can't silently disagree. Still a normal
-                            // editable field at creation time, which auto-seeds the first
-                            // ledger row (see Order::booted()'s `created` hook).
+                            // Order::recalculatePaidAmount()) shown on this page and on
+                            // the order's view page — corrections go through that ledger
+                            // (add/edit/delete a payment row) instead of typing a new
+                            // total here. readOnly() alone only blocks typing though; the
+                            // field's stale value (from whenever the page was loaded)
+                            // would still be submitted and silently overwrite whatever
+                            // the ledger had just recalculated, so dehydrated(false) on
+                            // edit stops it being written back at all. Still a normal
+                            // editable + saved field at creation time, which auto-seeds
+                            // the first ledger row (see Order::booted()'s `created` hook).
                             ->readOnly(fn (string $operation): bool => $operation === 'edit')
+                            ->dehydrated(fn (string $operation): bool => $operation !== 'edit')
                             ->helperText(fn (string $operation): ?string => $operation === 'edit'
-                                ? 'Managed from Payments History on the order view page.'
+                                ? 'Managed from Payments History below — add, edit, or delete a payment there.'
                                 : null),
 
                         TextInput::make('due_amount')
                             ->numeric()
                             ->prefix('৳')
-                            ->readOnly(),
+                            ->readOnly()
+                            // Always derived (from total_amount and the real, ledger-
+                            // synced paid_amount) by OrderWorkflowService::sync() right
+                            // after every save, on both create and edit -- never the
+                            // client-computed value sitting in the form when submitted,
+                            // which can be stale for the same reason paid_amount is
+                            // above.
+                            ->dehydrated(false),
                     ])
                     ->columns(3)
                     ->collapsible()
