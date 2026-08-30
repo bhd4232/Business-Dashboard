@@ -2,6 +2,34 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-30 - WooCommerce webhook: manual order sync + diagnosis tooling
+
+Reason — continuation of the same investigation as the entry below ("WooCommerce webhook: self-serve rejection diagnostics"). After that fix deployed, real deliveries progressed from 403 (signature mismatch) to **500** — a genuine processing failure inside `WooCommerceOrderSyncService`, not a secret/signature problem. Chasing the exact exception message turned into a multi-round dead end:
+
+- `storage/logs` inside the container was empty — turned out `LOG_CHANNEL=stderr` in this production environment (not the `daily` file channel `.env.production.example` implies), so nothing is ever written to a log *file* at all; this is intentional container-logging practice, not a bug.
+- Coolify's own "Logs" tab only shows the web server's access log (status codes, no application-level messages) — the app's own `Log::warning(...)` output (which already includes the real exception message) isn't visible there.
+- WooCommerce's own "Recent Deliveries" log hides both request *and response* bodies unless `WP_DEBUG` is enabled on the WordPress site — so even the response-body diagnostics shipped in the previous entry can't be seen there for this specific 500 case.
+- Along the way, found and had the owner delete a second, stale WooCommerce webhook (the original one from before a secret was ever saved) whose Secret field no longer matched — every order update was firing two deliveries, one 403 (stale webhook) and one 500 (the real one).
+
+Rather than keep chasing infrastructure-level log access, built a way to see the real error directly in the ERP's own UI — where the owner already is.
+
+What changed:
+
+- `app/Filament/Pages/Integrations.php` — new **"Sync an order now"** header action (WooCommerce tab). Takes a WooCommerce order ID, fetches that order from WooCommerce's own REST API using the already-saved consumer key/secret, then runs it through `WooCommerceOrderSyncService::handleOrderEvent()` in-process (no HTTP hop through the webhook route). Success names the resulting ERP order number; a failure shows the exact exception message and class in the notification — no log or server access needed to see it.
+
+Important changed files:
+
+- `app/Filament/Pages/Integrations.php`
+- `tests/Feature/IntegrationsPageTest.php` — 3 new tests: missing-credentials warning, a successful pull-and-sync creating the ERP order, and a forced processing failure (`WooCommerce order payload is missing an order id.`) surfacing verbatim in the notification instead of a generic message.
+
+Verification:
+
+- Targeted run — `IntegrationsPageTest`: **11 passed**.
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1038 passed, 0 failed** (includes a peer session's own in-progress, uncommitted `GuestAuthRedirectTest.php` sitting in the working tree — this commit itself only adds the 3 `IntegrationsPageTest` cases).
+- Not yet resolved: this ships the *tool* to see the real error, not the fix itself. Next step is for the owner to click "Sync an order now" with WooCommerce order **#38044** (the one that never synced) and share whatever the notification says — that will finally reveal the actual bug in the sync logic.
+
+Commit status: Not yet committed — awaiting the owner's approval per CLAUDE.md, and full-suite confirmation.
+
 ## 2026-08-30 - Order status action, payment sync, list ordering, invoice number format
 
 Reason — owner reported four issues in one message:
@@ -78,7 +106,7 @@ Verification:
 - Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1032 passed, 0 failed** (was 1031 before this change; +1 net for the new test here, one existing test extended in place).
 - Not yet resolved: this change only makes the *next* failed delivery self-explanatory in WooCommerce's own UI — it doesn't yet tell us why the current one is failing. Once deployed, the owner needs to re-save/re-test the webhook once more and share what the response tab now shows; that will settle whether it's a genuine remaining secret mismatch or a header being stripped in transit.
 
-Commit status: Not yet committed — awaiting the owner's explicit approval per CLAUDE.md, and full-suite confirmation.
+Commit status: Committed and pushed (`69fd0571`, owner approved: "কমিট এবং পুশ কর").
 
 ## 2026-08-29 - Fix: the automatic-migration deploy step broke production startup
 

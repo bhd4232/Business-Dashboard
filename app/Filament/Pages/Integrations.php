@@ -4,9 +4,11 @@ namespace App\Filament\Pages;
 
 use App\Filament\Clusters\Settings;
 use App\Models\Company;
+use App\Models\Order;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\Crm\AiSettingsService;
+use App\Services\WooCommerceOrderSyncService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
@@ -146,6 +148,19 @@ class Integrations extends Page
                 ->color('gray')
                 ->action('testWoocommerceWebhook')
                 ->visible(fn (): bool => $this->hasSelectedCompany()),
+            Action::make('syncWooOrder')
+                ->label('Sync an order now')
+                ->icon(Heroicon::OutlinedArrowPath)
+                ->color('gray')
+                ->schema([
+                    TextInput::make('woo_order_id')
+                        ->label('WooCommerce order ID')
+                        ->helperText('The number shown on the order in WooCommerce (e.g. 38044) — not the ERP order number.')
+                        ->numeric()
+                        ->required(),
+                ])
+                ->action('syncWooOrder')
+                ->visible(fn (): bool => $this->hasSelectedCompany()),
             Action::make('saveChanges')
                 ->label('Save changes')
                 ->icon(Heroicon::OutlinedCheck)
@@ -218,6 +233,89 @@ class Integrations extends Page
                 ? 'The server rejected this request\'s signature even though it was computed from the secret saved below — the saved value itself may be stale (try Generate, Save, then test again).'
                 : $response->body())
             ->danger()
+            ->send();
+    }
+
+    /**
+     * Pulls one order straight from WooCommerce's own REST API (using the
+     * consumer key/secret saved below) and runs it through the exact same
+     * WooCommerceOrderSyncService::handleOrderEvent() a real webhook
+     * delivery would — in-process, no HTTP hop through the webhook route
+     * itself. Two purposes in one action: manually backfilling an order a
+     * webhook never delivered (e.g. one sent before a secret was saved),
+     * and — since any failure is shown here verbatim instead of only in a
+     * server log or WooCommerce's own delivery log (which hides response
+     * bodies unless WP_DEBUG is on) — diagnosing *why* real deliveries are
+     * failing, without needing server/log access at all.
+     */
+    public function syncWooOrder(array $data): void
+    {
+        $company = $this->selectedCompany();
+        $wooOrderId = (int) $data['woo_order_id'];
+
+        $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->first();
+        $baseUrl = rtrim((string) $setting?->woocommerce_base_url, '/');
+        $key = (string) data_get($setting?->woocommerce_credentials, 'consumer_key');
+        $secret = (string) data_get($setting?->woocommerce_credentials, 'consumer_secret');
+
+        if ($baseUrl === '' || $key === '' || $secret === '') {
+            Notification::make()
+                ->title('WooCommerce site URL or API key/secret is not saved yet')
+                ->body('Fill in and save those below first.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        try {
+            $response = Http::timeout(15)
+                ->withBasicAuth($key, $secret)
+                ->get("{$baseUrl}/wp-json/wc/v3/orders/{$wooOrderId}");
+        } catch (\Throwable $exception) {
+            Notification::make()
+                ->title('Could not reach the WooCommerce site')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        if ($response->failed()) {
+            Notification::make()
+                ->title('WooCommerce rejected the request: HTTP '.$response->status())
+                ->body($response->body())
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        try {
+            app(WooCommerceOrderSyncService::class)->handleOrderEvent($company, 'order.updated', (array) $response->json());
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            Notification::make()
+                ->title('Sync failed: '.$exception->getMessage())
+                ->body($exception::class)
+                ->danger()
+                ->persistent()
+                ->send();
+
+            return;
+        }
+
+        $order = Order::withoutGlobalScopes()
+            ->where('company_id', $company->getKey())
+            ->where('external_reference', "woo-{$wooOrderId}")
+            ->first();
+
+        Notification::make()
+            ->title('Order synced')
+            ->body($order ? "WooCommerce order #{$wooOrderId} is now {$order->order_number} in ZamZam ERP." : "WooCommerce order #{$wooOrderId} was processed.")
+            ->success()
             ->send();
     }
 

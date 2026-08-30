@@ -229,6 +229,96 @@ class IntegrationsPageTest extends TestCase
             ->assertNotified('Webhook test failed: HTTP 403');
     }
 
+    public function test_sync_order_action_warns_when_site_url_or_api_keys_are_not_saved(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Http::fake();
+
+        Livewire::test(Integrations::class)
+            ->call('syncWooOrder', data: ['woo_order_id' => 38044])
+            ->assertNotified('WooCommerce site URL or API key/secret is not saved yet');
+
+        Http::assertNothingSent();
+    }
+
+    public function test_sync_order_action_pulls_a_real_order_from_woocommerce_and_creates_it_in_the_erp(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'woocommerce_base_url' => 'https://shop.example.com',
+            'woocommerce_credentials' => ['consumer_key' => 'ck_1', 'consumer_secret' => 'cs_1'],
+        ]);
+
+        Http::fake([
+            'shop.example.com/wp-json/wc/v3/orders/38044' => Http::response([
+                'id' => 38044,
+                'number' => '38044',
+                'status' => 'processing',
+                'date_created' => '2026-08-30T10:00:00',
+                'discount_total' => '0.00',
+                'total_tax' => '0.00',
+                'shipping_total' => '60.00',
+                'billing' => [
+                    'first_name' => 'Backfilled', 'last_name' => 'Customer',
+                    'phone' => '01700000123', 'email' => 'backfilled@example.test',
+                    'address_1' => '1 Test Road', 'city' => 'Dhaka',
+                ],
+                'line_items' => [],
+            ], 200),
+        ]);
+
+        Livewire::test(Integrations::class)
+            ->call('syncWooOrder', data: ['woo_order_id' => 38044])
+            ->assertNotified('Order synced');
+
+        // Fetched with the saved API credentials, not anything else.
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://shop.example.com/wp-json/wc/v3/orders/38044'
+            && $request->hasHeader('Authorization'));
+
+        $this->assertDatabaseHas('orders', [
+            'company_id' => $company->getKey(),
+            'external_reference' => 'woo-38044',
+        ]);
+    }
+
+    public function test_sync_order_action_reports_the_exact_processing_failure_instead_of_a_generic_message(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'woocommerce_base_url' => 'https://shop.example.com',
+            'woocommerce_credentials' => ['consumer_key' => 'ck_1', 'consumer_secret' => 'cs_1'],
+        ]);
+
+        // No "id" in the response WooCommerce sends back — the same real
+        // failure shape WooCommerceOrderSyncService::upsertOrder() rejects
+        // with a specific message, used here as a stand-in for any real
+        // processing bug: the point is that the exact exception surfaces
+        // in the notification instead of a generic "something went wrong".
+        Http::fake([
+            'shop.example.com/wp-json/wc/v3/orders/38044' => Http::response(['number' => '38044'], 200),
+        ]);
+
+        Livewire::test(Integrations::class)
+            ->call('syncWooOrder', data: ['woo_order_id' => 38044])
+            ->assertNotified('Sync failed: WooCommerce order payload is missing an order id.');
+
+        $this->assertDatabaseMissing('orders', ['external_reference' => 'woo-38044']);
+    }
+
     protected function assertBlank(mixed $value): void
     {
         $this->assertTrue(blank($value), 'Expected value to be blank but got: '.var_export($value, true));
