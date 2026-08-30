@@ -4,10 +4,13 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.10.3] - 2026-08-30
+
+**Release type:** Patch/Fix Update
+
 ### Fixed
 
 - **A rejected WooCommerce webhook delivery now explains itself in WooCommerce's own delivery log**, instead of showing a bare status code with no way to tell why without server access. A missing/blank webhook secret (404) or a signature that doesn't match the secret saved in Settings → Integrations → WooCommerce (403) now return a small JSON body — `error: no_webhook_secret_saved` / `signature_mismatch`, plus a plain-language hint and whether the signature header even arrived — viewable from WooCommerce's own "Recent Deliveries" → response tab. No secret or signature value is ever included.
-
 ## [2.10.2] - 2026-08-30
 
 **Release type:** Patch/Fix Update
