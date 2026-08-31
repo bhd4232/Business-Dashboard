@@ -4,10 +4,13 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.11.1] - 2026-08-31
+
+**Release type:** Patch/Fix Update
+
 ### Fixed
 
 - **The new "Sync an order now" button (Settings → Integrations → WooCommerce, added in v2.11.0) failed instantly with a generic "Error while loading page" instead of opening its order-ID prompt.** A string `->action('methodName')` on a Filament action with a `->schema()` attached is wired as a raw click handler that calls the method directly with no arguments, bypassing the modal that's supposed to collect the form first — a hard PHP error against the method's required parameter. Switched to a closure action (the pattern already used by the order "Change status" action), which correctly opens the modal first.
-
 ## [2.11.0] - 2026-08-30
 
 **Release type:** Minor Feature Update
