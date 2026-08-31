@@ -239,7 +239,7 @@ class IntegrationsPageTest extends TestCase
         Http::fake();
 
         Livewire::test(Integrations::class)
-            ->call('syncWooOrder', data: ['woo_order_id' => 38044])
+            ->callAction('syncWooOrder', data: ['woo_order_id' => 38044])
             ->assertNotified('WooCommerce site URL or API key/secret is not saved yet');
 
         Http::assertNothingSent();
@@ -277,7 +277,7 @@ class IntegrationsPageTest extends TestCase
         ]);
 
         Livewire::test(Integrations::class)
-            ->call('syncWooOrder', data: ['woo_order_id' => 38044])
+            ->callAction('syncWooOrder', data: ['woo_order_id' => 38044])
             ->assertNotified('Order synced');
 
         // Fetched with the saved API credentials, not anything else.
@@ -313,7 +313,7 @@ class IntegrationsPageTest extends TestCase
         ]);
 
         Livewire::test(Integrations::class)
-            ->call('syncWooOrder', data: ['woo_order_id' => 38044])
+            ->callAction('syncWooOrder', data: ['woo_order_id' => 38044])
             ->assertNotified('Sync failed: WooCommerce order payload is missing an order id.');
 
         $this->assertDatabaseMissing('orders', ['external_reference' => 'woo-38044']);

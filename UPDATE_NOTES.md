@@ -2,6 +2,29 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-30 - Fix: "Sync an order now" button failed instantly (own regression)
+
+Reason — owner clicked the brand-new "Sync an order now" button (shipped in `d9c4f535` below) and got a generic Livewire toast: "Error while loading page. There was an error while attempting to load this page. Please try again later." No order-ID prompt ever appeared.
+
+Investigation: the action was wired with `->action('syncWooOrder')` (a string) alongside `->schema([...])` for the order-ID input, copying the *look* of `testWoocommerceWebhook()`'s working action just above it — but not its shape (that one has no schema/args). Traced through Filament's own source (`Filament\Actions\Concerns\HasAction::getLivewireClickHandler()`/`Action::call()`): a **string** action is wired as a raw `wire:click` handler that invokes the Livewire method directly with **zero arguments**, entirely bypassing the modal that's supposed to collect the schema's data first — a hard error against `syncWooOrder(array $data)`'s required parameter. A **Closure** action is required for Filament to open the modal and call it with the collected form data — exactly the pattern `ChangeOrderWorkflowAction` (order "Change status") already uses correctly elsewhere in this codebase. Confirmed by temporarily reverting to the string form: the existing test failed ("A notification was not sent") — proving the test genuinely catches this class of bug, not just testing around it.
+
+What changed:
+
+- `app/Filament/Pages/Integrations.php` — `syncWooOrder` action changed from `->action('syncWooOrder')` to `->action(fn (array $data): mixed => $this->syncWooOrder($data))`.
+- `tests/Feature/IntegrationsPageTest.php` — the 3 new tests from the entry below now call the action the way a real click does (`->callAction('syncWooOrder', data: [...])`, matching `ChangeOrderWorkflowActionTest`'s convention) instead of `->call('syncWooOrder', data: [...])`, which calls the Livewire method directly and would never have caught this — the real bug hid entirely behind that gap in the original test.
+
+Important changed files:
+
+- `app/Filament/Pages/Integrations.php`
+- `tests/Feature/IntegrationsPageTest.php`
+
+Verification:
+
+- Targeted run — `IntegrationsPageTest`: **11 passed**. Confirmed the fix is real by reverting to the string action and watching the same test fail first.
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1038 passed, 0 failed**.
+
+Commit status: Not yet committed — awaiting the owner's approval per CLAUDE.md.
+
 ## 2026-08-30 - WooCommerce webhook: manual order sync + diagnosis tooling
 
 Reason — continuation of the same investigation as the entry below ("WooCommerce webhook: self-serve rejection diagnostics"). After that fix deployed, real deliveries progressed from 403 (signature mismatch) to **500** — a genuine processing failure inside `WooCommerceOrderSyncService`, not a secret/signature problem. Chasing the exact exception message turned into a multi-round dead end:
@@ -28,7 +51,7 @@ Verification:
 - Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1038 passed, 0 failed** (includes a peer session's own in-progress, uncommitted `GuestAuthRedirectTest.php` sitting in the working tree — this commit itself only adds the 3 `IntegrationsPageTest` cases).
 - Not yet resolved: this ships the *tool* to see the real error, not the fix itself. Next step is for the owner to click "Sync an order now" with WooCommerce order **#38044** (the one that never synced) and share whatever the notification says — that will finally reveal the actual bug in the sync logic.
 
-Commit status: Not yet committed — awaiting the owner's approval per CLAUDE.md, and full-suite confirmation.
+Commit status: Committed and pushed (`d9c4f535`, owner approved: "কমিট এবং পুশ কর").
 
 ## 2026-08-30 - Order status action, payment sync, list ordering, invoice number format
 

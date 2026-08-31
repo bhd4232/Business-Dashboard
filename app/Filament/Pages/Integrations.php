@@ -159,7 +159,14 @@ class Integrations extends Page
                         ->numeric()
                         ->required(),
                 ])
-                ->action('syncWooOrder')
+                // A plain string ->action('syncWooOrder') would look
+                // identical to testWoocommerceWebhook()'s above, but isn't:
+                // Filament only opens this action's modal (to collect the
+                // schema's data first) when the action is a Closure. A
+                // string action is wired as a raw wire:click that invokes
+                // the method with zero arguments, straight past the modal —
+                // a hard TypeError against this method's required $data.
+                ->action(fn (array $data): mixed => $this->syncWooOrder($data))
                 ->visible(fn (): bool => $this->hasSelectedCompany()),
             Action::make('saveChanges')
                 ->label('Save changes')
