@@ -231,6 +231,7 @@ class WooCommerceOrderSyncService
         $order->items()->delete();
 
         $unmatched = [];
+        $matchedProductNames = [];
 
         foreach ($lineItems as $lineItem) {
             $sku = trim((string) ($lineItem['sku'] ?? ''));
@@ -275,6 +276,8 @@ class WooCommerceOrderSyncService
                 'quantity' => $quantity,
                 'unit_price' => $lineTotal > 0 ? round($lineTotal / $quantity, 2) : (float) $product->sale_price,
             ]);
+
+            $matchedProductNames[$product->getKey()] = $product->name;
         }
 
         // A silently-dropped line item was only ever visible in the server
@@ -288,7 +291,43 @@ class WooCommerceOrderSyncService
             ]);
         }
 
+        $this->noteOversoldStock($order, $matchedProductNames);
+
         return $unmatched;
+    }
+
+    /**
+     * A WooCommerce order is never blocked from syncing by insufficient ERP
+     * stock (see OrderWorkflowService::syncStockMovements() — the sale
+     * already happened on the storefront regardless of what this ledger
+     * shows), so a shortfall would otherwise pass by completely silently.
+     * The trade-off is this note: the item(s) that pushed a product's stock
+     * negative, so it's obvious the product needs restocking without
+     * digging through the movement ledger.
+     *
+     * @param  array<int, string>  $productNamesById
+     */
+    protected function noteOversoldStock(Order $order, array $productNamesById): void
+    {
+        if ($productNamesById === []) {
+            return;
+        }
+
+        $oversold = Product::query()
+            ->where('company_id', $order->company_id)
+            ->whereIn('id', array_keys($productNamesById))
+            ->where('stock', '<', 0)
+            ->get(['id', 'stock'])
+            ->map(fn (Product $product): string => "{$productNamesById[$product->getKey()]} ({$product->stock})")
+            ->all();
+
+        if ($oversold === []) {
+            return;
+        }
+
+        $order->update([
+            'note' => trim($order->note."\nSold below available stock, now negative on hand and needs restocking: ".implode(', ', $oversold).'.'),
+        ]);
     }
 
     /**

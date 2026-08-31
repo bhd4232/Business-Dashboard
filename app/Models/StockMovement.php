@@ -49,6 +49,15 @@ class StockMovement extends Model
         'quantity' => 'integer',
     ];
 
+    /**
+     * Set by OrderWorkflowService::syncStockMovements() for a WooCommerce-
+     * sourced order's 'sale' movements — that sale already happened on the
+     * storefront regardless of what this ledger currently shows, so
+     * StockMovementService::validate() must not block it the way it blocks
+     * a manually-entered ERP sale. Deliberately not fillable/persisted.
+     */
+    public bool $allowNegativeStock = false;
+
     protected static function booted(): void
     {
         static::creating(function (StockMovement $movement): void {

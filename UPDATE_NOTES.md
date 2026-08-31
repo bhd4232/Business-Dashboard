@@ -2,6 +2,37 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-08-30 - Fix: WooCommerce orders that oversell ERP stock never synced
+
+Reason — with the "Sync an order now" button finally working (previous entry), the owner ran it against WooCommerce order **#38044** and got the real answer at last: "Sync failed: Insufficient stock for this sale quantity." (`Illuminate\Validation\ValidationException`). This is the actual root cause of the entire investigation in this session — every real webhook delivery for this order had been failing the exact same way, just invisibly (500, no reachable detail) until this tool existed.
+
+Diagnosis: `StockMovementService::validate()` throws when a stock movement would push a product's on-hand stock negative — correct and intentional for a manually-entered ERP sale (prevents overselling from the dashboard), but this exact guard also fires for `OrderWorkflowService::syncStockMovements()`, which every WooCommerce order sync goes through. Order #38044's line item quantity exceeded what the ERP's own ledger showed in stock, so the sync was rejected outright.
+
+Presented the owner with the business-rule choice directly (per CLAUDE.md — never invent one): the sale on WooCommerce already happened regardless of ERP stock, so blocking the sync doesn't prevent an oversell that's already real — it just means the ERP loses the order entirely and the problem stays invisible. Recommended always syncing WooCommerce orders regardless of stock, surfacing any shortfall as a note on the order instead (matching the existing "unmatched line item" note pattern) so it's visible and actionable rather than silently blocked. Owner approved: "জি করে দেও।"
+
+What changed:
+
+- `app/Services/OrderWorkflowService.php` (`syncStockMovements()`) — for an `Order::SOURCE_WOOCOMMERCE` order, each 'sale' `StockMovement` is now flagged `allowNegativeStock = true` before saving (switched from the one-line `updateOrCreate()` to an explicit `firstOrNew()`/`fill()`/save so the transient flag can be set first). Any other order source is unaffected — still fully blocked on insufficient stock, exactly as before.
+- `app/Models/StockMovement.php` — new transient (non-persisted) `$allowNegativeStock` property.
+- `app/Services/StockMovementService.php` (`validate()`) — the negative-stock throw is now skipped when `$movement->allowNegativeStock` is set; every other validation rule (type, quantity sign, adjustment/damage reason) is unaffected.
+- `app/Services/WooCommerceOrderSyncService.php` — new `noteOversoldStock()`, called from `syncItems()` after all line items are created: for any matched product whose stock is now negative, appends a note to the order naming the product and its new (negative) on-hand count, e.g. "Sold below available stock, now negative on hand and needs restocking: Product X (-4).".
+
+Important changed files:
+
+- `app/Services/OrderWorkflowService.php`
+- `app/Models/StockMovement.php`
+- `app/Services/StockMovementService.php`
+- `app/Services/WooCommerceOrderSyncService.php`
+- `tests/Feature/WooCommerceOrderWebhookTest.php` — new test `test_an_order_syncs_even_when_it_oversells_the_available_stock`.
+
+Verification:
+
+- Targeted run — `WooCommerceOrderWebhookTest`, `StockMovementTest`, `SalesOrderTest`, `OrderFormTest`, `IntegrationsPageTest`: **39 passed**, including `sale is blocked when stock is insufficient` and `confirmed order blocks insufficient stock` (confirms a normal ERP-created order is still correctly blocked — this change is WooCommerce-sync-only).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1048 passed, 0 failed**.
+- Once deployed, the owner should re-run "Sync an order now" with **#38044** to confirm it now succeeds and pulls the order in, then check the resulting order for the oversold-stock note and restock that product.
+
+Commit status: Committed and pushed (owner approved: "জি করে দেও।").
+
 ## 2026-08-30 - Fix: "Sync an order now" button failed instantly (own regression)
 
 Reason — owner clicked the brand-new "Sync an order now" button (shipped in `d9c4f535` below) and got a generic Livewire toast: "Error while loading page. There was an error while attempting to load this page. Please try again later." No order-ID prompt ever appeared.
@@ -23,7 +54,7 @@ Verification:
 - Targeted run — `IntegrationsPageTest`: **11 passed**. Confirmed the fix is real by reverting to the string action and watching the same test fail first.
 - Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1038 passed, 0 failed**.
 
-Commit status: Not yet committed — awaiting the owner's approval per CLAUDE.md.
+Commit status: Committed and pushed (`4df343f9`, owner approved: "টেস্ট শেষ হলে কমিট এবং পুশ কর").
 
 ## 2026-08-30 - WooCommerce webhook: manual order sync + diagnosis tooling
 

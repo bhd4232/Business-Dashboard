@@ -315,6 +315,47 @@ class WooCommerceOrderWebhookTest extends TestCase
         $this->assertSame(Order::STATUS_CANCELLED, $order->status);
     }
 
+    /**
+     * Regression test for a real production bug: a WooCommerce order whose
+     * line-item quantity exceeded the ERP's own tracked stock used to fail
+     * to sync at all — StockMovementService::validate()'s usual
+     * negative-stock guard (correct for a manually-entered ERP sale) threw
+     * ValidationException, which bubbled up as an HTTP 500 and left the
+     * order missing from the ERP entirely, silently, since WooCommerce's
+     * own delivery log doesn't show response bodies without WP_DEBUG. The
+     * sale already happened on the storefront regardless of ERP stock, so
+     * the sync must always succeed; the shortfall is surfaced as a note
+     * instead (see WooCommerceOrderSyncService::noteOversoldStock()).
+     */
+    public function test_an_order_syncs_even_when_it_oversells_the_available_stock(): void
+    {
+        $company = $this->createCompanyWithWebhookSecret('woo-secret-11');
+        $product = $this->createProduct($company, 'Webhook Product 11', 'WOO-SKU-11');
+
+        // createProduct() opens with 20 in stock — bring the real ledger
+        // down to 1 (not just the cached `stock` column, which the sale
+        // movement below would recompute from the ledger anyway).
+        StockMovement::query()->create([
+            'company_id' => $company->getKey(),
+            'product_id' => $product->id,
+            'type' => 'adjustment',
+            'quantity' => -19,
+            'reason' => 'Test setup: bring stock down to 1',
+        ]);
+
+        $payload = $this->orderPayload(id: 511, sku: $product->sku);
+        $payload['line_items'][0]['quantity'] = 5;
+
+        $this->postWebhook($company, $payload, 'order.created', 'woo-secret-11')->assertOk();
+
+        $order = Order::query()->where('company_id', $company->getKey())->where('external_reference', 'woo-511')->first();
+
+        $this->assertNotNull($order);
+        $this->assertSame(5, (int) $order->items()->sum('quantity'));
+        $this->assertSame(-4, (int) $product->refresh()->stock);
+        $this->assertStringContainsString('Webhook Product 11 (-4)', $order->note);
+    }
+
     private function postWebhook(Company $company, array $payload, string $topic, string $secret)
     {
         $body = json_encode($payload);

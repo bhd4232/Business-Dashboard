@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A WooCommerce order whose sold quantity exceeded the ERP's own tracked stock silently never synced at all.** The stock ledger's usual negative-stock guard — correct for a manually-entered ERP sale — was also blocking every WooCommerce order sync once a product's real-world sales outpaced its ERP stock record, failing with a 500 that showed no useful reason anywhere reachable. A WooCommerce order's sale already happened on the storefront regardless of ERP stock, so a sync can no longer be blocked this way; the shortfall is now surfaced as a note directly on the order instead (e.g. "Sold below available stock, now negative on hand and needs restocking: Product X (-4).") so it's obvious the product needs restocking. Manually-entered ERP sales are still correctly blocked when stock is insufficient — unaffected.
+
 ## [2.11.1] - 2026-08-31
 
 **Release type:** Patch/Fix Update

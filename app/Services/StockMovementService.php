@@ -287,7 +287,7 @@ class StockMovementService
                 $movement->exists ? (int) $movement->getKey() : null,
             );
 
-        if ($projectedStock < 0) {
+        if ($projectedStock < 0 && ! $movement->allowNegativeStock) {
             $message = match ($movement->type) {
                 'sale' => 'Insufficient stock for this sale quantity.',
                 'damage' => 'Insufficient stock to record this much damage.',

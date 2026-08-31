@@ -75,21 +75,27 @@ class OrderWorkflowService
 
         $keptMovementIds = [];
 
+        // A WooCommerce order's sale already happened on the storefront
+        // regardless of what this ledger currently shows — syncing it must
+        // never fail the way a manually-entered ERP sale correctly would
+        // when stock is insufficient (see StockMovementService::validate()).
+        $allowNegativeStock = $order->source === Order::SOURCE_WOOCOMMERCE;
+
         foreach ($grouped as $line) {
-            $movement = StockMovement::query()->updateOrCreate(
-                [
-                    'product_id' => $line['product_id'],
-                    'product_variant_id' => $line['product_variant_id'],
-                    'type' => 'sale',
-                    'reference_type' => Order::class,
-                    'reference_id' => $order->getKey(),
-                ],
-                [
-                    'company_id' => $order->company_id,
-                    'quantity' => $line['quantity'],
-                    'note' => "Invoice {$order->order_number}",
-                ],
-            );
+            $movement = StockMovement::query()->firstOrNew([
+                'product_id' => $line['product_id'],
+                'product_variant_id' => $line['product_variant_id'],
+                'type' => 'sale',
+                'reference_type' => Order::class,
+                'reference_id' => $order->getKey(),
+            ]);
+            $movement->fill([
+                'company_id' => $order->company_id,
+                'quantity' => $line['quantity'],
+                'note' => "Invoice {$order->order_number}",
+            ]);
+            $movement->allowNegativeStock = $allowNegativeStock;
+            $movement->save();
 
             $keptMovementIds[] = $movement->getKey();
         }
