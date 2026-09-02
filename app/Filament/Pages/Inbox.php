@@ -66,6 +66,12 @@ class Inbox extends Page
 
     public int $messageLimit = 50;
 
+    /** Conversations shown before the "Load more conversations" action expands the list. */
+    public int $conversationsPerPage = 30;
+
+    /** microtime of the last markHumanPresent() write — the poll renews the window at most once a minute. */
+    public ?float $humanPresentMarkedAt = null;
+
     public bool $showManualForm = false;
 
     public string $manualName = '';
@@ -217,13 +223,18 @@ class Inbox extends Page
                     $query
                         ->where('contact_name', 'like', "%{$search}%")
                         ->orWhere('contact_phone', 'like', "%{$search}%")
-                        ->orWhere('external_contact_id', 'like', "%{$search}%");
+                        ->orWhere('external_contact_id', 'like', "%{$search}%")
+                        // Agents usually remember what was said, not who said
+                        // it — match message bodies too so a word from the
+                        // thread finds the conversation.
+                        ->orWhereHas('messages', fn (Builder $query): Builder => $query
+                            ->where('body', 'like', "%{$search}%"));
                 });
             })
             ->with(['company', 'lead', 'customer', 'channel.company', 'assignedUser', 'latestMessage'])
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')
-            ->paginate(30, pageName: 'inboxPage');
+            ->paginate($this->conversationsPerPage, pageName: 'inboxPage');
     }
 
     public function getSelectedConversationProperty(): ?Conversation
@@ -374,6 +385,7 @@ class Inbox extends Page
         if ($conversation) {
             $conversation->markRead();
             $conversation->markHumanPresent();
+            $this->humanPresentMarkedAt = microtime(true);
             app(ConversationMessengerService::class)->dispatchLatestIncomingRead($conversation);
             $this->dispatch('inbox-conversation-selected');
             $this->dispatch('inbox-scroll-bottom');
@@ -444,6 +456,7 @@ class Inbox extends Page
         $this->selectedConversationId = (int) $conversation->getKey();
         $conversation->markRead();
         $conversation->markHumanPresent();
+        $this->humanPresentMarkedAt = microtime(true);
         app(ConversationMessengerService::class)->dispatchLatestIncomingRead($conversation);
         $this->forgetInboxComputedProperties();
         $this->dispatch('inbox-conversation-selected');
@@ -462,10 +475,31 @@ class Inbox extends Page
     public function refreshInbox(): void
     {
         $this->selectedConversation?->markRead();
-        // Renew the human-present window each visible poll tick so it keeps
-        // rolling for as long as an agent has this thread open.
-        $this->selectedConversation?->markHumanPresent();
+        // Renew the human-present window on each visible poll tick so it keeps
+        // rolling for as long as an agent has this thread open — but the write
+        // itself is throttled to once a minute: the 8s poll fires constantly
+        // while the page is visible, and every explicit selection marks
+        // presence immediately anyway.
+        $this->markHumanPresentThrottled();
         $this->forgetInboxComputedProperties();
+    }
+
+    protected function markHumanPresentThrottled(): void
+    {
+        $conversation = $this->selectedConversation;
+
+        if (! $conversation) {
+            return;
+        }
+
+        $now = microtime(true);
+
+        if ($this->humanPresentMarkedAt !== null && ($now - $this->humanPresentMarkedAt) < 60) {
+            return;
+        }
+
+        $conversation->markHumanPresent();
+        $this->humanPresentMarkedAt = $now;
     }
 
     public function loadOlderMessages(): void
@@ -473,6 +507,15 @@ class Inbox extends Page
         $this->messageLimit = min(500, $this->messageLimit + 50);
         $this->forgetInboxComputedProperties();
         $this->dispatch('inbox-preserve-scroll');
+    }
+
+    public function loadMoreConversations(): void
+    {
+        $this->conversationsPerPage = min(300, $this->conversationsPerPage + 30);
+        // The list always grows from the top (newest first), so an older URL
+        // page number must not survive a per-page expansion — after this the
+        // first page holds every conversation the list has shown so far.
+        $this->resetPage(pageName: 'inboxPage');
     }
 
     public function setConversationStatus(string $status): void

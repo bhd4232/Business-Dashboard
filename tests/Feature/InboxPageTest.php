@@ -218,7 +218,9 @@ class InboxPageTest extends TestCase
         $this->assertStringNotContainsString('heading="Channels"', $view);
         $this->assertStringNotContainsString('View every company conversation together or focus on one connected channel.', $view);
         $this->assertStringContainsString('rows="1"', $view);
-        $this->assertStringContainsString('h-[40px] min-h-[40px]', $view);
+        $this->assertStringContainsString('min-h-[40px]', $view);
+        $this->assertStringContainsString('x-on:input="autogrowComposer($event)"', $view);
+        $this->assertStringContainsString('resize-none', $view);
         $this->assertStringContainsString('h-[calc(100dvh-9rem)] min-h-0', $view);
         $this->assertStringContainsString('class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto pe-1"', $view);
         $this->assertStringContainsString("'justify-center' => \$conversation->messages->isEmpty()", $view);

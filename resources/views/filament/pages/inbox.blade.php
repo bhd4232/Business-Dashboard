@@ -137,6 +137,17 @@
                 element.scrollTop = this.scrollAnchor.top + (element.scrollHeight - this.scrollAnchor.height);
                 this.scrollAnchor = null;
             },
+            autogrowComposer(event) {
+                const element = event.target;
+                if (! element) return;
+                element.style.height = 'auto';
+                element.style.height = Math.min(element.scrollHeight, 192) + 'px';
+            },
+            resetComposerHeight() {
+                const element = this.$refs.replyTextarea;
+                if (! element) return;
+                element.style.height = '';
+            },
             init() {
                 this.desktopMediaQuery = window.matchMedia('(min-width: 1280px)');
                 this.desktopMediaHandler = (event) => {
@@ -159,8 +170,8 @@
         x-on:load.window="forceBottomSync()"
         x-on:pageshow.window="forceBottomSync()"
         x-on:livewire:navigated.window="$nextTick(() => forceBottomSync())"
-        x-on:inbox-scroll-bottom.window="$nextTick(() => { observeMessages(); stickToBottom = true; queueBottomSync(); })"
-        x-on:inbox-conversation-selected.window="$nextTick(() => { observeMessages(); $refs.threadHeading?.focus(); stickToBottom = true; queueBottomSync(); })"
+        x-on:inbox-scroll-bottom.window="$nextTick(() => { observeMessages(); resetComposerHeight(); stickToBottom = true; queueBottomSync(); })"
+        x-on:inbox-conversation-selected.window="$nextTick(() => { observeMessages(); resetComposerHeight(); $refs.threadHeading?.focus(); stickToBottom = true; queueBottomSync(); })"
         x-on:inbox-list-focused.window="$nextTick(() => $refs.conversationSearch?.focus())"
         x-on:inbox-preserve-scroll.window="$nextTick(() => preserveScrollPosition())"
     >
@@ -259,7 +270,7 @@
                                         type="search"
                                         name="conversation_search"
                                         wire:model.live.debounce.350ms="search"
-                                        placeholder="Search name or phone…"
+                                        placeholder="Search name, phone, or messages…"
                                         autocomplete="off"
                                     />
                                 </x-filament::input.wrapper>
@@ -466,9 +477,18 @@
                             </ul>
                         </div>
 
-                        @if ($conversations->hasPages())
+                        @if ($conversations->hasMorePages())
                             <div x-show="! railCollapsed()">
-                                <x-filament::pagination :paginator="$conversations" />
+                                <x-filament::button
+                                    color="gray"
+                                    outlined
+                                    icon="heroicon-o-arrow-down"
+                                    wire:click="loadMoreConversations"
+                                    wire:target="loadMoreConversations"
+                                    wire:loading.attr="disabled"
+                                >
+                                    Load more conversations
+                                </x-filament::button>
                             </div>
                         @endif
                     </div>
@@ -972,8 +992,10 @@
                                         aria-invalid="{{ $errors->has('replyBody') ? 'true' : 'false' }}"
                                         placeholder="{{ $composerMode === 'note' || ! $isExternalConversation ? 'Add a private note for your team…' : 'Write a reply…' }}"
                                         @disabled($composerMode === 'reply' && ! $replyWindowOpen)
+                                        x-ref="replyTextarea"
+                                        x-on:input="autogrowComposer($event)"
                                         x-on:keydown.enter="if (! $event.shiftKey && ! $event.isComposing) { $event.preventDefault(); $el.form.requestSubmit(); }"
-                                        class="block h-[40px] min-h-[40px] w-full resize-y border-0 bg-transparent px-[5px] py-0 text-sm leading-[40px] disabled:cursor-not-allowed disabled:opacity-60"
+                                        class="block max-h-48 min-h-[40px] w-full resize-none overflow-y-auto border-0 bg-transparent px-[5px] py-[9px] text-sm leading-5 disabled:cursor-not-allowed disabled:opacity-60"
                                     ></textarea>
                                 </x-filament::input.wrapper>
                                 <div class="flex flex-wrap items-center justify-between gap-2">

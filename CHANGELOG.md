@@ -4,6 +4,15 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Inbox (CRM) smoothness improvements, web + mobile:**
+  - **Conversation search now matches message bodies**, not just contact name/phone/external ID — a word from inside the thread finds the conversation (`Inbox.php`, `orWhereHas('messages')`). Search placeholder updated accordingly.
+  - **The conversations list uses a "Load more conversations" button instead of page-number pagination** — each click expands the list by 30 (up to 300), growing from the top like a chat app; page-number navigation is gone.
+  - **The reply composer auto-grows with its content** (up to ~8 lines, then scrolls internally) instead of a fixed one-line box with an unusable-on-mobile resize handle; the height resets whenever the conversation changes or a message is sent. Enter still sends, Shift+Enter still adds a newline.
+  - **The 8-second inbox poll no longer writes to the database on every tick** — `markHumanPresent()` (the AI pause window) is now throttled to once per minute; explicit conversation selections still mark presence immediately, and `markRead()` keeps running each tick so unread badges stay accurate.
+  - **The Android shell now declares `android:windowSoftInputMode="adjustResize"`** (was missing from the Capacitor default) so the viewport resizes when the soft keyboard opens — the composer no longer risks hiding behind the keyboard in the mobile app. The inbox already sizes itself with `100dvh` and re-syncs scroll, so keyboard-open now keeps the latest message and the composer visible.
+  - Regression coverage: `tests/Feature/InboxSmoothnessTest.php` (body search, load-more expansion, composer reset markup, manifest resize) + updated markup assertions in `InboxPageTest`.
 ## [2.11.2] - 2026-08-31
 
 **Release type:** Patch/Fix Update
