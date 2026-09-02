@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.11.3] - 2026-09-02
+
+**Release type:** Patch/Fix Update
+
 ### Changed
 
 - **Inbox (CRM) smoothness improvements, web + mobile:**
