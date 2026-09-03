@@ -36,7 +36,7 @@ Verification:
 - `npm run build`: succeeded (Vite build, no errors).
 - Debugged one real routing bug along the way (not a pre-existing issue): the route's `{purchase}` implicit binding failed for a test-created company because `SetCurrentCompany` middleware re-resolves the active company from session on every HTTP request, independent of any in-process `CompanyContext::set()` — fixed by having the test set session explicitly (matching `InvoiceDesignTest`'s existing convention) and by dropping the route-level `whereIn('type', ...)` constraint in favor of the controller's own `abort_unless()` check, so a mismatched `{type}` can't silently fall through to some other route.
 
-Commit status: Not yet committed — awaiting the owner's explicit approval per CLAUDE.md's commit policy.
+Commit status: Committed and pushed (`f040348`, owner approved: "হ্যাঁ, কমিট আর পুশ করে দাও").
 
 ## 2026-08-30 - Fix: WooCommerce orders that oversell ERP stock never synced
 
