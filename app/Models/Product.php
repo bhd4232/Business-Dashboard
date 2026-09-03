@@ -29,6 +29,7 @@ class Product extends Model
         'description',
         'sku',
         'barcode',
+        'hs_code',
         'unit',
         'weight_kg',
         'brand',

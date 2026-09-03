@@ -4,6 +4,11 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Purchase module: auto-generated, printable PI / CI / Packing List documents.** A purchase's own info (supplier, items, China-to-BD costs, and a new Trade Documents section — delivery terms, country of origin, ports, freight, HS Code, FOB price, net/gross weight) now drives three formal trade documents instead of manual paperwork: Proforma Invoice, Commercial Invoice, and Packing List, laid out to match the business's existing bank/supplier templates. Each is generated on demand from the Purchase page ("Generate PI/CI/PL"), which fills in the document's number/date the first time (derived from the purchase number, editable) without overwriting anything already entered, then opens a print-ready PDF in a new tab. PI is available as soon as the purchase has a supplier and items; CI and Packing List unlock once Delivery Terms, Port of Loading, and Port of Discharge are filled in. Company (BIN/IRC/TIN, authorized signatory) and Supplier (country, bank/beneficiary details, signature/stamp) now carry the extra fields these documents need, and Company Settings → Purchase Documents holds the admin-editable default wording (Payment Terms, Terms & Conditions, Packing List certification note) each purchase can override.
+  - Regression coverage: `tests/Feature/PurchaseDocumentTest.php` (PDF routes for all three document types, permission check, document-number auto-fill behavior, FOB/CFR/weight totals used on the printouts).
+
 ## [2.11.3] - 2026-09-02
 
 **Release type:** Patch/Fix Update

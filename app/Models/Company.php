@@ -60,6 +60,12 @@ class Company extends Model
         'settings',
         'dashboard_color',
         'reseller_module_enabled',
+        'bin_number',
+        'irc_number',
+        'tin_number',
+        'signatory_name',
+        'signatory_title',
+        'signature_path',
     ];
 
     protected $casts = [

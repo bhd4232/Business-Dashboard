@@ -2,8 +2,13 @@
 
 namespace App\Filament\Resources\Suppliers\Schemas;
 
+use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Filament\Forms\Components\EmailInput;
 use App\Filament\Forms\Components\PhoneInput;
+use App\Models\Supplier;
+use App\Support\CompanyMedia;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -12,6 +17,9 @@ use Filament\Schemas\Schema;
 
 class SupplierForm
 {
+    use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -63,7 +71,65 @@ class SupplierForm
                         Textarea::make('address')
                             ->rows(3)
                             ->columnSpanFull(),
-                    ]),
+
+                        TextInput::make('country')
+                            ->maxLength(255),
+
+                        TextInput::make('fax')
+                            ->maxLength(255),
+                    ])
+                    ->columns(2),
+
+                Section::make('Trade & Banking Details')
+                    ->description('Printed as the Seller/Beneficiary block on this supplier\'s Purchase PI/CI/Packing List documents.')
+                    ->columnSpanFull()
+                    ->schema([
+                        TextInput::make('bank_name')
+                            ->maxLength(255),
+
+                        TextInput::make('bank_account_name')
+                            ->label('Beneficiary Account Name')
+                            ->maxLength(255),
+
+                        TextInput::make('bank_account_number')
+                            ->label('Beneficiary Account Number')
+                            ->maxLength(255),
+
+                        TextInput::make('bank_swift_code')
+                            ->label('SWIFT Code')
+                            ->maxLength(50),
+
+                        Textarea::make('bank_address')
+                            ->label('Bank Address')
+                            ->rows(2)
+                            ->columnSpanFull(),
+
+                        TextInput::make('bank_extra_note')
+                            ->label('Additional Bank Reference')
+                            ->placeholder('e.g. CNAPS2 code, routing number')
+                            ->maxLength(255)
+                            ->columnSpanFull(),
+
+                        FileUpload::make('signature_path')
+                            ->label('Authorized Signature / Stamp')
+                            ->helperText('Save the supplier first, then upload. Printed on the PI/CI/Packing List signature block.')
+                            ->image()
+                            ->tap(static::browserCompactImagePrecompression())
+                            ->disk(fn (): string => CompanyMedia::publicDiskName())
+                            ->directory(fn (?Supplier $record): string => CompanyMedia::publicDirectory('suppliers', $record))
+                            ->fetchFileInformation(false)
+                            ->getUploadedFileUsing(CompanyMedia::publicFileMetadataCallback())
+                            ->getOpenableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                            ->getDownloadableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
+                            ->disabled(fn (?Supplier $record): bool => ! CompanyMedia::canResolve($record))
+                            ->imageEditor()
+                            ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
+                            ->hintAction(static::selectFromMediaHubAction())
+                            ->downloadable()
+                            ->openable(),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
             ]);
     }
 }
