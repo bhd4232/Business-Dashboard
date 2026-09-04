@@ -25,7 +25,7 @@ Verification:
 - Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1050 passed, 0 failed**.
 - No frontend assets touched — `npm run build` not required for this change.
 
-Commit status: Not yet committed — awaiting the owner's explicit approval per CLAUDE.md's commit policy.
+Commit status: Committed and pushed (`419d983`, owner approved: "হ্যাঁ কর শুধু এই সেশনের কাজ করবে").
 
 ## 2026-09-03 - Feature: Purchase module automation — auto-generated PI/CI/Packing List
 
