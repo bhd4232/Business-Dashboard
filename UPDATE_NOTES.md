@@ -2,6 +2,31 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-04 - Fix: "Add shipment plan" never created a shipment
+
+Reason — owner reported (Bengali): "add shipment plan এ ক্রিয়েট করলে লিস্ট তৈরি হয় না। কয়েকবার চেষ্টা করেছি কিন্তু কাজ হচ্ছে না।" (Creating via "add shipment plan" doesn't create the list entry — tried several times, doesn't work).
+
+Diagnosis: reproduced directly against the model (`$purchase->shipments()->create([...])`, the exact call `HasMany::create()`/Filament's `CreateAction` makes under the hood) — it threw `ValidationException: Purchase must belong to the same company.` on every attempt, even with nothing but the required tracking number filled in. Root cause in `app/Models/Shipment.php`'s `booted()`: the own-company consistency check (`$shipment->container?->company_id !== $shipment->company_id` / same for `purchase`) runs on the `saving` event. For a brand-new Eloquent model, `Model::save()`/`performInsert()` fires `saving` *before* `creating` — and it's `BelongsToCompany`'s `creating` hook that actually assigns `$model->company_id`. So at the point this check ran, `$shipment->company_id` was still null on every single creation, `(int) null` is `0`, and the real (non-zero) purchase/container company_id could never equal `0` — the check failed unconditionally, regardless of what the form actually contained. This is why the owner's repeated attempts all silently did nothing: the row was never inserted, Filament just kept showing the validation error.
+
+What changed:
+
+- `app/Models/Company.php` — new `resolveActiveCompanyId(): ?int`, factoring out the exact company-resolution logic `BelongsToCompany`'s `creating` hook already used (active `CompanyContext` company, else `defaultCompanyId()`), so another model's own validation can know what company_id a new record is about to get before that hook has actually run.
+- `app/Models/Shipment.php` (`booted()`) — the `saving` check now compares against `$shipment->company_id ?: Company::resolveActiveCompanyId()` instead of the possibly-still-blank `$shipment->company_id` directly. Cross-company rejection (a container or purchase genuinely belonging to a different company) still works exactly as before — confirmed by reverting the fix and re-running the new tests, which then fail with the same `ValidationException` the owner hit.
+
+Important changed files:
+
+- `app/Models/Shipment.php`, `app/Models/Company.php`
+- `tests/Feature/ShipmentTest.php` — new file: `test_a_shipment_plan_can_be_created_for_a_draft_purchase`, `test_a_shipment_plan_with_a_container_can_be_created`, `test_shipment_creation_is_still_rejected_for_a_container_from_another_company`, `test_shipment_creation_is_still_rejected_for_a_purchase_from_another_company`.
+
+Verification:
+
+- Targeted run — `ShipmentTest`: **4 passed**. Confirmed the fix is real by temporarily reverting `Shipment.php`/`Company.php` (`git stash`) and re-running: the two creation tests failed with the exact same `ValidationException` message the owner reported, then passed again once restored.
+- `MultiCompanyIsolationTest`, `PurchaseTest`, `PurchaseDocumentTest`, `ShipmentTest` together: **25 passed** (confirms the reused `resolveActiveCompanyId()` logic doesn't disturb existing company-scoping behavior).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1050 passed, 0 failed**.
+- No frontend assets touched — `npm run build` not required for this change.
+
+Commit status: Not yet committed — awaiting the owner's explicit approval per CLAUDE.md's commit policy.
+
 ## 2026-09-03 - Feature: Purchase module automation — auto-generated PI/CI/Packing List
 
 Reason — owner asked (Bengali): "আমাদের পারচেস মডিউলটি অটোমেট করা যায় কীভাবে? আমি জাস্ট purchase info দিবো বাকি সব অটো ফিলাপ হয়ে যাবে। ci, pi, pl formate অনুযায়ী অটো জেনারেট হয়ে যাবে এবং সেগুলো প্রিন্টেবল হবে।" (How can we automate the Purchase module — I just give purchase info and the rest auto-fills; CI/PI/PL should auto-generate per format and be printable). Per CLAUDE.md ("never invent business rules"), asked the owner for the real format instead of guessing one; they uploaded their three actual Excel templates currently used with suppliers/bank (`MAMUN__PI.xlsx`, `Comarcial_Invoice.xlsx`, `Air_Fryer_PACKING_LISTF.xlsx`), inspected cell-by-cell with openpyxl. Wrote a plan (`EnterPlanMode`/`ExitPlanMode`) covering the field mapping, data model, and workflow before implementing; owner approved it.
