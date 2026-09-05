@@ -4,10 +4,13 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.11.4] - 2026-09-05
+
+**Release type:** Patch/Fix Update
+
 ### Changed
 
 - **Every admin page now uses the full width available beside the sidebar on desktop.** The panel content was previously capped at 80rem (Filament's default `7xl`) and centred, leaving wide empty gutters on large monitors — forms, tables, and dashboards now stretch edge to edge. Phones and tablets are unaffected: their viewport is already narrower than the old cap, so only the desktop layout widens. Set once on the panel via `->maxContentWidth(Width::Full)` in `AdminPanelProvider`; the login and other simple/centred auth pages keep their own narrow width.
-
 ## [2.11.3] - 2026-09-02
 
 **Release type:** Patch/Fix Update
