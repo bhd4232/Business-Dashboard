@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-09-06
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **Each AI-powered tool now has its own provider/model/API-key config, instead of one shared global AI setting.** Settings → Integrations' "AI Assistant" tab is renamed **"AI Integration"** and now holds three independent sub-tabs — **Auto Messaging** (Inbox AI reply), **Ad Assistant** (Meta Ads recommendations), and **Landing Page Builder** (Offer landing-page copy) — so a cheap fast model can be picked for chat replies, a stronger reasoning model for ad strategy, a creative-writing model for landing pages, or the same provider everywhere, without one setting overriding another. `AiSettingsService::all()`/`save()` now take an explicit tool argument (`TOOL_MESSAGING` / `TOOL_AD_ASSISTANT` / `TOOL_LANDING_PAGE`), storing each under `companies.settings->ai_tools->{tool}`. Existing companies are unaffected on upgrade: any tool not yet saved under the new per-tool shape transparently falls back (in-memory only) to the old shared `settings->ai` config, so Auto Messaging, Ad Assistant, and Landing Page Builder all keep working exactly as configured today until an admin explicitly customizes one of them. The now-redundant standalone "AI Assistant Settings" page under the CRM cluster is removed — Settings → Integrations is the one place AI is configured.
@@ -14,7 +18,6 @@ All notable production changes to Business Dashboard are documented here.
   - Manual bKash/Nagad numbers for Offer-page checkouts and other non-gateway storefront content are unaffected and stay on Storefront Settings.
 - **AI Integration's provider/model fields now have a "quick setup" picker.** Each AI tool's tab (Auto Messaging, Ad Assistant, Landing Page Builder) gained two optional, searchable dropdowns above the existing free-text fields: pick a popular OpenAI-compatible provider (DeepSeek, Groq, OpenRouter, Mistral, xAI, Together AI, Fireworks AI, Perplexity, OpenAI, or a self-hosted Ollama/vLLM endpoint) to auto-fill its provider name, base URL, and API format, then pick from that provider's own short list of well-known models (searchable) to fill the Model field. Both pickers are pure convenience — the underlying Provider/Base URL/Model fields stay 100% free-text, so any provider or model not listed can still be typed in directly, same as before.
 - **Offers now have "Preview" and "Open Page" buttons** — on the list and on the edit page, next to "Generate Landing Page with AI" — since there was previously no way to actually see a generated (or hand-built) landing page. "Preview" works for any offer regardless of status (admin-only, bypasses the published check, same convention as the storefront's own preview). "Open Page" is the real customer-facing URL and only appears once the offer is Published and the company has a domain set.
-
 ## [2.11.4] - 2026-09-05
 
 **Release type:** Patch/Fix Update
