@@ -23,10 +23,10 @@ class OfferLandingPageAiGenerator
     public function generate(Offer $offer): array
     {
         $company = $offer->company;
-        $settings = $this->aiSettings->all($company);
+        $settings = $this->aiSettings->all($company, AiSettingsService::TOOL_LANDING_PAGE);
 
         if (blank($settings['api_key'] ?? null)) {
-            throw new RuntimeException('No AI provider/API key is configured for this company. Set one up on the AI Assistant Settings page first.');
+            throw new RuntimeException('No AI provider/API key is configured for this company. Set one up on Settings → Integrations → AI Integration → Landing Page Builder first.');
         }
 
         $client = new AiLlmClient($settings['api_format'], $settings['api_key'], $settings['model'], $settings['base_url'] ?: null);

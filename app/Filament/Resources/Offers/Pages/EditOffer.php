@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Offers\Pages;
 
 use App\Filament\Resources\Offers\OfferResource;
+use App\Models\Offer;
 use App\Services\OfferLandingPageAiGenerator;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -17,6 +18,19 @@ class EditOffer extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('previewLandingPage')
+                ->label('Preview')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->url(fn (): string => OfferResource::previewUrl($this->record))
+                ->openUrlInNewTab(),
+            Action::make('openLandingPage')
+                ->label('Open Page')
+                ->icon('heroicon-o-arrow-top-right-on-square')
+                ->color('gray')
+                ->url(fn (): string => OfferResource::publicUrl($this->record))
+                ->openUrlInNewTab()
+                ->visible(fn (): bool => $this->record->status === Offer::STATUS_PUBLISHED && filled($this->record->company?->domain)),
             Action::make('generateLandingPage')
                 ->label('Generate Landing Page with AI')
                 ->icon(Heroicon::OutlinedSparkles)

@@ -33,19 +33,20 @@ class IntegrationsPageTest extends TestCase
         Livewire::test(Integrations::class)
             // Any OpenAI-compatible provider (not just OpenAI itself) can be
             // added via the free-text label + base URL, without a code change.
-            ->set('data.ai_api_format', 'openai')
-            ->set('data.ai_provider', 'DeepSeek')
-            ->set('data.ai_base_url', 'https://api.deepseek.com/chat/completions')
-            ->set('data.ai_model', 'deepseek-chat')
-            ->set('data.ai_confidence_threshold', 0.8)
-            ->set('data.ai_max_consecutive_ai_replies', 3)
-            ->set('data.ai_api_key', 'sk-live-test')
+            ->set('data.ai_messaging_api_format', 'openai')
+            ->set('data.ai_messaging_provider', 'DeepSeek')
+            ->set('data.ai_messaging_base_url', 'https://api.deepseek.com/chat/completions')
+            ->set('data.ai_messaging_model', 'deepseek-chat')
+            ->set('data.ai_messaging_confidence_threshold', 0.8)
+            ->set('data.ai_messaging_max_consecutive_ai_replies', 3)
+            ->set('data.ai_messaging_api_key', 'sk-live-test')
             ->set('data.woocommerce_base_url', 'https://shop.example.com')
             ->set('data.woocommerce_credentials.consumer_key', 'ck_1')
             ->set('data.woocommerce_credentials.consumer_secret', 'cs_1')
             ->set('data.online_payment_enabled', true)
             ->set('data.online_payment_gateway', 'zinipay')
             ->set('data.payment_credentials.zinipay_api_key', 'zk_1')
+            ->set('data.payment_credentials.zinipay_base_url', 'https://api.zinipay.example/custom')
             ->set('data.meta_tracking_enabled', true)
             ->set('data.meta_pixel_id', '123456789')
             ->set('data.meta_capi_enabled', true)
@@ -53,7 +54,7 @@ class IntegrationsPageTest extends TestCase
             ->call('save')
             ->assertHasNoFormErrors();
 
-        $ai = app(AiSettingsService::class)->all($company);
+        $ai = app(AiSettingsService::class)->all($company, AiSettingsService::TOOL_MESSAGING);
         $this->assertSame('deepseek-chat', $ai['model']);
         $this->assertSame('sk-live-test', $ai['api_key']);
         $this->assertSame('openai', $ai['api_format']);
@@ -65,8 +66,152 @@ class IntegrationsPageTest extends TestCase
         $this->assertSame('ck_1', $setting->woocommerce_credentials['consumer_key']);
         $this->assertTrue((bool) $setting->online_payment_enabled);
         $this->assertSame('zk_1', $setting->payment_credentials['zinipay_api_key']);
+        $this->assertSame('https://api.zinipay.example/custom', $setting->payment_credentials['zinipay_base_url']);
         $this->assertSame('123456789', $setting->meta_pixel_id);
         $this->assertSame('tok_1', $setting->meta_tracking_credentials['access_token']);
+    }
+
+    public function test_each_ai_tool_tab_saves_independently_from_the_others(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Livewire::test(Integrations::class)
+            ->set('data.ai_messaging_api_format', 'anthropic')
+            ->set('data.ai_messaging_provider', 'Anthropic (Claude)')
+            ->set('data.ai_messaging_model', 'claude-haiku-4-5-20251001')
+            ->set('data.ai_messaging_api_key', 'messaging-key')
+            ->set('data.ai_ad_assistant_api_format', 'openai')
+            ->set('data.ai_ad_assistant_provider', 'OpenAI')
+            ->set('data.ai_ad_assistant_model', 'gpt-5')
+            ->set('data.ai_ad_assistant_api_key', 'ad-assistant-key')
+            ->set('data.ai_landing_page_api_format', 'openai')
+            ->set('data.ai_landing_page_provider', 'DeepSeek')
+            ->set('data.ai_landing_page_base_url', 'https://api.deepseek.com/chat/completions')
+            ->set('data.ai_landing_page_model', 'deepseek-chat')
+            ->set('data.ai_landing_page_api_key', 'landing-page-key')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $service = app(AiSettingsService::class);
+        $fresh = $company->fresh();
+
+        $messaging = $service->all($fresh, AiSettingsService::TOOL_MESSAGING);
+        $adAssistant = $service->all($fresh, AiSettingsService::TOOL_AD_ASSISTANT);
+        $landingPage = $service->all($fresh, AiSettingsService::TOOL_LANDING_PAGE);
+
+        $this->assertSame('claude-haiku-4-5-20251001', $messaging['model']);
+        $this->assertSame('messaging-key', $messaging['api_key']);
+        $this->assertSame('gpt-5', $adAssistant['model']);
+        $this->assertSame('ad-assistant-key', $adAssistant['api_key']);
+        $this->assertSame('deepseek-chat', $landingPage['model']);
+        $this->assertSame('https://api.deepseek.com/chat/completions', $landingPage['base_url']);
+        $this->assertSame('landing-page-key', $landingPage['api_key']);
+    }
+
+    public function test_picking_a_popular_provider_auto_fills_provider_base_url_and_a_default_model(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Livewire::test(Integrations::class)
+            ->set('data.ai_landing_page_provider_preset', 'deepseek')
+            ->assertSet('data.ai_landing_page_provider', 'DeepSeek')
+            ->assertSet('data.ai_landing_page_base_url', 'https://api.deepseek.com/chat/completions')
+            ->assertSet('data.ai_landing_page_api_format', 'openai')
+            ->assertSet('data.ai_landing_page_model', 'deepseek-v4-pro')
+            // The model picker offers that provider's own models — picking
+            // a different one just updates the real Model field, the
+            // provider/base_url stay untouched.
+            ->set('data.ai_landing_page_model_picker', 'deepseek-v4-flash')
+            ->assertSet('data.ai_landing_page_model', 'deepseek-v4-flash')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $landingPage = app(AiSettingsService::class)->all($company->fresh(), AiSettingsService::TOOL_LANDING_PAGE);
+        $this->assertSame('DeepSeek', $landingPage['provider']);
+        $this->assertSame('https://api.deepseek.com/chat/completions', $landingPage['base_url']);
+        $this->assertSame('openai', $landingPage['api_format']);
+        $this->assertSame('deepseek-v4-flash', $landingPage['model']);
+    }
+
+    /**
+     * Regression test: the model picker's own options legitimately shrink
+     * or change whenever provider_preset/api_format change elsewhere on the
+     * form. Since Filament validates a Select's submitted state against its
+     * own live options(), a stale-but-harmless picker selection (it's
+     * dehydrated(false), never persisted) must never block saving.
+     */
+    public function test_changing_api_format_after_picking_a_model_never_blocks_saving(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Livewire::test(Integrations::class)
+            ->set('data.ai_messaging_provider_preset', 'deepseek')
+            // Switching away from the preset's own format leaves the model
+            // picker's options computed fresh (now empty, since no preset
+            // is selected and the format isn't Anthropic either) — this
+            // must not raise "the selected ... is invalid" on save.
+            ->set('data.ai_messaging_api_format', 'anthropic')
+            ->set('data.ai_messaging_api_key', 'messaging-key')
+            ->call('save')
+            ->assertHasNoFormErrors();
+    }
+
+    public function test_saving_ai_settings_for_one_company_never_leaks_into_another(): void
+    {
+        $companyA = $this->makeCompany();
+        $companyB = $this->makeCompany();
+        $userA = $this->makeSuperAdmin($companyA);
+        $userA->companies()->attach($companyB, ['role' => 'super_admin', 'is_default' => false]);
+
+        $this->actingAs($userA)
+            ->withSession(['current_company_id' => $companyA->getKey(), 'current_company_selection_explicit' => true]);
+
+        // makeCompany() above leaves CompanyContext pointed at whichever
+        // company it created last (company B) as a side effect — put it
+        // back on company A before driving the Livewire component, since
+        // Livewire::test() (unlike a real page load) never re-runs
+        // SetCurrentCompany to re-resolve it from the session itself.
+        app(CompanyContext::class)->set($companyA);
+
+        Livewire::test(Integrations::class)
+            ->set('data.ai_ad_assistant_api_format', 'openai')
+            ->set('data.ai_ad_assistant_provider', 'OpenAI')
+            ->set('data.ai_ad_assistant_model', 'gpt-5-company-a')
+            ->set('data.ai_ad_assistant_api_key', 'company-a-secret')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        // Company A's own saved config is exactly what was submitted.
+        $service = app(AiSettingsService::class);
+        $ai = $service->all($companyA->fresh(), AiSettingsService::TOOL_AD_ASSISTANT);
+        $this->assertSame('gpt-5-company-a', $ai['model']);
+        $this->assertSame('company-a-secret', $ai['api_key']);
+
+        // Company B (a completely separate row, never touched by that save)
+        // still reads plain defaults straight from the service.
+        $untouched = $service->all($companyB->fresh(), AiSettingsService::TOOL_AD_ASSISTANT);
+        $this->assertSame(AiSettingsService::DEFAULTS['model'], $untouched['model']);
+        $this->assertBlank($untouched['api_key'] ?? null);
+
+        // And a real page load for company B (a fresh HTTP request through
+        // SetCurrentCompany, the same as an actual company-switch reload)
+        // never renders company A's model/provider text — only its own.
+        $response = $this
+            ->withSession(['current_company_id' => $companyB->getKey(), 'current_company_selection_explicit' => true])
+            ->get('/admin/settings/integrations');
+
+        $response->assertOk()
+            ->assertDontSee('gpt-5-company-a')
+            ->assertDontSee('company-a-secret');
     }
 
     public function test_saving_never_touches_unrelated_storefront_settings_on_the_same_row(): void
@@ -112,14 +257,14 @@ class IntegrationsPageTest extends TestCase
         // the hidden tab in the UI) — save() must still refuse to persist them.
         Livewire::test(Integrations::class)
             ->set('data.woocommerce_base_url', 'https://staff-shop.example.com')
-            ->set('data.ai_api_format', 'openai')
-            ->set('data.ai_provider', 'OpenAI')
-            ->set('data.ai_model', 'gpt-should-not-save')
-            ->set('data.ai_api_key', 'sk-should-not-save')
+            ->set('data.ai_messaging_api_format', 'openai')
+            ->set('data.ai_messaging_provider', 'OpenAI')
+            ->set('data.ai_messaging_model', 'gpt-should-not-save')
+            ->set('data.ai_messaging_api_key', 'sk-should-not-save')
             ->call('save')
             ->assertHasNoFormErrors();
 
-        $ai = app(AiSettingsService::class)->all($company);
+        $ai = app(AiSettingsService::class)->all($company, AiSettingsService::TOOL_MESSAGING);
         $this->assertBlank($ai['api_key'] ?? null);
 
         $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->firstOrFail();
@@ -317,6 +462,100 @@ class IntegrationsPageTest extends TestCase
             ->assertNotified('Sync failed: WooCommerce order payload is missing an order id.');
 
         $this->assertDatabaseMissing('orders', ['external_reference' => 'woo-38044']);
+    }
+
+    public function test_sync_woocommerce_product_import_action_is_available_in_the_woocommerce_tab_when_credentials_are_saved(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        // No credentials saved yet — the relocated product-import action
+        // (moved off Storefront Settings' now-removed "WooCommerce Import"
+        // section) stays hidden, matching its original visibility rule.
+        Livewire::test(Integrations::class)->assertActionHidden('syncWooCommerceImport');
+
+        StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'woocommerce_base_url' => 'https://shop.example.com',
+            'woocommerce_credentials' => ['consumer_key' => 'ck_1', 'consumer_secret' => 'cs_1'],
+        ]);
+
+        Http::fake([
+            'shop.example.com/wp-json/wc/v3/products*' => Http::response([], 200),
+        ]);
+
+        Livewire::test(Integrations::class)
+            ->assertActionVisible('syncWooCommerceImport')
+            ->callAction('syncWooCommerceImport', data: ['download_images' => false])
+            ->assertNotified('WooCommerce sync complete');
+    }
+
+    public function test_payment_gateway_base_urls_and_the_full_meta_pixel_capi_configuration_save_together(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        // online_payment_gateway's own credential fields are only
+        // dehydrated while their gateway is selected (same conditional-
+        // visibility pattern the merchant-id/password fields already used)
+        // — one save covers whichever gateway is active, matching how an
+        // admin would actually use this form.
+        Livewire::test(Integrations::class)
+            ->set('data.online_payment_gateway', 'paystation')
+            ->set('data.payment_credentials.paystation_base_url', 'https://api.paystation.example/custom')
+            ->set('data.meta_tracking_enabled', true)
+            ->set('data.meta_pixel_id', '1122334455667788')
+            ->set('data.meta_capi_enabled', true)
+            ->set('data.meta_tracking_credentials.access_token', 'capi-token-xyz')
+            ->set('data.meta_consent_required', true)
+            ->set('data.meta_status_events_enabled', true)
+            ->set('data.meta_status_events', ['confirmed', 'delivered'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->firstOrFail();
+
+        $this->assertSame('https://api.paystation.example/custom', $setting->payment_credentials['paystation_base_url']);
+        $this->assertSame('1122334455667788', $setting->meta_pixel_id);
+        $this->assertSame('capi-token-xyz', $setting->meta_tracking_credentials['access_token']);
+        $this->assertTrue($setting->meta_consent_required);
+        $this->assertSame(['confirmed', 'delivered'], $setting->meta_status_events);
+    }
+
+    public function test_meta_event_log_table_renders_inside_the_page_and_a_retry_can_be_queued(): void
+    {
+        $company = $this->makeCompany();
+        $user = $this->makeSuperAdmin($company);
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        $event = \App\Models\StorefrontMetaEvent::query()->create([
+            'company_id' => $company->getKey(),
+            'pixel_id' => '1234567890123456',
+            'event_name' => 'Purchase',
+            'event_id' => 'evt-'.uniqid(),
+            'status' => \App\Models\StorefrontMetaEvent::STATUS_FAILED,
+            'attempts' => 1,
+        ]);
+
+        \Illuminate\Support\Facades\Queue::fake();
+
+        Livewire::test(Integrations::class)
+            ->assertSee('Purchase')
+            ->assertSee($event->event_id);
+
+        Livewire::test(\App\Livewire\MetaEventLogTable::class)
+            ->callTableAction('retry', $event)
+            ->assertNotified('Meta event retry queued');
+
+        \Illuminate\Support\Facades\Queue::assertPushed(
+            \App\Jobs\RetryStorefrontMetaEventJob::class,
+            fn ($job): bool => $job->metaEventId === $event->getKey(),
+        );
     }
 
     protected function assertBlank(mixed $value): void

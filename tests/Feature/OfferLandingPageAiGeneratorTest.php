@@ -37,7 +37,7 @@ class OfferLandingPageAiGeneratorTest extends TestCase
 
         app(CompanyContext::class)->set($this->company);
 
-        app(AiSettingsService::class)->save($this->company, [
+        app(AiSettingsService::class)->save($this->company, AiSettingsService::TOOL_LANDING_PAGE, [
             'enabled' => true,
             'provider' => 'anthropic',
             'model' => 'claude-test',
@@ -136,7 +136,7 @@ class OfferLandingPageAiGeneratorTest extends TestCase
         Http::fake();
 
         $settings = (array) $this->company->settings;
-        $settings['ai']['api_key'] = null;
+        $settings['ai_tools'][AiSettingsService::TOOL_LANDING_PAGE]['api_key'] = null;
         $this->company->forceFill(['settings' => $settings])->save();
         $this->company->refresh();
 
@@ -158,7 +158,7 @@ class OfferLandingPageAiGeneratorTest extends TestCase
         // Before this became flexible, only a closed 'anthropic'|'openai'
         // enum existed and every non-'openai' value silently fell through to
         // the hardcoded Anthropic branch.
-        app(AiSettingsService::class)->save($this->company, [
+        app(AiSettingsService::class)->save($this->company, AiSettingsService::TOOL_LANDING_PAGE, [
             'enabled' => true,
             'api_format' => 'openai',
             'provider' => 'DeepSeek',

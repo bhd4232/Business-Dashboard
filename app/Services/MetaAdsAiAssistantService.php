@@ -64,11 +64,11 @@ class MetaAdsAiAssistantService
         }
 
         $company = $account->company;
-        $settings = $this->settings->all($company);
+        $settings = $this->settings->all($company, AiSettingsService::TOOL_AD_ASSISTANT);
 
         if (! $settings['enabled'] || blank($settings['api_key'])) {
             throw ValidationException::withMessages([
-                'account' => 'Turn on and configure the AI Assistant (provider + API key) on the AI Assistant Settings page first.',
+                'account' => 'Turn on and configure the Ad Assistant (provider + API key) on Settings → Integrations → AI Integration → Ad Assistant first.',
             ]);
         }
 

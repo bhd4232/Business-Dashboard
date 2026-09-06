@@ -2,6 +2,149 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-02 - Fix: quick-pick provider/model catalog was already stale
+
+Reason — owner reported the newly-added provider/model quick-pick showed old models, and searching for newer ones came up "not found". The curated list I'd written a few hours earlier (deepseek-chat, gpt-4o, llama-3.3-70b-versatile, grok-2-latest, mistral-large-latest, ...) was already out of date — this app's `currentDate` context is 2026-09-02, and every provider had shipped newer flagship models since whatever my own training reflects.
+
+What changed — `app/Filament/Pages/Integrations.php`'s `llmProviderPresets()`, re-verified via `WebSearch` against each provider's own docs/changelog as of today:
+
+- **DeepSeek**: `deepseek-chat`/`deepseek-reasoner` (legacy, being retired per DeepSeek's own API changelog) → `deepseek-v4-pro`, `deepseek-v4-flash`, `deepseek-v4-flash-vision-exp`.
+- **Groq**: dropped `llama-3.3-70b-versatile`/`llama-3.1-8b-instant` — Groq itself deprecated these — → `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `meta-llama/llama-4-scout-17b-16e-instruct`, `qwen-qwq-32b`, `deepseek-r1-distill-llama-70b` (Groq's own current recommendations).
+- **xAI**: `grok-2-latest`/`grok-2-mini`/`grok-beta` → `grok-4.6`, `grok-4.5`, `grok-4-0709` (confirmed against docs.x.ai model pages).
+- **OpenAI**: `gpt-4o`/`gpt-4.1`/`o3-mini` → `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `o3` (kept to OpenAI's established lowercase-hyphenated id convention rather than the friendlier "Sol/Terra/Luna" tier names some articles use, which read as marketing labels, not literal API ids).
+- **OpenRouter**: refreshed to current routes (`deepseek/deepseek-v4-pro`, `anthropic/claude-opus-5`, `google/gemini-3-flash-preview`, `x-ai/grok-4.6`, `openai/gpt-5-mini`).
+- **Together AI** / **Fireworks AI**: refreshed to their current DeepSeek V4/V3.1 and GLM-5.2 routes.
+- **Perplexity**: added `sonar-deep-research` (was missing) — confirmed the full 5-model Sonar family from Perplexity's own docs.
+- **Mistral**: left as-is (`mistral-large-latest`, `mistral-small-latest`, etc.) — Mistral's own `-latest` ids are permanent aliases the *provider* repoints to its newest release, so that list was already self-updating and not actually stale; added `magistral-medium-latest` (reasoning) to the list.
+- **Anthropic** fallback list (`anthropicModels()`) needed no change — already Opus 5/Sonnet 5/Haiku 4.5/Fable 5.1, the current lineup.
+- Reworded the model picker's helper text to make the fallback path explicit: *"if a search here comes up empty, just type any model name straight into the Model field below instead"* — the real Model field was always free-text, but that wasn't obvious from the original wording.
+- Added an explicit doc-comment caveat on `llmProviderPresets()`: this is a dated snapshot, not a live catalog — providers ship new models often, so treat a listed name that starts erroring as a cue to re-check the provider's own docs, not a ZamZam ERP bug.
+- `tests/Feature/IntegrationsPageTest.php`'s `test_picking_a_popular_provider_auto_fills_provider_base_url_and_a_default_model` updated to assert the new DeepSeek model ids instead of the retired ones.
+
+Verification:
+
+- `php artisan test --filter=IntegrationsPageTest`: 18 passed.
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1063 passed, 0 failed**.
+- Manually re-checked in the browser: DeepSeek preset now defaults to `deepseek-v4-pro`, its model-picker search offers `deepseek-v4-flash`/`deepseek-v4-flash-vision-exp`; a company's existing legacy `deepseek-chat` value still displays correctly in the picker via the existing "always merge in the current value" fallback (not blanked out by the catalog refresh).
+
+Commit status: Not committed yet — awaiting owner approval.
+
+## 2026-09-02 - Feature: Offer landing-page view buttons + AI provider/model quick-pick
+
+Reason — two follow-ups from the owner in the same session:
+1. While testing the newly-fixed Landing Page Builder AI config (DeepSeek key), the owner found no way to actually see the generated landing page anywhere in the Offers UI, or hand it to a customer.
+2. Separately, to make the AI Integration provider/model fields easier to fill in correctly (the DeepSeek troubleshooting earlier this session was exactly this kind of mistake — blank Base URL + leftover Anthropic model name), asked for a provider dropdown that auto-fills Base URL, and a searchable model dropdown per provider.
+
+### Offer landing-page view buttons
+
+- `app/Filament/Resources/Offers/OfferResource.php` — new `previewUrl(Offer $record)` (routes to `storefront.preview.offers.show`, the same admin-only, published-status-bypassing preview route `OfferController::showPreview()` already serves) and `publicUrl(Offer $record)` (`https://{domain}/offers/{slug}`, the real live route, published-only) static helpers — same pattern `StorefrontSettingResource::previewUrl()`/`publicUrl()` already established.
+- `app/Filament/Resources/Offers/Tables/OffersTable.php` — added "Preview" (always visible) and "Open Page" (visible only when `status === Published` and the company has a domain) row actions.
+- `app/Filament/Resources/Offers/Pages/EditOffer.php` — same two actions added to the header, next to the existing "Generate Landing Page with AI".
+- New `tests/Feature/OfferResourceLandingPageActionsTest.php` (5 tests): preview URL reachable for a draft offer, public URL format, action visibility in both the edit page and the list for draft vs. published+domain.
+
+### AI provider/model quick-pick
+
+- `app/Filament/Pages/Integrations.php`'s `aiToolFields()` (shared by all three AI tool tabs) gained two new transient, `dehydrated(false)` Select fields per tool, purely as convenience layered on top of the existing free-text fields — nothing about the underlying stored data shape changed:
+  - **`{tool}_provider_preset`** — searchable dropdown of popular OpenAI-compatible providers (new `llmProviderPresets()`: DeepSeek, Groq, OpenRouter, Mistral, xAI, Together AI, Fireworks AI, Perplexity, OpenAI, self-hosted Ollama/vLLM — each with a real base URL and a short list of well-known models; counts per provider vary honestly, e.g. DeepSeek genuinely only has 2 public model endpoints today rather than padding to a round 5). Picking one sets provider/base_url/api_format and a default model via `Set`; `afterStateHydrated` reverse-matches the currently-saved provider label back to a preset on page load.
+  - **`{tool}_model_picker`** — searchable dropdown of the selected provider's models (or Anthropic's own lineup when API format is Anthropic and no preset is chosen), via new `llmModelOptions()`. Picking one fills the real Model field.
+  - Both real fields (Provider name, Model) stay ordinary free-text — nothing not on these curated lists is blocked.
+- **Bug caught and fixed during testing** (not just a test artifact — a real latent issue): Filament validates a Select's submitted value against its own live `options()`. Since the model picker's options legitimately change whenever `provider_preset`/`api_format` change elsewhere on the form, a perfectly harmless prior picker selection could fail validation on save ("The selected ... is invalid") purely because the option list moved — even though the field is cosmetic and never persisted. Fixed by having `llmModelOptions()` always fold the picker's own current raw value into its own options (self-referential, always valid) in addition to the real Model field's value. Regression test added: `test_changing_api_format_after_picking_a_model_never_blocks_saving`.
+- New tests in `tests/Feature/IntegrationsPageTest.php`: `test_picking_a_popular_provider_auto_fills_provider_base_url_and_a_default_model`, `test_changing_api_format_after_picking_a_model_never_blocks_saving`.
+- Manually verified in the browser: picking DeepSeek auto-fills provider/base URL/format; the model picker shows a real search box with `deepseek-chat`/`deepseek-reasoner`; the provider picker's own search box scrolls through the full list (DeepSeek, Groq, OpenRouter, Mistral, xAI (Grok), ...).
+
+Important changed files:
+
+- `app/Filament/Resources/Offers/OfferResource.php`, `Tables/OffersTable.php`, `Pages/EditOffer.php`
+- `app/Filament/Pages/Integrations.php`
+- `tests/Feature/OfferResourceLandingPageActionsTest.php` (new)
+- `tests/Feature/IntegrationsPageTest.php`
+
+Verification:
+
+- Targeted runs — `OfferResourceLandingPageActionsTest` (5 passed), `IntegrationsPageTest` (18 passed), `StorefrontMetaTrackingTest`/`AiSettingsServiceTest`/`AiAutoReplyTest`/`OfferLandingPageAiGeneratorTest` (all passed, unaffected).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1063 passed, 0 failed**.
+- Manually verified in the live browser (both features) — see above.
+
+Commit status: Not committed yet — awaiting owner approval.
+
+## 2026-09-02 - Feature: full WooCommerce / Payment Gateway / Meta Pixel & CAPI consolidation into Settings → Integrations
+
+Reason — owner asked (screenshot-marked) for "Send test webhook"/"Sync an order now" to move from the Integrations page header into the WooCommerce tab body, and for each integration tab (WooCommerce, Payment Gateway, Meta Pixel & CAPI) to hold that integration's *entire* configuration, with the old scattered/duplicate copies removed — continuing this session's earlier AI-settings consolidation.
+
+Scope confirmed with the owner (AskUserQuestion, this session):
+- The Meta CAPI page's **Event Log & Retries** table (an operational view, not config) moves into Integrations' Meta Pixel & CAPI tab too, not left behind on its own page.
+- The WooCommerce **product-import** "Sync WooCommerce" action (previously on Storefront Settings, separate from the order-webhook sync already in Integrations) also moves into the Integrations WooCommerce tab.
+- **Access narrows deliberately**: the Meta CAPI Event Log used to be viewable by anyone with `sales.view`, even without `settings.manage`. Folding it into Integrations (`canAccess()` requires `canManageSettings()`) removes that for sales-only staff — owner explicitly accepted this rather than broadening Integrations' access.
+
+What changed:
+
+- `app/Filament/Pages/Integrations.php` — WooCommerce tab: `testWoocommerceWebhook`/`syncWooOrder` moved out of `getHeaderActions()` into the tab body (each is now its own `{name}Action()`-named method, not a shared array-returning helper — Filament's `callAction()`/`assertActionVisible()` test helpers resolve a page-level action by exactly that method-name convention, `InteractsWithActions::resolveAction()`, regardless of where the Action renders); new `syncWooCommerceImportAction()` (product import, reusing `WooCommerceImportService::importProducts()`) added alongside them. Payment Gateway tab gained `payment_credentials.zinipay_base_url`/`paystation_base_url`. Meta Pixel & CAPI tab expanded to every field `MetaCapiSettings::form()` used to hold (Connection & Pixels incl. additional Pixels/domain verification, Consent & Advanced Matching, Browser Events incl. custom events, Purchase Delivery, Order Status Events) via a new `metaFieldDefaults()`/`metaFields()` pair (same "fill every key explicitly so a brand-new company's required Select doesn't fail validation with no visible reason" pattern the page already used for AI/WooCommerce/Payment). New Event Log & Retries `Section`, gated `->visible()` on `sales.view` (not just left to the embedded widget's own check — an unauthorized widget mount corrupts the whole page's Livewire render, not just hides a field).
+- `app/Livewire/MetaEventLogTable.php` (new) + `resources/views/livewire/meta-event-log-table.blade.php` (new) — the Event Log table, embedded into the Meta Pixel & CAPI tab via `Filament\Schemas\Components\Livewire::make()`, the same pattern `App\Livewire\OrderTrashTable` already uses for the order-trash modal. Reuses `StorefrontMetaEventResource::table()` unchanged; `StorefrontMetaEvent`'s own `BelongsToCompany` scope keeps it company-scoped automatically; `mount()` gates on `sales.view`.
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` — removed the "WooCommerce Import" and "Online Payments" `Section`s (and their now-dead `syncWooCommerceAction()`/`hasWooCommerceCredentials()` static methods + now-unused imports), with matching positional removals from the parallel `$sectionKeys` array that drives the section-nav sidebar.
+- Deleted `app/Filament/Pages/MetaCapiSettings.php`, `resources/views/filament/pages/meta-capi-settings.blade.php`, `resources/views/filament/pages/partials/meta-capi-settings-header.blade.php`. `ListStorefrontMetaEvents::mount()`'s legacy redirect now targets `Integrations::getUrl()` instead. Also fixed a stray hardcoded link to the deleted page in `resources/views/filament/pages/meta-events-manager.blade.php` (a different, unrelated Meta Ads page) that would otherwise have fataled the moment anyone opened it.
+
+Important changed files:
+
+- `app/Filament/Pages/Integrations.php`
+- `app/Livewire/MetaEventLogTable.php`, `resources/views/livewire/meta-event-log-table.blade.php`
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`
+- `app/Filament/Resources/StorefrontMetaEvents/Pages/ListStorefrontMetaEvents.php`
+- `resources/views/filament/pages/meta-events-manager.blade.php`
+- Deleted: `app/Filament/Pages/MetaCapiSettings.php` + its two blade views
+- `tests/Feature/IntegrationsPageTest.php` — new tests for the relocated/new WooCommerce product-import action, the Payment Gateway base-URL fields + a slice of the Meta fields saving together, and the embedded Event Log table rendering + a retry queuing.
+- `tests/Feature/StorefrontMetaTrackingTest.php` — the two `MetaCapiSettings`-specific Livewire tests rewritten against `Integrations` (dropping the section-nav/CSS assertions specific to the now-deleted bespoke header — Filament's own `Tabs` renders every tab's content up front, so no "select a section" step is needed); the legacy-redirect test now expects `Integrations::getUrl()`. Every other test in this large file exercises `StorefrontSetting` columns/services directly and was unaffected (confirmed by the full pass).
+- `tests/Feature/PhaseFourAdminPagesTest.php` — the Storefront Settings section-switching smoke test's `assertSee('Sync WooCommerce')` (that section's content changed) replaced with a field still actually in the "integrations" section group (WhatsApp group invite URL — the one section left there, Thank-you & Complaint Integration).
+- `tests/Feature/AdminNavigationClustersTest.php` — removed `MetaCapiSettings` from the Storefront cluster's expected-pages list.
+- `tests/Feature/WooCommerceImportTest.php` — unaffected (exercises `WooCommerceImportService` directly, never through either Filament form), confirmed by the full pass.
+
+Verification:
+
+- Targeted runs — `IntegrationsPageTest` (16 passed), `StorefrontMetaTrackingTest` (21 passed), `WooCommerceImportTest` (6 passed), `AdminNavigationClustersTest` (14 passed), `PhaseFourAdminPagesTest` (6 passed).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1056 passed, 0 failed**.
+- Not yet manually verified in a live browser (backend/Filament-only change; the automated Livewire tests already assert the exact rendered HTML/state this would show) — recommend a quick look at Settings → Integrations after deploy.
+
+Follow-up (same day) — owner asked for the Meta Pixel & CAPI tab's six sections (Connection & Pixels, Consent & Advanced Matching, Browser Events, Purchase Delivery, Order Status Events, Event Log & Retries) to be restyled as nested tabs matching the AI Integration tab's UX, instead of stacked collapsible sections. `app/Filament/Pages/Integrations.php`'s Meta Pixel & CAPI tab now nests a `Tabs::make('meta_capi_sections')` (same pattern as `ai_tools`), with each former Section's description text preserved as a `Placeholder` at the top of its own sub-tab. `Filament\Schemas\Components\Section` import removed (no longer used in this file). Re-ran `IntegrationsPageTest`/`StorefrontMetaTrackingTest` (37 passed) plus the full suite (1056 passed, 0 failed) — no test changes were needed, since all assertions checked field existence/labels/values rather than the Section-vs-Tab markup itself.
+
+Follow-up 2 (same day) — owner asked for icons on both nested-tab groups (AI Integration's Auto Messaging/Ad Assistant/Landing Page Builder, and Meta Pixel & CAPI's six sections), noting the old per-section menu already had its own icons that could be reused. Added `->icon(Heroicon::...)` to each `Tab`: AI Integration sub-tabs get new icons (`OutlinedChatBubbleLeftRight`, `OutlinedMegaphone`, `OutlinedRectangleStack`); Meta Pixel & CAPI sub-tabs reuse the exact icons `MetaCapiSettings::sectionNavigation()` used before it was retired (`OutlinedLink`, `OutlinedShieldCheck`, `OutlinedCursorArrowRays`, `OutlinedShoppingCart`, `OutlinedArrowsRightLeft`, `OutlinedQueueList`). Verified every constant exists in `vendor/filament/support/src/Icons/Heroicon.php` before using it. Re-ran `IntegrationsPageTest`/`StorefrontMetaTrackingTest` (37 passed) plus the full suite (1056 passed, 0 failed).
+
+Commit status: Not committed yet — awaiting owner approval.
+
+## 2026-09-02 - Feature: per-tool AI model selection (Settings → Integrations → "AI Integration")
+
+Reason — owner wants to pick a different, task-specialized AI model per tool (e.g. a fast cheap model for Inbox chat replies, a stronger reasoning model for ad strategy, a creative-writing model for landing pages) instead of one shared global provider/model/API key covering all three AI-powered features at once. Also asked to rename the Integrations page's "AI Assistant" tab to "AI Integration" since it now configures multiple integrations.
+
+Scope confirmed with the owner (AskUserQuestion, this session):
+- **Migration**: the one existing global config is copied into all three tools as their starting point (non-destructive, in-memory fallback), so nothing that works today (Auto Messaging, Ad Assistant, Landing Page Builder) breaks the moment this ships.
+- **Standalone CRM "AI Assistant Settings" page removal**: it duplicated the Integrations tab and is deleted outright — Settings → Integrations is now the one place AI is configured.
+
+What changed:
+
+- `app/Services/Crm/AiSettingsService.php` — rewritten to be tool-scoped. New `TOOL_MESSAGING`/`TOOL_AD_ASSISTANT`/`TOOL_LANDING_PAGE` constants + `TOOLS` label map. `all(Company $company, string $tool)` / `save(Company $company, string $tool, array $data)` / `enabled(Company $company, string $tool)` all take an explicit tool now. Storage moved from `companies.settings->ai` to `companies.settings->ai_tools->{tool}`. New `legacyGlobalSettings()` fallback: when a tool has never been saved under the new shape, `all()` reads the old shared `settings->ai` blob instead (still passed through the pre-existing provider-enum migration first) — in-memory only, nothing written back — so every tool reads the same legacy config until an admin explicitly saves that tool through the new per-tool UI.
+- `app/Services/Crm/AiReplyService.php`, `app/Services/MetaAdsAiAssistantService.php`, `app/Services/OfferLandingPageAiGenerator.php` — each now calls `AiSettingsService::all()`/`save()` with its own tool constant (`TOOL_MESSAGING`, `TOOL_AD_ASSISTANT`, `TOOL_LANDING_PAGE` respectively); the latter two's "configure AI first" error messages now point at the new Integrations sub-tab location.
+- `app/Filament/Pages/Integrations.php` — outer tab renamed `'AI Assistant'` → `'AI Integration'`; new `aiToolFields()` helper builds the shared ~10-field "provider connection" schema once, reused for three nested `Tab`s (Auto Messaging / Ad Assistant / Landing Page Builder) with `ai_{tool}_*`-prefixed state paths so the three tools' Livewire state never collides; new `aiToolFillState()` helper fills all three from `AiSettingsService::all()` in `mount()`; `save()` now loops `AiSettingsService::TOOLS` instead of a single flat save call. WooCommerce/Payment Gateway/Meta Pixel tabs, header actions, and access control are untouched.
+- Deleted `app/Filament/Pages/AiAssistantSettings.php` + `resources/views/filament/pages/ai-assistant-settings.blade.php` (the standalone CRM-cluster page). Removed its entry from `tests/Feature/AdminNavigationClustersTest.php`'s expected CRM page list, and its now-dead `'ai-assistant-settings' => 'crm'` entry from `app/Http/Controllers/Admin/LegacyAdminClusterRedirectController.php`.
+- Minor stale-comment cleanup in `app/Filament/Pages/CoolifyDeploymentSettings.php` and `app/Filament/Pages/PushNotificationSettings.php` (both referenced the now-deleted `AiAssistantSettings` page by name in a "same secret-blanking pattern" comment).
+
+Important changed files:
+
+- `app/Services/Crm/AiSettingsService.php`
+- `app/Services/Crm/AiReplyService.php`, `app/Services/MetaAdsAiAssistantService.php`, `app/Services/OfferLandingPageAiGenerator.php`
+- `app/Filament/Pages/Integrations.php`
+- `app/Http/Controllers/Admin/LegacyAdminClusterRedirectController.php`
+- Deleted: `app/Filament/Pages/AiAssistantSettings.php`, `resources/views/filament/pages/ai-assistant-settings.blade.php`
+- `tests/Feature/AiSettingsServiceTest.php` — rewritten: every `all()`/`save()` call now passes a tool constant; new tests for per-tool isolation (`test_each_tool_stores_and_reads_back_its_own_independent_config`), the legacy-copy fallback (`test_every_tool_falls_back_to_the_legacy_shared_config_until_saved_directly`), and **company isolation** (`test_two_companies_ai_tool_settings_are_fully_isolated` — two companies, same tool, provably separate rows, and a legacy blob added to one never appears on the other).
+- `tests/Feature/IntegrationsPageTest.php` — `data.ai_*` fields renamed to `data.ai_messaging_*`; new `test_each_ai_tool_tab_saves_independently_from_the_others` and `test_saving_ai_settings_for_one_company_never_leaks_into_another` (save via the page for company A, assert company B's row is untouched, then a **real HTTP** `->get('/admin/settings/integrations')` for company B — through the actual `SetCurrentCompany` middleware, not just Livewire::test() — never renders company A's model/API key text). Confirms AI settings are correctly company-scoped even though they aren't a `BelongsToCompany` model — they're a JSON attribute directly on the specific `Company` row passed into `AiSettingsService`, so there's no shared table a scope could leak across.
+- `tests/Feature/OfferLandingPageAiGeneratorTest.php`, `tests/Feature/MetaAdsAiAssistantServiceTest.php`, `tests/Feature/MetaAdsAiAssistantPageTest.php`, `tests/Feature/AiAutoReplyTest.php` — `AiSettingsService::save()` setup calls updated to the matching tool constant; one test's manual `settings['ai']['api_key'] = null` fixture updated to the new `settings['ai_tools'][...]['api_key']` path it actually needed to null out.
+- `tests/Feature/AdminNavigationClustersTest.php` — removed the deleted page's import/entry.
+
+Verification:
+
+- Targeted runs — `AiSettingsServiceTest` (8 passed, incl. company isolation), `IntegrationsPageTest` (13 passed, incl. company isolation through a real page load), `OfferLandingPageAiGeneratorTest` (5 passed), `MetaAdsAiAssistantServiceTest` (6 passed), `MetaAdsAiAssistantPageTest` (4 passed), `AiAutoReplyTest` (16 passed), `AdminNavigationClustersTest` (14 passed).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1053 passed, 0 failed**.
+
+Commit status: Not committed yet — awaiting owner approval.
+
+
 ## 2026-08-30 - Fix: WooCommerce orders that oversell ERP stock never synced
 
 Reason — with the "Sync an order now" button finally working (previous entry), the owner ran it against WooCommerce order **#38044** and got the real answer at last: "Sync failed: Insufficient stock for this sale quantity." (`Illuminate\Validation\ValidationException`). This is the actual root cause of the entire investigation in this session — every real webhook delivery for this order had been failing the exact same way, just invisibly (500, no reachable detail) until this tool existed.

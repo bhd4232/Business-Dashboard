@@ -100,7 +100,7 @@ class MetaAdsAiAssistantPageTest extends TestCase
         ]);
         app(CompanyContext::class)->set($company);
 
-        app(AiSettingsService::class)->save($company, [
+        app(AiSettingsService::class)->save($company, AiSettingsService::TOOL_AD_ASSISTANT, [
             'enabled' => true,
             'provider' => 'anthropic',
             'model' => 'claude-test',

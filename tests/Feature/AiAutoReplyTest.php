@@ -44,7 +44,7 @@ class AiAutoReplyTest extends TestCase
 
         app(CompanyContext::class)->set($this->company);
 
-        app(AiSettingsService::class)->save($this->company, [
+        app(AiSettingsService::class)->save($this->company, AiSettingsService::TOOL_MESSAGING, [
             'enabled' => true,
             'provider' => 'anthropic',
             'model' => 'claude-test',
@@ -451,7 +451,7 @@ class AiAutoReplyTest extends TestCase
     {
         Http::fake();
 
-        app(AiSettingsService::class)->save($this->company, ['enabled' => false, 'api_key' => 'test-key']);
+        app(AiSettingsService::class)->save($this->company, AiSettingsService::TOOL_MESSAGING, ['enabled' => false, 'api_key' => 'test-key']);
         $this->company->refresh();
 
         $conversation = $this->conversation('দাম জানতে চাই');

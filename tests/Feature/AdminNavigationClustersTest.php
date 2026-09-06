@@ -10,11 +10,9 @@ use App\Filament\Clusters\Reports as ReportsCluster;
 use App\Filament\Clusters\Sales;
 use App\Filament\Clusters\Settings;
 use App\Filament\Clusters\Storefront;
-use App\Filament\Pages\AiAssistantSettings;
 use App\Filament\Pages\Backups;
 use App\Filament\Pages\CloudStorageSettings;
 use App\Filament\Pages\Inbox;
-use App\Filament\Pages\MetaCapiSettings;
 use App\Filament\Pages\ProductSetup;
 use App\Filament\Pages\ReleaseNotes;
 use App\Filament\Pages\Reports;
@@ -73,14 +71,12 @@ class AdminNavigationClustersTest extends TestCase
                 StorefrontPageResource::class,
                 ProductCarouselResource::class,
                 StorefrontPaymentResource::class,
-                MetaCapiSettings::class,
             ],
             Crm::class => [
                 LeadResource::class,
                 QuotationResource::class,
                 Inbox::class,
                 ConversationChannelResource::class,
-                AiAssistantSettings::class,
                 CompanyFaqResource::class,
             ],
             Finance::class => [

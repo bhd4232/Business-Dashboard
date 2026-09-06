@@ -45,7 +45,7 @@ class AiReplyService
     public function maybeReply(Conversation $conversation, ?ConversationMessage $sourceMessage = null): void
     {
         $company = $conversation->company;
-        $settings = $this->settings->all($company);
+        $settings = $this->settings->all($company, AiSettingsService::TOOL_MESSAGING);
 
         if (! $settings['enabled'] || blank($settings['api_key'])) {
             return;

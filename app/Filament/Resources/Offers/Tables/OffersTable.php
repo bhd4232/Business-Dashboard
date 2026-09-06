@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\Offers\Tables;
 
+use App\Filament\Resources\Offers\OfferResource;
 use App\Models\Offer;
 use App\Services\OfferPricingService;
 use App\Support\MoneyFormatter;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -62,6 +64,17 @@ class OffersTable
             ->defaultSort('updated_at', 'desc')
             ->recordActions([
                 EditAction::make(),
+                Action::make('previewLandingPage')
+                    ->label('Preview')
+                    ->icon('heroicon-o-eye')
+                    ->url(fn (Offer $record): string => OfferResource::previewUrl($record))
+                    ->openUrlInNewTab(),
+                Action::make('openLandingPage')
+                    ->label('Open Page')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->url(fn (Offer $record): string => OfferResource::publicUrl($record))
+                    ->openUrlInNewTab()
+                    ->visible(fn (Offer $record): bool => $record->status === Offer::STATUS_PUBLISHED && filled($record->company?->domain)),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
