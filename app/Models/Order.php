@@ -477,6 +477,27 @@ class Order extends Model
         return in_array($this->status, self::ACCOUNTED_STATUSES, true);
     }
 
+    /**
+     * What a courier should collect on delivery: the full invoice total
+     * (products − discount + VAT + shipping), never reduced by an advance
+     * already paid. If the order carries no shipping fee of its own, the zone
+     * delivery charge for the customer's address is added on top so the COD
+     * always includes delivery (owner rule).
+     */
+    public function courierCodAmount(): float
+    {
+        $this->loadMissing('customer');
+
+        $total = (float) $this->total_amount;
+
+        if ((float) $this->shipping_fee <= 0 && $this->company) {
+            $total += (float) app(ShippingFeeService::class)
+                ->feeFor($this->customer?->address, $this->company)['fee'];
+        }
+
+        return round(max($total, 0), 2);
+    }
+
     public function workflowStage(): string
     {
         if (in_array($this->status, [self::STATUS_CANCELLED, self::STATUS_RETURNED, self::STATUS_REFUNDED], true)) {

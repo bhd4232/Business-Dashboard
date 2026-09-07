@@ -2,6 +2,98 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-07 - Feature: order-status quick-filter tabs + mobile header layout on the Orders list
+
+Reason — two owner asks on the Orders list:
+1. (annotated screenshot + reference to Nuport's order dashboard) status "boxes" next to the Trash button, one per order status; clicking one filters the list to just that status. Couldn't reach Nuport (the MCP browser has no shared login) but the request is unambiguous and this is the standard pattern.
+2. (annotated screenshot) on mobile, the "New order" button should sit on the same row as the "Orders" page title instead of wrapping below it — mobile only.
+
+What changed:
+
+- `ListOrders::getTabs()` — "All" + one `Filament\Schemas\Components\Tabs\Tab` per `Order::STATUSES` value. Each carries a live count badge (one grouped `count(*)` query, company-scoped + soft-delete-aware via the model's global scopes) and colour-matches the table's Status badge (`success`/`warning`/`danger`/`gray`); a selected tab adds `->modifyQueryUsing(fn ($q) => $q->where('status', $value))`. Filament renders this as the tab strip above the table — exactly where the screenshot's boxes were drawn — with `?activeTab=` URL persistence.
+- The `SelectFilter::make('status')` in `OrdersTable` is deliberately kept: `BusinessOverview`'s "Open all pending orders" deep link (`?filters[status][value]=draft`) and its end-to-end test (`DashboardDrilldownTest::test_the_storefront_pending_see_all_link_actually_filters_the_orders_list`) depend on it, and tabs + filters compose fine.
+- Mobile header: `CreateAction` on `ListOrders` gets `->extraAttributes(['class' => 'zz-orders-mobile-header-action'])`, and the existing `@media (max-width: 63.999rem)` rule in `resources/css/filament/admin/theme.css` (which already keeps the Products menu / Inbox selector beside their titles) now also matches `.fi-header:has(.zz-orders-mobile-header-action)` → `flex-direction: row; justify-content: space-between`. Filament stacks `.fi-header` only below its own 40rem breakpoint, and from 40rem up its own rule already sets the identical row layout, so desktop is unchanged. Needs `npm run build` (theme change).
+
+Important changed files:
+
+- `app/Filament/Resources/Orders/Pages/ListOrders.php`
+- `resources/css/filament/admin/theme.css` (+ rebuilt `public/build/`)
+- `tests/Feature/OrderListStatusTabsTest.php` (new)
+
+Verification:
+
+- `php artisan test tests/Feature/OrderListStatusTabsTest.php tests/Feature/ProductHeaderActionsResponsiveTest.php` — 5 passed. Blast radius (`DashboardDrilldownTest`, `DefaultTableSortTest`, `OrderFormTest`, `OrderBulkPrintTest`, `ChangeOrderWorkflowActionTest`, `OrderTrashWorkflowTest`, `SalesOrderTest`) — 27 passed.
+- Full `php artisan test` (plain, no `--env`) — **1095 passed, 0 failed** (5854 assertions).
+- `npm run build` — succeeded (`theme-*.css` rebuilt).
+- Browser (demo DB): Orders list shows **All 13 · Draft 1 · Confirmed 1 · Processing 4 · Completed 7 · Cancelled 0 · Returned 0 · Refunded 0** with colour-coded count badges; clicking **Completed** narrows to the 7 completed orders, **Draft** to the 1 draft ("Showing 1 result"). At 390px the "New order" button sits on the same row as the "Orders" title (title left, button right); the tab strip scrolls horizontally below it (Filament v5 default; no page overflow).
+
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
+
+## 2026-09-06 - Order-create redirect, courier COD = full total, courier form prefill fix
+
+Reason — owner's three requests:
+
+1. After creating an order the Create page should return to the orders list (it jumped to the new order's View page).
+2. The courier "panel" was only getting the product price as COD; it should be the total price including shipping cost.
+3. The courier booking form's recipient fields showed up empty ("bug") — should auto-fill from the customer.
+
+Owner clarifications gathered before building: COD = **full `total_amount`** (not the amount still due); when the order's own shipping fee is ৳0, **add the zone delivery charge** from `ShippingFeeService`; #3 is a genuine "fields blank" bug.
+
+What changed:
+
+- **#1** — `CreateOrder::getRedirectUrl()` now returns `OrderResource::getUrl('index')`.
+- **#2** — new `Order::courierCodAmount()`: full `total_amount`, never reduced by advance paid, plus the `ShippingFeeService::feeFor()` zone fee when `shipping_fee <= 0`. Wired into the `cod_amount` default of every booking form and every `$data['cod_amount'] ?? $order->due_amount ?? 0` fallback in `CourierService` (manual / Pathao / RedX / E-Courier / Steadfast payload) — so the bulk "Book courier" action gets it too.
+- **#3** — the three "Book courier" / "Book Steadfast" actions (`ViewOrder`, `OrdersTable`) now prefill via `->fillForm(fn ($record) => app(CourierService::class)->bookingFormDefaults($record, $shape))` instead of scattered per-field `->default()`. New `CourierService::bookingFormDefaults()` is the single source of truth for recipient + COD + driver-select defaults (`manual` / `steadfast` / `unified` shapes). The now-duplicated `->default()` calls were removed from the schema builders (with a comment: Filament skips a component default whenever a `->fillForm()` payload omits that field, so new defaultable fields must be added to the helper).
+
+Important changed files:
+
+- `app/Models/Order.php` (new `courierCodAmount()`)
+- `app/Services/CourierService.php` (new `bookingFormDefaults()`, COD fallbacks)
+- `app/Filament/Resources/Orders/Pages/CreateOrder.php`, `Pages/ViewOrder.php`
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php`
+- Tests: `tests/Feature/OrderFormTest.php` (redirect), `tests/Feature/CourierIntegrationTest.php` (COD amount + zone fallback, booking-popup prefill)
+
+Verification:
+
+- `php artisan test` (plain, no `--env`): **1092 passed, 0 failed** (5838 assertions) — full suite green.
+- Targeted: `OrderFormTest`, `CourierIntegrationTest`, `CourierMonitoringTest`, `SalesOrderTest`, `OrderStatusWorkflowTest`, `StorefrontCheckoutPolicyTest`, `ChangeOrderWorkflowActionTest`, `ExternalCourierFraudCheckTest` — 66 passed. Pint clean.
+- Browser (demo DB, `demo@example.com`): opened **Book courier** on INV-DEMO-0008 (Ovi Telecom, total ৳10,490 / due ৳7,740) — recipient prefilled "Ovi Telecom" / "+8801712000007" / "Rajshahi", courier "Demo Steadfast — Default", and **COD amount = 10490** (full total, not the ৳7,740 due). Order-create redirect confirmed by the passing `test_creating_an_order_redirects_to_the_orders_list`; the full browser create flow was flaky under concurrent-session load on the shared dev server.
+- No frontend asset changes, so `npm run build` not required.
+
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
+
+## 2026-09-06 - Feature: Products Quick Edit, bulk Stock Pool linking, uniform compact dashboard cards
+
+Reason — owner's three requests:
+
+1. The product list has no fast edit — the row "Edit" navigates to the full page. Wants a "Quick Edit" that pops the edit form open over the list to change any field.
+2. The Stock Pool tool is slow: one pool per product through a single-record form, and no way to see which company a product pools into.
+3. Main dashboard cards are inconsistent in size and too big on mobile; wants every dashboard's cards one uniform size, smaller on phones.
+
+What changed:
+
+- **Quick Edit (Feature 1).** New shared trait `app/Filament/Concerns/PersistsProductFormData.php` holds the product-form write path (mirror `sale_price`→`price`, route `stock` through `Product::setStockFromProductForm()`); `EditProduct` now delegates its `mutate*` hooks to it. `ProductsTable` row actions are grouped into a `⋯` menu — View / **Quick Edit** (`EditAction::make('quickEdit')->slideOver()` using the resource form + the trait via `mutateRecordDataUsing`/`using`) / Edit (full page). `ListProducts::getDefaultActionUrl()` returns `null` for `quickEdit` so it opens a modal instead of Filament's default redirect to the edit page.
+- **Bulk Stock Pool linking + visibility (Feature 2).** New non-nav page `app/Filament/Resources/StockPools/Pages/BulkLinkStockPools.php` (+ blade), super-admin only, registered as `StockPoolResource` page `bulk-link`, linked from `ListStockPools` header. Pick a source + linked company, stage `sourceProductId => linkedProductId` matches inline (`SelectColumn`), "Suggest matches" pre-fills by exact SKU then name, "Save links" creates/extends pools via the existing `StockPoolResource::syncMembers()`. `StockPoolResource::table()` split into Source company / Pools into / Linked products columns; `ProductsTable` gained a toggleable "Shared with" badge column (eager-loaded `stockPool.products` without global scopes) + a `pooled` ternary filter.
+- **Uniform compact dashboard cards (Feature 3).** `resources/css/filament/admin/theme.css`: added a global `.fi-wi-stats-overview-stat` rule (padding 10px, value 20px, label 13px) + an `@media (max-width: 640px)` block (8px / 16px / 11px). Removed the size declarations from `.zz-business-overview-stat` (they blocked the mobile shrink); its `[wire:click]` drilldown rules stay. Affects every `StatsOverviewWidget` and hand-built stat card app-wide — the previously-untreated Customer Success & Risk, Courier Health, and the Courier/Meta Ads dashboard cards now match Business Overview.
+
+Important changed files:
+
+- `app/Filament/Concerns/PersistsProductFormData.php` (new)
+- `app/Filament/Resources/Products/Tables/ProductsTable.php`, `Pages/ListProducts.php`, `Pages/EditProduct.php`
+- `app/Filament/Resources/StockPools/Pages/BulkLinkStockPools.php` (new), `resources/views/filament/resources/stock-pools/pages/bulk-link-stock-pools.blade.php` (new)
+- `app/Filament/Resources/StockPools/StockPoolResource.php`, `Pages/ListStockPools.php`
+- `resources/css/filament/admin/theme.css` (+ rebuilt `public/build/`)
+- New tests: `tests/Feature/ProductQuickEditTest.php`, `tests/Feature/BulkLinkStockPoolsTest.php`; updated `tests/Feature/BusinessOverviewLayoutTest.php`
+
+Verification:
+
+- `php artisan test` (plain, no `--env`, per CLAUDE.md): **1089 passed, 0 failed** (5823 assertions) — full suite green despite ~6 concurrent sessions on the tree.
+- Targeted blast radius (`ProductQuickEditTest`, `BulkLinkStockPoolsTest`, `StockPoolResourceTest`, `StockPoolTest`, `BusinessOverviewLayoutTest`, `ProductStatsOverviewTest`, `DashboardSummaryCardsTest`, `AdminNavigationClustersTest`, product + stock movement suites): all green.
+- `npm run build`: succeeded; built `theme-*.css` contains `.fi-wi-stats-overview-stat{padding:10px}` + the 640px shrink, and `.zz-business-overview-stat` now only in `[wire:click]` rules.
+- Browser (demo DB, `demo@example.com`): row `⋯` → Quick Edit opens the slide-over with the full form; edited "Sandbox Verify Product" (category + brand), got the "Saved" toast, list refreshed with new values; the full-page Edit still navigates. Bulk Link Products page renders with the two company selectors + empty state; Shared Stock Pools list shows the new Source company / Pools into / Linked products columns + "Bulk link products" button; Products list shows the "Shared with" column. Dashboard (1440px): all 18 stat cards inspect at padding 10px / value 20px / label 13px — Business Overview, Customer Success & Risk, and Courier Health now identical (were ~24px/30px for the latter two). Single-company demo DB can't exercise cross-company linking in the browser; `BulkLinkStockPoolsTest` covers it.
+
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
+
 ## 2026-09-02 - Fix: quick-pick provider/model catalog was already stale
 
 Reason — owner reported the newly-added provider/model quick-pick showed old models, and searching for newer ones came up "not found". The curated list I'd written a few hours earlier (deepseek-chat, gpt-4o, llama-3.3-70b-versatile, grok-2-latest, mistral-large-latest, ...) was already out of date — this app's `currentDate` context is 2026-09-02, and every provider had shipped newer flagship models since whatever my own training reflects.
@@ -422,7 +514,7 @@ Verification:
 - No dedicated test added for the `OrderInfolist` change — no existing test in this repo exercises that Filament page (prior notes record Filament admin-page-render tests failing here on a missing Vite manifest); the change is a one-line `TextEntry` identical in shape to the already-working `tracking_id` entry right above it.
 - No frontend build assets changed, so `npm run build` was not required.
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
 
 ## 2026-08-29 - Fix production migration failure: idempotent guards on the broadcasts-tables migration
 
@@ -483,7 +575,7 @@ Verification:
 - No frontend build assets changed (PHP + a new Filament resource/console command only), so `npm run build` was not required.
 - Not yet checked in a real browser — the picker's Livewire round-trip is verified via `callFormComponentAction` in `MediaHubTest`, but a manual click-through is worth doing before relying on it heavily.
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
 
 ## 2026-08-29 - Hide the hero "wholesale buyers" banner behind its own Site Settings toggle
 

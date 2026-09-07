@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Orders\Pages\CreateOrder;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Models\Company;
@@ -83,6 +84,60 @@ class OrderFormTest extends TestCase
         $this->assertSame('60.00', $item->unit_cost);
 
         $this->assertSame('200.00', $item->order->subtotal);
+    }
+
+    /**
+     * Owner request: after creating an order the Create page returns to the
+     * orders list, not Filament's default jump to the new order's View page.
+     */
+    public function test_creating_an_order_redirects_to_the_orders_list(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Redirect Co',
+            'slug' => 'redirect-co',
+            'invoice_prefix' => 'RDC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($company);
+
+        $customer = Customer::query()->create([
+            'name' => 'Redirect Buyer',
+            'phone' => '01799999999',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
+        $product = Product::query()->create([
+            'name' => 'Redirect Product',
+            'sku' => 'RDC-PROD-001',
+            'price' => 100,
+            'sale_price' => 100,
+            'cost_price' => 60,
+            'stock' => 10,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+
+        $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $this->actingAs($user)->withSession(['current_company_id' => $company->id]);
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $customer->id,
+                'order_date' => now()->toDateString(),
+                'status' => 'draft',
+                'delivery_status' => CourierBooking::STATUS_NOT_BOOKED,
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 100],
+                ],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors()
+            ->assertRedirect(OrderResource::getUrl('index'));
     }
 
     /**

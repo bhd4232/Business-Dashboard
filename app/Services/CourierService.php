@@ -39,6 +39,50 @@ class CourierService
         );
     }
 
+    /**
+     * Default state for the "Book courier" / "Book Steadfast" popups
+     * (ViewOrder + OrdersTable). Applied via `->fillForm()` rather than
+     * per-field `->default()` because Filament skips a component's default
+     * whenever a `->fillForm()` payload is present but omits that field, and
+     * so the recipient + COD prefill lives in exactly one place.
+     *
+     * Every field a form relies on a default for must be listed here for its
+     * shape — `manual` = ViewOrder's "Book courier", `steadfast` = ViewOrder's
+     * "Book Steadfast", `unified` = OrdersTable's row "Book courier".
+     *
+     * @return array<string, mixed>
+     */
+    public function bookingFormDefaults(Order $order, string $shape = 'unified'): array
+    {
+        $order->loadMissing('customer');
+
+        $common = [
+            'recipient_name' => $order->customer_name ?: $order->customer?->name,
+            'recipient_phone' => $order->customer?->phone,
+            'recipient_address' => $order->customer?->address,
+            'cod_amount' => $order->courierCodAmount(),
+        ];
+
+        return match ($shape) {
+            'manual' => $common,
+            'steadfast' => [
+                ...$common,
+                'recipient_email' => $order->customer?->email,
+                'delivery_type' => 0,
+            ],
+            default => [
+                ...$common,
+                'courier_provider_id' => $order->courier_provider_id
+                    ?? CourierProvider::defaultForCompany($order->company_id)?->getKey(),
+                'sf_recipient_email' => $order->customer?->email,
+                'sf_delivery_type' => 0,
+                'ph_delivery_type' => 48,
+                'ph_item_weight' => 0.5,
+                'rx_parcel_weight' => 500,
+            ],
+        };
+    }
+
     public function createManualBooking(Order $order, array $data = []): CourierBooking
     {
         $order->loadMissing('customer', 'company');
@@ -78,7 +122,7 @@ class CourierService
             'recipient_name' => $data['recipient_name'] ?? $order->customer_name ?? $order->customer?->name ?? 'Customer',
             'recipient_phone' => $data['recipient_phone'] ?? $order->customer?->phone,
             'recipient_address' => $data['recipient_address'] ?? $order->customer?->address,
-            'cod_amount' => $data['cod_amount'] ?? $order->due_amount ?? 0,
+            'cod_amount' => $data['cod_amount'] ?? $order->courierCodAmount(),
             'status' => $status,
             'booked_at' => now(),
             'note' => $data['note'] ?? null,
@@ -187,7 +231,7 @@ class CourierService
             'item_type' => (int) ($data['item_type'] ?? 2),
             'item_quantity' => (int) ($data['item_quantity'] ?? max(1, (int) $order->items->sum('quantity'))),
             'item_weight' => (float) ($data['item_weight'] ?? 0.5),
-            'amount_to_collect' => (float) ($data['cod_amount'] ?? $order->due_amount ?? 0),
+            'amount_to_collect' => (float) ($data['cod_amount'] ?? $order->courierCodAmount()),
             'item_description' => $data['item_description'] ?? $this->itemDescription($order),
         ], fn ($value): bool => $value !== null && $value !== '');
 
@@ -268,7 +312,7 @@ class CourierService
             'delivery_area' => $data['delivery_area'] ?? null,
             'delivery_area_id' => isset($data['delivery_area_id']) ? (int) $data['delivery_area_id'] : null,
             'merchant_invoice_id' => $order->order_number,
-            'cash_collection_amount' => (string) (float) ($data['cod_amount'] ?? $order->due_amount ?? 0),
+            'cash_collection_amount' => (string) (float) ($data['cod_amount'] ?? $order->courierCodAmount()),
             'parcel_weight' => (int) ($data['parcel_weight'] ?? 500),
             'instruction' => $data['note'] ?? null,
             'value' => (string) (float) ($order->total_amount ?? 0),
@@ -352,7 +396,7 @@ class CourierService
             'recipient_area' => $data['recipient_area'] ?? null,
             'recipient_address' => $data['recipient_address'] ?? $order->customer?->address,
             'package_code' => $data['package_code'] ?? ($provider->settings['default_package_code'] ?? null),
-            'product_price' => (string) (float) ($data['cod_amount'] ?? $order->due_amount ?? 0),
+            'product_price' => (string) (float) ($data['cod_amount'] ?? $order->courierCodAmount()),
             'payment_method' => $data['payment_method'] ?? 'COD',
             'number_of_item' => (int) ($data['item_quantity'] ?? max(1, (int) $order->items->sum('quantity'))),
             'product_id' => $order->order_number,
@@ -628,7 +672,7 @@ class CourierService
             'alternative_phone' => $data['alternative_phone'] ?? null,
             'recipient_email' => $data['recipient_email'] ?? $order->customer?->email,
             'recipient_address' => $data['recipient_address'] ?? $order->customer?->address,
-            'cod_amount' => $data['cod_amount'] ?? $order->due_amount ?? 0,
+            'cod_amount' => $data['cod_amount'] ?? $order->courierCodAmount(),
             'note' => $data['note'] ?? $order->note,
             'item_description' => $itemDescription,
             'total_lot' => $data['total_lot'] ?? $order->items->sum('quantity'),

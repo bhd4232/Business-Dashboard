@@ -56,8 +56,19 @@ class BusinessOverviewLayoutTest extends TestCase
         $theme = file_get_contents(resource_path('css/filament/admin/theme.css'));
 
         $this->assertIsString($theme);
-        $this->assertStringContainsString(".zz-business-overview-stat {\n    padding: 10px;", $theme);
-        $this->assertStringContainsString(".zz-business-overview-stat .fi-wi-stats-overview-stat-value {\n    font-size: 20px;", $theme);
+
+        // Every stat-overview card in the app (Business Overview included) is
+        // compacted to one uniform size by the shared .fi-wi-stats-overview-stat
+        // rule, with a further shrink on phones.
+        $this->assertStringContainsString(".fi-wi-stats-overview-stat {\n    padding: 10px;", $theme);
+        $this->assertStringContainsString(".fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-value {\n    font-size: 20px;", $theme);
+        $this->assertStringContainsString('@media (max-width: 640px) {', $theme);
+        $this->assertStringContainsString(".fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-value {\n        font-size: 16px;", $theme);
+
+        // The per-widget class no longer sets its own size (it would block the
+        // mobile shrink) but still drives the drilldown click affordance.
+        $this->assertStringNotContainsString(".zz-business-overview-stat {\n    padding:", $theme);
+        $this->assertStringContainsString('.zz-business-overview-stat[wire\\:click]', $theme);
 
         Livewire::test(BusinessOverview::class)
             ->assertSeeHtml('zz-business-overview-stat')

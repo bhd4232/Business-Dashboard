@@ -3,12 +3,14 @@
 namespace App\Filament\Resources\Products\Pages;
 
 use App\Filament\Concerns\HasStickyHeaderFormActions;
+use App\Filament\Concerns\PersistsProductFormData;
 use App\Filament\Resources\Products\ProductResource;
 use Filament\Resources\Pages\EditRecord;
 
 class EditProduct extends EditRecord
 {
     use HasStickyHeaderFormActions;
+    use PersistsProductFormData;
 
     protected static string $resource = ProductResource::class;
 
@@ -23,14 +25,12 @@ class EditProduct extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        $data['sale_price'] ??= $data['price'] ?? null;
-
-        return $data;
+        return self::mutateProductDataBeforeFill($data);
     }
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        $data['price'] = $data['sale_price'];
+        $data = self::mutateProductDataBeforeSave($data);
         $this->requestedStock = (int) ($data['stock'] ?? $this->record->stock);
         unset($data['stock']);
 

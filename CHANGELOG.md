@@ -4,6 +4,24 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **"Quick Edit" on the Products list.** Each product row's actions menu (View / Quick Edit / Edit (full page)) now has a **Quick Edit** entry that opens the complete product form — every field, including the variations repeater — in a slide-over over the list, so common fixes no longer need a full page navigation. It saves through the same path as the full edit page (`App\Filament\Concerns\PersistsProductFormData`): `sale_price` still mirrors to `price`, and a changed stock value still creates a proper opening/adjustment `StockMovement` rather than a bare column write. The full-page Edit is unchanged and still available from the same menu.
+- **"Bulk link products" tool for Shared Stock Pools** (super-admin). Instead of opening the single-record Create form once per product, pick a **source company** and a **linked company**, then match many of the source company's products to their counterpart in the linked company on one screen and link them all with one **Save links** — the same stage-inline-then-save shape as "Bulk Update Stock". A **Suggest matches** button pre-fills rows by exact SKU, then exact name. Every link goes through the existing `StockPoolResource::syncMembers()`, so pool mechanics (shared live stock, `StockMovementService` resync) are identical to the form; a product that already owns a pool just gets the new counterpart added to it.
+- **Status quick-filter tabs on the Orders list** (Nuport-style order dashboard). Above the table: **All** plus one tab per order status (Draft / Confirmed / Processing / Completed / Cancelled / Returned / Refunded), each with a live count badge; clicking a tab shows only orders in that status. The Status column filter still works alongside the tabs for deep links and combining with other filters.
+
+### Changed
+
+- **Every dashboard's stat cards are now one uniform, compact size, and smaller again on phones.** The main Dashboard previously mixed sizes — Business Overview was compacted while Customer Success & Risk and Courier Health used Filament's larger default — and the Courier / Meta Ads dashboards were full-size too. A single shared rule on `.fi-wi-stats-overview-stat` in the admin theme now gives every stat card the same padding and number size app-wide (10px / 20px on desktop), with a `max-width: 640px` block shrinking them further on phones (8px / 16px). The per-widget `.zz-business-overview-stat` sizing was removed so it no longer blocks the mobile shrink; its click-to-drilldown affordance is unchanged.
+- **The Products list and the Shared Stock Pools list now show which company a product's stock is pooled with.** Products gains a toggleable "Shared with" column (the other companies' names, with a "Source" marker on the pool owner) and a "Shared stock pool" filter. The Shared Stock Pools list replaces its inline `name (company)` text with dedicated **Source company** / **Pools into** / **Linked products** columns.
+- **Creating an order now returns to the orders list**, instead of Filament's default jump to the new order's detail page. The "Created" toast still confirms the save.
+- **Courier COD is now the full invoice total, including delivery** — every "Book courier" / "Book Steadfast" form (and the bulk action) defaults the COD to the order's `total_amount` (products − discount + VAT + shipping), no longer reduced by any advance already paid. When the order carries no shipping fee of its own, the zone delivery charge for the customer's address (`ShippingFeeService`) is added on top, so the courier always collects for delivery. New `Order::courierCodAmount()`; the field is still editable per booking.
+- **On phones, the Orders list's "New order" button now sits on the same row as the page title** instead of wrapping to its own line (same `.fi-header` mobile-layout treatment the Products list already uses; desktop is unchanged).
+
+### Fixed
+
+- **The courier booking form now reliably pre-fills the recipient name, phone, and address from the order.** The prefill (plus the COD default) is now applied through one shared `CourierService::bookingFormDefaults()` via the action's `->fillForm()`, instead of per-field `->default()` calls that could come up blank.
+
 ## [2.12.0] - 2026-09-06
 
 **Release type:** Minor Feature Update

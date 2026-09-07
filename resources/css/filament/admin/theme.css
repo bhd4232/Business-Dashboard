@@ -64,15 +64,48 @@
     height: 15px;
 }
 
-/* Compact only the main dashboard's native Business Overview stat cards. */
-.zz-business-overview-stat {
+/* Every stat-overview card in the app renders at one compact size, so no
+   dashboard ever mixes small and large cards (e.g. the main Dashboard's
+   Business Overview next to Customer Success & Risk / Courier Health). The
+   .fi-wi-stats-overview-stat class is shared by every native
+   StatsOverviewWidget and by the hand-built cards (ProductStatsOverview, the
+   Courier and Meta Ads dashboards). Phones shrink the cards further. */
+.fi-wi-stats-overview-stat {
     padding: 10px;
 }
 
-.zz-business-overview-stat .fi-wi-stats-overview-stat-value {
+.fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-value {
     font-size: 20px;
     line-height: 1.4;
 }
+
+.fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-label {
+    font-size: 13px;
+}
+
+@media (max-width: 640px) {
+    .fi-wi-stats-overview-stat {
+        padding: 8px;
+    }
+
+    .fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-value {
+        font-size: 16px;
+    }
+
+    .fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-label {
+        font-size: 11px;
+        line-height: 1.3;
+    }
+
+    .fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-description {
+        font-size: 10px;
+    }
+}
+
+/* The main dashboard's Business Overview cards now take their size from the
+   shared .fi-wi-stats-overview-stat rule above (kept identical to what this
+   class used to set on desktop) so they also shrink on phones. This class
+   still drives the click-to-drilldown affordance further down. */
 
 /* Compact the Vouchers/Accounts/Expenses list pages' summary cards. Long or
    multi-word labels ("Credit Voucher - Requested", longer account/category
@@ -242,18 +275,21 @@ html:not(.zz-sidebar-navigation-ready) .zz-sidebar-menu-parent.fi-sidebar-route-
     }
 }
 
-/* Keep the Products mobile action menu beside the title while using
-   Filament's native header and ActionGroup components. */
+/* Keep a page's header action beside its title on mobile (Filament stacks
+   the header below its own sm breakpoint) — Products' mobile action menu,
+   the Inbox channel selector, and the Orders list's "New order" button. */
 @media (max-width: 63.999rem) {
     .fi-header:has(.zz-products-mobile-actions),
-    .fi-header:has(.zz-inbox-channel-selector) {
+    .fi-header:has(.zz-inbox-channel-selector),
+    .fi-header:has(.zz-orders-mobile-header-action) {
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
     }
 
     .fi-header:has(.zz-products-mobile-actions) .fi-header-actions-ctn,
-    .fi-header:has(.zz-inbox-channel-selector) .fi-header-actions-ctn {
+    .fi-header:has(.zz-inbox-channel-selector) .fi-header-actions-ctn,
+    .fi-header:has(.zz-orders-mobile-header-action) .fi-header-actions-ctn {
         margin-inline-start: auto;
     }
 }

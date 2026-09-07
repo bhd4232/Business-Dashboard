@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\StockPools;
 
 use App\Filament\Clusters\Inventory;
+use App\Filament\Resources\StockPools\Pages\BulkLinkStockPools;
 use App\Filament\Resources\StockPools\Pages\CreateStockPool;
 use App\Filament\Resources\StockPools\Pages\EditStockPool;
 use App\Filament\Resources\StockPools\Pages\ListStockPools;
@@ -77,21 +78,37 @@ class StockPoolResource extends Resource
             ->columns([
                 TextColumn::make('sourceProduct.name')
                     ->label('Source product')
-                    ->state(fn (StockPool $record): string => $record->sourceProduct
-                        ? "{$record->sourceProduct->name} ({$record->sourceProduct->company?->name})"
-                        : '—')
+                    ->state(fn (StockPool $record): string => $record->sourceProduct?->name ?? '—')
+                    ->description(fn (StockPool $record): ?string => $record->sourceProduct?->sku)
                     ->searchable(),
-                TextColumn::make('members')
-                    ->label('Also linked')
-                    ->state(fn (StockPool $record): string => self::memberProducts($record)
+                TextColumn::make('source_company')
+                    ->label('Source company')
+                    ->badge()
+                    ->color('primary')
+                    ->state(fn (StockPool $record): string => $record->sourceProduct?->company?->name ?? '—'),
+                TextColumn::make('linked_companies')
+                    ->label('Pools into')
+                    ->badge()
+                    ->color('info')
+                    ->state(fn (StockPool $record): array => self::memberProducts($record)
                         ->reject(fn (Product $p): bool => (int) $p->getKey() === (int) $record->source_product_id)
-                        ->map(fn (Product $p): string => "{$p->name} ({$p->company?->name})")
-                        ->implode(', ') ?: '—')
-                    ->wrap(),
+                        ->map(fn (Product $p): ?string => $p->company?->name)
+                        ->filter()
+                        ->unique()
+                        ->sort()
+                        ->values()
+                        ->all() ?: ['—']),
+                TextColumn::make('linked_products_count')
+                    ->label('Linked products')
+                    ->badge()
+                    ->state(fn (StockPool $record): int => self::memberProducts($record)
+                        ->reject(fn (Product $p): bool => (int) $p->getKey() === (int) $record->source_product_id)
+                        ->count()),
                 TextColumn::make('shared_stock')
                     ->label('Live shared stock')
                     ->state(fn (StockPool $record): int => (int) $record->sourceProduct?->stock)
-                    ->badge(),
+                    ->badge()
+                    ->color('success'),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -195,6 +212,7 @@ class StockPoolResource extends Resource
         return [
             'index' => ListStockPools::route('/'),
             'create' => CreateStockPool::route('/create'),
+            'bulk-link' => BulkLinkStockPools::route('/bulk-link'),
             'edit' => EditStockPool::route('/{record}/edit'),
         ];
     }
