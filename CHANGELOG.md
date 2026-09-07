@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-09-07
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **"Quick Edit" on the Products list.** Each product row's actions menu (View / Quick Edit / Edit (full page)) now has a **Quick Edit** entry that opens the complete product form — every field, including the variations repeater — in a slide-over over the list, so common fixes no longer need a full page navigation. It saves through the same path as the full edit page (`App\Filament\Concerns\PersistsProductFormData`): `sale_price` still mirrors to `price`, and a changed stock value still creates a proper opening/adjustment `StockMovement` rather than a bare column write. The full-page Edit is unchanged and still available from the same menu.
@@ -21,7 +25,6 @@ All notable production changes to Business Dashboard are documented here.
 ### Fixed
 
 - **The courier booking form now reliably pre-fills the recipient name, phone, and address from the order.** The prefill (plus the COD default) is now applied through one shared `CourierService::bookingFormDefaults()` via the action's `->fillForm()`, instead of per-field `->default()` calls that could come up blank.
-
 ## [2.12.0] - 2026-09-06
 
 **Release type:** Minor Feature Update
