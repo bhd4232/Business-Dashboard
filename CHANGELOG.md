@@ -4,10 +4,13 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.13.1] - 2026-09-08
+
+**Release type:** Patch/Fix Update
+
 ### Changed
 
 - **Inbox message thread redesigned as modern chat bubbles** (WhatsApp/Messenger-style, owner-approved design pass). Messages now render as colored rounded bubbles — amber for your replies, neutral cards for the customer's — instead of plain callout boxes, with consecutive messages from the same side grouped together (no repeated spacing, and only the last bubble in a run gets the rounded "tail" corner). The conversation list now shows a colored initials avatar per contact instead of a generic channel icon. Delivery status is now a tick icon (single/double/red alert) next to the timestamp, with the status text kept for screen readers; the WhatsApp→SMS fallback badge and internal-note bubbles were restyled to match. The reply composer is now a floating pill shape. Purely visual — every Livewire binding, filter, and keyboard/screen-reader behavior on the page is unchanged.
-
 ## [2.13.0] - 2026-09-07
 
 **Release type:** Minor Feature Update
