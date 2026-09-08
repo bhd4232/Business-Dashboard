@@ -45,7 +45,9 @@ use App\Services\CompanyContext;
 use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
 use App\Support\DefaultTableSort;
+use App\Support\FileUploadClearAction;
 use App\Support\MoneyFormatter;
+use Filament\Forms\Components\FileUpload;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Livewire\Notifications;
 use Filament\Tables\Columns\Summarizers\Summarizer;
@@ -161,6 +163,15 @@ class AppServiceProvider extends ServiceProvider
         // docblock for why this is needed at all.
         Table::configureUsing(function (Table $table): void {
             $table->defaultSort(fn (Builder $query): string => DefaultTableSort::column($query), 'desc');
+        });
+
+        // Every FileUpload gets a label-row "Remove" action so an image whose
+        // preview is stuck loading (slow/failing media URL, offline webview)
+        // can still be cleared -- FilePond's native "×" only appears once a
+        // file has finished loading. See App\Support\FileUploadClearAction.
+        // A Closure (not a shared Action instance) so each field gets its own.
+        FileUpload::configureUsing(function (FileUpload $upload): void {
+            $upload->hintAction(fn () => FileUploadClearAction::make());
         });
 
         $this->configureCloudStorage();

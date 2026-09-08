@@ -2,6 +2,35 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-08 - Fix: a "Remove" action for image fields whose preview is stuck loading
+
+Reason — owner (screenshot of "Edit Storefront Slide" with both image fields sitting on "Loading / Waiting for size" after a page reload): "কোন পেজ রিলোড করলে ইমেজ ফিল্ড গুলো লোডিং হতে থাকে এক্সিস্টিং ইমেজ তখন রিমুভও করা যায় না। সিলেক্টেড ইমেজ রিমুভ করার অপশন এড কর ইমেজ যদি লোডিং এ থাকে। এইটা সকল ইমেজ ফিল্ডগুলোতে এপ্লিকেবল হবে।"
+
+Root cause — Filament's FileUpload renders an already-saved image by handing FilePond only the file URL and letting it `fetch()` the blob to build the preview + read the size. FilePond's remove ("×") button only appears once that finishes. When the fetch is slow or fails (company-scoped media served through PHP, an offline mobile webview, the dev server under concurrent load, `cache: 'no-store'` forcing a fresh hit every reload) the item is stuck on "Loading / Waiting for size" with no built-in way to clear it — and a required image field then blocks the whole form from saving.
+
+What changed:
+
+- **New `App\Support\FileUploadClearAction`** — a hint `Action` (`name = clearFileField`, label "Remove", danger colour, x-mark icon) that sets the field's state to `null` and calls `callAfterStateUpdated()`. `FileUploadStateCast` normalises `null` → empty for both single and multiple uploads; FilePond's own `$watch('state')` then redraws the field as empty. The stored object is **not** deleted (same as the native remove) so a mis-click is recoverable from the Media Hub. `->visible()` only while the field holds a value and isn't disabled.
+- **`AppServiceProvider::boot()`** — `FileUpload::configureUsing(fn ($upload) => $upload->hintAction(fn () => FileUploadClearAction::make()))`, so **every** FileUpload in the app gets it (a Closure, not a shared Action instance, so each field gets its own). Composes with the existing per-field `->hintAction(selectFromMediaHubAction())` — `hintActions()` appends.
+
+Important changed / new files:
+
+- `app/Support/FileUploadClearAction.php` (new)
+- `app/Providers/AppServiceProvider.php` (import + one `FileUpload::configureUsing()` block, next to the existing `Table::configureUsing()`)
+- `tests/Feature/FileUploadClearActionTest.php` (new — 3 cases: action present on every FileUpload; clears a stored image + saves null + leaves the file on disk; not offered while empty)
+- `CHANGELOG.md` `[Unreleased]` → `### Fixed`
+
+Verification:
+
+- `php artisan test tests/Feature/FileUploadClearActionTest.php` — 3 passed.
+- `php artisan test tests/Feature/MediaHubTest.php tests/Feature/PublicMediaUploadPreviewTest.php tests/Feature/BrowserImagePrecompressionTest.php` — 10 passed (hint-action composition unaffected).
+- `php artisan test --filter=ReleaseNotes` — 5 passed.
+- Full `php artisan test` (plain, no `--env`) — **1110 passed** (5923 assertions), 0 failed.
+- Browser (demo, `demo@example.com`): Product edit page → both image fields ("Featured Image", "Gallery Images") show a label-row "Remove" next to "Select From Media"; clicking it removed the FilePond preview item and hid itself (state now empty). Not saved — demo data untouched.
+- No frontend asset changes (the affordance is a server-rendered Filament action, not JS) → `npm run build` not required.
+
+Commit status: committed to `origin/main` with this change (fast-forward, on top of v2.13.1). Working tree carries unrelated concurrent-session changes; only the files above (plus these notes / the CHANGELOG line) are in the commit.
+
 ## 2026-09-08 - Inbox redesigned as modern chat bubbles (WhatsApp/Messenger-style)
 
 Reason — owner asked for chat-UI inspiration (shared a stock-vector site link, which the sandbox's egress proxy blocked); instead of that site, two clickable HTML mockups (desktop 3-column + mobile phone-frame) were built and published as artifacts using this app's own real amber brand color and real Inbox content (customer names, delivery states, the SMS-fallback badge). Owner approved both ("দুটোই ভালো লাগছে") and asked to implement in the real code ("আসল কোডে বসিয়ে দাও").

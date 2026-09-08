@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **An image field whose preview is stuck on "Loading / Waiting for size" can now always be cleared.** When the preview of an already-saved image can't load — a slow or failing company-media URL, an offline mobile webview, the dev server under load — FilePond's own remove ("×") button never appears, so a required image field looked permanently occupied and the whole form couldn't be saved. Every FileUpload in the app now carries a small **"Remove"** action in its label row (next to "Select From Media"), added once globally via `FileUpload::configureUsing()` in `AppServiceProvider` (`App\Support\FileUploadClearAction`). It sits outside FilePond so it's always reachable; one click empties the field. The stored file is left in storage — same as the native remove — so a mis-click is recoverable from the Media Hub. The action is only shown while the field actually holds a value.
+
 ## [2.13.1] - 2026-09-08
 
 **Release type:** Patch/Fix Update
