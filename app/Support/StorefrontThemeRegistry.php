@@ -24,8 +24,10 @@ final class StorefrontThemeRegistry
      * Real banner/hero image dimensions per theme, sourced from the actual
      * homepage view markup (not guessed): Built-in and Marketplace Pro both
      * render slides through `storefront.partials.image-banner` (full-width
-     * banner, ~3:1); Noor Solar shows only the first slide as a 4:3 hero
-     * visual with no mobile variant (see `themes/noor-solar/home.blade.php`).
+     * banner) — Built-in at 3:1, Marketplace Pro at a shorter 4:1 so the
+     * category strip below the banner stays in view on desktop; Noor Solar
+     * shows only the first slide as a 4:3 hero visual with no mobile variant
+     * (see `themes/noor-solar/home.blade.php`).
      *
      * @var array<string, array{desktop: array{width: int, height: int, note: string}, mobile: array{width: int, height: int, note: string}|null}>
      */
@@ -45,8 +47,8 @@ final class StorefrontThemeRegistry
         self::MARKETPLACE_PRO => [
             'desktop' => [
                 'width' => 1920,
-                'height' => 640,
-                'note' => 'Ratio 3:1 — extra-wide banner, at least 1920×640px, same as Built-in. Shown edge-to-edge across the desktop screen width, cropped to fit the ratio. Every Marketplace Pro homepage template shares this banner slot.',
+                'height' => 480,
+                'note' => 'Ratio 4:1 — extra-wide, short banner, at least 1920×480px. Shown edge-to-edge across the desktop screen width, cropped to fit the ratio. Deliberately shorter than the Built-in theme so the "Shop by category" row stays visible on large screens. Every Marketplace Pro homepage template shares this banner slot.',
             ],
             'mobile' => [
                 'width' => 900,

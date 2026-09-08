@@ -200,6 +200,37 @@ class StorefrontBannerTest extends TestCase
         $this->assertStringNotContainsString('100vh / 3', $css);
     }
 
+    public function test_marketplace_pro_desktop_banner_is_shorter_than_built_in_so_the_category_row_stays_in_view(): void
+    {
+        // Owner request 2026-09-08 (screenshot): on desktop the Marketplace
+        // Pro banner should be short enough that the "Shop by category" row
+        // below it is visible without scrolling. Only Marketplace Pro is
+        // scoped down (4:1, capped) — Built-in keeps its 3:1 — and mobile
+        // is untouched.
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString(
+            "body[data-storefront-theme='marketplace_pro'] .storefront-image-banner {",
+            $css,
+        );
+        $this->assertStringContainsString('aspect-ratio: 4 / 1;', $css);
+        $this->assertStringContainsString('max-height: 30rem;', $css);
+
+        $marketplace = StorefrontThemeRegistry::bannerSpec(StorefrontThemeRegistry::MARKETPLACE_PRO);
+        $builtIn = StorefrontThemeRegistry::bannerSpec(StorefrontThemeRegistry::BUILT_IN);
+
+        // Same width, shorter height than Built-in on desktop...
+        $this->assertSame(1920, $marketplace['desktop']['width']);
+        $this->assertSame(480, $marketplace['desktop']['height']);
+        $this->assertLessThan($builtIn['desktop']['height'], $marketplace['desktop']['height']);
+        $this->assertStringContainsString('4:1', $marketplace['desktop']['note']);
+
+        // ...and the mobile slot is identical to Built-in / unchanged.
+        $this->assertSame($builtIn['mobile'], $marketplace['mobile']);
+        $this->assertSame(900, $marketplace['mobile']['width']);
+        $this->assertSame(320, $marketplace['mobile']['height']);
+    }
+
     public function test_banner_fits_to_screen_on_mobile_without_cropping(): void
     {
         // Mobile uses object-fit: contain ("fit to screen") so a slide

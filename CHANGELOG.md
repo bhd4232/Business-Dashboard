@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **The Marketplace Pro storefront's hero banner is shorter on desktop**, so the "Shop by category" row directly below it stays in view without scrolling on large screens. Its slot ratio changes from `3:1` to `4:1` (`1920×480`, capped at `30rem` / 480px tall on monitors ≥1920px wide), and the Hero Slides upload editor now locks new artwork to that same ratio. Mobile is unchanged, and the Built-in and Noor Solar themes keep their existing banner sizes. `StorefrontThemeRegistry::BANNER_SPECS`, `.storefront-image-banner` (scoped `body[data-storefront-theme='marketplace_pro']`).
+
 ## [2.13.2] - 2026-09-08
 
 **Release type:** Patch/Fix Update

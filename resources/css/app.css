@@ -465,6 +465,20 @@ body[data-storefront-theme='marketplace_pro'] {
         aspect-ratio: 3 / 1;
     }
 
+    /*
+     * Marketplace Pro keeps the desktop banner shorter than the Built-in
+     * theme's full 3:1 so the "Shop by category" row directly beneath it
+     * stays in view without scrolling on large screens (owner request,
+     * screenshot 2026-09-08). Its Hero Slides upload editor locks to this
+     * same 4:1 ratio (StorefrontThemeRegistry::BANNER_SPECS), and
+     * max-height keeps the banner in check on ultra-wide monitors. The
+     * shared mobile rule above is unchanged.
+     */
+    body[data-storefront-theme='marketplace_pro'] .storefront-image-banner {
+        aspect-ratio: 4 / 1;
+        max-height: 30rem;
+    }
+
     .storefront-image-banner img {
         object-fit: cover;
     }

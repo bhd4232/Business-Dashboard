@@ -2,6 +2,37 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-08 - Marketplace Pro hero banner is shorter on desktop so the category row stays in view
+
+Reason — owner (screenshot of the live Marketplace Pro storefront homepage): "ফ্রন্টেন্ডের ব্যনার marketplace pro theme এর সাইজ ঠিক এই রকম হবে।" Clarified in follow-up: "এই থিম এর বেনার সাইজ এর হাইট আমার দেয়া স্ক্রিন শটের বেনার হাইট এর মত হবে, যাতে নিচে কেটাগরি সেকশন শো করে। মোবাইলে অপরিবর্তিত থাকবে।" — on **desktop / large screens** the Marketplace Pro banner should be short enough (about the screenshot's height) that the "Shop by category" row directly below it is visible without scrolling. Mobile unchanged.
+
+Root cause — both the Built-in and Marketplace Pro themes render slides through the one shared `storefront.partials.image-banner`, sized by a single CSS rule: `aspect-ratio: 3 / 1` on desktop (`≥1024px`). On a wide monitor 3:1 makes the full-width banner ~640px+ tall, pushing the trust strip + category row below the fold.
+
+What changed:
+
+- **`resources/css/app.css`** — a new scoped rule inside the existing `@media (min-width: 1024px)` block:
+  `body[data-storefront-theme='marketplace_pro'] .storefront-image-banner { aspect-ratio: 4 / 1; max-height: 30rem; }`.
+  Only Marketplace Pro is affected; the Built-in theme keeps `3 / 1`. The shared mobile rule (`aspect-ratio: 45 / 16`, `object-fit: contain`) and the shared desktop `object-fit: cover` are untouched, so mobile is byte-for-byte unchanged. `30rem` (480px) caps the banner on monitors ≥1920px wide; from 1024px to 1920px the `4:1` ratio governs (256px → 480px).
+- **`app/Support/StorefrontThemeRegistry.php`** — `BANNER_SPECS['marketplace_pro']['desktop']` is now `1920×480` (4:1) with an updated helper note; `['mobile']` is unchanged (`900×320`). This flows automatically into the Hero Slides upload editor: `bannerAspectRatio()` reduces `1920:480` → `4:1`, so `->imageEditorAspectRatios()` now locks new desktop artwork to 4:1 and `->imageResizeTargetHeight()` targets 480. The class docblock's "~3:1" line updated. No change to `StorefrontSlideResource` itself.
+
+Important changed files:
+
+- `resources/css/app.css` (one new scoped rule in the `≥1024px` block)
+- `app/Support/StorefrontThemeRegistry.php` (`BANNER_SPECS` marketplace desktop 640→480 / 3:1→4:1, docblock)
+- `tests/Feature/StorefrontBannerTest.php` (new `test_marketplace_pro_desktop_banner_is_shorter_than_built_in_so_the_category_row_stays_in_view`)
+- `CHANGELOG.md` `[Unreleased]` → `### Changed`
+
+Verification:
+
+- `php artisan test tests/Feature/StorefrontBannerTest.php tests/Feature/StorefrontThemeTest.php` — 19 passed (118 assertions) at the final 4:1 / 30rem sizing.
+- Full `php artisan test` (plain, no `--env`): **1111 passed** (5933 assertions), 0 failed (800.71s).
+- `npm run build` — clean; scoped rule (`aspect-ratio:4;max-height:30rem`) confirmed present in `public/build/assets/app-*.css`.
+- Browser — could not exercise the real Marketplace Pro storefront (the demo DB has no company on that theme and the auto-mode classifier blocks switching one). Verified the CSS with a self-contained page served through the dev server: at 1920×1080 the 4:1 rule renders the banner 1920×480 with the full "Shop by category" row above the fold vs the Built-in theme's 1920×640 that pushes it down; at <1024px both themes render byte-identical (2.813:1, `object-fit: contain`). Owner to eyeball on staging/production after deploy.
+
+Owner tightened the ratio from an initial 32:9 / 34rem (540px @ 1920) to **4:1 / 30rem (480px @ 1920, capped)** after seeing the first pass.
+
+Commit status: Committed + pushed to `origin/main` (owner approved: "commit and push it"). Built in an isolated worktree on the v2.13.2 release commit `78691c24`; the shared local tree was left untouched — only the five files above are in the commit.
+
 ## 2026-09-08 - Fix: a "Remove" action for image fields whose preview is stuck loading
 
 Reason — owner (screenshot of "Edit Storefront Slide" with both image fields sitting on "Loading / Waiting for size" after a page reload): "কোন পেজ রিলোড করলে ইমেজ ফিল্ড গুলো লোডিং হতে থাকে এক্সিস্টিং ইমেজ তখন রিমুভও করা যায় না। সিলেক্টেড ইমেজ রিমুভ করার অপশন এড কর ইমেজ যদি লোডিং এ থাকে। এইটা সকল ইমেজ ফিল্ডগুলোতে এপ্লিকেবল হবে।"
