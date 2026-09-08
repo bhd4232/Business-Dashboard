@@ -20,16 +20,6 @@
         'failed' => 'Failed',
         'internal' => 'Internal note',
     ];
-    $deliveryColors = [
-        'pending' => 'warning',
-        'sending' => 'warning',
-        'sent' => 'info',
-        'delivered' => 'success',
-        'read' => 'success',
-        'played' => 'success',
-        'failed' => 'danger',
-        'internal' => 'gray',
-    ];
     $displayName = $conversation
         ? ($conversation->contact_name ?: $conversation->contact_phone ?: 'Contact '.$conversation->external_contact_id)
         : null;
@@ -47,6 +37,29 @@
         'Needs attention' => 'danger',
         'Configured', 'Verify callback', 'Subscribe app', 'Callback verified' => 'warning',
         default => 'gray',
+    };
+
+    // Modern chat-bubble skin (owner-approved design pass): a stable per-contact
+    // avatar color and initials, and a delivery-status -> tick-icon mapping.
+    // Purely presentational — no Livewire behavior below depends on these.
+    $avatarPalette = ['#C1682F', '#3E7C6B', '#7A5C7E', '#4C6B8A'];
+    $avatarColor = fn (int|string|null $seed): string => $avatarPalette[crc32((string) $seed) % count($avatarPalette)];
+    $initials = function (?string $name): string {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return '?';
+        }
+        $parts = preg_split('/\s+/', $name) ?: [];
+        $letters = mb_substr($parts[0], 0, 1).(isset($parts[1]) ? mb_substr($parts[1], 0, 1) : '');
+
+        return mb_strtoupper($letters !== '' ? $letters : '?');
+    };
+    $deliveryTick = fn (?string $status): array => match ($status) {
+        'sent' => ['mark' => 'single', 'tone' => 'muted'],
+        'delivered' => ['mark' => 'double', 'tone' => 'muted'],
+        'read', 'played' => ['mark' => 'double', 'tone' => 'ok'],
+        'failed' => ['mark' => 'alert', 'tone' => 'danger'],
+        default => ['mark' => null, 'tone' => 'muted'],
     };
 @endphp
 
@@ -392,10 +405,11 @@
                                                 :aria-current="$isSelected ? 'true' : 'false'"
                                             >
                                                 <span class="flex w-full min-w-0 items-start gap-[5px]">
-                                                    <x-filament::icon
-                                                        :icon="$providerIcons[$item->provider] ?? 'heroicon-o-user-circle'"
-                                                        class="h-9 w-9 shrink-0"
-                                                    />
+                                                    <span
+                                                        class="zz-avatar flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                                                        style="background-color: {{ $avatarColor($item->getKey()) }}"
+                                                        aria-hidden="true"
+                                                    >{{ $initials($itemName) }}</span>
                                                     <span class="min-w-0 flex-1">
                                                         <span class="flex items-start justify-between gap-2">
                                                             <span class="truncate font-semibold">{{ $itemName }}</span>
@@ -692,13 +706,16 @@
                             @forelse ($conversation->messages as $message)
                                 @php
                                     $previous = $loop->first ? null : $conversation->messages[$loop->index - 1];
+                                    $next = $loop->last ? null : $conversation->messages[$loop->index + 1];
                                     $messageAt = $message->sent_at->copy()->timezone($conversationTimezone);
                                     $previousAt = $previous?->sent_at?->copy()->timezone($conversationTimezone);
+                                    $nextAt = $next?->sent_at?->copy()->timezone($conversationTimezone);
                                     $showDay = ! $previousAt || ! $messageAt->isSameDay($previousAt);
+                                    $dayEndsAfterThis = ! $nextAt || ! $messageAt->isSameDay($nextAt);
                                     $messageDayLabel = $messageAt->isToday() ? 'Today' : ($messageAt->isYesterday() ? 'Yesterday' : $messageAt->format('d M Y'));
-                                    $messageColor = $message->type === 'note'
-                                        ? 'warning'
-                                        : ($message->direction === 'outgoing' ? 'primary' : 'gray');
+                                    $isNote = $message->type === 'note';
+                                    $groupedWithPrevious = ! $showDay && $previous && ! $isNote && $previous->type !== 'note' && $previous->direction === $message->direction;
+                                    $groupedWithNext = ! $dayEndsAfterThis && $next && ! $isNote && $next->type !== 'note' && $next->direction === $message->direction;
                                 @endphp
 
                                 @if ($showDay)
@@ -715,112 +732,135 @@
 
                                 <article
                                     wire:key="message-{{ $message->getKey() }}"
-                                    class="flex w-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_8rem] {{ $message->direction === 'outgoing' ? 'justify-end' : 'justify-start' }}"
+                                    @class([
+                                        'zz-msg-row flex w-full min-w-0 [content-visibility:auto] [contain-intrinsic-size:auto_8rem]',
+                                        'justify-end' => $message->direction === 'outgoing',
+                                        'justify-start' => $message->direction !== 'outgoing',
+                                        'zz-msg-tight' => $groupedWithPrevious,
+                                        'zz-msg-start' => ! $groupedWithPrevious,
+                                    ])
                                     aria-label="{{ $message->direction === 'outgoing' ? 'Outgoing' : 'Incoming' }} {{ \App\Models\ConversationMessage::TYPES[$message->type] ?? $message->type }} message"
                                 >
-                                    <x-filament::callout
-                                        class="w-fit min-w-0 max-w-[88%] overflow-hidden sm:max-w-[82%]"
-                                        :color="$messageColor"
-                                        :icon="$message->type === 'note' ? 'heroicon-o-document-text' : null"
-                                        :heading="$message->type === 'note' ? 'Internal note' : null"
+                                    <div
+                                        @class([
+                                            'zz-bubble w-fit min-w-0 max-w-[88%] overflow-hidden sm:max-w-[82%] px-3 py-2',
+                                            'zz-bubble-note' => $isNote,
+                                            'zz-bubble-out' => ! $isNote && $message->direction === 'outgoing',
+                                            'zz-bubble-in' => ! $isNote && $message->direction !== 'outgoing',
+                                            'zz-bubble-tail-out' => ! $isNote && $message->direction === 'outgoing' && ! $groupedWithNext,
+                                            'zz-bubble-tail-in' => ! $isNote && $message->direction !== 'outgoing' && ! $groupedWithNext,
+                                        ])
                                     >
-                                        <x-slot:footer>
-                                            <div class="min-w-0 space-y-2 overflow-hidden">
-                                                @if ($imageUrl = $message->mediaImageUrl())
-                                                    <a
-                                                        href="{{ $imageUrl }}"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
+                                        @if ($isNote)
+                                            <p class="zz-bubble-note-label">
+                                                <x-filament::icon icon="heroicon-o-document-text" class="h-3.5 w-3.5" />
+                                                Internal note
+                                            </p>
+                                        @endif
+
+                                        <div class="min-w-0 space-y-2 overflow-hidden">
+                                            @if ($imageUrl = $message->mediaImageUrl())
+                                                <a
+                                                    href="{{ $imageUrl }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    @class([
+                                                        'block max-w-full overflow-hidden rounded-lg',
+                                                        'w-48' => $message->type === 'order_form',
+                                                        'w-fit' => $message->type !== 'order_form',
+                                                    ])
+                                                >
+                                                    <img
+                                                        src="{{ $imageUrl }}"
+                                                        alt="{{ $message->type === 'order_form' ? 'Product image' : 'Image attached to this message' }}"
+                                                        width="{{ $message->type === 'order_form' ? 192 : 480 }}"
+                                                        height="{{ $message->type === 'order_form' ? 128 : 320 }}"
+                                                        loading="lazy"
+                                                        x-on:load="if (stickToBottom) $nextTick(() => scrollBottom())"
+                                                        @if ($message->type === 'order_form') data-product-thumbnail @endif
                                                         @class([
-                                                            'block max-w-full overflow-hidden rounded-lg',
-                                                            'w-48' => $message->type === 'order_form',
-                                                            'w-fit' => $message->type !== 'order_form',
+                                                            'max-w-full rounded-lg',
+                                                            'h-32 w-48 object-cover' => $message->type === 'order_form',
+                                                            'h-auto max-h-72 w-auto object-contain' => $message->type !== 'order_form',
                                                         ])
                                                     >
-                                                        <img
-                                                            src="{{ $imageUrl }}"
-                                                            alt="{{ $message->type === 'order_form' ? 'Product image' : 'Image attached to this message' }}"
-                                                            width="{{ $message->type === 'order_form' ? 192 : 480 }}"
-                                                            height="{{ $message->type === 'order_form' ? 128 : 320 }}"
-                                                            loading="lazy"
-                                                            x-on:load="if (stickToBottom) $nextTick(() => scrollBottom())"
-                                                            @if ($message->type === 'order_form') data-product-thumbnail @endif
-                                                            @class([
-                                                                'max-w-full rounded-lg',
-                                                                'h-32 w-48 object-cover' => $message->type === 'order_form',
-                                                                'h-auto max-h-72 w-auto object-contain' => $message->type !== 'order_form',
-                                                            ])
-                                                        >
-                                                    </a>
-                                                @elseif ($mediaUrl = $message->mediaDownloadUrl())
-                                                    <x-filament::link
-                                                        :href="$mediaUrl"
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        icon="heroicon-o-paper-clip"
-                                                    >
-                                                        Open attachment
-                                                    </x-filament::link>
-                                                @endif
+                                                </a>
+                                            @elseif ($mediaUrl = $message->mediaDownloadUrl())
+                                                <x-filament::link
+                                                    :href="$mediaUrl"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    icon="heroicon-o-paper-clip"
+                                                >
+                                                    Open attachment
+                                                </x-filament::link>
+                                            @endif
 
-                                                @if (filled($message->body))
-                                                    <p data-message-body data-message-wrap="anywhere" class="min-w-0 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere] [&_a]:break-all">{!! $message->bodyHtml() !!}</p>
-                                                @endif
+                                            @if (filled($message->body))
+                                                <p data-message-body data-message-wrap="anywhere" class="min-w-0 whitespace-pre-wrap break-words text-sm [overflow-wrap:anywhere] [&_a]:break-all">{!! $message->bodyHtml() !!}</p>
+                                            @endif
 
-                                                <div class="flex flex-wrap items-center justify-end gap-2 text-xs opacity-80">
-                                                    @if ($message->generated_by === 'ai')
-                                                        <span>AI assistant</span>
-                                                    @elseif ($message->generated_by === 'phone_app')
-                                                        <span class="inline-flex items-center gap-1" title="Sent from the WhatsApp Business App on the phone, synced in via Coexistence">
-                                                            <x-filament::icon icon="heroicon-o-device-phone-mobile" class="h-3 w-3" />
-                                                            Phone app
+                                            <div class="flex flex-wrap items-center justify-end gap-2 text-xs opacity-80">
+                                                @if ($message->generated_by === 'ai')
+                                                    <span>AI assistant</span>
+                                                @elseif ($message->generated_by === 'phone_app')
+                                                    <span class="inline-flex items-center gap-1" title="Sent from the WhatsApp Business App on the phone, synced in via Coexistence">
+                                                        <x-filament::icon icon="heroicon-o-device-phone-mobile" class="h-3 w-3" />
+                                                        Phone app
+                                                    </span>
+                                                @elseif ($message->sender)
+                                                    <span>{{ $message->sender->name }}</span>
+                                                @endif
+                                                <time
+                                                    datetime="{{ $messageAt->toIso8601String() }}"
+                                                    aria-label="{{ $messageAt->format('d M Y, H:i:s T') }}"
+                                                    title="{{ $messageAt->format('d M Y, H:i:s T') }}"
+                                                >
+                                                    {{ $messageAt->format('H:i') }}
+                                                </time>
+                                                @if ($message->direction === 'outgoing')
+                                                    @php $tick = $deliveryTick($message->delivery_status); @endphp
+                                                    <span class="sr-only">{{ $deliveryLabels[$message->delivery_status] ?? ucfirst($message->delivery_status ?: 'pending') }}</span>
+                                                    @if ($tick['mark'])
+                                                        <span class="zz-tick zz-tick-{{ $tick['tone'] }}" aria-hidden="true">
+                                                            @if ($tick['mark'] === 'single')
+                                                                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l4 4L14 3"/></svg>
+                                                            @elseif ($tick['mark'] === 'double')
+                                                                <svg viewBox="0 0 28 16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8l4 4L14 2"/><path d="M8 8l4 4L27 2"/></svg>
+                                                            @else
+                                                                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 5v4M8 11h.01"/></svg>
+                                                            @endif
                                                         </span>
-                                                    @elseif ($message->sender)
-                                                        <span>{{ $message->sender->name }}</span>
                                                     @endif
-                                                    <time
-                                                        datetime="{{ $messageAt->toIso8601String() }}"
-                                                        aria-label="{{ $messageAt->format('d M Y, H:i:s T') }}"
-                                                        title="{{ $messageAt->format('d M Y, H:i:s T') }}"
-                                                    >
-                                                        {{ $messageAt->format('H:i') }}
-                                                    </time>
-                                                    @if ($message->direction === 'outgoing')
-                                                        <x-filament::badge
-                                                            :color="$deliveryColors[$message->delivery_status] ?? 'gray'"
-                                                            size="sm"
-                                                        >
-                                                            {{ $deliveryLabels[$message->delivery_status] ?? ucfirst($message->delivery_status ?: 'pending') }}
-                                                        </x-filament::badge>
-                                                        @if ($message->delivery_channel === 'sms')
-                                                            <x-filament::badge color="warning" size="sm" icon="heroicon-o-device-phone-mobile">
-                                                                via SMS
-                                                            </x-filament::badge>
-                                                        @endif
+                                                    @if ($message->delivery_channel === 'sms')
+                                                        <span class="zz-fallback-badge">
+                                                            <x-filament::icon icon="heroicon-o-device-phone-mobile" class="h-3 w-3" />
+                                                            via SMS
+                                                        </span>
                                                     @endif
-                                                </div>
-
-                                                @if ($message->delivery_status === 'failed')
-                                                    <div class="flex flex-wrap items-center justify-end gap-2">
-                                                        @if ($errorMessage = data_get($message->raw_payload, 'error.message'))
-                                                            <span class="text-xs" role="alert">{{ $errorMessage }}</span>
-                                                        @endif
-                                                        @if ($canManage)
-                                                            <x-filament::button
-                                                                color="danger"
-                                                                outlined
-                                                                size="sm"
-                                                                icon="heroicon-o-arrow-path"
-                                                                wire:click="retryMessage({{ $message->getKey() }})"
-                                                            >
-                                                                Retry
-                                                            </x-filament::button>
-                                                        @endif
-                                                    </div>
                                                 @endif
                                             </div>
-                                        </x-slot:footer>
-                                    </x-filament::callout>
+
+                                            @if ($message->delivery_status === 'failed')
+                                                <div class="flex flex-wrap items-center justify-end gap-2">
+                                                    @if ($errorMessage = data_get($message->raw_payload, 'error.message'))
+                                                        <span class="text-xs" role="alert">{{ $errorMessage }}</span>
+                                                    @endif
+                                                    @if ($canManage)
+                                                        <x-filament::button
+                                                            color="danger"
+                                                            outlined
+                                                            size="sm"
+                                                            icon="heroicon-o-arrow-path"
+                                                            wire:click="retryMessage({{ $message->getKey() }})"
+                                                        >
+                                                            Retry
+                                                        </x-filament::button>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </article>
                             @empty
                                 <x-filament::empty-state
