@@ -2,6 +2,36 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-08 - Inbox redesigned as modern chat bubbles (WhatsApp/Messenger-style)
+
+Reason — owner asked for chat-UI inspiration (shared a stock-vector site link, which the sandbox's egress proxy blocked); instead of that site, two clickable HTML mockups (desktop 3-column + mobile phone-frame) were built and published as artifacts using this app's own real amber brand color and real Inbox content (customer names, delivery states, the SMS-fallback badge). Owner approved both ("দুটোই ভালো লাগছে") and asked to implement in the real code ("আসল কোডে বসিয়ে দাও").
+
+What changed — `resources/views/filament/pages/inbox.blade.php` + `resources/css/filament/admin/theme.css`, visual-only:
+
+- Message bubbles: the `x-filament::callout` wrapper per message is replaced with a plain `<div>` styled via new `.zz-bubble*` CSS classes — colored rounded bubbles (amber outgoing / neutral incoming), with real WhatsApp-style grouping computed in the `@forelse` loop (`$groupedWithPrevious`/`$groupedWithNext`, looking one message ahead via `$next` in addition to the existing `$previous`): consecutive same-direction messages on the same day get tight spacing and only the *last* bubble in a run gets the rounded "tail" corner (`zz-bubble-tail-in`/`-out`), everything else stays fully rounded. Every existing conditional (image/attachment rendering incl. `data-product-thumbnail`, `data-message-wrap="anywhere"` body text, `generated_by` badges, failed+retry) is untouched, just moved inside the new wrapper.
+- Delivery status is now a small tick SVG (single/double/alert, colored via new `--zz-chat-*` tokens) next to the timestamp instead of a text badge; the original text label (`$deliveryLabels`) is kept as `sr-only` for screen readers. The "via SMS" fallback and "Internal note" become small pill/dashed styles (`.zz-fallback-badge`, `.zz-bubble-note`) instead of Filament badges/callout heading.
+- Conversation list: each row's generic provider `heroicon` is replaced with a colored circular initials avatar (`$avatarColor()`/`$initials()` helpers added to the page's top `@php` block — a `crc32`-based palette index over the conversation id, so a contact's color is stable across renders; no schema change, purely computed).
+- Composer: restyled into a floating pill via CSS only (`.zz-inbox-composer .fi-input-wrp`/`.fi-btn`/`.fi-icon-btn { border-radius: 999px }`) — the textarea/button markup and every Livewire binding (`rows="1"`, `x-on:input="autogrowComposer($event)"`, `wire:model`, `wire:submit`) are unchanged.
+- Removed the now-dead `$deliveryColors` array (superseded by the tick mapping); `$messageColor` (the old callout `:color`) is gone the same way.
+- New CSS tokens on `.zz-inbox` (light) and `.dark .zz-inbox` (dark) reuse Filament's own dynamic `var(--primary-*)`/`var(--gray-*)` custom properties (the project's real amber panel color) rather than inventing a separate palette, so the redesign follows the panel's actual brand color and existing `.dark`-class dark-mode toggle (not a `prefers-color-scheme` media query, matching every other dark-mode rule already in this file).
+
+Mid-task rebase: `main` had advanced from v2.5.0 to v2.13.0 (Products Quick Edit, Orders status tabs, stat-card sizing, courier COD, etc.) while this was being designed, and the same two files it also touched independently (composer autogrow, stat-card CSS, Orders mobile header selector). Per policy for a branch whose only prior PR (#6) was already merged, the branch was restarted from `origin/main` (`git checkout -B claude/lead-crm-requirements-415de2 origin/main`) and these edits re-applied on the fresh base rather than stacked on the old merged history; `InboxPageTest`'s pinned-markup test had itself been updated upstream (`min-h-[40px]`, `x-on:input="autogrowComposer($event)"`, `resize-none` — the fixed-height textarea became auto-growing) and needed no changes here since this work never touches the composer's textarea markup.
+
+Important changed files:
+
+- `resources/views/filament/pages/inbox.blade.php`
+- `resources/css/filament/admin/theme.css`
+
+Verification:
+
+- `php artisan test --filter=InboxPageTest` — 16 passed (108 assertions), including the markup-pin test.
+- `php artisan test --filter=WhatsAppSmsFallbackTest` — 3 passed; `--filter=QuickReplyTest` — 6 passed (both touch the Inbox composer/thread).
+- Full `php artisan test` (plain, no `--env`) on the rebased branch — **75 failed, 995 passed** (5393 assertions). Cross-checked against a clean baseline on the same `origin/main` tip (stash, rerun, diff sorted failure-name lists): **byte-for-byte identical 75 failures** — all pre-existing `ViteManifestNotFoundException` (no `npm run build`/`public/build/manifest.json` in this sandbox), zero regressions.
+- No `npm run build` needed — every change is inline Tailwind utility classes plus CSS consumed directly by the browser from `resources/css`, same as the rest of this file already was.
+- Not yet checked in a real browser against the demo DB (no working `npm run build` output in this sandbox to render Filament's compiled assets) — the two approved mockup artifacts are the visual reference; ask the owner to eyeball the real Inbox page after deploy.
+
+Commit status: pending owner's explicit commit/push approval (received: "কমিট এবং পুশ কর").
+
 ## 2026-09-07 - Feature: order-status quick-filter tabs + mobile header layout on the Orders list
 
 Reason — two owner asks on the Orders list:
