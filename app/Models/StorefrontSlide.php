@@ -19,6 +19,7 @@ class StorefrontSlide extends Model
         'template',
         'image',
         'image_mobile',
+        'fit_to_frame',
         'heading',
         'subheading',
         'cta_label',
@@ -32,6 +33,7 @@ class StorefrontSlide extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'fit_to_frame' => 'boolean',
         'sort_order' => 'integer',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',

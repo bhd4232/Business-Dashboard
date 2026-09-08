@@ -2,6 +2,38 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-08 - Hero Slides: per-slide "Fit to frame" toggle so an off-ratio banner image is never cropped
+
+Reason — owner: "বেনার এ একটা অপশন রাখ যে ফিট টু ফ্রেম, এতে ইমেজ সাইজ কম বেশি হলে কেটে যাবেনা।" — add a "Fit to frame" option on the banner so an image whose size is a bit off doesn't get cut off. (Follows the same-day change that shortened the Marketplace Pro banner to 4:1 with crop-to-fit.)
+
+Context — the banner `<img>` uses `object-fit: cover` on desktop (fills edge to edge, crops overflow) and `object-fit: contain` on mobile ("fit to screen", never crops). There was no way to get the no-crop behaviour on desktop for a slide whose artwork isn't the exact ratio.
+
+What changed:
+
+- **`storefront_slides.fit_to_frame`** — new boolean column, default `false` (migration `2026_09_08_120000_add_fit_to_frame_to_storefront_slides_table`, with the same "already-present column is a safe no-op" guard the other recent migrations use). Added to `StorefrontSlide` `$fillable` + cast `boolean`.
+- **`StorefrontSlideResource`** — a `Toggle::make('fit_to_frame')` ("Fit to frame (never crop the image)") after the mobile image field, with helper text explaining the letterbox trade-off. Default off.
+- **`resources/views/storefront/partials/image-banner.blade.php`** — the slide `<img>` gets `@class([... , 'storefront-image-banner-fit' => $slide->fit_to_frame])`.
+- **`resources/css/app.css`** — new top-level rule `.storefront-image-banner img.storefront-image-banner-fit { object-fit: contain; }`. Its extra class raises specificity above both the base rule and the desktop `@media (min-width: 1024px) { ... object-fit: cover }` rule, so a fit-to-frame slide shows the whole image at **every** breakpoint with no `!important`. A normal slide is completely unaffected.
+
+Important changed / new files:
+
+- `database/migrations/2026_09_08_120000_add_fit_to_frame_to_storefront_slides_table.php` (new)
+- `app/Models/StorefrontSlide.php` (fillable + cast)
+- `app/Filament/Resources/StorefrontSlides/StorefrontSlideResource.php` (Toggle)
+- `resources/views/storefront/partials/image-banner.blade.php` (`@class` on the `<img>`)
+- `resources/css/app.css` (one new top-level rule)
+- `tests/Feature/StorefrontSlideTest.php` (3 new: fit slide is marked; standard slide isn't; form exposes the toggle), `tests/Feature/StorefrontBannerTest.php` (1 new: CSS rule exists and is outside every media query)
+- `CHANGELOG.md` `[Unreleased]` → `### Changed`
+
+Verification:
+
+- `php artisan test tests/Feature/StorefrontSlideTest.php tests/Feature/StorefrontBannerTest.php tests/Feature/StorefrontThemeTest.php tests/Feature/SchemaDriftMigrationTest.php` — 28 passed (152 assertions).
+- Full `php artisan test` (plain, no `--env`): **1115 passed** (5944 assertions), 0 failed (525.01s).
+- `npm run build` — clean; `.storefront-image-banner img.storefront-image-banner-fit` present in `public/build/assets/app-*.css`.
+- Browser — self-contained page served through the dev server, a deliberately off-ratio (4:3) image in the banner slot at 1600px desktop: the normal slide computes `object-fit: cover` and crops the top/bottom off the artwork; the fit-to-frame slide computes `object-fit: contain` and shows the whole image with dark letterbox bars at the sides. Nothing cut off.
+
+Commit status: Committed + pushed to `origin/main` (owner approved: "কমিট এবং পুশ কর"). Built in an isolated worktree on the v2.13.3 release commit `13616ead`; the shared local tree was left untouched — only the eight files above are in the commit.
+
 ## 2026-09-08 - Marketplace Pro hero banner is shorter on desktop so the category row stays in view
 
 Reason — owner (screenshot of the live Marketplace Pro storefront homepage): "ফ্রন্টেন্ডের ব্যনার marketplace pro theme এর সাইজ ঠিক এই রকম হবে।" Clarified in follow-up: "এই থিম এর বেনার সাইজ এর হাইট আমার দেয়া স্ক্রিন শটের বেনার হাইট এর মত হবে, যাতে নিচে কেটাগরি সেকশন শো করে। মোবাইলে অপরিবর্তিত থাকবে।" — on **desktop / large screens** the Marketplace Pro banner should be short enough (about the screenshot's height) that the "Shop by category" row directly below it is visible without scrolling. Mobile unchanged.

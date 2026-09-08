@@ -245,6 +245,31 @@ class StorefrontBannerTest extends TestCase
         $this->assertStringContainsString('object-fit: cover;', $css);
     }
 
+    public function test_fit_to_frame_forces_the_whole_image_to_show_at_every_breakpoint(): void
+    {
+        // Owner request 2026-09-08: a per-slide "Fit to frame" toggle so a
+        // banner image that isn't the exact ratio is shown in full (never
+        // cropped). The rule must sit outside every media query — its extra
+        // class raises specificity above both the base and the desktop
+        // `object-fit: cover` rule, so it wins at all sizes with no !important.
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString(
+            '.storefront-image-banner img.storefront-image-banner-fit {',
+            $css,
+        );
+
+        $fitRuleAt = strpos($css, '.storefront-image-banner img.storefront-image-banner-fit {');
+        $firstMediaAt = strpos($css, '@media');
+
+        $this->assertNotFalse($firstMediaAt);
+        $this->assertLessThan(
+            $firstMediaAt,
+            $fitRuleAt,
+            'The fit-to-frame rule must be a top-level rule, not nested in a media query.',
+        );
+    }
+
     private function createPublishedStorefrontCompany(string $name, string $domain): Company
     {
         $company = Company::query()->create([

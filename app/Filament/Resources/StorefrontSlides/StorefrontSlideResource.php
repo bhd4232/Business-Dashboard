@@ -116,6 +116,10 @@ class StorefrontSlideResource extends Resource
                         ->imageEditorAspectRatios(fn (Get $get): array => [static::bannerAspectRatio($get('theme'), 'mobile')])
                         ->saveUploadedFileUsing(static::optimizeImageUpload())
                         ->hintAction(static::selectFromMediaHubAction()),
+                    Toggle::make('fit_to_frame')
+                        ->label('Fit to frame (never crop the image)')
+                        ->helperText('On: the whole banner image is always shown, with a small strip of the banner background above/below if it is not the exact ratio — nothing is ever cut off. Off (default): the image fills the banner edge to edge and is cropped to fit.')
+                        ->default(false),
                     TextInput::make('cta_url')
                         ->label('Banner link (optional)')
                         ->url()

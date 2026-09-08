@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Hero Slides gained a per-slide "Fit to frame" toggle.** When on, that banner image is always shown in full — never cropped — with a thin strip of the banner background above/below if it isn't the exact banner ratio (the same "fit to screen" behaviour mobile already uses, now available on desktop for a specific slide). Off by default, so the standard edge-to-edge crop-to-fit is unchanged. New `storefront_slides.fit_to_frame` column; the storefront applies it as a `.storefront-image-banner-fit` class that forces `object-fit: contain` at every breakpoint.
+
 ## [2.13.3] - 2026-09-08
 
 **Release type:** Patch/Fix Update

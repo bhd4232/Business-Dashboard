@@ -101,7 +101,7 @@
                             <source media="(max-width: 639px)" srcset="{{ \App\Support\CompanyMedia::publicUrl($slide->image_mobile, $company) }}">
                         @endif
                         <img
-                            class="block h-full w-full"
+                            @class(['block h-full w-full', 'storefront-image-banner-fit' => $slide->fit_to_frame])
                             src="{{ \App\Support\CompanyMedia::publicUrl($slide->image, $company) }}"
                             alt="{{ $slideHref ? $company->name.' promotion' : '' }}"
                             width="1920"

@@ -57,6 +57,18 @@ body[data-storefront-theme='marketplace_pro'] {
     object-fit: contain;
 }
 
+/*
+ * Per-slide "Fit to frame" (StorefrontSlide::fit_to_frame): always show the
+ * whole banner image, never cropped, at every breakpoint -- for artwork that
+ * isn't the exact banner ratio (letterboxed against the banner background
+ * rather than cover-cropped). Higher specificity than the base and the
+ * desktop `object-fit: cover` rules, so it wins at all sizes without
+ * `!important`.
+ */
+.storefront-image-banner img.storefront-image-banner-fit {
+    object-fit: contain;
+}
+
 .marketplace-container,
 .marketplace-section {
     width: min(100%, var(--storefront-content-width));
