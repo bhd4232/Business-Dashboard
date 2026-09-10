@@ -89,6 +89,12 @@ class ImageLibrary extends Page implements HasTable
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => GeneratedImage::CONTEXTS[$state ?? ''] ?? 'General')
                     ->color('gray'),
+                TextColumn::make('operation')
+                    ->label('Kind')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => GeneratedImage::OPERATIONS[$state ?? ''] ?? 'Generated')
+                    ->color(fn (?string $state): string => $state && $state !== GeneratedImage::OPERATION_GENERATE ? 'info' : 'gray')
+                    ->toggleable(),
                 TextColumn::make('provider_label')
                     ->label('Provider')
                     ->placeholder('—')
@@ -143,6 +149,9 @@ class ImageLibrary extends Page implements HasTable
             ->filters([
                 SelectFilter::make('context')
                     ->options(GeneratedImage::CONTEXTS),
+                SelectFilter::make('operation')
+                    ->label('Kind')
+                    ->options(GeneratedImage::OPERATIONS),
                 SelectFilter::make('status')
                     ->options([
                         GeneratedImage::STATUS_COMPLETED => 'Completed',

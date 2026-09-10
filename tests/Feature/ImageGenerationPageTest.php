@@ -53,6 +53,30 @@ class ImageGenerationPageTest extends TestCase
         ]);
     }
 
+    private function configureStabilityProvider(Company $company): void
+    {
+        app(ImageProviderSettingsService::class)->save($company, [
+            ['label' => 'Stability', 'api_format' => 'stability', 'model' => 'sd3.5-medium', 'api_key' => 'stab-live', 'is_default' => true],
+        ]);
+    }
+
+    private function completedRow(Company $company, User $user, array $overrides = []): GeneratedImage
+    {
+        return GeneratedImage::query()->create(array_merge([
+            'user_id' => $user->getKey(),
+            'tool' => GeneratedImage::TOOL_IMAGE_GENERATION,
+            'context' => 'product_photo',
+            'prompt' => 'a teal ceramic mug',
+            'provider_label' => 'OpenAI',
+            'api_format' => 'openai',
+            'aspect_ratio' => '1:1',
+            'variations_requested' => 1,
+            'output_paths' => ['companies/'.$company->storage_key.'/public/ai-generated-images/src.webp'],
+            'status' => GeneratedImage::STATUS_COMPLETED,
+            'generated_at' => now(),
+        ], $overrides));
+    }
+
     public function test_manager_can_open_the_page_and_staff_cannot(): void
     {
         $company = $this->company();
@@ -224,6 +248,66 @@ class ImageGenerationPageTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame(GeneratedImage::REVIEW_PENDING, GeneratedImage::query()->firstOrFail()->review_status);
+    }
+
+    public function test_regenerate_from_image_action_queues_an_image_to_image_job(): void
+    {
+        Queue::fake();
+        $company = $this->company();
+        $this->configureProvider($company); // OpenAI supports image-to-image
+        $user = $this->user($company, 'manager');
+        $source = $this->completedRow($company, $user);
+
+        Livewire::actingAs($user)
+            ->test(ImageGeneration::class)
+            ->callAction(
+                'regenerateFromImage',
+                ['prompt' => 'now a winter scene', 'strength' => 'strong', 'variations' => 2],
+                ['generation' => $source->getKey(), 'image' => 0],
+            )
+            ->assertHasNoActionErrors()
+            ->assertNotified();
+
+        $derived = GeneratedImage::query()->where('operation', GeneratedImage::OPERATION_IMAGE_TO_IMAGE)->firstOrFail();
+        $this->assertSame('now a winter scene', $derived->prompt);
+        $this->assertSame($source->output_paths[0], $derived->reference_image_path);
+        $this->assertSame(2, $derived->variations_requested);
+
+        Queue::assertPushed(GenerateImageJob::class, fn (GenerateImageJob $job): bool =>
+            $job->generatedImageId === $derived->getKey() && $job->strength === 0.85);
+    }
+
+    public function test_background_removal_availability_follows_the_configured_providers(): void
+    {
+        $company = $this->company();
+        $user = $this->user($company, 'manager');
+
+        $this->configureProvider($company); // OpenAI only — no background removal
+        $this->assertFalse(Livewire::actingAs($user)->test(ImageGeneration::class)->instance()->canRemoveBackground());
+
+        $this->configureStabilityProvider($company);
+        $this->assertTrue(Livewire::actingAs($user)->test(ImageGeneration::class)->instance()->canRemoveBackground());
+    }
+
+    public function test_remove_background_action_queues_a_single_image_job(): void
+    {
+        Queue::fake();
+        $company = $this->company();
+        $this->configureStabilityProvider($company);
+        $user = $this->user($company, 'manager');
+        $source = $this->completedRow($company, $user);
+
+        Livewire::actingAs($user)
+            ->test(ImageGeneration::class)
+            ->callAction('removeBackground', arguments: ['generation' => $source->getKey(), 'image' => 0])
+            ->assertHasNoActionErrors()
+            ->assertNotified();
+
+        $derived = GeneratedImage::query()->where('operation', GeneratedImage::OPERATION_BACKGROUND_REMOVAL)->firstOrFail();
+        $this->assertSame('stability', $derived->api_format);
+        $this->assertSame(1, $derived->variations_requested);
+        $this->assertSame($source->output_paths[0], $derived->reference_image_path);
+        Queue::assertPushed(GenerateImageJob::class);
     }
 
     public function test_completed_generations_render_their_images(): void

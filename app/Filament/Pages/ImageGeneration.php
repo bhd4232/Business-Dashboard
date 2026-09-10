@@ -12,6 +12,7 @@ use App\Services\CompanyContext;
 use App\Services\ImageGeneration\GeneratedImageAttacher;
 use App\Services\ImageGeneration\ImageAttachmentException;
 use App\Services\ImageGeneration\ImageGovernanceService;
+use App\Services\ImageGeneration\ImageProviderResolver;
 use App\Services\ImageGeneration\ImageProviderSettingsService;
 use App\Services\PromptEnhancement\PromptEnhancementService;
 use BackedEnum;
@@ -38,8 +39,10 @@ use Livewire\Attributes\Url;
  * generation, polled gallery, per-image download, and the shared ✨ Enhance
  * prompt rewriter (before/after, always explicit). Each finished image can
  * then be attached (Phase 3) to a product's featured/gallery image or an
- * offer's landing-page cover banner, or the whole generation flagged as a
- * reference for the future AI Video Generation tool.
+ * offer's landing-page cover banner, flagged as a video reference, fed back
+ * in as an image-to-image reference ("Regenerate"), or run through
+ * background removal — the last two only where a configured provider
+ * supports them (OpenAI/custom for image-to-image, Stability for both).
  */
 class ImageGeneration extends Page
 {
@@ -648,6 +651,187 @@ class ImageGeneration extends Page
                     ->success()
                     ->send();
             });
+    }
+
+    // --- Phase 4: image-to-image & background removal ----------------------
+
+    /** Formats among THIS company's configured providers that can run an operation. */
+    public function canRegenerateFromImage(): bool
+    {
+        return $this->hasSelectedCompany()
+            && $this->configuredProfileSupporting(GeneratedImage::OPERATION_IMAGE_TO_IMAGE) !== null;
+    }
+
+    public function canRemoveBackground(): bool
+    {
+        return $this->hasSelectedCompany()
+            && $this->configuredProfileSupporting(GeneratedImage::OPERATION_BACKGROUND_REMOVAL) !== null;
+    }
+
+    /**
+     * "Regenerate" — feed one finished output back in as a reference, guided
+     * by a (possibly edited) prompt and a change strength.
+     */
+    public function regenerateFromImageAction(): Action
+    {
+        return Action::make('regenerateFromImage')
+            ->label('Regenerate')
+            ->icon(Heroicon::OutlinedArrowPath)
+            ->modalHeading('Regenerate from this image')
+            ->modalDescription('Uses this image plus your prompt as the starting point. A stronger setting changes more of it.')
+            ->modalSubmitActionLabel('Regenerate')
+            ->fillForm(function (array $arguments): array {
+                $source = $this->resolveGeneration($arguments);
+
+                return ['prompt' => $source?->prompt ?? '', 'strength' => 'balanced', 'variations' => 1];
+            })
+            ->schema([
+                Textarea::make('prompt')->label('Prompt')->required()->rows(3)->maxLength(2000),
+                Select::make('strength')
+                    ->label('How much to change')
+                    ->native(false)
+                    ->required()
+                    ->default('balanced')
+                    ->options([
+                        'subtle' => 'Subtle — keep it close to the original',
+                        'balanced' => 'Balanced',
+                        'strong' => 'Strong — reinterpret freely',
+                    ]),
+                Select::make('variations')
+                    ->label('How many images?')
+                    ->native(false)
+                    ->required()
+                    ->default(1)
+                    ->options(collect(range(1, GeneratedImage::MAX_VARIATIONS))
+                        ->mapWithKeys(fn (int $n): array => [$n => $n === 1 ? '1 image' : "{$n} images"])
+                        ->all()),
+            ])
+            ->action(function (array $arguments, array $data): void {
+                $strength = match ($data['strength'] ?? 'balanced') {
+                    'subtle' => 0.35,
+                    'strong' => 0.85,
+                    default => 0.6,
+                };
+
+                $this->startDerivedGeneration(
+                    $arguments,
+                    GeneratedImage::OPERATION_IMAGE_TO_IMAGE,
+                    trim((string) ($data['prompt'] ?? '')),
+                    (int) ($data['variations'] ?? 1),
+                    $strength,
+                );
+            });
+    }
+
+    /** One-click background removal of a finished output (new image, original kept). */
+    public function removeBackgroundAction(): Action
+    {
+        return Action::make('removeBackground')
+            ->label('Remove background')
+            ->icon(Heroicon::OutlinedScissors)
+            ->requiresConfirmation()
+            ->modalHeading('Remove the background')
+            ->modalDescription('Creates a new image with the background made transparent. The original stays untouched.')
+            ->modalSubmitActionLabel('Remove background')
+            ->action(fn (array $arguments) => $this->startDerivedGeneration(
+                $arguments,
+                GeneratedImage::OPERATION_BACKGROUND_REMOVAL,
+                '',
+                1,
+            ));
+    }
+
+    /**
+     * @return array<string, mixed>|null  a configured profile (from list())
+     *                                    whose adapter supports $operation
+     */
+    protected function configuredProfileSupporting(string $operation): ?array
+    {
+        $formats = app(ImageProviderResolver::class)->formatsSupporting($operation);
+
+        return collect($this->providerProfiles())
+            ->first(fn (array $p): bool => in_array($p['api_format'], $formats, true)
+                && filled($p['model'])
+                && ($p['has_api_key'] || $p['api_format'] === 'custom'));
+    }
+
+    protected function startDerivedGeneration(array $arguments, string $operation, string $prompt, int $variations, ?float $strength = null): void
+    {
+        $source = $this->resolveGeneration($arguments);
+        $sourcePath = collect($source?->output_paths ?? [])->values()->get((int) ($arguments['image'] ?? 0));
+
+        if ($source === null || $source->status !== GeneratedImage::STATUS_COMPLETED || blank($sourcePath)) {
+            Notification::make()->title('That image is not available')->danger()->send();
+
+            return;
+        }
+
+        $profile = $this->configuredProfileSupporting($operation);
+
+        if ($profile === null) {
+            Notification::make()
+                ->title('No configured provider can do that')
+                ->body('A super admin can add a supporting provider on AI Tools → Image Providers.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $company = app(CompanyContext::class)->company();
+        $user = Auth::user();
+        $governance = app(ImageGovernanceService::class);
+        $variations = max(1, min($variations, GeneratedImage::MAX_VARIATIONS));
+
+        if ($user !== null && $governance->wouldExceedCap($company, $user, $variations)) {
+            $remaining = $governance->remainingThisMonth($company, $user);
+
+            Notification::make()
+                ->title('Monthly image allowance reached')
+                ->body($remaining === 0 ? 'It resets on the 1st.' : "You have {$remaining} left this month.")
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $reviewStatus = ($user !== null && $governance->roleRequiresReview($company, $user->effectiveRole()))
+            ? GeneratedImage::REVIEW_PENDING
+            : GeneratedImage::REVIEW_NOT_REQUIRED;
+
+        $record = GeneratedImage::query()->create([
+            'user_id' => Auth::id(),
+            'tool' => GeneratedImage::TOOL_IMAGE_GENERATION,
+            'context' => $source->context,
+            'operation' => $operation,
+            'prompt' => $prompt,
+            'reference_image_path' => $sourcePath,
+            'provider_profile_id' => $profile['id'],
+            'provider_label' => $profile['label'],
+            'api_format' => $profile['api_format'],
+            'model' => $profile['model'],
+            'aspect_ratio' => $source->aspect_ratio ?: GeneratedImage::DEFAULT_ASPECT_RATIO,
+            'variations_requested' => $operation === GeneratedImage::OPERATION_BACKGROUND_REMOVAL ? 1 : $variations,
+            'review_status' => $reviewStatus,
+            'status' => GeneratedImage::STATUS_QUEUED,
+        ]);
+
+        app(AuditLogService::class)->record('ai_image.'.$operation, $record, null, array_filter([
+            'source_generation_id' => (string) $source->getKey(),
+            'prompt' => $prompt ?: null,
+            'provider' => $profile['label'],
+            'strength' => $strength,
+        ]));
+
+        GenerateImageJob::dispatch($record->getKey(), $strength);
+
+        $this->recentGenerationsCache = null;
+
+        Notification::make()
+            ->title($operation === GeneratedImage::OPERATION_BACKGROUND_REMOVAL ? 'Removing the background' : 'Regenerating')
+            ->body('It will appear below and you will be notified when it is ready.')
+            ->success()
+            ->send();
     }
 
     /**

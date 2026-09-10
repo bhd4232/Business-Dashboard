@@ -4,6 +4,15 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Image Generation: "Regenerate" and "Remove background" on any finished image.**
+  - **Regenerate** feeds a generated image back in as the starting point for a new one, guided by a prompt you can edit and a "how much to change" setting (subtle / balanced / strong). Uses OpenAI's or a custom endpoint's image-edit API, or Stability's SD3 image-to-image.
+  - **Remove background** produces a new copy with the background made transparent (Stability's remove-background). The original is untouched.
+  - Both are per-image buttons in the results gallery, and each is only offered when a configured provider actually supports it (Google Imagen is generate-only). Background removal always yields a single image; the derived image goes through the same Media Hub registration, monthly cap, approval, and audit-log path as a fresh generation. The Image Library gains a "Kind" column and filter (Generated / Image-to-image / Background removed).
+
+  **Technical Notes:** `generated_images.operation` column; `ImageGenerationRequest` carries `operation` + `referenceImage` + `strength`; each provider adapter declares `supportsOperation()` and `ImageProviderResolver::formatsSupporting()` reports which `api_format`s can run a given operation; `GenerateImageJob` loads the reference bytes from `reference_image_path` and rejects an unsupported operation before any HTTP call.
+
 ### Fixed
 
 - **The Orders list's bulk "Change status" action did nothing when the selection contained any order that couldn't legally reach the chosen stage.** `OrdersTable` was missing the `use Illuminate\Validation\ValidationException` import, so the bulk loop's `catch (ValidationException)` matched a non-existent class — the first ineligible order's `ValidationException` escaped the loop, Livewire turned it into a silent component error, and no order was updated and no notification appeared. The bulk **"Book courier"** action had the same latent failure. Restoring the import makes ineligible orders count as "skipped" as intended; a new regression test drives the bulk action with an ineligible order first.
@@ -15,6 +24,7 @@ All notable production changes to Business Dashboard are documented here.
 ### Changed
 
 - **Hero Slides gained a "Pagination display" control to hide the banner's dot navigation, separately for desktop and mobile.** A new button on the Storefront → Hero Slides list opens a two-toggle form ("Show pagination on desktop" / "Show pagination on mobile"); the dots (and the pause/play button beside them) can be hidden on one display type while staying on the other. Both default on, so nothing changes until an owner turns a toggle off. "Mobile" is every width below the banner's own `1024px` desktop breakpoint. The whole banner carousel is affected, not a single slide. New `storefront_settings.banner_pagination_desktop` / `banner_pagination_mobile` columns; the storefront applies them as `.storefront-image-banner-hide-nav-desktop` / `-mobile` classes on the banner with CSS that hides `.storefront-image-banner-nav` at the matching breakpoint. Autoplay is unchanged.
+
 ## [2.14.0] - 2026-09-10
 
 **Release type:** Minor Feature Update

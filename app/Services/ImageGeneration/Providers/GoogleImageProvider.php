@@ -28,6 +28,8 @@ class GoogleImageProvider extends AbstractImageProvider
 
     public function generate(ImageGenerationRequest $request): ImageGenerationResult
     {
+        $this->assertOperationSupported($request);
+
         if (blank($request->apiKey)) {
             throw new ImageGenerationException("{$this->providerName()} needs an API key on the provider profile.");
         }

@@ -34,7 +34,12 @@
                     <div class="flex flex-col gap-3">
                         <div class="flex flex-wrap items-start justify-between gap-2">
                             <div class="min-w-0 space-y-1">
-                                <p class="text-sm text-gray-950 dark:text-white">{{ \Illuminate\Support\Str::limit($generation->prompt, 160) }}</p>
+                                <p class="text-sm text-gray-950 dark:text-white">
+                                    @if ($generation->isDerived())
+                                        <span class="mr-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300">{{ $generation->operationLabel() }}</span>
+                                    @endif
+                                    {{ \Illuminate\Support\Str::limit($generation->prompt, 160) ?: '—' }}
+                                </p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">
                                     {{ $generation->contextLabel() }}
                                     &middot; {{ $generation->aspect_ratio }}
@@ -95,6 +100,26 @@
                                             >
                                                 Offer banner
                                             </x-filament::button>
+                                            @if ($this->canRegenerateFromImage())
+                                                <x-filament::button
+                                                    size="xs"
+                                                    color="gray"
+                                                    icon="heroicon-o-arrow-path"
+                                                    wire:click="mountAction('regenerateFromImage', { generation: {{ $generation->id }}, image: {{ $index }} })"
+                                                >
+                                                    Regenerate
+                                                </x-filament::button>
+                                            @endif
+                                            @if ($this->canRemoveBackground())
+                                                <x-filament::button
+                                                    size="xs"
+                                                    color="gray"
+                                                    icon="heroicon-o-scissors"
+                                                    wire:click="mountAction('removeBackground', { generation: {{ $generation->id }}, image: {{ $index }} })"
+                                                >
+                                                    Remove bg
+                                                </x-filament::button>
+                                            @endif
                                         </div>
                                     </div>
                                 @endforeach

@@ -44,6 +44,19 @@ class GeneratedImage extends Model
 
     public const TOOL_IMAGE_GENERATION = 'image_generation';
 
+    public const OPERATION_GENERATE = 'generate';
+
+    public const OPERATION_IMAGE_TO_IMAGE = 'image_to_image';
+
+    public const OPERATION_BACKGROUND_REMOVAL = 'background_removal';
+
+    /** @var array<string, string> */
+    public const OPERATIONS = [
+        self::OPERATION_GENERATE => 'Generated',
+        self::OPERATION_IMAGE_TO_IMAGE => 'Image-to-image',
+        self::OPERATION_BACKGROUND_REMOVAL => 'Background removed',
+    ];
+
     public const REVIEW_NOT_REQUIRED = 'not_required';
 
     public const REVIEW_PENDING = 'pending';
@@ -85,6 +98,7 @@ class GeneratedImage extends Model
         'user_id',
         'tool',
         'context',
+        'operation',
         'original_prompt',
         'prompt',
         'provider_profile_id',
@@ -111,6 +125,7 @@ class GeneratedImage extends Model
     ];
 
     protected $attributes = [
+        'operation' => self::OPERATION_GENERATE,
         'review_status' => self::REVIEW_NOT_REQUIRED,
     ];
 
@@ -188,6 +203,17 @@ class GeneratedImage extends Model
     public function reviewStatusLabel(): string
     {
         return self::REVIEW_STATUSES[$this->review_status] ?? self::REVIEW_STATUSES[self::REVIEW_NOT_REQUIRED];
+    }
+
+    /** True when this row came from an image-to-image or background-removal run. */
+    public function isDerived(): bool
+    {
+        return ($this->operation ?? self::OPERATION_GENERATE) !== self::OPERATION_GENERATE;
+    }
+
+    public function operationLabel(): string
+    {
+        return self::OPERATIONS[$this->operation] ?? self::OPERATIONS[self::OPERATION_GENERATE];
     }
 
     /**

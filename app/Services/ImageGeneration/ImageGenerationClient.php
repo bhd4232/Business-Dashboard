@@ -15,8 +15,15 @@ namespace App\Services\ImageGeneration;
 interface ImageGenerationClient
 {
     /**
-     * @throws ImageGenerationException on bad config, HTTP failure, or a
-     *                                  response with no usable image
+     * Runs the request's `operation` (text-to-image, image-to-image, or
+     * background removal) and returns the raw result image(s).
+     *
+     * @throws ImageGenerationException on bad config, HTTP failure, a
+     *                                  response with no usable image, or an
+     *                                  operation this adapter does not support
      */
     public function generate(ImageGenerationRequest $request): ImageGenerationResult;
+
+    /** @param  ImageGenerationRequest::OP_*  $operation */
+    public function supportsOperation(string $operation): bool;
 }

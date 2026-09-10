@@ -9,6 +9,7 @@ use App\Models\Media;
 use App\Models\User;
 use App\Notifications\BusinessAlert;
 use App\Services\CompanyContext;
+use App\Services\CompanyStorageService;
 use App\Services\ImageGeneration\ImageProviderSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -81,9 +82,23 @@ class GenerateImageJobTest extends TestCase
         ], $overrides));
     }
 
-    private function runJob(GeneratedImage $row): void
+    private function runJob(GeneratedImage $row, ?float $strength = null): void
     {
-        app()->call([new GenerateImageJob($row->getKey()), 'handle']);
+        app()->call([new GenerateImageJob($row->getKey(), $strength), 'handle']);
+    }
+
+    private function configureStabilityProfile(): string
+    {
+        app(ImageProviderSettingsService::class)->save($this->company, [
+            ['label' => 'Stability', 'api_format' => 'stability', 'model' => 'sd3.5-medium', 'api_key' => 'stab-live', 'is_default' => true],
+        ]);
+
+        return app(ImageProviderSettingsService::class)->list($this->company)[0]['id'];
+    }
+
+    private function storeReference(): string
+    {
+        return app(CompanyStorageService::class)->putPublic($this->company, 'ai-generated-images', 'source.webp', $this->pngBytes());
     }
 
     public function test_a_successful_run_stores_optimized_webp_and_registers_it_in_the_media_hub(): void
@@ -138,6 +153,92 @@ class GenerateImageJobTest extends TestCase
 
         // 2 images produced × 0.04
         $this->assertEqualsWithDelta(0.08, (float) $row->fresh()->estimated_cost, 0.0001);
+    }
+
+    public function test_an_image_to_image_run_sends_the_reference_to_the_edits_endpoint(): void
+    {
+        Notification::fake();
+        $png = $this->pngBytes();
+        Http::fake(['api.openai.com/v1/images/edits' => Http::response(['data' => [['b64_json' => base64_encode($png)]]], 200)]);
+
+        $row = $this->queueRow([
+            'provider_profile_id' => $this->configureOpenAiProfile(),
+            'operation' => GeneratedImage::OPERATION_IMAGE_TO_IMAGE,
+            'prompt' => 'make it a night scene',
+            'reference_image_path' => $this->storeReference(),
+            'variations_requested' => 1,
+        ]);
+
+        $this->runJob($row, strength: 0.4);
+
+        app(CompanyContext::class)->set($this->company);
+        $row->refresh();
+
+        $this->assertSame(GeneratedImage::STATUS_COMPLETED, $row->status);
+        $this->assertCount(1, $row->output_paths);
+        Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/v1/images/edits'));
+    }
+
+    public function test_a_background_removal_run_produces_one_image(): void
+    {
+        Notification::fake();
+        $png = $this->pngBytes();
+        Http::fake(['api.stability.ai/*' => Http::response(['image' => base64_encode($png)], 200)]);
+
+        $row = $this->queueRow([
+            'provider_profile_id' => $this->configureStabilityProfile(),
+            'operation' => GeneratedImage::OPERATION_BACKGROUND_REMOVAL,
+            'prompt' => '',
+            'reference_image_path' => $this->storeReference(),
+            'variations_requested' => 4,
+        ]);
+
+        $this->runJob($row);
+
+        app(CompanyContext::class)->set($this->company);
+        $row->refresh();
+
+        $this->assertSame(GeneratedImage::STATUS_COMPLETED, $row->status);
+        $this->assertCount(1, $row->output_paths);
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), '/edit/remove-background'));
+    }
+
+    public function test_a_derived_run_fails_when_the_reference_image_is_missing(): void
+    {
+        Notification::fake();
+        Http::fake();
+
+        $row = $this->queueRow([
+            'provider_profile_id' => $this->configureStabilityProfile(),
+            'operation' => GeneratedImage::OPERATION_BACKGROUND_REMOVAL,
+            'reference_image_path' => 'companies/'.$this->company->storage_key.'/public/ai-generated-images/gone.webp',
+        ]);
+
+        $this->runJob($row);
+
+        app(CompanyContext::class)->set($this->company);
+        $this->assertSame(GeneratedImage::STATUS_FAILED, $row->fresh()->status);
+        $this->assertStringContainsString('source image', (string) $row->fresh()->error_message);
+        Http::assertNothingSent();
+    }
+
+    public function test_a_derived_run_fails_when_the_provider_cannot_do_the_operation(): void
+    {
+        Notification::fake();
+        Http::fake();
+
+        $row = $this->queueRow([
+            'provider_profile_id' => $this->configureOpenAiProfile(),
+            'operation' => GeneratedImage::OPERATION_BACKGROUND_REMOVAL,
+            'reference_image_path' => $this->storeReference(),
+        ]);
+
+        $this->runJob($row);
+
+        app(CompanyContext::class)->set($this->company);
+        $this->assertSame(GeneratedImage::STATUS_FAILED, $row->fresh()->status);
+        $this->assertStringContainsString('cannot do', (string) $row->fresh()->error_message);
+        Http::assertNothingSent();
     }
 
     public function test_a_provider_error_marks_the_row_failed_with_the_reason(): void

@@ -2,6 +2,42 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-10 - AI Tools / Image Generation: image-to-image ("Regenerate") + background removal (plan 11, Phase 4 remainder)
+
+Reason — owner: "ফেজ ৪ এর বাকি কাজ (background removal, image-to-image) কর" — finish Phase 4's two deferred image-editing features. (The rest of plan 11 shipped in v2.14.0.)
+
+Provider capability decision (was §13's open question): OpenAI + any OpenAI-images-compatible custom endpoint do image-to-image via `/v1/images/edits`; Stability does image-to-image (SD3 `mode=image-to-image`) and background removal (`/v2beta/stable-image/edit/remove-background`); Google Imagen has no simple img2img endpoint on the `:predict` API, so it stays generate-only. Each adapter declares what it can do — nothing is hard-coded in the UI.
+
+What changed:
+
+- **`generated_images.operation`** — new string column, default `generate` (migration `2026_09_10_100000_add_operation_to_generated_images_table`, with the standard re-run guard). Values `generate` / `image_to_image` / `background_removal`. `GeneratedImage` gains `OPERATION_*` constants, `OPERATIONS` map, `isDerived()`, `operationLabel()`, and a `$attributes` default.
+- **`ImageGenerationRequest`** — new readonly fields `operation`, `referenceImage` (raw bytes), `strength`, plus `OP_*` constants and `requiresReferenceImage()`.
+- **`ImageGenerationClient`** interface — new `supportsOperation(string): bool`. `AbstractImageProvider` provides `operations()` (default `[OP_GENERATE]`) + `assertOperationSupported()`.
+- **`OpenAiImageProvider`** — `operations()` adds `image_to_image`; `editImage()` posts the source to `/v1/images/edits` (multipart). `CustomOpenAiCompatibleProvider` derives the edits URL from the profile's Base URL.
+- **`StabilityImageProvider`** — split into `textToImage()` / `imageToImage()` (SD3, `strength`) / `removeBackground()` (single image); `operations()` = all three.
+- **`GoogleImageProvider`** — `assertOperationSupported()` so an unsupported op fails clearly.
+- **`ImageProviderResolver::formatsSupporting(string $operation)`** — the `api_format`s whose adapter can run an operation.
+- **`GenerateImageJob`** — 2nd constructor arg `?float $strength`; resolves the operation, checks the adapter supports it, loads the reference bytes via `CompanyStorageService::readPublic()`, forces `count = 1` for background removal.
+- **`ImageGeneration` page** — per-image `regenerateFromImage` + `removeBackground` actions; `canRegenerateFromImage()` / `canRemoveBackground()` gate the gallery buttons; `startDerivedGeneration()` shares the cap / review / audit / dispatch path with `generate()`.
+- **`ImageLibrary`** — "Kind" badge column + filter.
+- **`image-generation.blade.php`** — "Regenerate" / "Remove bg" buttons (conditional) + operation chip on derived-image cards.
+
+Important changed / new files:
+
+- `database/migrations/2026_09_10_100000_add_operation_to_generated_images_table.php` (new)
+- `app/Models/GeneratedImage.php`, `app/Jobs/GenerateImageJob.php`, `app/Filament/Pages/{ImageGeneration,ImageLibrary}.php`
+- `app/Services/ImageGeneration/{ImageGenerationRequest,ImageGenerationClient,ImageProviderResolver}.php`, `Providers/{AbstractImageProvider,OpenAiImageProvider,CustomOpenAiCompatibleProvider,StabilityImageProvider,GoogleImageProvider}.php`
+- `resources/views/filament/pages/image-generation.blade.php`
+- `tests/Feature/{ImageGenerationProviderAdaptersTest,GenerateImageJobTest,ImageGenerationPageTest}.php`
+- `11_AI_TOOL_MENU_IMAGE_GENERATION_PLAN.md`, `CHANGELOG.md` `[Unreleased] → Added`
+
+Verification:
+
+- Image* suite via `--filter` — 70 passed. Full `php artisan test` — see run below.
+- `npm run build` — clean.
+
+Commit status: committing now (owner approved 2026-09-10). Only this session's Phase-4-remainder files.
+
 ## 2026-09-10 - Fix: Orders list bulk "Change status" action silently did nothing
 
 Reason — owner: "অর্ডার লিস্টে অর্ডার সিলেক্ট করে স্টেটাস পরিবর্তন করলে সেটা চেঞ্জ হয় না ... স্ট্যাটাস পরিবর্তন এর কোন একশন কাজ করছেনা।" — selecting orders on the list and changing their status does nothing.

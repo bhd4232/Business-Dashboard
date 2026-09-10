@@ -25,6 +25,10 @@ use Throwable;
  * "Select From Media" field), updates the GeneratedImage row, and notifies
  * the requesting user on completion or failure.
  *
+ * Handles all three operations (`generate`, `image_to_image`,
+ * `background_removal`); the last two load their source bytes from the row's
+ * `reference_image_path`.
+ *
  * Sets/clears CompanyContext explicitly (CLAUDE.md rule for queued jobs) —
  * storage, Media Hub, and the row's own CompanyScope all depend on it.
  */
@@ -37,7 +41,8 @@ class GenerateImageJob implements ShouldQueue
 
     public int $timeout = 240;
 
-    public function __construct(public int $generatedImageId) {}
+    /** @param  ?float  $strength  image_to_image only: 0 (keep source) → 1 (ignore it) */
+    public function __construct(public int $generatedImageId, public ?float $strength = null) {}
 
     public function handle(
         CompanyContext $context,
@@ -68,21 +73,49 @@ class GenerateImageJob implements ShouldQueue
                 throw new ImageGenerationException('The selected image provider profile is missing a model or API key.');
             }
 
-            $result = $resolver->byFormat($profile['api_format'])->generate(new ImageGenerationRequest(
-                prompt: $record->prompt,
+            $operation = $record->operation ?: GeneratedImage::OPERATION_GENERATE;
+            $adapter = $resolver->byFormat($profile['api_format']);
+
+            if (! $adapter->supportsOperation($operation)) {
+                throw new ImageGenerationException(sprintf(
+                    'The "%s" provider cannot do %s. Pick a provider that supports it on AI Tools → Image Providers.',
+                    $profile['label'],
+                    GeneratedImage::OPERATIONS[$operation] ?? $operation,
+                ));
+            }
+
+            $reference = null;
+
+            if ($operation !== GeneratedImage::OPERATION_GENERATE) {
+                $reference = $storage->readPublic($record->reference_image_path, $record->company);
+
+                if (blank($reference)) {
+                    throw new ImageGenerationException('The source image for this operation could not be found.');
+                }
+            }
+
+            $count = $operation === GeneratedImage::OPERATION_BACKGROUND_REMOVAL
+                ? 1
+                : max(1, min((int) $record->variations_requested, GeneratedImage::MAX_VARIATIONS));
+
+            $result = $adapter->generate(new ImageGenerationRequest(
+                prompt: (string) $record->prompt,
                 model: (string) $profile['model'],
                 apiKey: $profile['api_key'] ?? null,
                 baseUrl: $profile['base_url'] ?: null,
                 size: $record->pixelSize(),
                 aspectRatio: $record->aspect_ratio ?: GeneratedImage::DEFAULT_ASPECT_RATIO,
-                count: max(1, min((int) $record->variations_requested, GeneratedImage::MAX_VARIATIONS)),
+                count: $count,
+                operation: $operation,
+                referenceImage: $reference,
+                strength: $this->strength ?? 0.6,
             ));
 
             $paths = [];
 
             foreach (array_values($result->images) as $index => $bytes) {
                 $webp = $optimizer->optimizeBytes($bytes);
-                $filename = sprintf('ai-%s-%d-%d.webp', $record->context, $record->getKey(), $index + 1);
+                $filename = sprintf('ai-%s-%d-%d.webp', $operation === GeneratedImage::OPERATION_GENERATE ? $record->context : $operation, $record->getKey(), $index + 1);
                 $path = $storage->putPublic($record->company, 'ai-generated-images', $filename, $webp);
                 $paths[] = $path;
 
@@ -134,7 +167,8 @@ class GenerateImageJob implements ShouldQueue
             'ai-image',
             $success ? 'Image ready' : 'Image generation failed',
             $success
-                ? sprintf('Your "%s" image is ready in the Image Generation tool.', $record->contextLabel())
+                ? sprintf('Your %s image is ready in the Image Generation tool.',
+                    $record->isDerived() ? strtolower($record->operationLabel()) : '"'.$record->contextLabel().'"')
                 : ($record->error_message ?: 'The image could not be generated.'),
             ['generated_image_id' => (string) $record->getKey()],
             $url,

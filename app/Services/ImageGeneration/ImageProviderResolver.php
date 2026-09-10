@@ -38,4 +38,18 @@ class ImageProviderResolver
     {
         return array_key_exists($apiFormat, $this->providers);
     }
+
+    /**
+     * The `api_format`s whose adapter can run the given operation
+     * (self::OP_* — 'image_to_image', 'background_removal', ...).
+     *
+     * @return array<int, string>
+     */
+    public function formatsSupporting(string $operation): array
+    {
+        return collect($this->providers)
+            ->filter(fn (string $class): bool => app($class)->supportsOperation($operation))
+            ->keys()
+            ->all();
+    }
 }

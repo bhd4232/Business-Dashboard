@@ -31,4 +31,21 @@ class CustomOpenAiCompatibleProvider extends OpenAiImageProvider
 
         return rtrim(trim((string) $request->baseUrl), '/');
     }
+
+    /**
+     * The profile's Base URL is its text-to-image endpoint; the edits
+     * endpoint is derived by swapping the OpenAI path segment
+     * (`.../images/generations` → `.../images/edits`), or appended when the
+     * URL does not carry that segment.
+     */
+    protected function editEndpointFor(ImageGenerationRequest $request): string
+    {
+        $base = $this->endpointFor($request);
+
+        if (stripos($base, '/generations') !== false) {
+            return preg_replace('#/generations(/?$)#i', '/edits$1', $base);
+        }
+
+        return $base.'/edits';
+    }
 }

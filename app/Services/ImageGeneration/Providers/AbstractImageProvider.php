@@ -4,6 +4,7 @@ namespace App\Services\ImageGeneration\Providers;
 
 use App\Services\ImageGeneration\ImageGenerationClient;
 use App\Services\ImageGeneration\ImageGenerationException;
+use App\Services\ImageGeneration\ImageGenerationRequest;
 use Illuminate\Http\Client\Response;
 use Throwable;
 
@@ -17,6 +18,35 @@ abstract class AbstractImageProvider implements ImageGenerationClient
     protected int $timeoutSeconds = 120;
 
     abstract protected function providerName(): string;
+
+    /**
+     * Operations this adapter can run. Text-to-image only by default;
+     * subclasses widen it.
+     *
+     * @return array<int, string>
+     */
+    protected function operations(): array
+    {
+        return [ImageGenerationRequest::OP_GENERATE];
+    }
+
+    public function supportsOperation(string $operation): bool
+    {
+        return in_array($operation, $this->operations(), true);
+    }
+
+    protected function assertOperationSupported(ImageGenerationRequest $request): void
+    {
+        if (! $this->supportsOperation($request->operation)) {
+            throw new ImageGenerationException(
+                "{$this->providerName()} does not support the \"{$request->operation}\" operation."
+            );
+        }
+
+        if ($request->requiresReferenceImage() && blank($request->referenceImage)) {
+            throw new ImageGenerationException("{$this->providerName()} needs a source image for that operation.");
+        }
+    }
 
     /**
      * @param  callable():Response  $send

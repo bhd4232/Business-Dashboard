@@ -38,6 +38,9 @@ class ImageGenerationProviderAdaptersTest extends TestCase
             size: $get('size', '1024x1024'),
             aspectRatio: $get('aspectRatio', '1:1'),
             count: $get('count', 1),
+            operation: $get('operation', ImageGenerationRequest::OP_GENERATE),
+            referenceImage: $get('referenceImage', null),
+            strength: $get('strength', 0.6),
         );
     }
 
@@ -165,5 +168,121 @@ class ImageGenerationProviderAdaptersTest extends TestCase
 
         $this->expectException(ImageGenerationException::class);
         $resolver->byFormat('midjourney');
+    }
+
+    public function test_operation_support_matrix(): void
+    {
+        $i2i = ImageGenerationRequest::OP_IMAGE_TO_IMAGE;
+        $bg = ImageGenerationRequest::OP_BACKGROUND_REMOVAL;
+
+        $this->assertTrue(app(OpenAiImageProvider::class)->supportsOperation($i2i));
+        $this->assertFalse(app(OpenAiImageProvider::class)->supportsOperation($bg));
+        $this->assertTrue(app(CustomOpenAiCompatibleProvider::class)->supportsOperation($i2i));
+        $this->assertTrue(app(StabilityImageProvider::class)->supportsOperation($i2i));
+        $this->assertTrue(app(StabilityImageProvider::class)->supportsOperation($bg));
+        $this->assertFalse(app(GoogleImageProvider::class)->supportsOperation($i2i));
+
+        $resolver = app(ImageProviderResolver::class);
+        $this->assertEqualsCanonicalizing(['openai', 'stability', 'custom'], $resolver->formatsSupporting($i2i));
+        $this->assertSame(['stability'], $resolver->formatsSupporting($bg));
+    }
+
+    public function test_openai_image_to_image_posts_the_source_to_the_edits_endpoint(): void
+    {
+        $png = $this->pngBytes();
+        Http::fake(['api.openai.com/v1/images/edits' => Http::response(['data' => [['b64_json' => base64_encode($png)]]], 200)]);
+
+        $result = app(OpenAiImageProvider::class)->generate($this->request([
+            'operation' => ImageGenerationRequest::OP_IMAGE_TO_IMAGE,
+            'referenceImage' => $this->pngBytes(8, 8),
+            'prompt' => 'make it night',
+        ]));
+
+        $this->assertSame($png, $result->images[0]);
+        Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/v1/images/edits')
+            && $request->hasHeader('Authorization', 'Bearer sk-test')
+            && collect($request->data())->contains(fn ($part) => ($part['name'] ?? null) === 'prompt' && $part['contents'] === 'make it night'));
+    }
+
+    public function test_openai_image_to_image_needs_a_source_image(): void
+    {
+        Http::fake();
+
+        $this->expectException(ImageGenerationException::class);
+        $this->expectExceptionMessageMatches('/needs a source image/');
+
+        app(OpenAiImageProvider::class)->generate($this->request([
+            'operation' => ImageGenerationRequest::OP_IMAGE_TO_IMAGE,
+            'referenceImage' => null,
+        ]));
+    }
+
+    public function test_custom_provider_derives_its_edits_endpoint_from_the_base_url(): void
+    {
+        $png = $this->pngBytes();
+        Http::fake(['self-hosted.local/v1/images/edits' => Http::response(['data' => [['b64_json' => base64_encode($png)]]], 200)]);
+
+        $result = app(CustomOpenAiCompatibleProvider::class)->generate($this->request([
+            'operation' => ImageGenerationRequest::OP_IMAGE_TO_IMAGE,
+            'referenceImage' => $this->pngBytes(8, 8),
+            'apiKey' => null,
+            'baseUrl' => 'https://self-hosted.local/v1/images/generations',
+            'model' => 'sdxl',
+        ]));
+
+        $this->assertSame($png, $result->images[0]);
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://self-hosted.local/v1/images/edits');
+    }
+
+    public function test_stability_image_to_image_uses_the_sd3_endpoint_with_strength(): void
+    {
+        $png = $this->pngBytes();
+        Http::fake(['api.stability.ai/*' => Http::response(['image' => base64_encode($png), 'seed' => 3], 200)]);
+
+        $result = app(StabilityImageProvider::class)->generate($this->request([
+            'operation' => ImageGenerationRequest::OP_IMAGE_TO_IMAGE,
+            'referenceImage' => $this->pngBytes(8, 8),
+            'apiKey' => 'stab-key',
+            'model' => 'sd3.5-medium',
+            'strength' => 0.4,
+            'count' => 2,
+        ]));
+
+        $this->assertCount(2, $result->images);
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), '/stable-image/generate/sd3')
+            && collect($request->data())->contains(fn ($part) => ($part['name'] ?? null) === 'mode' && $part['contents'] === 'image-to-image')
+            && collect($request->data())->contains(fn ($part) => ($part['name'] ?? null) === 'strength' && (string) $part['contents'] === '0.4'));
+    }
+
+    public function test_stability_background_removal_hits_the_remove_background_endpoint(): void
+    {
+        $png = $this->pngBytes();
+        Http::fake(['api.stability.ai/*' => Http::response(['image' => base64_encode($png)], 200)]);
+
+        $result = app(StabilityImageProvider::class)->generate($this->request([
+            'operation' => ImageGenerationRequest::OP_BACKGROUND_REMOVAL,
+            'referenceImage' => $this->pngBytes(8, 8),
+            'apiKey' => 'stab-key',
+            'count' => 4,
+        ]));
+
+        $this->assertCount(1, $result->images); // background removal is always a single image
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), '/stable-image/edit/remove-background'));
+    }
+
+    public function test_google_rejects_an_unsupported_operation(): void
+    {
+        Http::fake();
+
+        $this->expectException(ImageGenerationException::class);
+        $this->expectExceptionMessageMatches('/does not support/');
+
+        app(GoogleImageProvider::class)->generate($this->request([
+            'operation' => ImageGenerationRequest::OP_IMAGE_TO_IMAGE,
+            'referenceImage' => $this->pngBytes(8, 8),
+            'apiKey' => 'goog-key',
+            'model' => 'imagen-4.0-generate-001',
+        ]));
     }
 }
