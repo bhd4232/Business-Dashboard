@@ -2,6 +2,40 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-09 - Hero Slides: hide the banner pagination per display type (desktop / mobile)
+
+Reason — owner (screenshot of the live Marketplace Pro storefront homepage, the dot-pagination pill circled): "বেনারের পেজিনেশন টা হাইড করার অপশন যুক্ত কর hero slide এ, মোবাইল এবং ডেস্কটপের জন্য আলাদা টোগল বাটন বাটন রেখ যাতে ডিস্প্লে অনুযায়ী পেজিনেশন এনেবল অথবা ডিজেবল করতে পারি।" — add an option in Hero Slides to hide the banner pagination, with separate toggles for mobile and desktop so it can be enabled/disabled per display.
+
+Context — the shared banner partial renders a dot-nav + pause/play pill (`.storefront-image-banner-nav`, only when there is more than one slide). There was no way to hide it, and no display-specific control anywhere in the storefront admin. The banner's own CSS already splits "mobile" vs "desktop" at `1024px`; this reuses that line.
+
+What changed:
+
+- **`storefront_settings.banner_pagination_desktop` / `banner_pagination_mobile`** — two new boolean columns, both default `true` (migration `2026_09_09_120000_add_banner_pagination_toggles_to_storefront_settings_table`, with the same "already-present column is a safe no-op" guard the other recent migrations use). Added to `StorefrontSetting` `$fillable`, cast `boolean`, `??= true` in `booted()`, plus a `showsBannerPagination(string $display): bool` helper that defaults to visible when the column is missing/null (older/restored DB).
+- **`ListStorefrontSlides`** (the Hero Slides list page) — a new header action **"Pagination display"** next to "New slide". It opens a modal with two toggles ("Show pagination on desktop" — screens ≥1024px; "Show pagination on mobile" — narrower), prefilled from the active company's row and saved back to it. Hidden when no `StorefrontSetting` exists yet / "all companies" is selected.
+- **`resources/views/storefront/partials/image-banner.blade.php`** — reads `$setting->showsBannerPagination(...)` and adds `storefront-image-banner-hide-nav-desktop` / `-mobile` to the `<section>` via `@class`; the nav pill wrapper gets a stable `storefront-image-banner-nav` class. The markup is always rendered — the hide is CSS-only per breakpoint — so one page is correct at every width.
+- **`resources/css/app.css`** — `@media (max-width: 1023.98px) { .storefront-image-banner-hide-nav-mobile .storefront-image-banner-nav { display: none } }` and the `min-width: 1024px` counterpart for desktop. The two-class selector outranks the `.flex` utility on the wrapper, so no `!important`.
+
+Important changed / new files:
+
+- `database/migrations/2026_09_09_120000_add_banner_pagination_toggles_to_storefront_settings_table.php` (new)
+- `app/Models/StorefrontSetting.php` (fillable + casts + `booted()` defaults + `showsBannerPagination()` helper)
+- `app/Filament/Resources/StorefrontSlides/Pages/ListStorefrontSlides.php` (header action + `activeStorefrontSetting()` helper)
+- `resources/views/storefront/partials/image-banner.blade.php` (`@class` on `<section>`, `storefront-image-banner-nav` on the pill wrapper)
+- `resources/css/app.css` (two new media-query rules)
+- `tests/Feature/StorefrontBannerTest.php` (3 new: default shows on both; hide desktop only; hide both), `tests/Feature/StorefrontSlideTest.php` (2 new: toggles persist per display; form prefills current values)
+- `CHANGELOG.md` `[Unreleased]` → `### Changed`
+
+Note — `tests/Feature/SchemaDriftMigrationTest.php` (an untracked, multi-session working-tree file) already references this migration on disk and stays out of this commit; the migration's own `Schema::hasColumn()` early-return is the drift guard, matching `2026_08_29_000100` and `2026_09_08_120000`.
+
+Verification:
+
+- `php artisan test tests/Feature/StorefrontBannerTest.php tests/Feature/StorefrontSlideTest.php tests/Feature/StorefrontThemeTest.php` (in the shared working tree, with the drift test present) — 33 passed (182 assertions).
+- Full `php artisan test` (plain, no `--env`): **1120 passed** (5974 assertions), 0 failed (461.9s).
+- `npm run build` — clean; both `@media` rules present, minified, in `public/build/assets/app-*.css`.
+- Browser — self-contained CSS page served through the dev server, the four class combinations in the banner slot, checked at 1280px (desktop) and 375px (mobile): default → nav visible both; hide-mobile → hidden <1024 only; hide-desktop → hidden ≥1024 only; hide-both → hidden everywhere. All correct. (The demo DB is not migrated here, same constraint as the 2026-09-08 banner work — owner to eyeball the real admin toggle on staging/production after deploy.)
+
+Commit status: Committed + pushed to `origin/main` as `PENDING_SHA` (owner approved: "কমিট এবং পুশ কর"). Built in an isolated detached worktree on `origin/main` (`31325b9c`, the v2.14.0 release cut); the shared local tree was left untouched — only the nine files in the commit.
+
 ## 2026-09-10 - AI Tools: Image Generation, Prompt Enhancer, Library, Governance (plan 11, phases 0–5)
 
 Reason — owner: "11 ai tool menu image generation plan এই প্ল্যান টা রিভিউ কর" → "ওকে তুমি তাহলে কাজ শুরু কর" → repeated "পরবর্তি ফেজের কাজ কর" through phase 5, then "কমিট করে দাও, শুধু এই সেশনের কাজ কমিট করে পুশ কর". Executes `11_AI_TOOL_MENU_IMAGE_GENERATION_PLAN.md`.

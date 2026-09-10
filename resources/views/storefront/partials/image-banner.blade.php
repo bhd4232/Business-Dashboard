@@ -24,12 +24,22 @@
     $renderedBannerSlides = $bannerCount > 1
         ? collect([$bannerSlides->last()])->concat($bannerSlides)->push($bannerSlides->first())
         : $bannerSlides;
+    // Owner-controlled per display type from Storefront -> Hero Slides. Both
+    // default true, so the pagination keeps showing exactly as before unless
+    // turned off. The hide happens in CSS (per breakpoint) rather than by
+    // skipping the markup, so one rendered page works at every width.
+    $bannerNavDesktop = ($setting ?? null)?->showsBannerPagination('desktop') ?? true;
+    $bannerNavMobile = ($setting ?? null)?->showsBannerPagination('mobile') ?? true;
 @endphp
 
 @if ($bannerSlides->isNotEmpty())
     <h1 class="sr-only">{{ $company->name }}</h1>
     <section
-        class="storefront-image-banner relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950"
+        @class([
+            'storefront-image-banner relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950',
+            'storefront-image-banner-hide-nav-desktop' => ! $bannerNavDesktop,
+            'storefront-image-banner-hide-nav-mobile' => ! $bannerNavMobile,
+        ])
         aria-label="Storefront banners"
         aria-roledescription="carousel"
         x-data="{
@@ -140,7 +150,7 @@
         </div>
 
         @if ($bannerCount > 1)
-            <div class="absolute inset-x-0 bottom-0 flex justify-center pb-1 sm:pb-2">
+            <div class="storefront-image-banner-nav absolute inset-x-0 bottom-0 flex justify-center pb-1 sm:pb-2">
                 <div class="flex items-center rounded-full bg-black/25 p-0.5 backdrop-blur-sm">
                     @foreach ($bannerSlides as $index => $slide)
                         <button

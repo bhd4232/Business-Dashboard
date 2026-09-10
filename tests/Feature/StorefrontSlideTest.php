@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\StorefrontSlides\Pages\CreateStorefrontSlide;
+use App\Filament\Resources\StorefrontSlides\Pages\ListStorefrontSlides;
 use App\Models\Company;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
@@ -119,6 +120,50 @@ class StorefrontSlideTest extends TestCase
 
         $this->assertInstanceOf(Toggle::class, $toggle);
         $this->assertFalse($toggle->getDefaultState());
+    }
+
+    public function test_hero_slides_page_pagination_toggles_persist_per_display(): void
+    {
+        $user = User::factory()->create();
+        $company = $user->defaultCompany();
+        app(CompanyContext::class)->set($company);
+        $this->actingAs($user);
+
+        $setting = StorefrontSetting::withoutGlobalScopes()->firstOrCreate(['company_id' => $company->getKey()]);
+
+        Livewire::test(ListStorefrontSlides::class)
+            ->assertActionExists('paginationDisplay')
+            ->callAction('paginationDisplay', [
+                'banner_pagination_desktop' => false,
+                'banner_pagination_mobile' => true,
+            ])
+            ->assertHasNoActionErrors();
+
+        $setting->refresh();
+        $this->assertFalse($setting->showsBannerPagination('desktop'));
+        $this->assertTrue($setting->showsBannerPagination('mobile'));
+    }
+
+    public function test_hero_slides_page_pagination_form_prefills_the_current_values(): void
+    {
+        $user = User::factory()->create();
+        $company = $user->defaultCompany();
+        app(CompanyContext::class)->set($company);
+        $this->actingAs($user);
+
+        $setting = StorefrontSetting::withoutGlobalScopes()->firstOrCreate(['company_id' => $company->getKey()]);
+        $setting->update(['banner_pagination_desktop' => false, 'banner_pagination_mobile' => false]);
+
+        // Mount and submit without touching anything: if the form prefilled
+        // from the row (not its own ->default(true)), both stay off.
+        Livewire::test(ListStorefrontSlides::class)
+            ->mountAction('paginationDisplay')
+            ->callMountedAction()
+            ->assertHasNoActionErrors();
+
+        $setting->refresh();
+        $this->assertFalse($setting->showsBannerPagination('desktop'));
+        $this->assertFalse($setting->showsBannerPagination('mobile'));
     }
 
     public function test_inactive_and_out_of_window_slides_are_hidden(): void

@@ -295,6 +295,8 @@ class StorefrontSetting extends Model
         'marketplace_quote_enabled',
         'marketplace_business_accounts_enabled',
         'marketplace_business_strip_enabled',
+        'banner_pagination_desktop',
+        'banner_pagination_mobile',
         'marketplace_trust_strip_enabled',
         'marketplace_deals_enabled',
         'marketplace_categories_enabled',
@@ -431,6 +433,8 @@ class StorefrontSetting extends Model
         'marketplace_quote_enabled' => 'boolean',
         'marketplace_business_accounts_enabled' => 'boolean',
         'marketplace_business_strip_enabled' => 'boolean',
+        'banner_pagination_desktop' => 'boolean',
+        'banner_pagination_mobile' => 'boolean',
         'marketplace_trust_strip_enabled' => 'boolean',
         'marketplace_deals_enabled' => 'boolean',
         'marketplace_categories_enabled' => 'boolean',
@@ -570,6 +574,8 @@ class StorefrontSetting extends Model
             $setting->marketplace_quote_enabled ??= true;
             $setting->marketplace_business_accounts_enabled ??= true;
             $setting->marketplace_business_strip_enabled ??= false;
+            $setting->banner_pagination_desktop ??= true;
+            $setting->banner_pagination_mobile ??= true;
             $setting->marketplace_trust_strip_enabled ??= true;
             $setting->marketplace_deals_enabled ??= true;
             $setting->marketplace_categories_enabled ??= true;
@@ -608,6 +614,20 @@ class StorefrontSetting extends Model
     public function hasActiveOffer(): bool
     {
         return filled($this->offer_title) && $this->offer_ends_at && $this->offer_ends_at->isFuture();
+    }
+
+    /**
+     * Whether the hero banner's dot navigation shows on the given display.
+     * "desktop" is >= 1024px (the banner's own breakpoint), "mobile" is every
+     * width below it. Defaults to visible — the historical behaviour — when
+     * the column is absent (older/restored DB) or null. Owner-controlled from
+     * Storefront -> Hero Slides.
+     */
+    public function showsBannerPagination(string $display): bool
+    {
+        $column = $display === 'mobile' ? 'banner_pagination_mobile' : 'banner_pagination_desktop';
+
+        return (bool) ($this->getAttribute($column) ?? true);
     }
 
     public function storefrontTheme(): string

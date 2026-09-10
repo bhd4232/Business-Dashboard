@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Hero Slides gained a "Pagination display" control to hide the banner's dot navigation, separately for desktop and mobile.** A new button on the Storefront → Hero Slides list opens a two-toggle form ("Show pagination on desktop" / "Show pagination on mobile"); the dots (and the pause/play button beside them) can be hidden on one display type while staying on the other. Both default on, so nothing changes until an owner turns a toggle off. "Mobile" is every width below the banner's own `1024px` desktop breakpoint. The whole banner carousel is affected, not a single slide. New `storefront_settings.banner_pagination_desktop` / `banner_pagination_mobile` columns; the storefront applies them as `.storefront-image-banner-hide-nav-desktop` / `-mobile` classes on the banner with CSS that hides `.storefront-image-banner-nav` at the matching breakpoint. Autoplay is unchanged.
+
 ## [2.14.0] - 2026-09-10
 
 **Release type:** Minor Feature Update

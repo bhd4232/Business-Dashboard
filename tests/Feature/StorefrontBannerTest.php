@@ -270,6 +270,101 @@ class StorefrontBannerTest extends TestCase
         );
     }
 
+    public function test_banner_pagination_shows_on_both_displays_by_default(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banner-nav-default.example.test');
+
+        foreach (['one', 'two'] as $index => $name) {
+            StorefrontSlide::query()->create([
+                'company_id' => $company->getKey(),
+                'image' => "storefront/slides/{$name}.jpg",
+                'sort_order' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        $this->get('http://banner-nav-default.example.test/')
+            ->assertOk()
+            ->assertSee('storefront-image-banner-nav', false)
+            ->assertDontSee('storefront-image-banner-hide-nav-desktop', false)
+            ->assertDontSee('storefront-image-banner-hide-nav-mobile', false);
+    }
+
+    public function test_owner_can_hide_the_banner_pagination_per_display_type(): void
+    {
+        // Owner request 2026-09-09 (screenshot): hide the banner's dot
+        // pagination, with independent control for desktop and mobile. Both
+        // default on, so the pagination keeps rendering exactly as before
+        // until turned off. The hide is CSS-only, per breakpoint, so one
+        // rendered page stays correct at every width.
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString('@media (max-width: 1023.98px) {', $css);
+        $this->assertStringContainsString(
+            '.storefront-image-banner-hide-nav-mobile .storefront-image-banner-nav {',
+            $css,
+        );
+        $this->assertStringContainsString(
+            '.storefront-image-banner-hide-nav-desktop .storefront-image-banner-nav {',
+            $css,
+        );
+
+        // Desktop hide lives in the >=1024px query, mobile hide below it —
+        // matching the banner's own desktop breakpoint.
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 1023\.98px\) \{\s*\.storefront-image-banner-hide-nav-mobile /',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/@media \(min-width: 1024px\) \{\s*\.storefront-image-banner-hide-nav-desktop /',
+            $css,
+        );
+
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banner-nav.example.test');
+
+        foreach (['one', 'two'] as $index => $name) {
+            StorefrontSlide::query()->create([
+                'company_id' => $company->getKey(),
+                'image' => "storefront/slides/{$name}.jpg",
+                'sort_order' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        StorefrontSetting::query()
+            ->where('company_id', $company->getKey())
+            ->update(['banner_pagination_desktop' => false, 'banner_pagination_mobile' => true]);
+
+        $this->get('http://banner-nav.example.test/')
+            ->assertOk()
+            ->assertSee('storefront-image-banner-nav', false)
+            ->assertSee('storefront-image-banner-hide-nav-desktop', false)
+            ->assertDontSee('storefront-image-banner-hide-nav-mobile', false);
+    }
+
+    public function test_hiding_pagination_on_both_displays_marks_the_banner_for_both(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banner-nav-both.example.test');
+
+        foreach (['one', 'two'] as $index => $name) {
+            StorefrontSlide::query()->create([
+                'company_id' => $company->getKey(),
+                'image' => "storefront/slides/{$name}.jpg",
+                'sort_order' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        StorefrontSetting::query()
+            ->where('company_id', $company->getKey())
+            ->update(['banner_pagination_desktop' => false, 'banner_pagination_mobile' => false]);
+
+        $this->get('http://banner-nav-both.example.test/')
+            ->assertOk()
+            ->assertSee('storefront-image-banner-hide-nav-desktop', false)
+            ->assertSee('storefront-image-banner-hide-nav-mobile', false);
+    }
+
     private function createPublishedStorefrontCompany(string $name, string $domain): Company
     {
         $company = Company::query()->create([
