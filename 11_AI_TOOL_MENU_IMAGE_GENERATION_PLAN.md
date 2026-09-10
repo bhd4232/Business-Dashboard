@@ -1,6 +1,6 @@
 # 11 — AI Tool Menu: Image Generation & Prompt Enhancer (Module Plan)
 
-Status: **Phases 0–5 built & verified**, incl. Phase 4's background-removal and image-to-image regeneration. Only follow-up left: upload-your-own reference image from the form (vs. regenerating an existing library image). Written from a planning conversation in Claude Cowork; intended as the pre-execution reference for Claude Code Plan Mode.
+Status: **Phases 0–5 built & verified**, incl. Phase 4's background removal and image-to-image regeneration, and the upload-your-own reference image on the form. No further planned work — later refinements (per-user caps, spend ceiling, a provider/model shortlist) are noted in §11 / §13. Written from a planning conversation in Claude Cowork; intended as the pre-execution reference for Claude Code Plan Mode.
 
 **Execution deviation from §4/§11:** provider/model/key config was NOT added as tabs inside `Integrations.php`. It lives on dedicated super-admin pages inside the AI Tools cluster instead — **Image Providers**, **Prompt Enhancer**, **Image Governance** — so the whole feature is self-contained and does not depend on another session's in-flight `Integrations.php` / `AiSettingsService` refactor. `PromptEnhancerConfigService` and `ImageProviderSettingsService` each own their own `companies.settings->ai_tools->*` key directly; `AiSettingsService` is untouched.
 
@@ -209,13 +209,13 @@ config/prompt_guides.php             // hardcoded default guide text per context
 - Meta Ad handoff: the Meta Ads creative flow already derives its image from the advertised product's featured image, so "attach to Meta Ad" is realised as the "Set as the featured image" option — no separate dead ad-creative field was added
 - `GeneratedImage::scopeVideoReferences()` — the queryable listing the future Video Generation tool needs
 
-**Phase 4 — Productivity features** — partially built (library shipped; the two image-editing items deferred)
+**Phase 4 — Productivity features** — ✅ built & verified
 - ✅ Searchable generation library — `ImageLibrary` page in the AiTools cluster: thumbnail + prompt + context/provider/creator columns, filters (context, status, created-by, favourites, video-references, attached-to-a-record), row actions: **Reuse prompt** (opens Image Generation prefilled via `?from=<id>`), **favourite toggle**, **mark video reference**
 - ✅ Favourites — `generated_images.is_favorite` + `scopeFavorites()`; a starred generation doubles as a reusable prompt template (no separate templates table), and the ✨ gallery on the tool page has a star toggle too
 - ✅ Batch generation — already delivered in Phase 1 (the "How many images?" 1–4 control; `GenerateImageJob` loops the count)
 - ✅ Background removal — `ImageGenerationRequest` gained an `operation` + `referenceImage`; `GeneratedImage.operation` column; Stability `remove-background` endpoint; per-image **Remove bg** action, shown only where a Stability provider is configured. New image, original kept.
 - ✅ Image-to-image / reference regeneration — per-image **Regenerate** action (prompt + subtle/balanced/strong strength + 1–4 variations), feeding the finished output back as a reference. OpenAI + custom via `/v1/images/edits`, Stability via the SD3 `image-to-image` mode. Imagen has no simple img2img endpoint, so Google is generate-only (`supportsOperation()` on each adapter; `ImageProviderResolver::formatsSupporting()`; the job rejects an unsupported op cleanly).
-- ⏸️ Upload-your-own reference from scratch (vs. regenerating an existing library image) — small follow-up: needs a FileUpload→company-storage step on the form.
+- ✅ Upload-your-own reference from the form (vs. regenerating an existing library image) — the Image Generation form takes an optional **"Start from an image"** upload; when present, "Generate" runs image-to-image or background removal on that upload instead of a from-scratch generation. The upload is optimised to WebP and stored in the company's public storage (`ai-reference-uploads/`) + Media Hub via the shared `OptimizesUploadedImages` path; the derived row and job are the same as the gallery "Regenerate" / "Remove bg" actions (shared `queueDerivedGeneration()`). The section is hidden unless a configured provider supports at least one edit operation.
 
 **Phase 5 — Governance & polish** — ✅ built & verified (all mechanism, off by default)
 - ✅ Usage/cost dashboard — `ImageGovernance` page (super-admin, AiTools cluster): this-month image count + estimated spend, broken down by person and by provider. Estimate uses each provider profile's admin-set "approx. cost per image" (a field on the Image Providers page); `GenerateImageJob` stamps `generated_images.estimated_cost` per completion. No billing API is called.

@@ -2,6 +2,30 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-10 - AI Tools / Image Generation: upload-your-own reference image on the form (plan 11, Phase 4 final follow-up)
+
+Reason — owner: "ফেজ ৪ এর শেষ ফলো-আপ (form থেকে reference upload) কর" — the one deferred Phase 4 item: let a user upload a photo on the Image Generation form and run image-to-image / background removal on it, instead of only regenerating an existing library image.
+
+What changed (one page + its blade + tests; no schema change — reuses `generated_images.reference_image_path` / `operation` from `78f8eb96`):
+
+- **`app/Filament/Pages/ImageGeneration.php`**
+  - Form gains `reference_image` (FileUpload), `reference_operation` (Select: *Reimagine it from my prompt* / *Just remove its background*), `reference_strength` (Select, image-to-image only). The upload section is `->visible(fn () => $this->canEditImages())` — hidden unless a configured provider supports image-to-image or background removal. `reference_operation` options are filtered to what a provider can actually run (`referenceOperationOptions()`).
+  - `prompt` is now `->required()` **except** for an uploaded reference set to background removal (`isBackgroundRemovalUpload()`).
+  - `generate()` branches: reference present → `generateFromUploadedReference()`. That resolves the operation, picks a supporting provider (`configuredProfileSupporting()`), checks the monthly cap (form error, same as `generate()`), then dehydrates the form (persists the upload through `optimizeImageUpload()` → `CompanyStorageService` `ai-reference-uploads/`, Media-Hub registered), and hands off.
+  - New shared `queueDerivedGeneration()` — the single row-create + audit + `GenerateImageJob::dispatch` + notify path now behind **both** the gallery "Regenerate" / "Remove bg" actions (`startDerivedGeneration()` refactored onto it) and the form upload. Its completion notice is now review-status-aware. Audit context: `['source' => 'uploaded reference']` vs `['source_generation_id' => ...]`.
+  - `use OptimizesUploadedImages` (for `optimizeImageUpload()` + `browserImagePrecompression()`).
+- **`resources/views/filament/pages/image-generation.blade.php`** — section description mentions uploading. (The form fields render via `{{ $this->form }}` — no other blade change.)
+- **`tests/Feature/ImageGenerationPageTest.php`** (+3): uploaded reference queues an image-to-image job (asserts stored path under `ai-reference-uploads/`, strength 0.35 from "subtle"); uploaded reference + background removal needs no prompt and forces 1 image, `strength === null`; the `reference_image` field is hidden with no provider and with a Google-only (generate-only) company, visible once Stability is configured.
+- **`11_AI_TOOL_MENU_IMAGE_GENERATION_PLAN.md`** — Phase 4 marked ✅ complete; status line updated.
+- **`CHANGELOG.md`** — fresh `[Unreleased]` → `### Added` entry (the v2.15.0 cut on `ae83e0b1` had already moved the earlier "Regenerate / Remove background" entry into the released `[2.15.0]` section, so that one is left untouched).
+
+Verification:
+
+- `php artisan test --filter=Image` — 110 passed; `ImageGenerationPageTest` — 18 passed (3 new). `npm run build` — clean. Pint clean on the two changed files.
+- Full `php artisan test` — **1246 passed, 2 failed** (23 min). Both failures are pre-existing and from other in-flight sessions, not this change: `AdminNavigationClustersTest > cluster roots open the first authorized page` (uncommitted CRM `crm/sales-automation` page changing the `/admin/crm` redirect) and `ReleaseNotesTest > configured release matches the latest published changelog entry` (stale `config/app.php` version `2.11.2` vs CHANGELOG `2.14.0`).
+
+Commit status: Committed + pushed to `origin/main` (owner approved: "কমিট করে পুশ করে দাও"). Isolated detached worktree cherry-pick onto `origin/main`; shared local tree untouched — only the six files above. `CHANGELOG.md` / `UPDATE_NOTES.md` were reconstructed from HEAD + this session's edits (siblings' staged release-note work not swept in) and the cherry-pick's CHANGELOG hunk was re-homed into `[Unreleased]` after the v2.15.0 cut.
+
 ## 2026-09-10 - Invoice numbers: one continuous per-company sequence, no daily reset
 
 Reason — owner: "ইনভয়েস নাম্বার ZMG-আজকের ডেট-01 থেকে শুরু হয়, আবার পরের দিনের অর্ডার ইনভয়েস নাম্বার ZMG-পরের দিনের ডেট-01 থেকে শুরু হয়। এতে সঠিক ইনভয়েস খুজে পাওয়া দুষ্কর ... তাই ইনভয়েস আইডির শেষের অংশ ক্রমানুশারে হবে (আজকের দুইটা অর্ডার → ZMG-<today>-01, -02; আগামীকালের দুইটা → ZMG-<tomorrow>-03, -04)."

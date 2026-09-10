@@ -10,10 +10,14 @@ use App\Models\Offer;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\CompanyContext;
+use App\Services\ImageGeneration\ImageGovernanceService;
 use App\Services\ImageGeneration\ImageProviderSettingsService;
+use App\Services\PromptEnhancement\PromptEnhancerConfigService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -159,7 +163,7 @@ class ImageGenerationPageTest extends TestCase
 
     private function configureEnhancer(Company $company): void
     {
-        app(\App\Services\PromptEnhancement\PromptEnhancerConfigService::class)->save($company, [
+        app(PromptEnhancerConfigService::class)->save($company, [
             'enabled' => true, 'api_format' => 'openai', 'provider' => 'Test',
             'model' => 'mini', 'api_key' => 'sk-enh',
         ]);
@@ -212,10 +216,10 @@ class ImageGenerationPageTest extends TestCase
 
     public function test_a_role_over_its_monthly_cap_cannot_generate(): void
     {
-        \Illuminate\Support\Facades\Queue::fake();
+        Queue::fake();
         $company = $this->company();
         $this->configureProvider($company);
-        app(\App\Services\ImageGeneration\ImageGovernanceService::class)->save($company, [
+        app(ImageGovernanceService::class)->save($company, [
             'monthly_caps' => ['manager' => 2],
             'review_roles' => [],
         ]);
@@ -232,10 +236,10 @@ class ImageGenerationPageTest extends TestCase
 
     public function test_a_reviewed_role_generates_a_pending_row(): void
     {
-        \Illuminate\Support\Facades\Queue::fake();
+        Queue::fake();
         $company = $this->company();
         $this->configureProvider($company);
-        app(\App\Services\ImageGeneration\ImageGovernanceService::class)->save($company, [
+        app(ImageGovernanceService::class)->save($company, [
             'monthly_caps' => [],
             'review_roles' => ['manager'],
         ]);
@@ -273,8 +277,7 @@ class ImageGenerationPageTest extends TestCase
         $this->assertSame($source->output_paths[0], $derived->reference_image_path);
         $this->assertSame(2, $derived->variations_requested);
 
-        Queue::assertPushed(GenerateImageJob::class, fn (GenerateImageJob $job): bool =>
-            $job->generatedImageId === $derived->getKey() && $job->strength === 0.85);
+        Queue::assertPushed(GenerateImageJob::class, fn (GenerateImageJob $job): bool => $job->generatedImageId === $derived->getKey() && $job->strength === 0.85);
     }
 
     public function test_background_removal_availability_follows_the_configured_providers(): void
@@ -308,6 +311,99 @@ class ImageGenerationPageTest extends TestCase
         $this->assertSame(1, $derived->variations_requested);
         $this->assertSame($source->output_paths[0], $derived->reference_image_path);
         Queue::assertPushed(GenerateImageJob::class);
+    }
+
+    public function test_uploading_a_reference_image_queues_an_image_to_image_job(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $company = $this->company();
+        $this->configureProvider($company); // OpenAI supports image-to-image
+        $user = $this->user($company, 'manager');
+
+        Livewire::actingAs($user)
+            ->test(ImageGeneration::class)
+            ->fillForm([
+                'prompt' => 'a moody cinematic version',
+                'context' => 'product_photo',
+                'aspect_ratio' => '1:1',
+                'variations' => 2,
+                'reference_image' => UploadedFile::fake()->image('sofa.jpg', 900, 900),
+                'reference_operation' => GeneratedImage::OPERATION_IMAGE_TO_IMAGE,
+                'reference_strength' => 'subtle',
+            ])
+            ->call('generate')
+            ->assertHasNoFormErrors()
+            ->assertNotified();
+
+        $row = GeneratedImage::query()->where('operation', GeneratedImage::OPERATION_IMAGE_TO_IMAGE)->firstOrFail();
+        $this->assertSame('a moody cinematic version', $row->prompt);
+        $this->assertSame(2, $row->variations_requested);
+        $this->assertStringContainsString(
+            'companies/'.$company->storage_key.'/public/ai-reference-uploads/',
+            (string) $row->reference_image_path,
+        );
+        $this->assertTrue(Storage::disk('public')->exists($row->reference_image_path));
+
+        Queue::assertPushed(GenerateImageJob::class, fn (GenerateImageJob $job): bool => $job->generatedImageId === $row->getKey()
+            && $job->strength === 0.35);
+    }
+
+    public function test_uploading_a_reference_image_for_background_removal_needs_no_prompt(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        $company = $this->company();
+        $this->configureStabilityProvider($company);
+        $user = $this->user($company, 'manager');
+
+        Livewire::actingAs($user)
+            ->test(ImageGeneration::class)
+            ->fillForm([
+                'prompt' => '',
+                'context' => 'product_photo',
+                'aspect_ratio' => '1:1',
+                'variations' => 3,
+                'reference_image' => UploadedFile::fake()->image('bottle.png', 700, 700),
+                'reference_operation' => GeneratedImage::OPERATION_BACKGROUND_REMOVAL,
+            ])
+            ->call('generate')
+            ->assertHasNoFormErrors()
+            ->assertNotified();
+
+        $row = GeneratedImage::query()->where('operation', GeneratedImage::OPERATION_BACKGROUND_REMOVAL)->firstOrFail();
+        $this->assertSame('', (string) $row->prompt);
+        $this->assertSame(1, $row->variations_requested); // forced to one, whatever the form said
+        $this->assertSame('stability', $row->api_format);
+
+        Queue::assertPushed(GenerateImageJob::class, fn (GenerateImageJob $job): bool => $job->generatedImageId === $row->getKey()
+            && $job->strength === null);
+    }
+
+    public function test_reference_upload_field_is_hidden_without_an_edit_capable_provider(): void
+    {
+        $company = $this->company();
+        $user = $this->user($company, 'manager');
+
+        // No provider at all.
+        Livewire::actingAs($user)
+            ->test(ImageGeneration::class)
+            ->assertFormFieldHidden('reference_image');
+
+        // A Google-only company still cannot edit images (generate-only).
+        app(ImageProviderSettingsService::class)->save($company, [
+            ['label' => 'Imagen', 'api_format' => 'google', 'model' => 'imagen-3.0', 'api_key' => 'g-live', 'is_default' => true],
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ImageGeneration::class)
+            ->assertFormFieldHidden('reference_image');
+
+        $this->configureStabilityProvider($company);
+
+        Livewire::actingAs($user)
+            ->test(ImageGeneration::class)
+            ->assertFormFieldVisible('reference_image');
     }
 
     public function test_completed_generations_render_their_images(): void

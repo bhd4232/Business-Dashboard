@@ -4,6 +4,12 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Image Generation: "Start from an image" — run Regenerate or Remove background on a photo you upload.** The Image Generation form now takes an optional reference-image upload. With one attached, **Generate** offers *Reimagine it from my prompt* (image-to-image, with a subtle / balanced / strong strength) or *Just remove its background*, and runs that on the upload instead of generating from scratch — the same two operations that were already available as per-image buttons on finished results. The section is hidden unless a configured provider supports an edit operation (Google Imagen is generate-only). The upload is compressed to WebP, stored in the company's storage and registered in the Media Hub, and the derived image goes through the same monthly-cap, approval, and audit-log path as any other generation.
+
+  **Technical Notes:** no schema change — reuses the `generated_images.operation` / `reference_image_path` columns from v2.15.0. New form fields `reference_image` (FileUpload via the shared `OptimizesUploadedImages` path into `CompanyStorageService` `ai-reference-uploads/`), `reference_operation`, `reference_strength`; `ImageGeneration::generateFromUploadedReference()` and a shared `queueDerivedGeneration()` now behind both the gallery actions and the form upload.
+
 ### Changed
 
 - **Invoice numbers now use one continuous running number per company instead of restarting at `01` every day.** In `PREFIX-YYYYMMDD-NN`, the `NN` was the count of *that day's* orders, so every date produced its own `-01`, `-02`, … and the same suffix repeated across dozens of dates — a specific invoice was hard to locate and the scheme made no sense to a newcomer. `NN` is now the company's total order count so far, plus one, and never resets: two orders placed today read `…-01` and `…-02`, tomorrow's next order is `…-03`, and so on. The date segment stays, for readability only. The number is padded to a minimum of two digits and grows past `99` on its own. **Already-issued invoice numbers are left exactly as they are** — only orders created from the deploy onward use the running number, so the first new one continues from wherever the business currently stands (128 existing orders → next is `…-129`). Trashed orders keep their number reserved. Quotations and storefront complaints keep their own separate daily numbering. `Order::nextOrderNumber()`.

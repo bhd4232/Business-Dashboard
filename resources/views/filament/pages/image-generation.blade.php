@@ -9,7 +9,7 @@
         <x-filament::section
             icon="heroicon-o-sparkles"
             heading="New image"
-            description="Describe what you want. Generation runs in the background — results appear below."
+            description="Describe what you want — or upload a photo to reimagine or cut out. Generation runs in the background; results appear below."
         >
             <form wire:submit="generate" id="image-generation-form" class="space-y-6">
                 {{ $this->form }}
