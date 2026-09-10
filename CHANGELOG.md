@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-09-10
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **New "AI Tools" area — an Image Generation tool with a shared Prompt Enhancer, a generation library, and governance controls.** A top-level **AI Tools** section in the admin sidebar, separate from the per-module AI features (Ad Assistant, Landing Page Builder, Auto Messaging). It opens a **Tool Menu** hub; Video Generation and Content Creation show as reserved "Coming soon" tiles.
@@ -15,7 +19,6 @@ All notable production changes to Business Dashboard are documented here.
   - **Access:** new permission keys `ai_tools.menu`, `ai_tools.image_generation`, `ai_tools.image_generation.review`, plus reserved `ai_tools.video_generation` / `ai_tools.content_creation`. Super Admin and the built-in Manager role hold the first three by default; all are selectable on custom roles.
 
   **Technical Notes:** new `generated_images` table (`BelongsToCompany` + `CompanyScope`, registered in `MultiCompanyIsolationTest`). `companies.settings` gains `ai_tools.image_generation` (provider list), `ai_tools.prompt_enhancer`, `ai_tools.image_governance`, `prompt_guides`, and `image_brand_style` — each owned by its own service (`ImageProviderSettingsService`, `PromptEnhancerConfigService`, `ImageGovernanceService`, `PromptGuideRepository`); `AiSettingsService` is not involved. Provider adapters and every LLM call are `Http::fake()`-mocked in tests.
-
 ## [2.13.4] - 2026-09-08
 
 **Release type:** Patch/Fix Update
