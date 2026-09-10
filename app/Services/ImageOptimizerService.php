@@ -87,6 +87,32 @@ class ImageOptimizerService
         return $path;
     }
 
+    /**
+     * Re-encode raw image bytes — from an image-generation provider, never a
+     * user upload — as a compressed, metadata-stripped WebP string, ready to
+     * hand to CompanyStorageService. Unlike optimizeAndStore() this neither
+     * touches a TemporaryUploadedFile nor writes to disk itself.
+     *
+     * @throws \RuntimeException when the bytes are not a decodable raster image
+     */
+    public function optimizeBytes(
+        string $binary,
+        int $maxWidth = self::MAX_WIDTH_STANDARD,
+        int $quality = 82,
+    ): string {
+        try {
+            $image = $this->manager->read($binary);
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException('The generated image data could not be decoded.', previous: $exception);
+        }
+
+        if ($image->width() > $maxWidth || $image->height() > $maxWidth) {
+            $image->scaleDown(width: $maxWidth, height: $maxWidth);
+        }
+
+        return (string) $image->toWebp($quality);
+    }
+
     protected function isAnimated(TemporaryUploadedFile $file): bool
     {
         $mime = $file->getMimeType();

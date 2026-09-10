@@ -2,6 +2,34 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-10 - AI Tools: Image Generation, Prompt Enhancer, Library, Governance (plan 11, phases 0–5)
+
+Reason — owner: "11 ai tool menu image generation plan এই প্ল্যান টা রিভিউ কর" → "ওকে তুমি তাহলে কাজ শুরু কর" → repeated "পরবর্তি ফেজের কাজ কর" through phase 5, then "কমিট করে দাও, শুধু এই সেশনের কাজ কমিট করে পুশ কর". Executes `11_AI_TOOL_MENU_IMAGE_GENERATION_PLAN.md`.
+
+Two owner decisions gathered mid-build: access default = Super Admin + built-in Manager get `ai_tools.menu` + `ai_tools.image_generation` (reserved keys picker-only); Media Hub = every finished generated image calls `Media::recordUpload()`.
+
+**Execution deviation from the plan's §4/§11:** provider/model/key config was NOT added as tabs on `Integrations.php`. It lives on dedicated super-admin pages in the AI Tools cluster (Image Providers, Prompt Enhancer, Image Governance) so the feature is fully self-contained and does not depend on another session's in-flight `AiSettingsService` per-tool refactor. `PromptEnhancerConfigService` + `ImageProviderSettingsService` + `ImageGovernanceService` each own their own `companies.settings->ai_tools->*` key; `AiSettingsService` and `Integrations.php` are untouched by this commit.
+
+What changed (by phase):
+
+- **Phase 0 — Foundation:** `AiTools` navigation cluster; `ToolMenu` hub page + card grid (permission-filtered, "Coming soon" for the two reserved tools); permission keys `ai_tools.menu` / `ai_tools.image_generation` / `ai_tools.image_generation.review` + reserved `ai_tools.video_generation` / `ai_tools.content_creation` wired into `User::ROLE_PERMISSIONS` (Manager) and `User::CUSTOM_PERMISSION_OPTIONS`; `docs/roles-and-permissions.md`.
+- **Phase 1 — Image Generation core:** `generated_images` table + `GeneratedImage` model (`BelongsToCompany` + `CompanyScope`, in `MultiCompanyIsolationTest`); `ImageProviderSettingsService` (provider-profile list at `companies.settings->ai_tools->image_generation`, encrypted keys) + `ImageProviderSettings` page; `ImageGenerationClient` contract + `ImageProviderResolver` + 4 adapters (OpenAI / Google Imagen / Stability / custom OpenAI-compatible — API key never in a URL); `ImageOptimizerService::optimizeBytes()`; `GenerateImageJob` (queued, sets/clears `CompanyContext`, WebP + `CompanyStorageService` + `Media::recordUpload()`, `BusinessNotificationService`); `ImageGeneration` page (form + polled gallery + per-image download).
+- **Phase 2 — Prompt Enhancer:** `config/prompt_guides.php` (expert defaults per context + per-provider style notes); `PromptGuideRepository` (admin override → config default → generic; owns `companies.settings->prompt_guides` + `image_brand_style`); `PromptEnhancerConfigService` (own encrypted config at `companies.settings->ai_tools->prompt_enhancer` — reuses `AiLlmClient` for the call, not `AiSettingsService`); `PromptEnhancementService`; `PromptEnhancerSettings` page; `✨ Enhance` action on `ImageGeneration` (before/after, always explicit).
+- **Phase 3 — Attach & handoff:** `GeneratedImageAttacher` (featured image / gallery / offer cover banner; `linked` morph stamped; blocked while a review is pending); per-image "Add to a product" / "Set as an offer banner" + per-generation "Mark as video reference" on the gallery; `GeneratedImage::scopeVideoReferences()`. Meta ad handoff = the "featured image" option (the Meta Ads creative flow already derives its image from `product->image`).
+- **Phase 4 — Library:** `ImageLibrary` page (thumbnail + prompt + context/provider/creator, filters, "Reuse prompt" via `?from=<id>`, favourite toggle); `generated_images.is_favorite` + `scopeFavorites()`; star toggle on the tool's own gallery. Background-removal and image-to-image regeneration deferred (need the §13 provider shortlist).
+- **Phase 5 — Governance:** `generated_images` gains `estimated_cost`, `review_status`, `reviewed_by`/`reviewed_at`/`review_note`; `cost_per_image` per provider profile; `ImageGovernanceService` (per-role monthly caps, review-roles, `usageSummary()`, `review()`); `ImageGovernance` page (config + this-month usage dashboard); cap enforced in `ImageGeneration::generate()`; approve/reject actions on `ImageLibrary` gated by `ai_tools.image_generation.review`; audit logging via `AuditLogService` on generate / attach / review.
+
+Important new files: `app/Filament/Clusters/AiTools.php`; `app/Filament/Pages/{ToolMenu,ImageGeneration,ImageLibrary,ImageProviderSettings,PromptEnhancerSettings,ImageGovernance}.php` + their views; `app/Models/GeneratedImage.php`; `app/Jobs/GenerateImageJob.php`; `app/Services/ImageGeneration/*` (settings, governance, attacher, client/resolver/adapters, exceptions, request/result DTOs); `app/Services/PromptEnhancement/*` (config, enhancement, guide repository); `config/prompt_guides.php`; migrations `2026_09_09_140000_create_generated_images_table`, `2026_09_09_150000_add_favorite_flag_to_generated_images_table`, `2026_09_10_090000_add_governance_fields_to_generated_images_table`; ~13 feature test files (~135 tests).
+
+Surgical edits to pre-existing tracked files (only these): `app/Models/User.php` (5 permission keys), `app/Services/ImageOptimizerService.php` (`optimizeBytes()`), `tests/Feature/MultiCompanyIsolationTest.php` (+`GeneratedImage`), `docs/roles-and-permissions.md`.
+
+Verification:
+
+- Affected + full `php artisan test` — see run. The one unrelated failure (`AdminNavigationClustersTest` / CRM cluster first-page) is another session's in-flight `SalesAutomation` page, not this work.
+- `npm run build` — clean.
+
+Commit status: committing now (owner approved 2026-09-10 — "কমিট করে দাও, শুধু এই সেশনের কাজ কমিট করে পুশ কর"); only this session's AI Tools files, no concurrent work.
+
 ## 2026-09-08 - Hero Slides: per-slide "Fit to frame" toggle so an off-ratio banner image is never cropped
 
 Reason — owner: "বেনার এ একটা অপশন রাখ যে ফিট টু ফ্রেম, এতে ইমেজ সাইজ কম বেশি হলে কেটে যাবেনা।" — add a "Fit to frame" option on the banner so an image whose size is a bit off doesn't get cut off. (Follows the same-day change that shortened the Marketplace Pro banner to 4:1 with crop-to-fit.)
@@ -357,7 +385,6 @@ Verification:
 - Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1053 passed, 0 failed**.
 
 Commit status: Not committed yet — awaiting owner approval.
-
 
 ## 2026-08-30 - Fix: WooCommerce orders that oversell ERP stock never synced
 

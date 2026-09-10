@@ -4,6 +4,18 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **New "AI Tools" area — an Image Generation tool with a shared Prompt Enhancer, a generation library, and governance controls.** A top-level **AI Tools** section in the admin sidebar, separate from the per-module AI features (Ad Assistant, Landing Page Builder, Auto Messaging). It opens a **Tool Menu** hub; Video Generation and Content Creation show as reserved "Coming soon" tiles.
+  - **Image Generation** turns a prompt into product shots, ad creatives, or offer banners. Providers are configured on **AI Tools → Image Providers** (super-admin): one or more profiles — OpenAI Images, Google Imagen, Stability AI, or any OpenAI-images-compatible endpoint — each with its own model and **encrypted-per-company** API key; staff pick one at generation time. The tool takes a prompt, a context, an aspect-ratio preset, and 1–4 variations; generation runs in a queued job, results appear in a self-refreshing gallery, and each finished image is compressed to WebP, stored in the company's storage, **and registered in the Media Hub** so it is pickable from every "Select From Media" field.
+  - **✨ Enhance** rewrites a rough prompt before generation — adapting to the chosen image provider (natural language for OpenAI/Imagen, keyword tags for Stability) and the company's own visual house-style note. Always explicit: a before/after you edit and accept, or keep your original. Configured on **AI Tools → Prompt Enhancer** (super-admin), where the expert default guidance per context can also be overridden.
+  - **Attach actions** — a finished image can be set as a product's featured image (also what Meta ad creatives use) or added to its gallery, set as an offer's landing-page cover banner, or flagged as a reference for the future AI Video tool.
+  - **Image Library** collects every generation with filters (context, status, creator, favourites, video references, attached/not, review state), plus "Reuse prompt" (re-opens the tool prefilled) and favourites.
+  - **Governance** (**AI Tools → Image Governance**, super-admin, all optional and off by default): a monthly image cap per role, an approval step for chosen roles (their images can't be attached to a record until a reviewer approves them), and a this-month usage / estimated-cost dashboard by person and provider (estimate uses an admin-set "approx. cost per image" per provider — no billing API is called). Every generation, attach, and review decision is written to the Audit Logs.
+  - **Access:** new permission keys `ai_tools.menu`, `ai_tools.image_generation`, `ai_tools.image_generation.review`, plus reserved `ai_tools.video_generation` / `ai_tools.content_creation`. Super Admin and the built-in Manager role hold the first three by default; all are selectable on custom roles.
+
+  **Technical Notes:** new `generated_images` table (`BelongsToCompany` + `CompanyScope`, registered in `MultiCompanyIsolationTest`). `companies.settings` gains `ai_tools.image_generation` (provider list), `ai_tools.prompt_enhancer`, `ai_tools.image_governance`, `prompt_guides`, and `image_brand_style` — each owned by its own service (`ImageProviderSettingsService`, `PromptEnhancerConfigService`, `ImageGovernanceService`, `PromptGuideRepository`); `AiSettingsService` is not involved. Provider adapters and every LLM call are `Http::fake()`-mocked in tests.
+
 ## [2.13.4] - 2026-09-08
 
 **Release type:** Patch/Fix Update
@@ -77,7 +89,6 @@ All notable production changes to Business Dashboard are documented here.
 ## [2.11.3] - 2026-09-02
 
 **Release type:** Patch/Fix Update
-
 ### Changed
 
 - **Inbox (CRM) smoothness improvements, web + mobile:**

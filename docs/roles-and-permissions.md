@@ -25,6 +25,7 @@ Business Dashboard uses role-based permissions for Filament admin access and cus
 | Settings | Full | No | No | No | No |
 | Backups | Full | No | No | No | No |
 | Users/Roles | Full | No | No | No | No |
+| AI Tools | Full | Menu + Image Generation | No | No | No |
 
 ## Permission Keys
 
@@ -53,7 +54,22 @@ reports.export
 backups.manage
 settings.manage
 users.manage
+ai_tools.menu
+ai_tools.image_generation
+ai_tools.image_generation.review
+ai_tools.video_generation
+ai_tools.content_creation
 ```
+
+`ai_tools.video_generation` and `ai_tools.content_creation` are reserved for
+future tools — the keys exist now so role setup does not need revisiting when
+those tools ship, but nothing is gated by them yet. `ai_tools.image_generation.review`
+lets a user approve or reject other people's generated images on the Image
+Library when a company has turned on the approval workflow (AI Tools → Image
+Governance). By default only Super Admin (via `*`) and the built-in Manager
+role hold `ai_tools.menu`, `ai_tools.image_generation`, and
+`ai_tools.image_generation.review`; grant them to any custom role from the
+role editor.
 
 ## Custom Roles
 

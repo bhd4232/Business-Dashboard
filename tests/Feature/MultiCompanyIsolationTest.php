@@ -29,6 +29,7 @@ use App\Models\ExpenseCategory;
 use App\Models\FraudCheck;
 use App\Models\FundSource;
 use App\Models\FundTransfer;
+use App\Models\GeneratedImage;
 use App\Models\Investment;
 use App\Models\InvestmentProject;
 use App\Models\Investor;
@@ -112,7 +113,7 @@ class MultiCompanyIsolationTest extends TestCase
             SettlementPayout::class, ChannelPartnerPayout::class,
             MetaAdAccount::class, MetaAdCampaign::class, MetaAdSet::class, MetaAd::class, MetaAdProposal::class, MetaAudience::class,
             Offer::class, OfferItem::class, ProductReview::class,
-            Broadcast::class, Media::class,
+            Broadcast::class, Media::class, GeneratedImage::class,
         ];
 
         foreach ($models as $modelClass) {
