@@ -50,8 +50,9 @@ class Quotation extends Model
         $lastNumber = self::query()
             ->withoutGlobalScopes()
             ->where('quotation_number', 'like', $base.'%')
-            // See Order::nextOrderNumber() — length-first keeps the sort
-            // numerically correct once the daily sequence passes 9999.
+            // Length-first keeps the sort numerically correct once the daily
+            // sequence passes 9999 ("...-10000" would otherwise rank below
+            // "...-9999" under a plain string ORDER BY).
             ->orderByRaw('LENGTH(quotation_number) desc')
             ->orderByDesc('quotation_number')
             ->value('quotation_number');

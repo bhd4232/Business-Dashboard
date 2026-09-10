@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **Invoice numbers now use one continuous running number per company instead of restarting at `01` every day.** In `PREFIX-YYYYMMDD-NN`, the `NN` was the count of *that day's* orders, so every date produced its own `-01`, `-02`, … and the same suffix repeated across dozens of dates — a specific invoice was hard to locate and the scheme made no sense to a newcomer. `NN` is now the company's total order count so far, plus one, and never resets: two orders placed today read `…-01` and `…-02`, tomorrow's next order is `…-03`, and so on. The date segment stays, for readability only. The number is padded to a minimum of two digits and grows past `99` on its own. **Already-issued invoice numbers are left exactly as they are** — only orders created from the deploy onward use the running number, so the first new one continues from wherever the business currently stands (128 existing orders → next is `…-129`). Trashed orders keep their number reserved. Quotations and storefront complaints keep their own separate daily numbering. `Order::nextOrderNumber()`.
+
 ## [2.15.0] - 2026-09-10
 
 **Release type:** Minor Feature Update

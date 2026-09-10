@@ -2,6 +2,34 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-10 - Invoice numbers: one continuous per-company sequence, no daily reset
+
+Reason — owner: "ইনভয়েস নাম্বার ZMG-আজকের ডেট-01 থেকে শুরু হয়, আবার পরের দিনের অর্ডার ইনভয়েস নাম্বার ZMG-পরের দিনের ডেট-01 থেকে শুরু হয়। এতে সঠিক ইনভয়েস খুজে পাওয়া দুষ্কর ... তাই ইনভয়েস আইডির শেষের অংশ ক্রমানুশারে হবে (আজকের দুইটা অর্ডার → ZMG-<today>-01, -02; আগামীকালের দুইটা → ZMG-<tomorrow>-03, -04)."
+
+Owner decisions (asked before building): (1) the running number continues from the company's total order count; (2) already-issued invoice numbers stay unchanged — only new orders use the new sequence; (3) two-digit minimum padding (01, 42, 128).
+
+Before — `Order::nextOrderNumber()` built `PREFIX-<Ymd>-<seq>` where `<seq>` was `(count of order_numbers LIKE 'PREFIX-<today>-%') + 1`, three-digit padded. Every calendar day restarted at `001`, and `PREFIX-<anydate>-001` existed for dozens of dates.
+
+After — `<seq>` is `(all orders for this company, trashed included) + 1`, two-digit-min padded; the daily `LIKE` filter and suffix parsing are gone. The date segment is unchanged (placement date, `now()`). Because the value is a live row count, every order advances it — including admin orders that submit the form's pre-filled number — and a concurrent collision still lands on the `order_number` UNIQUE index, so `GeneratesSequentialNumber` retries and the recount lands one higher (`SequentialNumberConcurrencyTest` unchanged and still green). `withoutGlobalScopes()` so the count is for the order's own company regardless of the active context and includes trashed orders.
+
+No migration / no new column — the owner's "continue from the total count" is exactly `count()+1`, computed live.
+
+Scope — customer orders / invoices only. Quotations (`QT-…`) and storefront complaints (`CMP-…`) keep their own daily-reset numbering; two now-stale "See Order::nextOrderNumber()" code comments there were made self-contained.
+
+Edge — permanently deleting an order (Trash → "Delete permanently", super-admin + confirm) lowers the count, so a later order could re-use that suffix on a different date. Trashing (the normal bulk action) does not — trashed orders are counted. On deploy the first new number jumps to (current order count + 1), which for an established company is well past the old daily `-01`/`-02` — expected, and the point of the change.
+
+Files:
+- `app/Models/Order.php` — `nextOrderNumber()` rewritten (count-based, 2-digit pad, no date filter, `withoutGlobalScopes()`).
+- `app/Models/Quotation.php`, `app/Models/StorefrontComplaint.php` — comment only.
+- `tests/Feature/InvoiceDesignTest.php` — replaced the old three-digit-daily test with three: the running sequence survives a day boundary; it continues from an existing 128-order count and grows to `-129`; trashed orders still count.
+- `CHANGELOG.md` `[Unreleased]` → `### Changed`.
+
+Verification:
+- `php artisan test tests/Feature/InvoiceDesignTest.php tests/Feature/SequentialNumberConcurrencyTest.php tests/Feature/MultiCompanyIsolationTest.php tests/Feature/SalesOrderTest.php tests/Feature/OrderFormTest.php tests/Feature/StorefrontCheckoutPolicyTest.php tests/Feature/ChatOrderLinkTest.php tests/Feature/StorefrontFoundationTest.php tests/Feature/DemoDataSeederTest.php` — 72 passed.
+- Full `php artisan test`: 1241 passed, 2 failed — both pre-existing in the shared working tree and unrelated (`AdminNavigationClustersTest` — an uncommitted `crm/sales-automation` page sorts first; `ReleaseNotesTest` — `config/app.php` version still behind the published changelog). The worktree commit is built on clean `origin/main`, which is green.
+
+Commit status: Committed + pushed to `origin/main` as `PENDING_SHA` (owner approved: "কমিট এবং পুশ কর"). Isolated detached worktree on `origin/main` (`ae83e0b1`, v2.15.0 release cut); shared local tree untouched — only the six files above.
+
 ## 2026-09-10 - AI Tools / Image Generation: image-to-image ("Regenerate") + background removal (plan 11, Phase 4 remainder)
 
 Reason — owner: "ফেজ ৪ এর বাকি কাজ (background removal, image-to-image) কর" — finish Phase 4's two deferred image-editing features. (The rest of plan 11 shipped in v2.14.0.)
