@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Orders list's bulk "Change status" action did nothing when the selection contained any order that couldn't legally reach the chosen stage.** `OrdersTable` was missing the `use Illuminate\Validation\ValidationException` import, so the bulk loop's `catch (ValidationException)` matched a non-existent class — the first ineligible order's `ValidationException` escaped the loop, Livewire turned it into a silent component error, and no order was updated and no notification appeared. The bulk **"Book courier"** action had the same latent failure. Restoring the import makes ineligible orders count as "skipped" as intended; a new regression test drives the bulk action with an ineligible order first.
+
 ## [2.14.1] - 2026-09-10
 
 **Release type:** Patch/Fix Update

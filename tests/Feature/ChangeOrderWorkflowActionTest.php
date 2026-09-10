@@ -78,6 +78,35 @@ class ChangeOrderWorkflowActionTest extends TestCase
         $this->assertSame('confirmed', $order->fresh()->status);
     }
 
+    public function test_the_bulk_change_status_action_updates_eligible_orders_and_skips_the_rest(): void
+    {
+        // Owner-reported bug: selecting orders on the list and changing their
+        // status "does nothing". Root cause was a missing
+        // `use Illuminate\Validation\ValidationException` import in OrdersTable,
+        // so the bulk action's `catch (ValidationException)` referenced a
+        // non-existent class — the instant one selected order could not legally
+        // reach the chosen stage, the ValidationException escaped the loop and
+        // Livewire turned it into a silent component error, so no order was
+        // updated and no notification fired. The ineligible order is listed
+        // first here so the throw happens on the very first iteration.
+        $eligible = $this->draftOrder();
+
+        $ineligible = Order::query()->create([
+            'customer_id' => $eligible->customer_id,
+            'customer_name' => 'Workflow Buyer',
+            'status' => Order::STATUS_COMPLETED,
+            'source' => Order::SOURCE_ADMIN,
+        ]);
+
+        Livewire::test(ListOrders::class)
+            ->callTableBulkAction('changeWorkflowStatus', [$ineligible, $eligible], data: ['stage' => 'confirmed'])
+            ->assertHasNoTableBulkActionErrors()
+            ->assertNotified();
+
+        $this->assertSame('confirmed', $eligible->fresh()->status);
+        $this->assertSame('completed', $ineligible->fresh()->status);
+    }
+
     public function test_an_unexpected_failure_is_reported_and_shown_instead_of_failing_silently(): void
     {
         $order = $this->draftOrder();

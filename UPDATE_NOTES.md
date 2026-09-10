@@ -2,6 +2,30 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-10 - Fix: Orders list bulk "Change status" action silently did nothing
+
+Reason — owner: "অর্ডার লিস্টে অর্ডার সিলেক্ট করে স্টেটাস পরিবর্তন করলে সেটা চেঞ্জ হয় না ... স্ট্যাটাস পরিবর্তন এর কোন একশন কাজ করছেনা।" — selecting orders on the list and changing their status does nothing.
+
+Root cause — `app/Filament/Resources/Orders/Tables/OrdersTable.php` uses `catch (ValidationException)` in two bulk actions (`changeWorkflowStatus`, `bookCourierBulk`) but the `use Illuminate\Validation\ValidationException;` import was dropped in commit `114cbba6` and never restored. In that namespace the catch resolved to the non-existent `App\Filament\Resources\Orders\Tables\ValidationException`, so `OrderStatusWorkflowService::transition()`'s `ValidationException` ("The order cannot move from X to Y") was never caught — it escaped the `foreach`, Livewire turned it into a silent validation error on the component, and the whole bulk action aborted with **no order updated and no notification**. Any selection containing one order that can't legally reach the chosen stage (very common — e.g. some already Confirmed/Completed) triggered it; if the first selected order was ineligible it looked completely dead.
+
+What changed:
+
+- **`app/Filament/Resources/Orders/Tables/OrdersTable.php`** — one line: restore `use Illuminate\Validation\ValidationException;`. Now `changeWorkflowStatus` counts ineligible orders as "skipped" ("N updated, M skipped" warning) as designed, and `bookCourierBulk`'s failed-validation skip works too.
+- **`tests/Feature/ChangeOrderWorkflowActionTest.php`** — new `test_the_bulk_change_status_action_updates_eligible_orders_and_skips_the_rest`: drives the list's bulk action with an ineligible (Completed) order listed *first* and an eligible (Draft) order second; asserts no action error, the eligible order becomes Confirmed, the ineligible one is untouched. Verified it fails ("The order cannot move from Completed to Confirmed") with the import removed and passes with it restored.
+
+Important changed files:
+
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php` (1 line — import)
+- `tests/Feature/ChangeOrderWorkflowActionTest.php` (1 new test)
+- `CHANGELOG.md` `[Unreleased]` → `### Fixed`
+
+Verification:
+
+- `php artisan test tests/Feature/ChangeOrderWorkflowActionTest.php tests/Feature/OrderStatusWorkflowTest.php tests/Feature/CourierIntegrationTest.php tests/Feature/OrderBulkPrintTest.php tests/Feature/OrderFormTest.php` — 48 passed (261 assertions).
+- Full `php artisan test` (plain, no `--env`): 1233 passed, 4 failed — all four pre-existing in the shared working tree from other in-flight sessions, none related to this one-line import: `AdminNavigationClustersTest` (an uncommitted `crm/sales-automation` page now sorts first), `CompanyStorageMigrationTest` (2 vs 3 planned paths — AI Tools generated_images), `FileUploadClearActionTest` (fake-disk path race), `ReleaseNotesTest` (`config/app.php` still `2.11.2` in the working copy vs published `2.14.0`). The worktree commit is built on clean `origin/main`, which is green.
+
+Commit status: Committed + pushed to `origin/main` as `PENDING_SHA` (owner approved: "কমিট এবং পুশ কর"). Built in an isolated detached worktree on `origin/main` (`e18313c4`, the v2.14.1 release cut); the shared local tree was left untouched — only the three files above. The concurrent courier-prefill changes to `OrdersTable.php` are already on `origin/main` and untouched by this one-line addition.
+
 ## 2026-09-09 - Hero Slides: hide the banner pagination per display type (desktop / mobile)
 
 Reason — owner (screenshot of the live Marketplace Pro storefront homepage, the dot-pagination pill circled): "বেনারের পেজিনেশন টা হাইড করার অপশন যুক্ত কর hero slide এ, মোবাইল এবং ডেস্কটপের জন্য আলাদা টোগল বাটন বাটন রেখ যাতে ডিস্প্লে অনুযায়ী পেজিনেশন এনেবল অথবা ডিজেবল করতে পারি।" — add an option in Hero Slides to hide the banner pagination, with separate toggles for mobile and desktop so it can be enabled/disabled per display.
