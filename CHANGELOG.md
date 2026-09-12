@@ -8,6 +8,8 @@ All notable production changes to Business Dashboard are documented here.
 
 - Release Notes now keeps inline **Technical Notes:** entries in the technical audience even when they contain none of the existing database/deployment keywords. Ordinary feature notes remain visible to all permitted users.
 
+- **The Courier Fraud Check could report a clean "0 delivered / 0 cancelled" Steadfast history for a phone number that actually has real delivery history.** Steadfast's merchant portal redirects on both a correct and a wrong password, so a stale or incorrect Steadfast fraud-check login was read as "logged in"; the following lookup then landed back on Steadfast's login page (HTML, not the expected JSON), and the missing `total_delivered` / `total_cancelled` fields were silently read as `0` instead of being treated as a failed check. The check now requires those fields to actually be present and drops the result (instead of showing a false clean history) when they're not — the same "courier didn't answer" outcome already shown for missing credentials or a network failure. **This does not by itself fix a Steadfast login that's actually wrong — if `SteadfastFraudClient` still can't authenticate, the courier now correctly disappears from the result instead of showing a false 0/0.**
+
 ### Added
 
 - **Editable sales-agent conversation guidelines:** Settings → Integrations → AI Integration → Auto Messaging now has a native Filament Markdown editor with formatting and a restore-default action. The supplied Bengali sales playbook loads by default; saved company-specific guidance reaches subsequent AI requests without a deployment. Illustrative prices and promises never replace verified product facts.

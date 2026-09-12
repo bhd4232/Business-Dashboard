@@ -2,6 +2,23 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-12 - Courier Fraud Check: Steadfast could report a false clean history
+
+Reason — owner: reported seeing two different fraud-check results for the same phone number (+8801819701516) — a third-party "nuport" app showed real Steadfast history (49 total, 46 delivered, 3 undelivered, 93.88%), while our ERP's own Courier Fraud Check on the order form showed "No courier history found" / Steadfast 0/0.
+
+Root cause: `SteadfastFraudClient` scrapes Steadfast's merchant web portal (it has no public fraud-check API) — log in with the configured `fraud_check` username/password, then `GET /user/frauds/check/{phone}`. Steadfast's login form redirects back whether the password is right or wrong, and the existing guard (`! successful() && ! redirect()`) treats any redirect as a successful login. So a stale/incorrect password for this company's Steadfast fraud-check credentials still "logs in", and the phone lookup that follows silently lands back on Steadfast's login page (HTML) instead of the real JSON. The old code read the missing `total_delivered` / `total_cancelled` keys as `0`, so a failed login was indistinguishable from "this customer really has a clean record" — exactly the false 0/0 the owner saw. Pathao and RedX were checked too; both use real token APIs and already reject a missing/invalid response correctly, so this was Steadfast-only.
+
+What changed:
+
+- **`app/Services/CourierFraud/SteadfastFraudClient.php`** — the phone-history response must actually contain `total_delivered` and `total_cancelled` before it's trusted; otherwise the check now returns `null` (courier omitted from the result), same as a missing-credentials or network failure, instead of a false clean 0/0.
+- **`tests/Unit/Services/CourierFraud/SteadfastFraudClientTest.php`** (+1) — a login that redirects but never actually authenticates (phone-check response is the login page's HTML) must return `null`.
+
+Important — this fix stops the false "0/0 clean" report; it does **not** make the real Steadfast history (49/46/3) appear. For that, the Steadfast fraud-check username/password configured for this company (Courier Providers → Steadfast → fraud-check credentials) need to be verified against the actual account "nuport" is reading — if they're wrong/stale/for a different merchant account, the check will now correctly show "No courier history found" instead of a false zero, but still won't show the real numbers until the credentials are corrected.
+
+Verification: `php artisan test --filter=FraudClient tests/Unit/Services/CourierFraud tests/Feature/ExternalCourierFraudCheckTest.php tests/Feature/StorefrontRiskPaymentEligibilityTest.php` — 24 passed. Full `php artisan test` — 1254 passed, 2 failed; both pre-existing and unrelated (`AdminNavigationClustersTest` — the CRM Sales Automation cluster's first-authorized-page routing; `ReleaseNotesTest` — stale `config/release.php` version `2.11.2` vs CHANGELOG's `2.14.0`).
+
+Commit status: NOT committed. Awaiting owner approval.
+
 ## 2026-09-07 - Investor / Mudarabah module v3 — Sprint 1 (P1.1–P1.7)
 
 Reason — owner: "আমাদের ইনভেস্টর মডিউল টা অডিট কর সেখানে এখনো অনেক কাজ বাকি আছে" (audit the investor module — a lot of work still remains; `ERP_PHASE_ROADMAP.md` marked Phase 15 "Done", the owner disagreed). Grounded in 5 real business documents the owner supplied: the profit-settlement Excel + 19 per-investor PDFs, the investor deed paper (3× ৳100 stamps + security cheque), the channel-partner agreement, and the investor register PDF. Full gap analysis, owner Q&A, and build order are in `01_INVESTOR_MODULE_v3_GAP_ANALYSIS.md`.
