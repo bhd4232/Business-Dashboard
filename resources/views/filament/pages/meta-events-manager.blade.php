@@ -20,8 +20,8 @@
             <x-filament::section icon="heroicon-o-information-circle" icon-color="gray">
                 <p class="text-sm">
                     No Pixel/Dataset configured for this company yet. Set one up on
-                    <a href="{{ \App\Filament\Pages\MetaCapiSettings::getUrl() }}" class="underline font-medium">
-                        Storefront &rarr; Meta CAPI
+                    <a href="{{ \App\Filament\Pages\Integrations::getUrl() }}" class="underline font-medium">
+                        Settings &rarr; Integrations
                     </a>
                     to see Pixel Health here (Audiences below still work without one).
                 </p>

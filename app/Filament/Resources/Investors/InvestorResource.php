@@ -13,6 +13,7 @@ use App\Support\CompanyScopedUnique;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -42,10 +43,14 @@ class InvestorResource extends Resource
         return $schema->columns(1)->components([
             Section::make('Investor Identity')->schema([
                 TextInput::make('name')->required(),
+                TextInput::make('display_name')
+                    ->label('Display / Pseudonym')
+                    ->helperText('চুক্তির ধারা ৩ অনুযায়ী shared রিপোর্টে investor ছদ্মনামে দেখাতে চাইলে। খালি রাখলে আসল নাম ব্যবহার হবে।'),
                 TextInput::make('guardian_name')->label('Father / Spouse Name'),
+                DatePicker::make('date_of_birth')->label('Date of Birth')->maxDate(now()),
                 TextInput::make('phone')->tel()->required()->unique(ignoreRecord: true, modifyRuleUsing: CompanyScopedUnique::rule()),
                 TextInput::make('email')->email(),
-                TextInput::make('nid_number')->label('NID Number'),
+                TextInput::make('nid_number')->label('NID / Passport'),
                 Select::make('channel_partner_id')
                     ->label('Channel Partner')
                     ->relationship('channelPartner', 'name', fn ($query, ?Investor $record) => $query->when($record, fn ($q) => $q->whereKeyNot($record->getKey())))
@@ -58,6 +63,23 @@ class InvestorResource extends Resource
                     ->columnSpanFull(),
                 Textarea::make('address')->columnSpanFull(),
             ])->columns(2),
+            Section::make('Nominee')
+                ->description('চুক্তিপত্রের ধারা ১০ অনুযায়ী প্রতি investor একজন নমিনি দেন।')
+                ->schema([
+                    TextInput::make('nominee_name'),
+                    TextInput::make('nominee_nid_or_passport')->label('Nominee NID / Passport'),
+                    TextInput::make('nominee_phone')->tel(),
+                    TextInput::make('nominee_relation')->label('Relation to Investor')->placeholder('স্ত্রী / পুত্র / ভাই ...'),
+                    Textarea::make('nominee_address')->columnSpanFull(),
+                ])->columns(2)->collapsible(),
+            Section::make('Security Documents')
+                ->description('ডিট পেপারের ৳১০০ স্ট্যাম্প ও নিরাপত্তা চেকের নম্বর।')
+                ->schema([
+                    TextInput::make('stamp_number')
+                        ->label('Stamp No.')
+                        ->helperText('৳১০০ স্ট্যাম্পের সিরিয়াল নম্বর — একাধিক হলে কমা দিয়ে লিখুন।'),
+                    TextInput::make('cheque_number')->label('Cheque No.'),
+                ])->columns(2)->collapsible(),
         ]);
     }
 
@@ -66,14 +88,27 @@ class InvestorResource extends Resource
         return $schema->columns(1)->components([
             Section::make('Investor Summary')->schema([
                 TextEntry::make('name'),
+                TextEntry::make('display_name')->label('Display / Pseudonym')->placeholder('-'),
                 TextEntry::make('guardian_name')->placeholder('-'),
+                TextEntry::make('date_of_birth')->date()->placeholder('-'),
                 TextEntry::make('phone'),
                 TextEntry::make('email')->placeholder('-'),
-                TextEntry::make('nid_number')->label('NID Number')->placeholder('-'),
+                TextEntry::make('nid_number')->label('NID / Passport')->placeholder('-'),
                 TextEntry::make('channelPartner.name')->label('Channel Partner')->placeholder('Direct investor'),
                 TextEntry::make('lifetime_invested')->state(fn (Investor $record): float => $record->totalInvestedLifetime())->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('lifetime_profit')->state(fn (Investor $record): float => $record->totalProfitReceivedLifetime())->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('address')->columnSpanFull()->placeholder('-'),
+            ])->columns(2),
+            Section::make('Nominee')->schema([
+                TextEntry::make('nominee_name')->placeholder('-'),
+                TextEntry::make('nominee_nid_or_passport')->label('Nominee NID / Passport')->placeholder('-'),
+                TextEntry::make('nominee_phone')->placeholder('-'),
+                TextEntry::make('nominee_relation')->label('Relation')->placeholder('-'),
+                TextEntry::make('nominee_address')->columnSpanFull()->placeholder('-'),
+            ])->columns(2),
+            Section::make('Security Documents')->schema([
+                TextEntry::make('stamp_number')->label('Stamp No.')->placeholder('-'),
+                TextEntry::make('cheque_number')->label('Cheque No.')->placeholder('-'),
             ])->columns(2),
         ]);
     }

@@ -200,6 +200,37 @@ class StorefrontBannerTest extends TestCase
         $this->assertStringNotContainsString('100vh / 3', $css);
     }
 
+    public function test_marketplace_pro_desktop_banner_is_shorter_than_built_in_so_the_category_row_stays_in_view(): void
+    {
+        // Owner request 2026-09-08 (screenshot): on desktop the Marketplace
+        // Pro banner should be short enough that the "Shop by category" row
+        // below it is visible without scrolling. Only Marketplace Pro is
+        // scoped down (4:1, capped) — Built-in keeps its 3:1 — and mobile
+        // is untouched.
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString(
+            "body[data-storefront-theme='marketplace_pro'] .storefront-image-banner {",
+            $css,
+        );
+        $this->assertStringContainsString('aspect-ratio: 4 / 1;', $css);
+        $this->assertStringContainsString('max-height: 30rem;', $css);
+
+        $marketplace = StorefrontThemeRegistry::bannerSpec(StorefrontThemeRegistry::MARKETPLACE_PRO);
+        $builtIn = StorefrontThemeRegistry::bannerSpec(StorefrontThemeRegistry::BUILT_IN);
+
+        // Same width, shorter height than Built-in on desktop...
+        $this->assertSame(1920, $marketplace['desktop']['width']);
+        $this->assertSame(480, $marketplace['desktop']['height']);
+        $this->assertLessThan($builtIn['desktop']['height'], $marketplace['desktop']['height']);
+        $this->assertStringContainsString('4:1', $marketplace['desktop']['note']);
+
+        // ...and the mobile slot is identical to Built-in / unchanged.
+        $this->assertSame($builtIn['mobile'], $marketplace['mobile']);
+        $this->assertSame(900, $marketplace['mobile']['width']);
+        $this->assertSame(320, $marketplace['mobile']['height']);
+    }
+
     public function test_banner_fits_to_screen_on_mobile_without_cropping(): void
     {
         // Mobile uses object-fit: contain ("fit to screen") so a slide
@@ -212,6 +243,126 @@ class StorefrontBannerTest extends TestCase
         $this->assertStringContainsString('.storefront-image-banner img {', $css);
         $this->assertStringContainsString('object-fit: contain;', $css);
         $this->assertStringContainsString('object-fit: cover;', $css);
+    }
+
+    public function test_fit_to_frame_forces_the_whole_image_to_show_at_every_breakpoint(): void
+    {
+        // Owner request 2026-09-08: a per-slide "Fit to frame" toggle so a
+        // banner image that isn't the exact ratio is shown in full (never
+        // cropped). The rule must sit outside every media query — its extra
+        // class raises specificity above both the base and the desktop
+        // `object-fit: cover` rule, so it wins at all sizes with no !important.
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString(
+            '.storefront-image-banner img.storefront-image-banner-fit {',
+            $css,
+        );
+
+        $fitRuleAt = strpos($css, '.storefront-image-banner img.storefront-image-banner-fit {');
+        $firstMediaAt = strpos($css, '@media');
+
+        $this->assertNotFalse($firstMediaAt);
+        $this->assertLessThan(
+            $firstMediaAt,
+            $fitRuleAt,
+            'The fit-to-frame rule must be a top-level rule, not nested in a media query.',
+        );
+    }
+
+    public function test_banner_pagination_shows_on_both_displays_by_default(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banner-nav-default.example.test');
+
+        foreach (['one', 'two'] as $index => $name) {
+            StorefrontSlide::query()->create([
+                'company_id' => $company->getKey(),
+                'image' => "storefront/slides/{$name}.jpg",
+                'sort_order' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        $this->get('http://banner-nav-default.example.test/')
+            ->assertOk()
+            ->assertSee('storefront-image-banner-nav', false)
+            ->assertDontSee('storefront-image-banner-hide-nav-desktop', false)
+            ->assertDontSee('storefront-image-banner-hide-nav-mobile', false);
+    }
+
+    public function test_owner_can_hide_the_banner_pagination_per_display_type(): void
+    {
+        // Owner request 2026-09-09 (screenshot): hide the banner's dot
+        // pagination, with independent control for desktop and mobile. Both
+        // default on, so the pagination keeps rendering exactly as before
+        // until turned off. The hide is CSS-only, per breakpoint, so one
+        // rendered page stays correct at every width.
+        $css = file_get_contents(resource_path('css/app.css'));
+
+        $this->assertStringContainsString('@media (max-width: 1023.98px) {', $css);
+        $this->assertStringContainsString(
+            '.storefront-image-banner-hide-nav-mobile .storefront-image-banner-nav {',
+            $css,
+        );
+        $this->assertStringContainsString(
+            '.storefront-image-banner-hide-nav-desktop .storefront-image-banner-nav {',
+            $css,
+        );
+
+        // Desktop hide lives in the >=1024px query, mobile hide below it —
+        // matching the banner's own desktop breakpoint.
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 1023\.98px\) \{\s*\.storefront-image-banner-hide-nav-mobile /',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/@media \(min-width: 1024px\) \{\s*\.storefront-image-banner-hide-nav-desktop /',
+            $css,
+        );
+
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banner-nav.example.test');
+
+        foreach (['one', 'two'] as $index => $name) {
+            StorefrontSlide::query()->create([
+                'company_id' => $company->getKey(),
+                'image' => "storefront/slides/{$name}.jpg",
+                'sort_order' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        StorefrontSetting::query()
+            ->where('company_id', $company->getKey())
+            ->update(['banner_pagination_desktop' => false, 'banner_pagination_mobile' => true]);
+
+        $this->get('http://banner-nav.example.test/')
+            ->assertOk()
+            ->assertSee('storefront-image-banner-nav', false)
+            ->assertSee('storefront-image-banner-hide-nav-desktop', false)
+            ->assertDontSee('storefront-image-banner-hide-nav-mobile', false);
+    }
+
+    public function test_hiding_pagination_on_both_displays_marks_the_banner_for_both(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'banner-nav-both.example.test');
+
+        foreach (['one', 'two'] as $index => $name) {
+            StorefrontSlide::query()->create([
+                'company_id' => $company->getKey(),
+                'image' => "storefront/slides/{$name}.jpg",
+                'sort_order' => $index,
+                'is_active' => true,
+            ]);
+        }
+
+        StorefrontSetting::query()
+            ->where('company_id', $company->getKey())
+            ->update(['banner_pagination_desktop' => false, 'banner_pagination_mobile' => false]);
+
+        $this->get('http://banner-nav-both.example.test/')
+            ->assertOk()
+            ->assertSee('storefront-image-banner-hide-nav-desktop', false)
+            ->assertSee('storefront-image-banner-hide-nav-mobile', false);
     }
 
     private function createPublishedStorefrontCompany(string $name, string $domain): Company

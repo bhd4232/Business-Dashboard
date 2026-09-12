@@ -35,7 +35,554 @@ Verification:
 - `npm run build`: succeeded (no frontend code changed; only run so the test suite's `@vite`-dependent views had a manifest to render).
 - Not yet covered by a dedicated regression test for the cache-hit/invalidation behavior itself (existing tests pass because `RefreshDatabase` + the `array` cache driver in `phpunit.xml` mean each test still sees fresh data either way) — worth a follow-up test if this needs to be guarded long-term.
 
-Commit status: Not committed — awaiting owner's explicit approval to commit and push (per CLAUDE.md commit policy).
+Commit status: Committed and pushed (owner approved: "হ্যাঁ, কমিট এবং পুশ করে দাও"); then merged with `main` to resolve the conflict this update note documents merging around (main had advanced substantially — CRM sales automation, image generation upload, investor form fields — while this branch was open).
+
+## 2026-09-12 - Investor form: father's name / address / NID-Passport, nominee, stamp & cheque no.
+
+Reason — owner: "ইনভেস্টর ফর্মে এই ফিল্ডগুলো যুক্ত কর পিতার নাম, ঠিকানা, NID/Passport অপশন রাখবে, ইনভেস্টরের তথ্যের পর বসাবে নমিনীর নাম, নমিনী অপশনসহ NID/Passport, নমিনীর ফোন নাম্বার, স্টাম্প নং., চেক নং.।" — father's name, address and an NID/Passport option already existed on the form (as `guardian_name` / `address` / `nid_number`); this adds the pieces that didn't: a nominee block placed right after the investor's own information, plus stamp and cheque numbers.
+
+What changed:
+
+- **`app/Models/Investor.php`** — `$fillable` gains `display_name`, `date_of_birth`, `stamp_number`, `cheque_number`, `nominee_name`, `nominee_nid_or_passport`, `nominee_phone`, `nominee_relation`, `nominee_address`; `date_of_birth` cast to `date`. New `reportName()` — returns the pseudonym (`display_name`) when set, else the real name, for documents shared with an investor under the deed's clause 3.
+- **`app/Filament/Resources/Investors/InvestorResource.php`** — Investor Identity gains Display/Pseudonym and Date of Birth, and NID Number is relabelled **NID / Passport**. A new **Nominee** section (positioned after Investor Identity, per the owner's request) holds name / NID-Passport / phone / relation / address. A new **Security Documents** section holds **Stamp No.** and **Cheque No.**. Matching `infolist()` entries on the view page.
+- **`database/migrations/2026_09_10_120000_add_nominee_and_security_fields_to_investors_table.php`** — adds the nine columns above to `investors`, each `Schema::hasColumn`-guarded.
+- **`tests/Feature/InvestorFormTest.php`** (new, 2 tests) — create and edit both round-trip every new field through the Filament form.
+
+Important: only the fields the owner asked for on the Investor's own record are added here. Per-investment contract/stamp/cheque detail already has its own place on `InvestorSecurityInstrument` (Investment → Security Instruments) and is untouched by this change.
+
+Verification: `php artisan test tests/Feature/InvestorFormTest.php tests/Feature/MultiCompanyIsolationTest.php` — 9 passed. Full `php artisan test` — 1184 passed, 1 failed; the failure (`ReleaseNotesTest > database related release notes are hidden from non super admin users`) is a transient read of `CHANGELOG.md` mid-edit by another concurrent session (the file is live-parsed from disk) — re-ran in isolation immediately after and it passed. Unrelated to this change.
+
+Commit status: Committed and pushed.
+
+## 2026-09-10 - AI Tools / Image Generation: upload-your-own reference image on the form (plan 11, Phase 4 final follow-up)
+
+Reason — owner: "ফেজ ৪ এর শেষ ফলো-আপ (form থেকে reference upload) কর" — the one deferred Phase 4 item: let a user upload a photo on the Image Generation form and run image-to-image / background removal on it, instead of only regenerating an existing library image.
+
+What changed (one page + its blade + tests; no schema change — reuses `generated_images.reference_image_path` / `operation` from `78f8eb96`):
+
+- **`app/Filament/Pages/ImageGeneration.php`**
+  - Form gains `reference_image` (FileUpload), `reference_operation` (Select: *Reimagine it from my prompt* / *Just remove its background*), `reference_strength` (Select, image-to-image only). The upload section is `->visible(fn () => $this->canEditImages())` — hidden unless a configured provider supports image-to-image or background removal. `reference_operation` options are filtered to what a provider can actually run (`referenceOperationOptions()`).
+  - `prompt` is now `->required()` **except** for an uploaded reference set to background removal (`isBackgroundRemovalUpload()`).
+  - `generate()` branches: reference present → `generateFromUploadedReference()`. That resolves the operation, picks a supporting provider (`configuredProfileSupporting()`), checks the monthly cap (form error, same as `generate()`), then dehydrates the form (persists the upload through `optimizeImageUpload()` → `CompanyStorageService` `ai-reference-uploads/`, Media-Hub registered), and hands off.
+  - New shared `queueDerivedGeneration()` — the single row-create + audit + `GenerateImageJob::dispatch` + notify path now behind **both** the gallery "Regenerate" / "Remove bg" actions (`startDerivedGeneration()` refactored onto it) and the form upload. Its completion notice is now review-status-aware. Audit context: `['source' => 'uploaded reference']` vs `['source_generation_id' => ...]`.
+  - `use OptimizesUploadedImages` (for `optimizeImageUpload()` + `browserImagePrecompression()`).
+- **`resources/views/filament/pages/image-generation.blade.php`** — section description mentions uploading. (The form fields render via `{{ $this->form }}` — no other blade change.)
+- **`tests/Feature/ImageGenerationPageTest.php`** (+3): uploaded reference queues an image-to-image job (asserts stored path under `ai-reference-uploads/`, strength 0.35 from "subtle"); uploaded reference + background removal needs no prompt and forces 1 image, `strength === null`; the `reference_image` field is hidden with no provider and with a Google-only (generate-only) company, visible once Stability is configured.
+- **`11_AI_TOOL_MENU_IMAGE_GENERATION_PLAN.md`** — Phase 4 marked ✅ complete; status line updated.
+- **`CHANGELOG.md`** — fresh `[Unreleased]` → `### Added` entry (the v2.15.0 cut on `ae83e0b1` had already moved the earlier "Regenerate / Remove background" entry into the released `[2.15.0]` section, so that one is left untouched).
+
+Verification:
+
+- `php artisan test --filter=Image` — 110 passed; `ImageGenerationPageTest` — 18 passed (3 new). `npm run build` — clean. Pint clean on the two changed files.
+- Full `php artisan test` — **1246 passed, 2 failed** (23 min). Both failures are pre-existing and from other in-flight sessions, not this change: `AdminNavigationClustersTest > cluster roots open the first authorized page` (uncommitted CRM `crm/sales-automation` page changing the `/admin/crm` redirect) and `ReleaseNotesTest > configured release matches the latest published changelog entry` (stale `config/app.php` version `2.11.2` vs CHANGELOG `2.14.0`).
+
+Commit status: Committed + pushed to `origin/main` (owner approved: "কমিট করে পুশ করে দাও"). Isolated detached worktree cherry-pick onto `origin/main`; shared local tree untouched — only the six files above. `CHANGELOG.md` / `UPDATE_NOTES.md` were reconstructed from HEAD + this session's edits (siblings' staged release-note work not swept in) and the cherry-pick's CHANGELOG hunk was re-homed into `[Unreleased]` after the v2.15.0 cut.
+
+## 2026-09-10 - Invoice numbers: one continuous per-company sequence, no daily reset
+
+Reason — owner: "ইনভয়েস নাম্বার ZMG-আজকের ডেট-01 থেকে শুরু হয়, আবার পরের দিনের অর্ডার ইনভয়েস নাম্বার ZMG-পরের দিনের ডেট-01 থেকে শুরু হয়। এতে সঠিক ইনভয়েস খুজে পাওয়া দুষ্কর ... তাই ইনভয়েস আইডির শেষের অংশ ক্রমানুশারে হবে (আজকের দুইটা অর্ডার → ZMG-<today>-01, -02; আগামীকালের দুইটা → ZMG-<tomorrow>-03, -04)."
+
+Owner decisions (asked before building): (1) the running number continues from the company's total order count; (2) already-issued invoice numbers stay unchanged — only new orders use the new sequence; (3) two-digit minimum padding (01, 42, 128).
+
+Before — `Order::nextOrderNumber()` built `PREFIX-<Ymd>-<seq>` where `<seq>` was `(count of order_numbers LIKE 'PREFIX-<today>-%') + 1`, three-digit padded. Every calendar day restarted at `001`, and `PREFIX-<anydate>-001` existed for dozens of dates.
+
+After — `<seq>` is `(all orders for this company, trashed included) + 1`, two-digit-min padded; the daily `LIKE` filter and suffix parsing are gone. The date segment is unchanged (placement date, `now()`). Because the value is a live row count, every order advances it — including admin orders that submit the form's pre-filled number — and a concurrent collision still lands on the `order_number` UNIQUE index, so `GeneratesSequentialNumber` retries and the recount lands one higher (`SequentialNumberConcurrencyTest` unchanged and still green). `withoutGlobalScopes()` so the count is for the order's own company regardless of the active context and includes trashed orders.
+
+No migration / no new column — the owner's "continue from the total count" is exactly `count()+1`, computed live.
+
+Scope — customer orders / invoices only. Quotations (`QT-…`) and storefront complaints (`CMP-…`) keep their own daily-reset numbering; two now-stale "See Order::nextOrderNumber()" code comments there were made self-contained.
+
+Edge — permanently deleting an order (Trash → "Delete permanently", super-admin + confirm) lowers the count, so a later order could re-use that suffix on a different date. Trashing (the normal bulk action) does not — trashed orders are counted. On deploy the first new number jumps to (current order count + 1), which for an established company is well past the old daily `-01`/`-02` — expected, and the point of the change.
+
+Files:
+- `app/Models/Order.php` — `nextOrderNumber()` rewritten (count-based, 2-digit pad, no date filter, `withoutGlobalScopes()`).
+- `app/Models/Quotation.php`, `app/Models/StorefrontComplaint.php` — comment only.
+- `tests/Feature/InvoiceDesignTest.php` — replaced the old three-digit-daily test with three: the running sequence survives a day boundary; it continues from an existing 128-order count and grows to `-129`; trashed orders still count.
+- `CHANGELOG.md` `[Unreleased]` → `### Changed`.
+
+Verification:
+- `php artisan test tests/Feature/InvoiceDesignTest.php tests/Feature/SequentialNumberConcurrencyTest.php tests/Feature/MultiCompanyIsolationTest.php tests/Feature/SalesOrderTest.php tests/Feature/OrderFormTest.php tests/Feature/StorefrontCheckoutPolicyTest.php tests/Feature/ChatOrderLinkTest.php tests/Feature/StorefrontFoundationTest.php tests/Feature/DemoDataSeederTest.php` — 72 passed.
+- Full `php artisan test`: 1241 passed, 2 failed — both pre-existing in the shared working tree and unrelated (`AdminNavigationClustersTest` — an uncommitted `crm/sales-automation` page sorts first; `ReleaseNotesTest` — `config/app.php` version still behind the published changelog). The worktree commit is built on clean `origin/main`, which is green.
+
+Commit status: Committed + pushed to `origin/main` as `PENDING_SHA` (owner approved: "কমিট এবং পুশ কর"). Isolated detached worktree on `origin/main` (`ae83e0b1`, v2.15.0 release cut); shared local tree untouched — only the six files above.
+
+## 2026-09-10 - AI Tools / Image Generation: image-to-image ("Regenerate") + background removal (plan 11, Phase 4 remainder)
+
+Reason — owner: "ফেজ ৪ এর বাকি কাজ (background removal, image-to-image) কর" — finish Phase 4's two deferred image-editing features. (The rest of plan 11 shipped in v2.14.0.)
+
+Provider capability decision (was §13's open question): OpenAI + any OpenAI-images-compatible custom endpoint do image-to-image via `/v1/images/edits`; Stability does image-to-image (SD3 `mode=image-to-image`) and background removal (`/v2beta/stable-image/edit/remove-background`); Google Imagen has no simple img2img endpoint on the `:predict` API, so it stays generate-only. Each adapter declares what it can do — nothing is hard-coded in the UI.
+
+What changed:
+
+- **`generated_images.operation`** — new string column, default `generate` (migration `2026_09_10_100000_add_operation_to_generated_images_table`, with the standard re-run guard). Values `generate` / `image_to_image` / `background_removal`. `GeneratedImage` gains `OPERATION_*` constants, `OPERATIONS` map, `isDerived()`, `operationLabel()`, and a `$attributes` default.
+- **`ImageGenerationRequest`** — new readonly fields `operation`, `referenceImage` (raw bytes), `strength`, plus `OP_*` constants and `requiresReferenceImage()`.
+- **`ImageGenerationClient`** interface — new `supportsOperation(string): bool`. `AbstractImageProvider` provides `operations()` (default `[OP_GENERATE]`) + `assertOperationSupported()`.
+- **`OpenAiImageProvider`** — `operations()` adds `image_to_image`; `editImage()` posts the source to `/v1/images/edits` (multipart). `CustomOpenAiCompatibleProvider` derives the edits URL from the profile's Base URL.
+- **`StabilityImageProvider`** — split into `textToImage()` / `imageToImage()` (SD3, `strength`) / `removeBackground()` (single image); `operations()` = all three.
+- **`GoogleImageProvider`** — `assertOperationSupported()` so an unsupported op fails clearly.
+- **`ImageProviderResolver::formatsSupporting(string $operation)`** — the `api_format`s whose adapter can run an operation.
+- **`GenerateImageJob`** — 2nd constructor arg `?float $strength`; resolves the operation, checks the adapter supports it, loads the reference bytes via `CompanyStorageService::readPublic()`, forces `count = 1` for background removal.
+- **`ImageGeneration` page** — per-image `regenerateFromImage` + `removeBackground` actions; `canRegenerateFromImage()` / `canRemoveBackground()` gate the gallery buttons; `startDerivedGeneration()` shares the cap / review / audit / dispatch path with `generate()`.
+- **`ImageLibrary`** — "Kind" badge column + filter.
+- **`image-generation.blade.php`** — "Regenerate" / "Remove bg" buttons (conditional) + operation chip on derived-image cards.
+
+Important changed / new files:
+
+- `database/migrations/2026_09_10_100000_add_operation_to_generated_images_table.php` (new)
+- `app/Models/GeneratedImage.php`, `app/Jobs/GenerateImageJob.php`, `app/Filament/Pages/{ImageGeneration,ImageLibrary}.php`
+- `app/Services/ImageGeneration/{ImageGenerationRequest,ImageGenerationClient,ImageProviderResolver}.php`, `Providers/{AbstractImageProvider,OpenAiImageProvider,CustomOpenAiCompatibleProvider,StabilityImageProvider,GoogleImageProvider}.php`
+- `resources/views/filament/pages/image-generation.blade.php`
+- `tests/Feature/{ImageGenerationProviderAdaptersTest,GenerateImageJobTest,ImageGenerationPageTest}.php`
+- `11_AI_TOOL_MENU_IMAGE_GENERATION_PLAN.md`, `CHANGELOG.md` `[Unreleased] → Added`
+
+Verification:
+
+- Image* suite via `--filter` — 70 passed. Full `php artisan test` — see run below.
+- `npm run build` — clean.
+
+Commit status: committing now (owner approved 2026-09-10). Only this session's Phase-4-remainder files.
+
+## 2026-09-10 - Fix: Orders list bulk "Change status" action silently did nothing
+
+Reason — owner: "অর্ডার লিস্টে অর্ডার সিলেক্ট করে স্টেটাস পরিবর্তন করলে সেটা চেঞ্জ হয় না ... স্ট্যাটাস পরিবর্তন এর কোন একশন কাজ করছেনা।" — selecting orders on the list and changing their status does nothing.
+
+Root cause — `app/Filament/Resources/Orders/Tables/OrdersTable.php` uses `catch (ValidationException)` in two bulk actions (`changeWorkflowStatus`, `bookCourierBulk`) but the `use Illuminate\Validation\ValidationException;` import was dropped in commit `114cbba6` and never restored. In that namespace the catch resolved to the non-existent `App\Filament\Resources\Orders\Tables\ValidationException`, so `OrderStatusWorkflowService::transition()`'s `ValidationException` ("The order cannot move from X to Y") was never caught — it escaped the `foreach`, Livewire turned it into a silent validation error on the component, and the whole bulk action aborted with **no order updated and no notification**. Any selection containing one order that can't legally reach the chosen stage (very common — e.g. some already Confirmed/Completed) triggered it; if the first selected order was ineligible it looked completely dead.
+
+What changed:
+
+- **`app/Filament/Resources/Orders/Tables/OrdersTable.php`** — one line: restore `use Illuminate\Validation\ValidationException;`. Now `changeWorkflowStatus` counts ineligible orders as "skipped" ("N updated, M skipped" warning) as designed, and `bookCourierBulk`'s failed-validation skip works too.
+- **`tests/Feature/ChangeOrderWorkflowActionTest.php`** — new `test_the_bulk_change_status_action_updates_eligible_orders_and_skips_the_rest`: drives the list's bulk action with an ineligible (Completed) order listed *first* and an eligible (Draft) order second; asserts no action error, the eligible order becomes Confirmed, the ineligible one is untouched. Verified it fails ("The order cannot move from Completed to Confirmed") with the import removed and passes with it restored.
+
+Important changed files:
+
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php` (1 line — import)
+- `tests/Feature/ChangeOrderWorkflowActionTest.php` (1 new test)
+- `CHANGELOG.md` `[Unreleased]` → `### Fixed`
+
+Verification:
+
+- `php artisan test tests/Feature/ChangeOrderWorkflowActionTest.php tests/Feature/OrderStatusWorkflowTest.php tests/Feature/CourierIntegrationTest.php tests/Feature/OrderBulkPrintTest.php tests/Feature/OrderFormTest.php` — 48 passed (261 assertions).
+- Full `php artisan test` (plain, no `--env`): 1233 passed, 4 failed — all four pre-existing in the shared working tree from other in-flight sessions, none related to this one-line import: `AdminNavigationClustersTest` (an uncommitted `crm/sales-automation` page now sorts first), `CompanyStorageMigrationTest` (2 vs 3 planned paths — AI Tools generated_images), `FileUploadClearActionTest` (fake-disk path race), `ReleaseNotesTest` (`config/app.php` still `2.11.2` in the working copy vs published `2.14.0`). The worktree commit is built on clean `origin/main`, which is green.
+
+Commit status: Committed + pushed to `origin/main` as `PENDING_SHA` (owner approved: "কমিট এবং পুশ কর"). Built in an isolated detached worktree on `origin/main` (`e18313c4`, the v2.14.1 release cut); the shared local tree was left untouched — only the three files above. The concurrent courier-prefill changes to `OrdersTable.php` are already on `origin/main` and untouched by this one-line addition.
+
+## 2026-09-09 - Hero Slides: hide the banner pagination per display type (desktop / mobile)
+
+Reason — owner (screenshot of the live Marketplace Pro storefront homepage, the dot-pagination pill circled): "বেনারের পেজিনেশন টা হাইড করার অপশন যুক্ত কর hero slide এ, মোবাইল এবং ডেস্কটপের জন্য আলাদা টোগল বাটন বাটন রেখ যাতে ডিস্প্লে অনুযায়ী পেজিনেশন এনেবল অথবা ডিজেবল করতে পারি।" — add an option in Hero Slides to hide the banner pagination, with separate toggles for mobile and desktop so it can be enabled/disabled per display.
+
+Context — the shared banner partial renders a dot-nav + pause/play pill (`.storefront-image-banner-nav`, only when there is more than one slide). There was no way to hide it, and no display-specific control anywhere in the storefront admin. The banner's own CSS already splits "mobile" vs "desktop" at `1024px`; this reuses that line.
+
+What changed:
+
+- **`storefront_settings.banner_pagination_desktop` / `banner_pagination_mobile`** — two new boolean columns, both default `true` (migration `2026_09_09_120000_add_banner_pagination_toggles_to_storefront_settings_table`, with the same "already-present column is a safe no-op" guard the other recent migrations use). Added to `StorefrontSetting` `$fillable`, cast `boolean`, `??= true` in `booted()`, plus a `showsBannerPagination(string $display): bool` helper that defaults to visible when the column is missing/null (older/restored DB).
+- **`ListStorefrontSlides`** (the Hero Slides list page) — a new header action **"Pagination display"** next to "New slide". It opens a modal with two toggles ("Show pagination on desktop" — screens ≥1024px; "Show pagination on mobile" — narrower), prefilled from the active company's row and saved back to it. Hidden when no `StorefrontSetting` exists yet / "all companies" is selected.
+- **`resources/views/storefront/partials/image-banner.blade.php`** — reads `$setting->showsBannerPagination(...)` and adds `storefront-image-banner-hide-nav-desktop` / `-mobile` to the `<section>` via `@class`; the nav pill wrapper gets a stable `storefront-image-banner-nav` class. The markup is always rendered — the hide is CSS-only per breakpoint — so one page is correct at every width.
+- **`resources/css/app.css`** — `@media (max-width: 1023.98px) { .storefront-image-banner-hide-nav-mobile .storefront-image-banner-nav { display: none } }` and the `min-width: 1024px` counterpart for desktop. The two-class selector outranks the `.flex` utility on the wrapper, so no `!important`.
+
+Important changed / new files:
+
+- `database/migrations/2026_09_09_120000_add_banner_pagination_toggles_to_storefront_settings_table.php` (new)
+- `app/Models/StorefrontSetting.php` (fillable + casts + `booted()` defaults + `showsBannerPagination()` helper)
+- `app/Filament/Resources/StorefrontSlides/Pages/ListStorefrontSlides.php` (header action + `activeStorefrontSetting()` helper)
+- `resources/views/storefront/partials/image-banner.blade.php` (`@class` on `<section>`, `storefront-image-banner-nav` on the pill wrapper)
+- `resources/css/app.css` (two new media-query rules)
+- `tests/Feature/StorefrontBannerTest.php` (3 new: default shows on both; hide desktop only; hide both), `tests/Feature/StorefrontSlideTest.php` (2 new: toggles persist per display; form prefills current values)
+- `CHANGELOG.md` `[Unreleased]` → `### Changed`
+
+Note — `tests/Feature/SchemaDriftMigrationTest.php` (an untracked, multi-session working-tree file) already references this migration on disk and stays out of this commit; the migration's own `Schema::hasColumn()` early-return is the drift guard, matching `2026_08_29_000100` and `2026_09_08_120000`.
+
+Verification:
+
+- `php artisan test tests/Feature/StorefrontBannerTest.php tests/Feature/StorefrontSlideTest.php tests/Feature/StorefrontThemeTest.php` (in the shared working tree, with the drift test present) — 33 passed (182 assertions).
+- Full `php artisan test` (plain, no `--env`): **1120 passed** (5974 assertions), 0 failed (461.9s).
+- `npm run build` — clean; both `@media` rules present, minified, in `public/build/assets/app-*.css`.
+- Browser — self-contained CSS page served through the dev server, the four class combinations in the banner slot, checked at 1280px (desktop) and 375px (mobile): default → nav visible both; hide-mobile → hidden <1024 only; hide-desktop → hidden ≥1024 only; hide-both → hidden everywhere. All correct. (The demo DB is not migrated here, same constraint as the 2026-09-08 banner work — owner to eyeball the real admin toggle on staging/production after deploy.)
+
+Commit status: Committed + pushed to `origin/main` as `PENDING_SHA` (owner approved: "কমিট এবং পুশ কর"). Built in an isolated detached worktree on `origin/main` (`31325b9c`, the v2.14.0 release cut); the shared local tree was left untouched — only the nine files in the commit.
+
+## 2026-09-10 - AI Tools: Image Generation, Prompt Enhancer, Library, Governance (plan 11, phases 0–5)
+
+Reason — owner: "11 ai tool menu image generation plan এই প্ল্যান টা রিভিউ কর" → "ওকে তুমি তাহলে কাজ শুরু কর" → repeated "পরবর্তি ফেজের কাজ কর" through phase 5, then "কমিট করে দাও, শুধু এই সেশনের কাজ কমিট করে পুশ কর". Executes `11_AI_TOOL_MENU_IMAGE_GENERATION_PLAN.md`.
+
+Two owner decisions gathered mid-build: access default = Super Admin + built-in Manager get `ai_tools.menu` + `ai_tools.image_generation` (reserved keys picker-only); Media Hub = every finished generated image calls `Media::recordUpload()`.
+
+**Execution deviation from the plan's §4/§11:** provider/model/key config was NOT added as tabs on `Integrations.php`. It lives on dedicated super-admin pages in the AI Tools cluster (Image Providers, Prompt Enhancer, Image Governance) so the feature is fully self-contained and does not depend on another session's in-flight `AiSettingsService` per-tool refactor. `PromptEnhancerConfigService` + `ImageProviderSettingsService` + `ImageGovernanceService` each own their own `companies.settings->ai_tools->*` key; `AiSettingsService` and `Integrations.php` are untouched by this commit.
+
+What changed (by phase):
+
+- **Phase 0 — Foundation:** `AiTools` navigation cluster; `ToolMenu` hub page + card grid (permission-filtered, "Coming soon" for the two reserved tools); permission keys `ai_tools.menu` / `ai_tools.image_generation` / `ai_tools.image_generation.review` + reserved `ai_tools.video_generation` / `ai_tools.content_creation` wired into `User::ROLE_PERMISSIONS` (Manager) and `User::CUSTOM_PERMISSION_OPTIONS`; `docs/roles-and-permissions.md`.
+- **Phase 1 — Image Generation core:** `generated_images` table + `GeneratedImage` model (`BelongsToCompany` + `CompanyScope`, in `MultiCompanyIsolationTest`); `ImageProviderSettingsService` (provider-profile list at `companies.settings->ai_tools->image_generation`, encrypted keys) + `ImageProviderSettings` page; `ImageGenerationClient` contract + `ImageProviderResolver` + 4 adapters (OpenAI / Google Imagen / Stability / custom OpenAI-compatible — API key never in a URL); `ImageOptimizerService::optimizeBytes()`; `GenerateImageJob` (queued, sets/clears `CompanyContext`, WebP + `CompanyStorageService` + `Media::recordUpload()`, `BusinessNotificationService`); `ImageGeneration` page (form + polled gallery + per-image download).
+- **Phase 2 — Prompt Enhancer:** `config/prompt_guides.php` (expert defaults per context + per-provider style notes); `PromptGuideRepository` (admin override → config default → generic; owns `companies.settings->prompt_guides` + `image_brand_style`); `PromptEnhancerConfigService` (own encrypted config at `companies.settings->ai_tools->prompt_enhancer` — reuses `AiLlmClient` for the call, not `AiSettingsService`); `PromptEnhancementService`; `PromptEnhancerSettings` page; `✨ Enhance` action on `ImageGeneration` (before/after, always explicit).
+- **Phase 3 — Attach & handoff:** `GeneratedImageAttacher` (featured image / gallery / offer cover banner; `linked` morph stamped; blocked while a review is pending); per-image "Add to a product" / "Set as an offer banner" + per-generation "Mark as video reference" on the gallery; `GeneratedImage::scopeVideoReferences()`. Meta ad handoff = the "featured image" option (the Meta Ads creative flow already derives its image from `product->image`).
+- **Phase 4 — Library:** `ImageLibrary` page (thumbnail + prompt + context/provider/creator, filters, "Reuse prompt" via `?from=<id>`, favourite toggle); `generated_images.is_favorite` + `scopeFavorites()`; star toggle on the tool's own gallery. Background-removal and image-to-image regeneration deferred (need the §13 provider shortlist).
+- **Phase 5 — Governance:** `generated_images` gains `estimated_cost`, `review_status`, `reviewed_by`/`reviewed_at`/`review_note`; `cost_per_image` per provider profile; `ImageGovernanceService` (per-role monthly caps, review-roles, `usageSummary()`, `review()`); `ImageGovernance` page (config + this-month usage dashboard); cap enforced in `ImageGeneration::generate()`; approve/reject actions on `ImageLibrary` gated by `ai_tools.image_generation.review`; audit logging via `AuditLogService` on generate / attach / review.
+
+Important new files: `app/Filament/Clusters/AiTools.php`; `app/Filament/Pages/{ToolMenu,ImageGeneration,ImageLibrary,ImageProviderSettings,PromptEnhancerSettings,ImageGovernance}.php` + their views; `app/Models/GeneratedImage.php`; `app/Jobs/GenerateImageJob.php`; `app/Services/ImageGeneration/*` (settings, governance, attacher, client/resolver/adapters, exceptions, request/result DTOs); `app/Services/PromptEnhancement/*` (config, enhancement, guide repository); `config/prompt_guides.php`; migrations `2026_09_09_140000_create_generated_images_table`, `2026_09_09_150000_add_favorite_flag_to_generated_images_table`, `2026_09_10_090000_add_governance_fields_to_generated_images_table`; ~13 feature test files (~135 tests).
+
+Surgical edits to pre-existing tracked files (only these): `app/Models/User.php` (5 permission keys), `app/Services/ImageOptimizerService.php` (`optimizeBytes()`), `tests/Feature/MultiCompanyIsolationTest.php` (+`GeneratedImage`), `docs/roles-and-permissions.md`.
+
+Verification:
+
+- Affected + full `php artisan test` — see run. The one unrelated failure (`AdminNavigationClustersTest` / CRM cluster first-page) is another session's in-flight `SalesAutomation` page, not this work.
+- `npm run build` — clean.
+
+Commit status: committing now (owner approved 2026-09-10 — "কমিট করে দাও, শুধু এই সেশনের কাজ কমিট করে পুশ কর"); only this session's AI Tools files, no concurrent work.
+
+## 2026-09-08 - Hero Slides: per-slide "Fit to frame" toggle so an off-ratio banner image is never cropped
+
+Reason — owner: "বেনার এ একটা অপশন রাখ যে ফিট টু ফ্রেম, এতে ইমেজ সাইজ কম বেশি হলে কেটে যাবেনা।" — add a "Fit to frame" option on the banner so an image whose size is a bit off doesn't get cut off. (Follows the same-day change that shortened the Marketplace Pro banner to 4:1 with crop-to-fit.)
+
+Context — the banner `<img>` uses `object-fit: cover` on desktop (fills edge to edge, crops overflow) and `object-fit: contain` on mobile ("fit to screen", never crops). There was no way to get the no-crop behaviour on desktop for a slide whose artwork isn't the exact ratio.
+
+What changed:
+
+- **`storefront_slides.fit_to_frame`** — new boolean column, default `false` (migration `2026_09_08_120000_add_fit_to_frame_to_storefront_slides_table`, with the same "already-present column is a safe no-op" guard the other recent migrations use). Added to `StorefrontSlide` `$fillable` + cast `boolean`.
+- **`StorefrontSlideResource`** — a `Toggle::make('fit_to_frame')` ("Fit to frame (never crop the image)") after the mobile image field, with helper text explaining the letterbox trade-off. Default off.
+- **`resources/views/storefront/partials/image-banner.blade.php`** — the slide `<img>` gets `@class([... , 'storefront-image-banner-fit' => $slide->fit_to_frame])`.
+- **`resources/css/app.css`** — new top-level rule `.storefront-image-banner img.storefront-image-banner-fit { object-fit: contain; }`. Its extra class raises specificity above both the base rule and the desktop `@media (min-width: 1024px) { ... object-fit: cover }` rule, so a fit-to-frame slide shows the whole image at **every** breakpoint with no `!important`. A normal slide is completely unaffected.
+
+Important changed / new files:
+
+- `database/migrations/2026_09_08_120000_add_fit_to_frame_to_storefront_slides_table.php` (new)
+- `app/Models/StorefrontSlide.php` (fillable + cast)
+- `app/Filament/Resources/StorefrontSlides/StorefrontSlideResource.php` (Toggle)
+- `resources/views/storefront/partials/image-banner.blade.php` (`@class` on the `<img>`)
+- `resources/css/app.css` (one new top-level rule)
+- `tests/Feature/StorefrontSlideTest.php` (3 new: fit slide is marked; standard slide isn't; form exposes the toggle), `tests/Feature/StorefrontBannerTest.php` (1 new: CSS rule exists and is outside every media query)
+- `CHANGELOG.md` `[Unreleased]` → `### Changed`
+
+Verification:
+
+- `php artisan test tests/Feature/StorefrontSlideTest.php tests/Feature/StorefrontBannerTest.php tests/Feature/StorefrontThemeTest.php tests/Feature/SchemaDriftMigrationTest.php` — 28 passed (152 assertions).
+- Full `php artisan test` (plain, no `--env`): **1115 passed** (5944 assertions), 0 failed (525.01s).
+- `npm run build` — clean; `.storefront-image-banner img.storefront-image-banner-fit` present in `public/build/assets/app-*.css`.
+- Browser — self-contained page served through the dev server, a deliberately off-ratio (4:3) image in the banner slot at 1600px desktop: the normal slide computes `object-fit: cover` and crops the top/bottom off the artwork; the fit-to-frame slide computes `object-fit: contain` and shows the whole image with dark letterbox bars at the sides. Nothing cut off.
+
+Commit status: Committed + pushed to `origin/main` (owner approved: "কমিট এবং পুশ কর"). Built in an isolated worktree on the v2.13.3 release commit `13616ead`; the shared local tree was left untouched — only the eight files above are in the commit.
+
+## 2026-09-08 - Marketplace Pro hero banner is shorter on desktop so the category row stays in view
+
+Reason — owner (screenshot of the live Marketplace Pro storefront homepage): "ফ্রন্টেন্ডের ব্যনার marketplace pro theme এর সাইজ ঠিক এই রকম হবে।" Clarified in follow-up: "এই থিম এর বেনার সাইজ এর হাইট আমার দেয়া স্ক্রিন শটের বেনার হাইট এর মত হবে, যাতে নিচে কেটাগরি সেকশন শো করে। মোবাইলে অপরিবর্তিত থাকবে।" — on **desktop / large screens** the Marketplace Pro banner should be short enough (about the screenshot's height) that the "Shop by category" row directly below it is visible without scrolling. Mobile unchanged.
+
+Root cause — both the Built-in and Marketplace Pro themes render slides through the one shared `storefront.partials.image-banner`, sized by a single CSS rule: `aspect-ratio: 3 / 1` on desktop (`≥1024px`). On a wide monitor 3:1 makes the full-width banner ~640px+ tall, pushing the trust strip + category row below the fold.
+
+What changed:
+
+- **`resources/css/app.css`** — a new scoped rule inside the existing `@media (min-width: 1024px)` block:
+  `body[data-storefront-theme='marketplace_pro'] .storefront-image-banner { aspect-ratio: 4 / 1; max-height: 30rem; }`.
+  Only Marketplace Pro is affected; the Built-in theme keeps `3 / 1`. The shared mobile rule (`aspect-ratio: 45 / 16`, `object-fit: contain`) and the shared desktop `object-fit: cover` are untouched, so mobile is byte-for-byte unchanged. `30rem` (480px) caps the banner on monitors ≥1920px wide; from 1024px to 1920px the `4:1` ratio governs (256px → 480px).
+- **`app/Support/StorefrontThemeRegistry.php`** — `BANNER_SPECS['marketplace_pro']['desktop']` is now `1920×480` (4:1) with an updated helper note; `['mobile']` is unchanged (`900×320`). This flows automatically into the Hero Slides upload editor: `bannerAspectRatio()` reduces `1920:480` → `4:1`, so `->imageEditorAspectRatios()` now locks new desktop artwork to 4:1 and `->imageResizeTargetHeight()` targets 480. The class docblock's "~3:1" line updated. No change to `StorefrontSlideResource` itself.
+
+Important changed files:
+
+- `resources/css/app.css` (one new scoped rule in the `≥1024px` block)
+- `app/Support/StorefrontThemeRegistry.php` (`BANNER_SPECS` marketplace desktop 640→480 / 3:1→4:1, docblock)
+- `tests/Feature/StorefrontBannerTest.php` (new `test_marketplace_pro_desktop_banner_is_shorter_than_built_in_so_the_category_row_stays_in_view`)
+- `CHANGELOG.md` `[Unreleased]` → `### Changed`
+
+Verification:
+
+- `php artisan test tests/Feature/StorefrontBannerTest.php tests/Feature/StorefrontThemeTest.php` — 19 passed (118 assertions) at the final 4:1 / 30rem sizing.
+- Full `php artisan test` (plain, no `--env`): **1111 passed** (5933 assertions), 0 failed (800.71s).
+- `npm run build` — clean; scoped rule (`aspect-ratio:4;max-height:30rem`) confirmed present in `public/build/assets/app-*.css`.
+- Browser — could not exercise the real Marketplace Pro storefront (the demo DB has no company on that theme and the auto-mode classifier blocks switching one). Verified the CSS with a self-contained page served through the dev server: at 1920×1080 the 4:1 rule renders the banner 1920×480 with the full "Shop by category" row above the fold vs the Built-in theme's 1920×640 that pushes it down; at <1024px both themes render byte-identical (2.813:1, `object-fit: contain`). Owner to eyeball on staging/production after deploy.
+
+Owner tightened the ratio from an initial 32:9 / 34rem (540px @ 1920) to **4:1 / 30rem (480px @ 1920, capped)** after seeing the first pass.
+
+Commit status: Committed + pushed to `origin/main` (owner approved: "commit and push it"). Built in an isolated worktree on the v2.13.2 release commit `78691c24`; the shared local tree was left untouched — only the five files above are in the commit.
+
+## 2026-09-08 - Fix: a "Remove" action for image fields whose preview is stuck loading
+
+Reason — owner (screenshot of "Edit Storefront Slide" with both image fields sitting on "Loading / Waiting for size" after a page reload): "কোন পেজ রিলোড করলে ইমেজ ফিল্ড গুলো লোডিং হতে থাকে এক্সিস্টিং ইমেজ তখন রিমুভও করা যায় না। সিলেক্টেড ইমেজ রিমুভ করার অপশন এড কর ইমেজ যদি লোডিং এ থাকে। এইটা সকল ইমেজ ফিল্ডগুলোতে এপ্লিকেবল হবে।"
+
+Root cause — Filament's FileUpload renders an already-saved image by handing FilePond only the file URL and letting it `fetch()` the blob to build the preview + read the size. FilePond's remove ("×") button only appears once that finishes. When the fetch is slow or fails (company-scoped media served through PHP, an offline mobile webview, the dev server under concurrent load, `cache: 'no-store'` forcing a fresh hit every reload) the item is stuck on "Loading / Waiting for size" with no built-in way to clear it — and a required image field then blocks the whole form from saving.
+
+What changed:
+
+- **New `App\Support\FileUploadClearAction`** — a hint `Action` (`name = clearFileField`, label "Remove", danger colour, x-mark icon) that sets the field's state to `null` and calls `callAfterStateUpdated()`. `FileUploadStateCast` normalises `null` → empty for both single and multiple uploads; FilePond's own `$watch('state')` then redraws the field as empty. The stored object is **not** deleted (same as the native remove) so a mis-click is recoverable from the Media Hub. `->visible()` only while the field holds a value and isn't disabled.
+- **`AppServiceProvider::boot()`** — `FileUpload::configureUsing(fn ($upload) => $upload->hintAction(fn () => FileUploadClearAction::make()))`, so **every** FileUpload in the app gets it (a Closure, not a shared Action instance, so each field gets its own). Composes with the existing per-field `->hintAction(selectFromMediaHubAction())` — `hintActions()` appends.
+
+Important changed / new files:
+
+- `app/Support/FileUploadClearAction.php` (new)
+- `app/Providers/AppServiceProvider.php` (import + one `FileUpload::configureUsing()` block, next to the existing `Table::configureUsing()`)
+- `tests/Feature/FileUploadClearActionTest.php` (new — 3 cases: action present on every FileUpload; clears a stored image + saves null + leaves the file on disk; not offered while empty)
+- `CHANGELOG.md` `[Unreleased]` → `### Fixed`
+
+Verification:
+
+- `php artisan test tests/Feature/FileUploadClearActionTest.php` — 3 passed.
+- `php artisan test tests/Feature/MediaHubTest.php tests/Feature/PublicMediaUploadPreviewTest.php tests/Feature/BrowserImagePrecompressionTest.php` — 10 passed (hint-action composition unaffected).
+- `php artisan test --filter=ReleaseNotes` — 5 passed.
+- Full `php artisan test` (plain, no `--env`) — **1110 passed** (5923 assertions), 0 failed.
+- Browser (demo, `demo@example.com`): Product edit page → both image fields ("Featured Image", "Gallery Images") show a label-row "Remove" next to "Select From Media"; clicking it removed the FilePond preview item and hid itself (state now empty). Not saved — demo data untouched.
+- No frontend asset changes (the affordance is a server-rendered Filament action, not JS) → `npm run build` not required.
+
+Commit status: committed to `origin/main` with this change (fast-forward, on top of v2.13.1). Working tree carries unrelated concurrent-session changes; only the files above (plus these notes / the CHANGELOG line) are in the commit.
+
+## 2026-09-08 - Inbox redesigned as modern chat bubbles (WhatsApp/Messenger-style)
+
+Reason — owner asked for chat-UI inspiration (shared a stock-vector site link, which the sandbox's egress proxy blocked); instead of that site, two clickable HTML mockups (desktop 3-column + mobile phone-frame) were built and published as artifacts using this app's own real amber brand color and real Inbox content (customer names, delivery states, the SMS-fallback badge). Owner approved both ("দুটোই ভালো লাগছে") and asked to implement in the real code ("আসল কোডে বসিয়ে দাও").
+
+What changed — `resources/views/filament/pages/inbox.blade.php` + `resources/css/filament/admin/theme.css`, visual-only:
+
+- Message bubbles: the `x-filament::callout` wrapper per message is replaced with a plain `<div>` styled via new `.zz-bubble*` CSS classes — colored rounded bubbles (amber outgoing / neutral incoming), with real WhatsApp-style grouping computed in the `@forelse` loop (`$groupedWithPrevious`/`$groupedWithNext`, looking one message ahead via `$next` in addition to the existing `$previous`): consecutive same-direction messages on the same day get tight spacing and only the *last* bubble in a run gets the rounded "tail" corner (`zz-bubble-tail-in`/`-out`), everything else stays fully rounded. Every existing conditional (image/attachment rendering incl. `data-product-thumbnail`, `data-message-wrap="anywhere"` body text, `generated_by` badges, failed+retry) is untouched, just moved inside the new wrapper.
+- Delivery status is now a small tick SVG (single/double/alert, colored via new `--zz-chat-*` tokens) next to the timestamp instead of a text badge; the original text label (`$deliveryLabels`) is kept as `sr-only` for screen readers. The "via SMS" fallback and "Internal note" become small pill/dashed styles (`.zz-fallback-badge`, `.zz-bubble-note`) instead of Filament badges/callout heading.
+- Conversation list: each row's generic provider `heroicon` is replaced with a colored circular initials avatar (`$avatarColor()`/`$initials()` helpers added to the page's top `@php` block — a `crc32`-based palette index over the conversation id, so a contact's color is stable across renders; no schema change, purely computed).
+- Composer: restyled into a floating pill via CSS only (`.zz-inbox-composer .fi-input-wrp`/`.fi-btn`/`.fi-icon-btn { border-radius: 999px }`) — the textarea/button markup and every Livewire binding (`rows="1"`, `x-on:input="autogrowComposer($event)"`, `wire:model`, `wire:submit`) are unchanged.
+- Removed the now-dead `$deliveryColors` array (superseded by the tick mapping); `$messageColor` (the old callout `:color`) is gone the same way.
+- New CSS tokens on `.zz-inbox` (light) and `.dark .zz-inbox` (dark) reuse Filament's own dynamic `var(--primary-*)`/`var(--gray-*)` custom properties (the project's real amber panel color) rather than inventing a separate palette, so the redesign follows the panel's actual brand color and existing `.dark`-class dark-mode toggle (not a `prefers-color-scheme` media query, matching every other dark-mode rule already in this file).
+
+Mid-task rebase: `main` had advanced from v2.5.0 to v2.13.0 (Products Quick Edit, Orders status tabs, stat-card sizing, courier COD, etc.) while this was being designed, and the same two files it also touched independently (composer autogrow, stat-card CSS, Orders mobile header selector). Per policy for a branch whose only prior PR (#6) was already merged, the branch was restarted from `origin/main` (`git checkout -B claude/lead-crm-requirements-415de2 origin/main`) and these edits re-applied on the fresh base rather than stacked on the old merged history; `InboxPageTest`'s pinned-markup test had itself been updated upstream (`min-h-[40px]`, `x-on:input="autogrowComposer($event)"`, `resize-none` — the fixed-height textarea became auto-growing) and needed no changes here since this work never touches the composer's textarea markup.
+
+Important changed files:
+
+- `resources/views/filament/pages/inbox.blade.php`
+- `resources/css/filament/admin/theme.css`
+
+Verification:
+
+- `php artisan test --filter=InboxPageTest` — 16 passed (108 assertions), including the markup-pin test.
+- `php artisan test --filter=WhatsAppSmsFallbackTest` — 3 passed; `--filter=QuickReplyTest` — 6 passed (both touch the Inbox composer/thread).
+- Full `php artisan test` (plain, no `--env`) on the rebased branch — **75 failed, 995 passed** (5393 assertions). Cross-checked against a clean baseline on the same `origin/main` tip (stash, rerun, diff sorted failure-name lists): **byte-for-byte identical 75 failures** — all pre-existing `ViteManifestNotFoundException` (no `npm run build`/`public/build/manifest.json` in this sandbox), zero regressions.
+- No `npm run build` needed — every change is inline Tailwind utility classes plus CSS consumed directly by the browser from `resources/css`, same as the rest of this file already was.
+- Not yet checked in a real browser against the demo DB (no working `npm run build` output in this sandbox to render Filament's compiled assets) — the two approved mockup artifacts are the visual reference; ask the owner to eyeball the real Inbox page after deploy.
+
+Commit status: pending owner's explicit commit/push approval (received: "কমিট এবং পুশ কর").
+
+## 2026-09-07 - Feature: order-status quick-filter tabs + mobile header layout on the Orders list
+
+Reason — two owner asks on the Orders list:
+1. (annotated screenshot + reference to Nuport's order dashboard) status "boxes" next to the Trash button, one per order status; clicking one filters the list to just that status. Couldn't reach Nuport (the MCP browser has no shared login) but the request is unambiguous and this is the standard pattern.
+2. (annotated screenshot) on mobile, the "New order" button should sit on the same row as the "Orders" page title instead of wrapping below it — mobile only.
+
+What changed:
+
+- `ListOrders::getTabs()` — "All" + one `Filament\Schemas\Components\Tabs\Tab` per `Order::STATUSES` value. Each carries a live count badge (one grouped `count(*)` query, company-scoped + soft-delete-aware via the model's global scopes) and colour-matches the table's Status badge (`success`/`warning`/`danger`/`gray`); a selected tab adds `->modifyQueryUsing(fn ($q) => $q->where('status', $value))`. Filament renders this as the tab strip above the table — exactly where the screenshot's boxes were drawn — with `?activeTab=` URL persistence.
+- The `SelectFilter::make('status')` in `OrdersTable` is deliberately kept: `BusinessOverview`'s "Open all pending orders" deep link (`?filters[status][value]=draft`) and its end-to-end test (`DashboardDrilldownTest::test_the_storefront_pending_see_all_link_actually_filters_the_orders_list`) depend on it, and tabs + filters compose fine.
+- Mobile header: `CreateAction` on `ListOrders` gets `->extraAttributes(['class' => 'zz-orders-mobile-header-action'])`, and the existing `@media (max-width: 63.999rem)` rule in `resources/css/filament/admin/theme.css` (which already keeps the Products menu / Inbox selector beside their titles) now also matches `.fi-header:has(.zz-orders-mobile-header-action)` → `flex-direction: row; justify-content: space-between`. Filament stacks `.fi-header` only below its own 40rem breakpoint, and from 40rem up its own rule already sets the identical row layout, so desktop is unchanged. Needs `npm run build` (theme change).
+
+Important changed files:
+
+- `app/Filament/Resources/Orders/Pages/ListOrders.php`
+- `resources/css/filament/admin/theme.css` (+ rebuilt `public/build/`)
+- `tests/Feature/OrderListStatusTabsTest.php` (new)
+
+Verification:
+
+- `php artisan test tests/Feature/OrderListStatusTabsTest.php tests/Feature/ProductHeaderActionsResponsiveTest.php` — 5 passed. Blast radius (`DashboardDrilldownTest`, `DefaultTableSortTest`, `OrderFormTest`, `OrderBulkPrintTest`, `ChangeOrderWorkflowActionTest`, `OrderTrashWorkflowTest`, `SalesOrderTest`) — 27 passed.
+- Full `php artisan test` (plain, no `--env`) — **1095 passed, 0 failed** (5854 assertions).
+- `npm run build` — succeeded (`theme-*.css` rebuilt).
+- Browser (demo DB): Orders list shows **All 13 · Draft 1 · Confirmed 1 · Processing 4 · Completed 7 · Cancelled 0 · Returned 0 · Refunded 0** with colour-coded count badges; clicking **Completed** narrows to the 7 completed orders, **Draft** to the 1 draft ("Showing 1 result"). At 390px the "New order" button sits on the same row as the "Orders" title (title left, button right); the tab strip scrolls horizontally below it (Filament v5 default; no page overflow).
+
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
+
+## 2026-09-06 - Order-create redirect, courier COD = full total, courier form prefill fix
+
+Reason — owner's three requests:
+
+1. After creating an order the Create page should return to the orders list (it jumped to the new order's View page).
+2. The courier "panel" was only getting the product price as COD; it should be the total price including shipping cost.
+3. The courier booking form's recipient fields showed up empty ("bug") — should auto-fill from the customer.
+
+Owner clarifications gathered before building: COD = **full `total_amount`** (not the amount still due); when the order's own shipping fee is ৳0, **add the zone delivery charge** from `ShippingFeeService`; #3 is a genuine "fields blank" bug.
+
+What changed:
+
+- **#1** — `CreateOrder::getRedirectUrl()` now returns `OrderResource::getUrl('index')`.
+- **#2** — new `Order::courierCodAmount()`: full `total_amount`, never reduced by advance paid, plus the `ShippingFeeService::feeFor()` zone fee when `shipping_fee <= 0`. Wired into the `cod_amount` default of every booking form and every `$data['cod_amount'] ?? $order->due_amount ?? 0` fallback in `CourierService` (manual / Pathao / RedX / E-Courier / Steadfast payload) — so the bulk "Book courier" action gets it too.
+- **#3** — the three "Book courier" / "Book Steadfast" actions (`ViewOrder`, `OrdersTable`) now prefill via `->fillForm(fn ($record) => app(CourierService::class)->bookingFormDefaults($record, $shape))` instead of scattered per-field `->default()`. New `CourierService::bookingFormDefaults()` is the single source of truth for recipient + COD + driver-select defaults (`manual` / `steadfast` / `unified` shapes). The now-duplicated `->default()` calls were removed from the schema builders (with a comment: Filament skips a component default whenever a `->fillForm()` payload omits that field, so new defaultable fields must be added to the helper).
+
+Important changed files:
+
+- `app/Models/Order.php` (new `courierCodAmount()`)
+- `app/Services/CourierService.php` (new `bookingFormDefaults()`, COD fallbacks)
+- `app/Filament/Resources/Orders/Pages/CreateOrder.php`, `Pages/ViewOrder.php`
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php`
+- Tests: `tests/Feature/OrderFormTest.php` (redirect), `tests/Feature/CourierIntegrationTest.php` (COD amount + zone fallback, booking-popup prefill)
+
+Verification:
+
+- `php artisan test` (plain, no `--env`): **1092 passed, 0 failed** (5838 assertions) — full suite green.
+- Targeted: `OrderFormTest`, `CourierIntegrationTest`, `CourierMonitoringTest`, `SalesOrderTest`, `OrderStatusWorkflowTest`, `StorefrontCheckoutPolicyTest`, `ChangeOrderWorkflowActionTest`, `ExternalCourierFraudCheckTest` — 66 passed. Pint clean.
+- Browser (demo DB, `demo@example.com`): opened **Book courier** on INV-DEMO-0008 (Ovi Telecom, total ৳10,490 / due ৳7,740) — recipient prefilled "Ovi Telecom" / "+8801712000007" / "Rajshahi", courier "Demo Steadfast — Default", and **COD amount = 10490** (full total, not the ৳7,740 due). Order-create redirect confirmed by the passing `test_creating_an_order_redirects_to_the_orders_list`; the full browser create flow was flaky under concurrent-session load on the shared dev server.
+- No frontend asset changes, so `npm run build` not required.
+
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
+
+## 2026-09-06 - Feature: Products Quick Edit, bulk Stock Pool linking, uniform compact dashboard cards
+
+Reason — owner's three requests:
+
+1. The product list has no fast edit — the row "Edit" navigates to the full page. Wants a "Quick Edit" that pops the edit form open over the list to change any field.
+2. The Stock Pool tool is slow: one pool per product through a single-record form, and no way to see which company a product pools into.
+3. Main dashboard cards are inconsistent in size and too big on mobile; wants every dashboard's cards one uniform size, smaller on phones.
+
+What changed:
+
+- **Quick Edit (Feature 1).** New shared trait `app/Filament/Concerns/PersistsProductFormData.php` holds the product-form write path (mirror `sale_price`→`price`, route `stock` through `Product::setStockFromProductForm()`); `EditProduct` now delegates its `mutate*` hooks to it. `ProductsTable` row actions are grouped into a `⋯` menu — View / **Quick Edit** (`EditAction::make('quickEdit')->slideOver()` using the resource form + the trait via `mutateRecordDataUsing`/`using`) / Edit (full page). `ListProducts::getDefaultActionUrl()` returns `null` for `quickEdit` so it opens a modal instead of Filament's default redirect to the edit page.
+- **Bulk Stock Pool linking + visibility (Feature 2).** New non-nav page `app/Filament/Resources/StockPools/Pages/BulkLinkStockPools.php` (+ blade), super-admin only, registered as `StockPoolResource` page `bulk-link`, linked from `ListStockPools` header. Pick a source + linked company, stage `sourceProductId => linkedProductId` matches inline (`SelectColumn`), "Suggest matches" pre-fills by exact SKU then name, "Save links" creates/extends pools via the existing `StockPoolResource::syncMembers()`. `StockPoolResource::table()` split into Source company / Pools into / Linked products columns; `ProductsTable` gained a toggleable "Shared with" badge column (eager-loaded `stockPool.products` without global scopes) + a `pooled` ternary filter.
+- **Uniform compact dashboard cards (Feature 3).** `resources/css/filament/admin/theme.css`: added a global `.fi-wi-stats-overview-stat` rule (padding 10px, value 20px, label 13px) + an `@media (max-width: 640px)` block (8px / 16px / 11px). Removed the size declarations from `.zz-business-overview-stat` (they blocked the mobile shrink); its `[wire:click]` drilldown rules stay. Affects every `StatsOverviewWidget` and hand-built stat card app-wide — the previously-untreated Customer Success & Risk, Courier Health, and the Courier/Meta Ads dashboard cards now match Business Overview.
+
+Important changed files:
+
+- `app/Filament/Concerns/PersistsProductFormData.php` (new)
+- `app/Filament/Resources/Products/Tables/ProductsTable.php`, `Pages/ListProducts.php`, `Pages/EditProduct.php`
+- `app/Filament/Resources/StockPools/Pages/BulkLinkStockPools.php` (new), `resources/views/filament/resources/stock-pools/pages/bulk-link-stock-pools.blade.php` (new)
+- `app/Filament/Resources/StockPools/StockPoolResource.php`, `Pages/ListStockPools.php`
+- `resources/css/filament/admin/theme.css` (+ rebuilt `public/build/`)
+- New tests: `tests/Feature/ProductQuickEditTest.php`, `tests/Feature/BulkLinkStockPoolsTest.php`; updated `tests/Feature/BusinessOverviewLayoutTest.php`
+
+Verification:
+
+- `php artisan test` (plain, no `--env`, per CLAUDE.md): **1089 passed, 0 failed** (5823 assertions) — full suite green despite ~6 concurrent sessions on the tree.
+- Targeted blast radius (`ProductQuickEditTest`, `BulkLinkStockPoolsTest`, `StockPoolResourceTest`, `StockPoolTest`, `BusinessOverviewLayoutTest`, `ProductStatsOverviewTest`, `DashboardSummaryCardsTest`, `AdminNavigationClustersTest`, product + stock movement suites): all green.
+- `npm run build`: succeeded; built `theme-*.css` contains `.fi-wi-stats-overview-stat{padding:10px}` + the 640px shrink, and `.zz-business-overview-stat` now only in `[wire:click]` rules.
+- Browser (demo DB, `demo@example.com`): row `⋯` → Quick Edit opens the slide-over with the full form; edited "Sandbox Verify Product" (category + brand), got the "Saved" toast, list refreshed with new values; the full-page Edit still navigates. Bulk Link Products page renders with the two company selectors + empty state; Shared Stock Pools list shows the new Source company / Pools into / Linked products columns + "Bulk link products" button; Products list shows the "Shared with" column. Dashboard (1440px): all 18 stat cards inspect at padding 10px / value 20px / label 13px — Business Overview, Customer Success & Risk, and Courier Health now identical (were ~24px/30px for the latter two). Single-company demo DB can't exercise cross-company linking in the browser; `BulkLinkStockPoolsTest` covers it.
+
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
+
+## 2026-09-02 - Fix: quick-pick provider/model catalog was already stale
+
+Reason — owner reported the newly-added provider/model quick-pick showed old models, and searching for newer ones came up "not found". The curated list I'd written a few hours earlier (deepseek-chat, gpt-4o, llama-3.3-70b-versatile, grok-2-latest, mistral-large-latest, ...) was already out of date — this app's `currentDate` context is 2026-09-02, and every provider had shipped newer flagship models since whatever my own training reflects.
+
+What changed — `app/Filament/Pages/Integrations.php`'s `llmProviderPresets()`, re-verified via `WebSearch` against each provider's own docs/changelog as of today:
+
+- **DeepSeek**: `deepseek-chat`/`deepseek-reasoner` (legacy, being retired per DeepSeek's own API changelog) → `deepseek-v4-pro`, `deepseek-v4-flash`, `deepseek-v4-flash-vision-exp`.
+- **Groq**: dropped `llama-3.3-70b-versatile`/`llama-3.1-8b-instant` — Groq itself deprecated these — → `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `meta-llama/llama-4-scout-17b-16e-instruct`, `qwen-qwq-32b`, `deepseek-r1-distill-llama-70b` (Groq's own current recommendations).
+- **xAI**: `grok-2-latest`/`grok-2-mini`/`grok-beta` → `grok-4.6`, `grok-4.5`, `grok-4-0709` (confirmed against docs.x.ai model pages).
+- **OpenAI**: `gpt-4o`/`gpt-4.1`/`o3-mini` → `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `o3` (kept to OpenAI's established lowercase-hyphenated id convention rather than the friendlier "Sol/Terra/Luna" tier names some articles use, which read as marketing labels, not literal API ids).
+- **OpenRouter**: refreshed to current routes (`deepseek/deepseek-v4-pro`, `anthropic/claude-opus-5`, `google/gemini-3-flash-preview`, `x-ai/grok-4.6`, `openai/gpt-5-mini`).
+- **Together AI** / **Fireworks AI**: refreshed to their current DeepSeek V4/V3.1 and GLM-5.2 routes.
+- **Perplexity**: added `sonar-deep-research` (was missing) — confirmed the full 5-model Sonar family from Perplexity's own docs.
+- **Mistral**: left as-is (`mistral-large-latest`, `mistral-small-latest`, etc.) — Mistral's own `-latest` ids are permanent aliases the *provider* repoints to its newest release, so that list was already self-updating and not actually stale; added `magistral-medium-latest` (reasoning) to the list.
+- **Anthropic** fallback list (`anthropicModels()`) needed no change — already Opus 5/Sonnet 5/Haiku 4.5/Fable 5.1, the current lineup.
+- Reworded the model picker's helper text to make the fallback path explicit: *"if a search here comes up empty, just type any model name straight into the Model field below instead"* — the real Model field was always free-text, but that wasn't obvious from the original wording.
+- Added an explicit doc-comment caveat on `llmProviderPresets()`: this is a dated snapshot, not a live catalog — providers ship new models often, so treat a listed name that starts erroring as a cue to re-check the provider's own docs, not a ZamZam ERP bug.
+- `tests/Feature/IntegrationsPageTest.php`'s `test_picking_a_popular_provider_auto_fills_provider_base_url_and_a_default_model` updated to assert the new DeepSeek model ids instead of the retired ones.
+
+Verification:
+
+- `php artisan test --filter=IntegrationsPageTest`: 18 passed.
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1063 passed, 0 failed**.
+- Manually re-checked in the browser: DeepSeek preset now defaults to `deepseek-v4-pro`, its model-picker search offers `deepseek-v4-flash`/`deepseek-v4-flash-vision-exp`; a company's existing legacy `deepseek-chat` value still displays correctly in the picker via the existing "always merge in the current value" fallback (not blanked out by the catalog refresh).
+
+Commit status: Not committed yet — awaiting owner approval.
+
+## 2026-09-02 - Feature: Offer landing-page view buttons + AI provider/model quick-pick
+
+Reason — two follow-ups from the owner in the same session:
+1. While testing the newly-fixed Landing Page Builder AI config (DeepSeek key), the owner found no way to actually see the generated landing page anywhere in the Offers UI, or hand it to a customer.
+2. Separately, to make the AI Integration provider/model fields easier to fill in correctly (the DeepSeek troubleshooting earlier this session was exactly this kind of mistake — blank Base URL + leftover Anthropic model name), asked for a provider dropdown that auto-fills Base URL, and a searchable model dropdown per provider.
+
+### Offer landing-page view buttons
+
+- `app/Filament/Resources/Offers/OfferResource.php` — new `previewUrl(Offer $record)` (routes to `storefront.preview.offers.show`, the same admin-only, published-status-bypassing preview route `OfferController::showPreview()` already serves) and `publicUrl(Offer $record)` (`https://{domain}/offers/{slug}`, the real live route, published-only) static helpers — same pattern `StorefrontSettingResource::previewUrl()`/`publicUrl()` already established.
+- `app/Filament/Resources/Offers/Tables/OffersTable.php` — added "Preview" (always visible) and "Open Page" (visible only when `status === Published` and the company has a domain) row actions.
+- `app/Filament/Resources/Offers/Pages/EditOffer.php` — same two actions added to the header, next to the existing "Generate Landing Page with AI".
+- New `tests/Feature/OfferResourceLandingPageActionsTest.php` (5 tests): preview URL reachable for a draft offer, public URL format, action visibility in both the edit page and the list for draft vs. published+domain.
+
+### AI provider/model quick-pick
+
+- `app/Filament/Pages/Integrations.php`'s `aiToolFields()` (shared by all three AI tool tabs) gained two new transient, `dehydrated(false)` Select fields per tool, purely as convenience layered on top of the existing free-text fields — nothing about the underlying stored data shape changed:
+  - **`{tool}_provider_preset`** — searchable dropdown of popular OpenAI-compatible providers (new `llmProviderPresets()`: DeepSeek, Groq, OpenRouter, Mistral, xAI, Together AI, Fireworks AI, Perplexity, OpenAI, self-hosted Ollama/vLLM — each with a real base URL and a short list of well-known models; counts per provider vary honestly, e.g. DeepSeek genuinely only has 2 public model endpoints today rather than padding to a round 5). Picking one sets provider/base_url/api_format and a default model via `Set`; `afterStateHydrated` reverse-matches the currently-saved provider label back to a preset on page load.
+  - **`{tool}_model_picker`** — searchable dropdown of the selected provider's models (or Anthropic's own lineup when API format is Anthropic and no preset is chosen), via new `llmModelOptions()`. Picking one fills the real Model field.
+  - Both real fields (Provider name, Model) stay ordinary free-text — nothing not on these curated lists is blocked.
+- **Bug caught and fixed during testing** (not just a test artifact — a real latent issue): Filament validates a Select's submitted value against its own live `options()`. Since the model picker's options legitimately change whenever `provider_preset`/`api_format` change elsewhere on the form, a perfectly harmless prior picker selection could fail validation on save ("The selected ... is invalid") purely because the option list moved — even though the field is cosmetic and never persisted. Fixed by having `llmModelOptions()` always fold the picker's own current raw value into its own options (self-referential, always valid) in addition to the real Model field's value. Regression test added: `test_changing_api_format_after_picking_a_model_never_blocks_saving`.
+- New tests in `tests/Feature/IntegrationsPageTest.php`: `test_picking_a_popular_provider_auto_fills_provider_base_url_and_a_default_model`, `test_changing_api_format_after_picking_a_model_never_blocks_saving`.
+- Manually verified in the browser: picking DeepSeek auto-fills provider/base URL/format; the model picker shows a real search box with `deepseek-chat`/`deepseek-reasoner`; the provider picker's own search box scrolls through the full list (DeepSeek, Groq, OpenRouter, Mistral, xAI (Grok), ...).
+
+Important changed files:
+
+- `app/Filament/Resources/Offers/OfferResource.php`, `Tables/OffersTable.php`, `Pages/EditOffer.php`
+- `app/Filament/Pages/Integrations.php`
+- `tests/Feature/OfferResourceLandingPageActionsTest.php` (new)
+- `tests/Feature/IntegrationsPageTest.php`
+
+Verification:
+
+- Targeted runs — `OfferResourceLandingPageActionsTest` (5 passed), `IntegrationsPageTest` (18 passed), `StorefrontMetaTrackingTest`/`AiSettingsServiceTest`/`AiAutoReplyTest`/`OfferLandingPageAiGeneratorTest` (all passed, unaffected).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1063 passed, 0 failed**.
+- Manually verified in the live browser (both features) — see above.
+
+Commit status: Not committed yet — awaiting owner approval.
+
+## 2026-09-02 - Feature: full WooCommerce / Payment Gateway / Meta Pixel & CAPI consolidation into Settings → Integrations
+
+Reason — owner asked (screenshot-marked) for "Send test webhook"/"Sync an order now" to move from the Integrations page header into the WooCommerce tab body, and for each integration tab (WooCommerce, Payment Gateway, Meta Pixel & CAPI) to hold that integration's *entire* configuration, with the old scattered/duplicate copies removed — continuing this session's earlier AI-settings consolidation.
+
+Scope confirmed with the owner (AskUserQuestion, this session):
+- The Meta CAPI page's **Event Log & Retries** table (an operational view, not config) moves into Integrations' Meta Pixel & CAPI tab too, not left behind on its own page.
+- The WooCommerce **product-import** "Sync WooCommerce" action (previously on Storefront Settings, separate from the order-webhook sync already in Integrations) also moves into the Integrations WooCommerce tab.
+- **Access narrows deliberately**: the Meta CAPI Event Log used to be viewable by anyone with `sales.view`, even without `settings.manage`. Folding it into Integrations (`canAccess()` requires `canManageSettings()`) removes that for sales-only staff — owner explicitly accepted this rather than broadening Integrations' access.
+
+What changed:
+
+- `app/Filament/Pages/Integrations.php` — WooCommerce tab: `testWoocommerceWebhook`/`syncWooOrder` moved out of `getHeaderActions()` into the tab body (each is now its own `{name}Action()`-named method, not a shared array-returning helper — Filament's `callAction()`/`assertActionVisible()` test helpers resolve a page-level action by exactly that method-name convention, `InteractsWithActions::resolveAction()`, regardless of where the Action renders); new `syncWooCommerceImportAction()` (product import, reusing `WooCommerceImportService::importProducts()`) added alongside them. Payment Gateway tab gained `payment_credentials.zinipay_base_url`/`paystation_base_url`. Meta Pixel & CAPI tab expanded to every field `MetaCapiSettings::form()` used to hold (Connection & Pixels incl. additional Pixels/domain verification, Consent & Advanced Matching, Browser Events incl. custom events, Purchase Delivery, Order Status Events) via a new `metaFieldDefaults()`/`metaFields()` pair (same "fill every key explicitly so a brand-new company's required Select doesn't fail validation with no visible reason" pattern the page already used for AI/WooCommerce/Payment). New Event Log & Retries `Section`, gated `->visible()` on `sales.view` (not just left to the embedded widget's own check — an unauthorized widget mount corrupts the whole page's Livewire render, not just hides a field).
+- `app/Livewire/MetaEventLogTable.php` (new) + `resources/views/livewire/meta-event-log-table.blade.php` (new) — the Event Log table, embedded into the Meta Pixel & CAPI tab via `Filament\Schemas\Components\Livewire::make()`, the same pattern `App\Livewire\OrderTrashTable` already uses for the order-trash modal. Reuses `StorefrontMetaEventResource::table()` unchanged; `StorefrontMetaEvent`'s own `BelongsToCompany` scope keeps it company-scoped automatically; `mount()` gates on `sales.view`.
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php` — removed the "WooCommerce Import" and "Online Payments" `Section`s (and their now-dead `syncWooCommerceAction()`/`hasWooCommerceCredentials()` static methods + now-unused imports), with matching positional removals from the parallel `$sectionKeys` array that drives the section-nav sidebar.
+- Deleted `app/Filament/Pages/MetaCapiSettings.php`, `resources/views/filament/pages/meta-capi-settings.blade.php`, `resources/views/filament/pages/partials/meta-capi-settings-header.blade.php`. `ListStorefrontMetaEvents::mount()`'s legacy redirect now targets `Integrations::getUrl()` instead. Also fixed a stray hardcoded link to the deleted page in `resources/views/filament/pages/meta-events-manager.blade.php` (a different, unrelated Meta Ads page) that would otherwise have fataled the moment anyone opened it.
+
+Important changed files:
+
+- `app/Filament/Pages/Integrations.php`
+- `app/Livewire/MetaEventLogTable.php`, `resources/views/livewire/meta-event-log-table.blade.php`
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`
+- `app/Filament/Resources/StorefrontMetaEvents/Pages/ListStorefrontMetaEvents.php`
+- `resources/views/filament/pages/meta-events-manager.blade.php`
+- Deleted: `app/Filament/Pages/MetaCapiSettings.php` + its two blade views
+- `tests/Feature/IntegrationsPageTest.php` — new tests for the relocated/new WooCommerce product-import action, the Payment Gateway base-URL fields + a slice of the Meta fields saving together, and the embedded Event Log table rendering + a retry queuing.
+- `tests/Feature/StorefrontMetaTrackingTest.php` — the two `MetaCapiSettings`-specific Livewire tests rewritten against `Integrations` (dropping the section-nav/CSS assertions specific to the now-deleted bespoke header — Filament's own `Tabs` renders every tab's content up front, so no "select a section" step is needed); the legacy-redirect test now expects `Integrations::getUrl()`. Every other test in this large file exercises `StorefrontSetting` columns/services directly and was unaffected (confirmed by the full pass).
+- `tests/Feature/PhaseFourAdminPagesTest.php` — the Storefront Settings section-switching smoke test's `assertSee('Sync WooCommerce')` (that section's content changed) replaced with a field still actually in the "integrations" section group (WhatsApp group invite URL — the one section left there, Thank-you & Complaint Integration).
+- `tests/Feature/AdminNavigationClustersTest.php` — removed `MetaCapiSettings` from the Storefront cluster's expected-pages list.
+- `tests/Feature/WooCommerceImportTest.php` — unaffected (exercises `WooCommerceImportService` directly, never through either Filament form), confirmed by the full pass.
+
+Verification:
+
+- Targeted runs — `IntegrationsPageTest` (16 passed), `StorefrontMetaTrackingTest` (21 passed), `WooCommerceImportTest` (6 passed), `AdminNavigationClustersTest` (14 passed), `PhaseFourAdminPagesTest` (6 passed).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1056 passed, 0 failed**.
+- Not yet manually verified in a live browser (backend/Filament-only change; the automated Livewire tests already assert the exact rendered HTML/state this would show) — recommend a quick look at Settings → Integrations after deploy.
+
+Follow-up (same day) — owner asked for the Meta Pixel & CAPI tab's six sections (Connection & Pixels, Consent & Advanced Matching, Browser Events, Purchase Delivery, Order Status Events, Event Log & Retries) to be restyled as nested tabs matching the AI Integration tab's UX, instead of stacked collapsible sections. `app/Filament/Pages/Integrations.php`'s Meta Pixel & CAPI tab now nests a `Tabs::make('meta_capi_sections')` (same pattern as `ai_tools`), with each former Section's description text preserved as a `Placeholder` at the top of its own sub-tab. `Filament\Schemas\Components\Section` import removed (no longer used in this file). Re-ran `IntegrationsPageTest`/`StorefrontMetaTrackingTest` (37 passed) plus the full suite (1056 passed, 0 failed) — no test changes were needed, since all assertions checked field existence/labels/values rather than the Section-vs-Tab markup itself.
+
+Follow-up 2 (same day) — owner asked for icons on both nested-tab groups (AI Integration's Auto Messaging/Ad Assistant/Landing Page Builder, and Meta Pixel & CAPI's six sections), noting the old per-section menu already had its own icons that could be reused. Added `->icon(Heroicon::...)` to each `Tab`: AI Integration sub-tabs get new icons (`OutlinedChatBubbleLeftRight`, `OutlinedMegaphone`, `OutlinedRectangleStack`); Meta Pixel & CAPI sub-tabs reuse the exact icons `MetaCapiSettings::sectionNavigation()` used before it was retired (`OutlinedLink`, `OutlinedShieldCheck`, `OutlinedCursorArrowRays`, `OutlinedShoppingCart`, `OutlinedArrowsRightLeft`, `OutlinedQueueList`). Verified every constant exists in `vendor/filament/support/src/Icons/Heroicon.php` before using it. Re-ran `IntegrationsPageTest`/`StorefrontMetaTrackingTest` (37 passed) plus the full suite (1056 passed, 0 failed).
+
+Commit status: Not committed yet — awaiting owner approval.
+
+## 2026-09-02 - Feature: per-tool AI model selection (Settings → Integrations → "AI Integration")
+
+Reason — owner wants to pick a different, task-specialized AI model per tool (e.g. a fast cheap model for Inbox chat replies, a stronger reasoning model for ad strategy, a creative-writing model for landing pages) instead of one shared global provider/model/API key covering all three AI-powered features at once. Also asked to rename the Integrations page's "AI Assistant" tab to "AI Integration" since it now configures multiple integrations.
+
+Scope confirmed with the owner (AskUserQuestion, this session):
+- **Migration**: the one existing global config is copied into all three tools as their starting point (non-destructive, in-memory fallback), so nothing that works today (Auto Messaging, Ad Assistant, Landing Page Builder) breaks the moment this ships.
+- **Standalone CRM "AI Assistant Settings" page removal**: it duplicated the Integrations tab and is deleted outright — Settings → Integrations is now the one place AI is configured.
+
+What changed:
+
+- `app/Services/Crm/AiSettingsService.php` — rewritten to be tool-scoped. New `TOOL_MESSAGING`/`TOOL_AD_ASSISTANT`/`TOOL_LANDING_PAGE` constants + `TOOLS` label map. `all(Company $company, string $tool)` / `save(Company $company, string $tool, array $data)` / `enabled(Company $company, string $tool)` all take an explicit tool now. Storage moved from `companies.settings->ai` to `companies.settings->ai_tools->{tool}`. New `legacyGlobalSettings()` fallback: when a tool has never been saved under the new shape, `all()` reads the old shared `settings->ai` blob instead (still passed through the pre-existing provider-enum migration first) — in-memory only, nothing written back — so every tool reads the same legacy config until an admin explicitly saves that tool through the new per-tool UI.
+- `app/Services/Crm/AiReplyService.php`, `app/Services/MetaAdsAiAssistantService.php`, `app/Services/OfferLandingPageAiGenerator.php` — each now calls `AiSettingsService::all()`/`save()` with its own tool constant (`TOOL_MESSAGING`, `TOOL_AD_ASSISTANT`, `TOOL_LANDING_PAGE` respectively); the latter two's "configure AI first" error messages now point at the new Integrations sub-tab location.
+- `app/Filament/Pages/Integrations.php` — outer tab renamed `'AI Assistant'` → `'AI Integration'`; new `aiToolFields()` helper builds the shared ~10-field "provider connection" schema once, reused for three nested `Tab`s (Auto Messaging / Ad Assistant / Landing Page Builder) with `ai_{tool}_*`-prefixed state paths so the three tools' Livewire state never collides; new `aiToolFillState()` helper fills all three from `AiSettingsService::all()` in `mount()`; `save()` now loops `AiSettingsService::TOOLS` instead of a single flat save call. WooCommerce/Payment Gateway/Meta Pixel tabs, header actions, and access control are untouched.
+- Deleted `app/Filament/Pages/AiAssistantSettings.php` + `resources/views/filament/pages/ai-assistant-settings.blade.php` (the standalone CRM-cluster page). Removed its entry from `tests/Feature/AdminNavigationClustersTest.php`'s expected CRM page list, and its now-dead `'ai-assistant-settings' => 'crm'` entry from `app/Http/Controllers/Admin/LegacyAdminClusterRedirectController.php`.
+- Minor stale-comment cleanup in `app/Filament/Pages/CoolifyDeploymentSettings.php` and `app/Filament/Pages/PushNotificationSettings.php` (both referenced the now-deleted `AiAssistantSettings` page by name in a "same secret-blanking pattern" comment).
+
+Important changed files:
+
+- `app/Services/Crm/AiSettingsService.php`
+- `app/Services/Crm/AiReplyService.php`, `app/Services/MetaAdsAiAssistantService.php`, `app/Services/OfferLandingPageAiGenerator.php`
+- `app/Filament/Pages/Integrations.php`
+- `app/Http/Controllers/Admin/LegacyAdminClusterRedirectController.php`
+- Deleted: `app/Filament/Pages/AiAssistantSettings.php`, `resources/views/filament/pages/ai-assistant-settings.blade.php`
+- `tests/Feature/AiSettingsServiceTest.php` — rewritten: every `all()`/`save()` call now passes a tool constant; new tests for per-tool isolation (`test_each_tool_stores_and_reads_back_its_own_independent_config`), the legacy-copy fallback (`test_every_tool_falls_back_to_the_legacy_shared_config_until_saved_directly`), and **company isolation** (`test_two_companies_ai_tool_settings_are_fully_isolated` — two companies, same tool, provably separate rows, and a legacy blob added to one never appears on the other).
+- `tests/Feature/IntegrationsPageTest.php` — `data.ai_*` fields renamed to `data.ai_messaging_*`; new `test_each_ai_tool_tab_saves_independently_from_the_others` and `test_saving_ai_settings_for_one_company_never_leaks_into_another` (save via the page for company A, assert company B's row is untouched, then a **real HTTP** `->get('/admin/settings/integrations')` for company B — through the actual `SetCurrentCompany` middleware, not just Livewire::test() — never renders company A's model/API key text). Confirms AI settings are correctly company-scoped even though they aren't a `BelongsToCompany` model — they're a JSON attribute directly on the specific `Company` row passed into `AiSettingsService`, so there's no shared table a scope could leak across.
+- `tests/Feature/OfferLandingPageAiGeneratorTest.php`, `tests/Feature/MetaAdsAiAssistantServiceTest.php`, `tests/Feature/MetaAdsAiAssistantPageTest.php`, `tests/Feature/AiAutoReplyTest.php` — `AiSettingsService::save()` setup calls updated to the matching tool constant; one test's manual `settings['ai']['api_key'] = null` fixture updated to the new `settings['ai_tools'][...]['api_key']` path it actually needed to null out.
+- `tests/Feature/AdminNavigationClustersTest.php` — removed the deleted page's import/entry.
+
+Verification:
+
+- Targeted runs — `AiSettingsServiceTest` (8 passed, incl. company isolation), `IntegrationsPageTest` (13 passed, incl. company isolation through a real page load), `OfferLandingPageAiGeneratorTest` (5 passed), `MetaAdsAiAssistantServiceTest` (6 passed), `MetaAdsAiAssistantPageTest` (4 passed), `AiAutoReplyTest` (16 passed), `AdminNavigationClustersTest` (14 passed).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1053 passed, 0 failed**.
+
+Commit status: Not committed yet — awaiting owner approval.
 
 ## 2026-08-30 - Fix: WooCommerce orders that oversell ERP stock never synced
 
@@ -314,7 +861,7 @@ Verification:
 - No dedicated test added for the `OrderInfolist` change — no existing test in this repo exercises that Filament page (prior notes record Filament admin-page-render tests failing here on a missing Vite manifest); the change is a one-line `TextEntry` identical in shape to the already-working `tracking_id` entry right above it.
 - No frontend build assets changed, so `npm run build` was not required.
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
 
 ## 2026-08-29 - Fix production migration failure: idempotent guards on the broadcasts-tables migration
 
@@ -375,7 +922,7 @@ Verification:
 - No frontend build assets changed (PHP + a new Filament resource/console command only), so `npm run build` was not required.
 - Not yet checked in a real browser — the picker's Livewire round-trip is verified via `callFormComponentAction` in `MediaHubTest`, but a manual click-through is worth doing before relying on it heavily.
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: committed in this session's Orders + Products + Stock Pool + dashboard commit (see git log).
 
 ## 2026-08-29 - Hide the hero "wholesale buyers" banner behind its own Site Settings toggle
 

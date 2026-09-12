@@ -64,15 +64,48 @@
     height: 15px;
 }
 
-/* Compact only the main dashboard's native Business Overview stat cards. */
-.zz-business-overview-stat {
+/* Every stat-overview card in the app renders at one compact size, so no
+   dashboard ever mixes small and large cards (e.g. the main Dashboard's
+   Business Overview next to Customer Success & Risk / Courier Health). The
+   .fi-wi-stats-overview-stat class is shared by every native
+   StatsOverviewWidget and by the hand-built cards (ProductStatsOverview, the
+   Courier and Meta Ads dashboards). Phones shrink the cards further. */
+.fi-wi-stats-overview-stat {
     padding: 10px;
 }
 
-.zz-business-overview-stat .fi-wi-stats-overview-stat-value {
+.fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-value {
     font-size: 20px;
     line-height: 1.4;
 }
+
+.fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-label {
+    font-size: 13px;
+}
+
+@media (max-width: 640px) {
+    .fi-wi-stats-overview-stat {
+        padding: 8px;
+    }
+
+    .fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-value {
+        font-size: 16px;
+    }
+
+    .fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-label {
+        font-size: 11px;
+        line-height: 1.3;
+    }
+
+    .fi-wi-stats-overview-stat .fi-wi-stats-overview-stat-description {
+        font-size: 10px;
+    }
+}
+
+/* The main dashboard's Business Overview cards now take their size from the
+   shared .fi-wi-stats-overview-stat rule above (kept identical to what this
+   class used to set on desktop) so they also shrink on phones. This class
+   still drives the click-to-drilldown affordance further down. */
 
 /* Compact the Vouchers/Accounts/Expenses list pages' summary cards. Long or
    multi-word labels ("Credit Voucher - Requested", longer account/category
@@ -242,18 +275,144 @@ html:not(.zz-sidebar-navigation-ready) .zz-sidebar-menu-parent.fi-sidebar-route-
     }
 }
 
-/* Keep the Products mobile action menu beside the title while using
-   Filament's native header and ActionGroup components. */
+/* Keep a page's header action beside its title on mobile (Filament stacks
+   the header below its own sm breakpoint) — Products' mobile action menu,
+   the Inbox channel selector, and the Orders list's "New order" button. */
 @media (max-width: 63.999rem) {
     .fi-header:has(.zz-products-mobile-actions),
-    .fi-header:has(.zz-inbox-channel-selector) {
+    .fi-header:has(.zz-inbox-channel-selector),
+    .fi-header:has(.zz-orders-mobile-header-action) {
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
     }
 
     .fi-header:has(.zz-products-mobile-actions) .fi-header-actions-ctn,
-    .fi-header:has(.zz-inbox-channel-selector) .fi-header-actions-ctn {
+    .fi-header:has(.zz-inbox-channel-selector) .fi-header-actions-ctn,
+    .fi-header:has(.zz-orders-mobile-header-action) .fi-header-actions-ctn {
         margin-inline-start: auto;
     }
+}
+
+/* Modern chat-bubble skin for the Inbox message thread (owner-approved
+   design pass, WhatsApp/Messenger-style bubbles). Only colors, spacing and
+   the composer's shape change here — every Livewire attribute and the
+   markup this file's own InboxPageTest pins is untouched. */
+.zz-inbox {
+    --zz-chat-out-bg: var(--primary-600);
+    --zz-chat-out-ink: #fff;
+    --zz-chat-in-bg: var(--gray-50);
+    --zz-chat-in-border: var(--gray-200);
+    --zz-chat-note-bg: color-mix(in oklab, var(--primary-500) 14%, transparent);
+    --zz-chat-note-border: var(--primary-400);
+    --zz-chat-ok: #2f7a4f;
+    --zz-chat-danger: #c1432b;
+}
+
+.dark .zz-inbox {
+    --zz-chat-out-bg: var(--primary-500);
+    --zz-chat-out-ink: var(--gray-950);
+    --zz-chat-in-bg: var(--gray-800);
+    --zz-chat-in-border: var(--gray-700);
+    --zz-chat-note-bg: color-mix(in oklab, var(--primary-400) 18%, transparent);
+    --zz-chat-note-border: var(--primary-400);
+    --zz-chat-ok: #59c285;
+    --zz-chat-danger: #f0806b;
+}
+
+.zz-msg-row.zz-msg-start {
+    margin-top: 10px;
+}
+
+.zz-msg-row.zz-msg-tight {
+    margin-top: 2px;
+}
+
+.zz-bubble {
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+}
+
+.zz-bubble-out {
+    background: var(--zz-chat-out-bg);
+    color: var(--zz-chat-out-ink);
+}
+
+.zz-bubble-in {
+    background: var(--zz-chat-in-bg);
+    border: 1px solid var(--zz-chat-in-border);
+}
+
+.zz-bubble-tail-out {
+    border-bottom-right-radius: 4px;
+}
+
+.zz-bubble-tail-in {
+    border-bottom-left-radius: 4px;
+}
+
+.zz-bubble-note {
+    background: var(--zz-chat-note-bg);
+    border: 1px dashed var(--zz-chat-note-border);
+}
+
+.zz-bubble-note-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--primary-600);
+}
+
+.dark .zz-bubble-note-label {
+    color: var(--primary-400);
+}
+
+.zz-tick svg {
+    display: block;
+    height: 11px;
+    width: auto;
+}
+
+.zz-tick-muted {
+    color: var(--gray-400);
+}
+
+.zz-tick-ok {
+    color: var(--zz-chat-ok);
+}
+
+.zz-tick-danger {
+    color: var(--zz-chat-danger);
+}
+
+.zz-fallback-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--primary-500) 16%, transparent);
+    color: var(--primary-700);
+}
+
+.dark .zz-fallback-badge {
+    color: var(--primary-300);
+}
+
+/* Floating pill composer (owner-approved design pass) — shape only, the
+   textarea/button markup and their Livewire bindings are untouched. */
+.zz-inbox-composer .fi-input-wrp {
+    border-radius: 999px;
+}
+
+.zz-inbox-composer .fi-btn,
+.zz-inbox-composer .fi-icon-btn {
+    border-radius: 999px;
 }

@@ -11,7 +11,9 @@ class Investor extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'name', 'guardian_name', 'phone', 'email', 'address', 'nid_number', 'channel_partner_id', 'channel_partner_change_reason'];
+    protected $fillable = ['company_id', 'name', 'display_name', 'guardian_name', 'date_of_birth', 'phone', 'email', 'address', 'nid_number', 'stamp_number', 'cheque_number', 'channel_partner_id', 'channel_partner_change_reason', 'nominee_name', 'nominee_nid_or_passport', 'nominee_phone', 'nominee_relation', 'nominee_address'];
+
+    protected $casts = ['date_of_birth' => 'date'];
 
     protected static function booted(): void
     {
@@ -60,6 +62,15 @@ class Investor extends Model
     public function settlementPayouts()
     {
         return $this->hasMany(SettlementPayout::class);
+    }
+
+    /**
+     * Name to print on shared documents — the pseudonym if the investor asked
+     * for one (deed clause 3), otherwise the real name.
+     */
+    public function reportName(): string
+    {
+        return filled($this->display_name) ? (string) $this->display_name : (string) $this->name;
     }
 
     public function totalInvestedLifetime(): float

@@ -66,4 +66,30 @@ class OfferResource extends Resource
             'edit' => EditOffer::route('/{record}/edit'),
         ];
     }
+
+    /**
+     * Admin-only preview — same "shows what isn't live yet" convention as
+     * StorefrontSettingResource::previewUrl(), routed through
+     * OfferController::showPreview() which has no published/status
+     * restriction, so a draft or just-AI-generated landing page can be
+     * checked before publishing.
+     */
+    public static function previewUrl(Offer $record): string
+    {
+        return route('storefront.preview.offers.show', [
+            'company' => $record->company?->slug,
+            'slug' => $record->slug,
+        ]);
+    }
+
+    /**
+     * The real, customer-facing URL — only meaningful once the offer is
+     * Published and the company has a domain (OfferController::show() 404s
+     * otherwise), so this is gated in the action's ->visible() below rather
+     * than called unconditionally.
+     */
+    public static function publicUrl(Offer $record): string
+    {
+        return 'https://'.$record->company?->domain.'/offers/'.$record->slug;
+    }
 }

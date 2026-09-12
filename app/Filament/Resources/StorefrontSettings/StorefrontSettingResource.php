@@ -4,6 +4,7 @@ namespace App\Filament\Resources\StorefrontSettings;
 
 use App\Filament\Clusters\Storefront;
 use App\Filament\Concerns\OptimizesUploadedImages;
+use App\Filament\Concerns\SelectableFromMediaHub;
 use App\Filament\Resources\StorefrontSettings\Pages\CreateStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\EditStorefrontSetting;
 use App\Filament\Resources\StorefrontSettings\Pages\ListStorefrontSettings;
@@ -15,9 +16,6 @@ use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
 use App\Services\CompanyContext;
-use App\Services\PayStationClient;
-use App\Services\WooCommerceImportService;
-use App\Services\ZiniPayClient;
 use App\Support\CompanyMedia;
 use App\Support\StorefrontThemeRegistry;
 use BackedEnum;
@@ -34,9 +32,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Actions as SchemaActions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
@@ -56,6 +52,7 @@ use Illuminate\Validation\Rule;
 class StorefrontSettingResource extends Resource
 {
     use OptimizesUploadedImages;
+    use SelectableFromMediaHub;
 
     protected static ?string $model = StorefrontSetting::class;
 
@@ -644,6 +641,7 @@ class StorefrontSettingResource extends Resource
                         ->disabled(fn (Get $get, ?StorefrontSetting $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
                         ->saveUploadedFileUsing(static::optimizeCompactImageUpload())
+                        ->hintAction(static::selectFromMediaHubAction())
                         ->downloadable()
                         ->openable(),
                     FileUpload::make('logo_dark')
@@ -661,6 +659,7 @@ class StorefrontSettingResource extends Resource
                         ->getDownloadableFileUrlUsing(CompanyMedia::publicFileUrlCallback())
                         ->disabled(fn (Get $get, ?StorefrontSetting $record): bool => ! CompanyMedia::canResolve($record, $get('company_id')))
                         ->imageEditor()
+                        ->hintAction(static::selectFromMediaHubAction())
                         ->downloadable()
                         ->openable(),
                     Text::make('Homepage banners are managed in Storefront → Hero Slides (images, product links, scheduling, and mobile variants all live there).')
@@ -848,61 +847,6 @@ class StorefrontSettingResource extends Resource
                 ->collapsible()
                 ->collapsed(),
 
-            Section::make('Online Payments')
-                ->columnSpanFull()
-                ->description('Used for unified checkout advances: pre-order, new-customer delivery, and optional courier-history eligibility. Product balances can remain Cash on Delivery. Each company must use its own gateway merchant account — never reuse another company\'s or website\'s credentials (violates most BD payment gateway terms and can trigger account suspension).')
-                ->schema([
-                    Toggle::make('online_payment_enabled')
-                        ->label('Enable online payments')
-                        ->default(false)
-                        ->helperText('Turn on only after the selected gateway\'s credentials below are set.'),
-                    Select::make('online_payment_gateway')
-                        ->label('Active gateway')
-                        ->options([
-                            'zinipay' => 'ZiniPay',
-                            'paystation' => 'PayStation',
-                        ])
-                        ->default('zinipay')
-                        ->required()
-                        ->live(),
-                    TextInput::make('payment_credentials.zinipay_api_key')
-                        ->label('ZiniPay API key')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255)
-                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'zinipay'),
-                    TextInput::make('payment_credentials.zinipay_base_url')
-                        ->label('ZiniPay base URL')
-                        ->url()
-                        ->maxLength(255)
-                        ->placeholder(ZiniPayClient::DEFAULT_BASE_URL)
-                        ->helperText('Leave empty for the default. Change only if ZiniPay gives you a different API host.')
-                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'zinipay'),
-                    TextInput::make('payment_credentials.paystation_merchant_id')
-                        ->label('PayStation Merchant ID')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255)
-                        ->helperText('This company\'s own PayStation MID — do not reuse another company\'s or website\'s MID.')
-                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
-                    TextInput::make('payment_credentials.paystation_password')
-                        ->label('PayStation Password / API key')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255)
-                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
-                    TextInput::make('payment_credentials.paystation_base_url')
-                        ->label('PayStation base URL')
-                        ->url()
-                        ->maxLength(255)
-                        ->placeholder(PayStationClient::DEFAULT_BASE_URL)
-                        ->helperText('Leave empty for the default. Change only if PayStation gives you a different API host.')
-                        ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
-                ])
-                ->columns(2)
-                ->collapsible()
-                ->collapsed(),
-
             Section::make('Thank-you & Complaint Integration')
                 ->columnSpanFull()
                 ->description('Company-specific WhatsApp CTA and Telegram destination for customer complaints.')
@@ -1067,34 +1011,6 @@ class StorefrontSettingResource extends Resource
                 ->collapsible()
                 ->collapsed(),
 
-            Section::make('WooCommerce Import')
-                ->columnSpanFull()
-                ->description('Optional. Save these credentials first, then run the sync here to pull published products from the old WooCommerce site.')
-                ->schema([
-                    TextInput::make('woocommerce_base_url')
-                        ->label('WooCommerce site URL')
-                        ->url()
-                        ->maxLength(255)
-                        ->placeholder('https://zamzamgadgetbd.com')
-                        ->helperText('Root URL of the WooCommerce site. Do not include /wp-json.'),
-                    TextInput::make('woocommerce_credentials.consumer_key')
-                        ->label('Consumer key')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255),
-                    TextInput::make('woocommerce_credentials.consumer_secret')
-                        ->label('Consumer secret')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255),
-                    SchemaActions::make([
-                        self::syncWooCommerceAction(),
-                    ])->columnSpanFull(),
-                ])
-                ->columns(2)
-                ->collapsible()
-                ->collapsed(),
-
             Section::make('Navigation Menus')
                 ->columnSpanFull()
                 ->description('Links shown in the storefront header navigation and the footer "Quick links" column. Leave empty to use the automatic defaults (Shop all, Track order, Account / published pages).')
@@ -1229,10 +1145,8 @@ class StorefrontSettingResource extends Resource
             'checkout',
             'checkout',
             'integrations',
-            'integrations',
             'notifications',
             'notifications',
-            'integrations',
             'navigation_seo',
             'navigation_seo',
             'navigation_seo',
@@ -1494,53 +1408,6 @@ class StorefrontSettingResource extends Resource
     public static function publicUrl(StorefrontSetting $record): string
     {
         return 'https://'.$record->company->domain;
-    }
-
-    public static function hasWooCommerceCredentials(StorefrontSetting $record): bool
-    {
-        return filled($record->woocommerce_base_url)
-            && filled(data_get($record->woocommerce_credentials, 'consumer_key'))
-            && filled(data_get($record->woocommerce_credentials, 'consumer_secret'));
-    }
-
-    public static function syncWooCommerceAction(): Action
-    {
-        return Action::make('syncWooCommerce')
-            ->label('Sync WooCommerce')
-            ->icon('heroicon-o-arrow-path')
-            ->color('gray')
-            ->visible(fn (?StorefrontSetting $record): bool => $record !== null && self::hasWooCommerceCredentials($record))
-            ->requiresConfirmation()
-            ->modalDescription('Pulls published products from the WooCommerce site into this company\'s catalog. Products are matched by SKU/slug and updated; nothing is deleted.')
-            ->schema([
-                Toggle::make('download_images')
-                    ->label('Download product images')
-                    ->default(true),
-            ])
-            ->action(function (?StorefrontSetting $record, array $data): void {
-                if ($record === null || ! self::hasWooCommerceCredentials($record)) {
-                    return;
-                }
-
-                try {
-                    $result = app(WooCommerceImportService::class)->importProducts(
-                        $record->company,
-                        downloadImages: (bool) ($data['download_images'] ?? true),
-                    );
-
-                    Notification::make()
-                        ->title('WooCommerce sync complete')
-                        ->body("Created: {$result['created']}, updated: {$result['updated']}, skipped: {$result['skipped']}.")
-                        ->success()
-                        ->send();
-                } catch (\RuntimeException $exception) {
-                    Notification::make()
-                        ->title('WooCommerce sync failed')
-                        ->body($exception->getMessage())
-                        ->danger()
-                        ->send();
-                }
-            });
     }
 
     protected static function contrastRule(Get $get, string $backgroundField, float $minimum, string $backgroundLabel): Closure

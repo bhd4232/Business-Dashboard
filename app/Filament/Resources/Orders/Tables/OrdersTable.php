@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class OrdersTable
 {
@@ -177,6 +178,7 @@ class OrdersTable
                     ->icon('heroicon-o-truck')
                     ->visible(fn (Order $record): bool => self::canBookCourier($record))
                     ->schema(fn (Order $record): array => self::unifiedBookingForm($record))
+                    ->fillForm(fn (Order $record): array => app(CourierService::class)->bookingFormDefaults($record))
                     ->action(function (Order $record, array $data): void {
                         $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
                         $payload = self::bookingPayloadFor($provider, $data);
@@ -556,10 +558,14 @@ class OrdersTable
         $driverOf = fn (Get $get): ?string => $providers->get((int) $get('courier_provider_id'))?->driver;
 
         return [
+            // Every field with a default below is prefilled by the action's
+            // ->fillForm() (CourierService::bookingFormDefaults()) — the one
+            // place recipient / COD / driver defaults are defined. Filament
+            // skips component ->default() once a ->fillForm() payload is set,
+            // so new defaultable fields must be added there too.
             Select::make('courier_provider_id')
                 ->label('Courier')
                 ->options(fn (): array => self::providerOptions($companyId))
-                ->default($record->courier_provider_id ?? CourierProvider::defaultForCompany($companyId)?->getKey())
                 ->required()
                 ->live()
                 ->native(false)
@@ -578,19 +584,15 @@ class OrdersTable
                 ->maxLength(255),
             TextInput::make('recipient_name')
                 ->required()
-                ->default($record->customer_name ?: $record->customer?->name)
                 ->maxLength(255),
             TextInput::make('recipient_phone')
                 ->tel()
-                ->default($record->customer?->phone)
                 ->maxLength(255),
             Textarea::make('recipient_address')
-                ->default($record->customer?->address)
                 ->rows(3),
             TextInput::make('cod_amount')
                 ->numeric()
                 ->prefix('৳')
-                ->default((float) $record->due_amount)
                 ->minValue(0),
             Textarea::make('note')
                 ->rows(2),
@@ -604,7 +606,6 @@ class OrdersTable
             TextInput::make('sf_recipient_email')
                 ->label('Recipient Email')
                 ->email()
-                ->default($record->customer?->email)
                 ->maxLength(255)
                 ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_STEADFAST),
             TextInput::make('sf_item_description')
@@ -619,7 +620,6 @@ class OrdersTable
             Select::make('sf_delivery_type')
                 ->label('Delivery Type')
                 ->options([0 => 'Home Delivery', 1 => 'Point Delivery / Hub Pickup'])
-                ->default(0)
                 ->native(false)
                 ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_STEADFAST),
 
@@ -645,13 +645,11 @@ class OrdersTable
             Select::make('ph_delivery_type')
                 ->label('Delivery Type')
                 ->options([48 => 'Normal Delivery', 12 => 'On-Demand Delivery'])
-                ->default(48)
                 ->native(false)
                 ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_PATHAO),
             TextInput::make('ph_item_weight')
                 ->label('Weight (kg)')
                 ->numeric()
-                ->default(0.5)
                 ->minValue(0.1)
                 ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_PATHAO),
 
@@ -669,7 +667,6 @@ class OrdersTable
             TextInput::make('rx_parcel_weight')
                 ->label('Weight (grams)')
                 ->numeric()
-                ->default(500)
                 ->minValue(1)
                 ->visible(fn (Get $get): bool => $driverOf($get) === CourierProvider::DRIVER_REDX),
 

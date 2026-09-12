@@ -329,9 +329,12 @@ class PhaseFourAdminPagesTest extends TestCase
             ->assertSet('data.appearance_shadow', 'elevated')
             ->assertSet('data.appearance_card_hover', 'lift');
 
+        // WooCommerce Import and Online Payments moved to Settings →
+        // Integrations; only Thank-you & Complaint Integration remains in
+        // this section group.
         $component
             ->call('selectSection', 'integrations')
-            ->assertSee('Sync WooCommerce')
+            ->assertSee('WhatsApp group invite URL')
             ->assertDontSee('Manage Pages')
             ->assertDontSee('New Page');
 

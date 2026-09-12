@@ -3,21 +3,31 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Clusters\Settings;
+use App\Livewire\MetaEventLogTable;
 use App\Models\Company;
 use App\Models\Order;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\Crm\AiSettingsService;
+use App\Services\PayStationClient;
+use App\Services\StorefrontMetaTrackingService;
+use App\Services\WooCommerceImportService;
 use App\Services\WooCommerceOrderSyncService;
+use App\Services\ZiniPayClient;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Actions as SchemaActions;
+use Filament\Schemas\Components\Livewire as SchemaLivewire;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
@@ -31,23 +41,30 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 
 /**
- * Single editable settings page for every third-party integration that is
- * genuinely just a handful of credential fields: AI Assistant, WooCommerce,
- * Payment Gateway, and Meta Pixel/CAPI's connection fields (Pixel ID +
- * access token — the full event-list/testing/log configuration stays on
- * the dedicated Meta CAPI page, linked from that tab). Courier Providers
- * and Meta Ads are NOT merged here — both are full multi-record CRUD areas
- * (many providers/ad accounts, dashboards, campaigns), so they stay on
- * their own pages; IntegrationStatusWidget below still surfaces them as
- * status-card links so this remains the one place staff check first.
+ * Single, complete editable settings page for every integration this app
+ * connects to: AI Integration (one config per AI-powered tool), WooCommerce
+ * (credentials, order-webhook test/sync, and the full product import),
+ * Payment Gateway (ZiniPay/PayStation credentials and base URLs), and the
+ * entire Meta Pixel & Conversions API configuration — connection, consent,
+ * browser/status events, purchase timing, and the Event Log & Retries table
+ * (embedded via App\Livewire\MetaEventLogTable, the same
+ * Filament\Schemas\Components\Livewire-embedding pattern
+ * App\Livewire\OrderTrashTable already uses elsewhere). The old, partial
+ * copies of this config that used to live on Storefront Settings (WooCommerce
+ * Import, Online Payments) and the standalone Meta CAPI page are retired —
+ * this page is now the one place each integration's config lives. Courier
+ * Providers and Meta Ads are NOT merged here — both are full multi-record
+ * CRUD areas (many providers/ad accounts, dashboards, campaigns), so they
+ * stay on their own pages; IntegrationStatusWidget below still surfaces them
+ * as status-card links so this remains the one place staff check first.
  *
- * Three different backing stores get combined into one Livewire form:
- * - AI fields live in `companies.settings->ai` (via AiSettingsService).
- * - WooCommerce/Payment Gateway/Meta connection fields live on the
- *   company's single StorefrontSetting row (`updateOrCreate` with a
- *   partial attribute array only ever touches these columns — the same
- *   pattern MetaCapiSettings::save() already uses — so this never
- *   disturbs the theme/checkout/SEO settings living on that same row).
+ * Two backing stores get combined into one Livewire form:
+ * - AI fields live in `companies.settings->ai_tools->{tool}`, one entry per
+ *   AiSettingsService::TOOLS key (via AiSettingsService).
+ * - WooCommerce/Payment Gateway/Meta fields live on the company's single
+ *   StorefrontSetting row (`updateOrCreate` with a partial attribute array
+ *   only ever touches these columns, never the theme/checkout/SEO settings
+ *   living on that same row).
  */
 class Integrations extends Page
 {
@@ -78,7 +95,6 @@ class Integrations extends Page
         $company = $this->selectedCompany();
         $this->companyId = (int) $company->getKey();
 
-        $ai = $aiSettings->all($company);
         $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $this->companyId)->first();
 
         // Every key is filled explicitly (never left for a field's own
@@ -88,25 +104,13 @@ class Integrations extends Page
         // array, so a required Select like online_payment_gateway would
         // fail validation on first save with no visible reason otherwise.
         $this->form->fill([
-            'ai_enabled' => $ai['enabled'],
-            'ai_api_format' => $ai['api_format'],
-            'ai_provider' => $ai['provider'],
-            'ai_base_url' => $ai['base_url'],
-            'ai_model' => $ai['model'],
-            'ai_confidence_threshold' => $ai['confidence_threshold'],
-            'ai_max_consecutive_ai_replies' => $ai['max_consecutive_ai_replies'],
-            'ai_brand_voice' => $ai['brand_voice'],
-            'ai_api_key' => '', // never round-trip the stored key to the browser
-            'ai_has_api_key' => filled($ai['api_key']),
+            ...$this->aiToolFillState($aiSettings, $company),
             'woocommerce_base_url' => $setting?->woocommerce_base_url,
             'woocommerce_credentials' => $setting?->woocommerce_credentials ?? [],
             'online_payment_enabled' => $setting?->online_payment_enabled ?? false,
             'online_payment_gateway' => $setting?->online_payment_gateway ?? 'zinipay',
             'payment_credentials' => $setting?->payment_credentials ?? [],
-            'meta_tracking_enabled' => $setting?->meta_tracking_enabled ?? false,
-            'meta_pixel_id' => $setting?->meta_pixel_id,
-            'meta_capi_enabled' => $setting?->meta_capi_enabled ?? false,
-            'meta_tracking_credentials' => $setting?->meta_tracking_credentials ?? [],
+            ...array_merge($this->metaFieldDefaults(), $setting?->only($this->metaFields()) ?? []),
         ]);
     }
 
@@ -133,41 +137,311 @@ class Integrations extends Page
         return $this->companyId !== null;
     }
 
-    /** AI settings stay super-admin-only, matching AiAssistantSettings::canAccess() — this merged page must not loosen that. */
+    /** AI settings stay super-admin-only — this merged page must not loosen that. */
     public function canManageAi(): bool
     {
         return Auth::user()?->isSuperAdmin() ?? false;
     }
 
+    /**
+     * Fill state for every AI tool's `ai_{tool}_*`-prefixed fields, keyed
+     * off AiSettingsService::TOOLS so mount() never falls out of sync with
+     * the tab schema below. The API key is never round-tripped to the
+     * browser — only a `has_api_key` flag drives the field's placeholder.
+     */
+    protected function aiToolFillState(AiSettingsService $aiSettings, Company $company): array
+    {
+        $fill = [];
+
+        foreach (AiSettingsService::TOOLS as $tool => $label) {
+            $ai = $aiSettings->all($company, $tool);
+            $prefix = "ai_{$tool}_";
+
+            $fill["{$prefix}enabled"] = $ai['enabled'];
+            $fill["{$prefix}api_format"] = $ai['api_format'];
+            $fill["{$prefix}provider"] = $ai['provider'];
+            $fill["{$prefix}base_url"] = $ai['base_url'];
+            $fill["{$prefix}model"] = $ai['model'];
+            $fill["{$prefix}confidence_threshold"] = $ai['confidence_threshold'];
+            $fill["{$prefix}max_consecutive_ai_replies"] = $ai['max_consecutive_ai_replies'];
+            $fill["{$prefix}brand_voice"] = $ai['brand_voice'];
+            $fill["{$prefix}sales_guidelines"] = $ai['sales_guidelines'];
+            foreach (['review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'] as $key) {
+                $fill[$prefix.$key] = $ai[$key];
+            }
+            $fill["{$prefix}api_key"] = '';
+            $fill["{$prefix}has_api_key"] = filled($ai['api_key']);
+        }
+
+        return $fill;
+    }
+
+    /**
+     * The shared "provider connection" field set for one AI tool, reused for
+     * Auto Messaging / Ad Assistant / Landing Page Builder so the same ~10
+     * Filament components aren't copy-pasted three times. $prefix is the
+     * Livewire state-path prefix (e.g. "ai_messaging_") so the three tools'
+     * fields never collide in the form state. $messagingExtras adds the
+     * auto-reply-specific fields (confidence threshold, reply cap, brand
+     * voice) — only meaningful for the Auto Messaging tool.
+     */
+    /**
+     * Popular OpenAI-compatible providers, each with its own base URL and a
+     * short pick-list of well-known models — purely a "quick setup"
+     * convenience layer on top of the free-text provider/base_url/model
+     * fields below, which stay fully editable for anything not listed here
+     * (a brand-new provider, a model this list hasn't caught up with, a
+     * self-hosted endpoint, ...). Never a closed set the admin is limited
+     * to. Counts vary by provider on purpose — e.g. Perplexity genuinely
+     * ships five Sonar models while xAI's dot-versioned lineup only has
+     * three well-established entries; padding to a round number would just
+     * be inventing names that don't exist.
+     *
+     * Model names checked against each provider's own docs/changelog as of
+     * September 2026 (web search) — still a snapshot, not a live catalog:
+     * providers ship new models often, so re-verify against the provider's
+     * own docs if a listed name ever starts erroring, and the free-text
+     * Model field below is always the fallback for anything newer than
+     * this list.
+     *
+     * @return array<string, array{label: string, base_url: string, models: array<int, string>}>
+     */
+    protected function llmProviderPresets(): array
+    {
+        return [
+            'deepseek' => [
+                'label' => 'DeepSeek',
+                'base_url' => 'https://api.deepseek.com/chat/completions',
+                // deepseek-chat/deepseek-reasoner (the old names) are being
+                // retired in favor of these — see api-docs.deepseek.com/updates.
+                'models' => ['deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'],
+            ],
+            'groq' => [
+                'label' => 'Groq',
+                'base_url' => 'https://api.groq.com/openai/v1/chat/completions',
+                // Groq deprecated its own llama-3.3/3.1 chat routes — these
+                // are its current recommended general-purpose + reasoning models.
+                'models' => ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'meta-llama/llama-4-scout-17b-16e-instruct', 'qwen-qwq-32b', 'deepseek-r1-distill-llama-70b'],
+            ],
+            'openrouter' => [
+                'label' => 'OpenRouter',
+                'base_url' => 'https://openrouter.ai/api/v1/chat/completions',
+                'models' => ['deepseek/deepseek-v4-pro', 'anthropic/claude-opus-5', 'google/gemini-3-flash-preview', 'x-ai/grok-4.6', 'openai/gpt-5-mini'],
+            ],
+            'mistral' => [
+                'label' => 'Mistral',
+                // Mistral's "-latest" ids are permanent aliases that Mistral
+                // itself repoints to the newest release, so this list stays
+                // current on its own without needing updates here.
+                'base_url' => 'https://api.mistral.ai/v1/chat/completions',
+                'models' => ['mistral-large-latest', 'mistral-small-latest', 'codestral-latest', 'magistral-medium-latest', 'ministral-8b-latest'],
+            ],
+            'xai' => [
+                'label' => 'xAI (Grok)',
+                'base_url' => 'https://api.x.ai/v1/chat/completions',
+                'models' => ['grok-4.6', 'grok-4.5', 'grok-4-0709'],
+            ],
+            'togetherai' => [
+                'label' => 'Together AI',
+                'base_url' => 'https://api.together.xyz/v1/chat/completions',
+                'models' => ['deepseek-ai/DeepSeek-V3.1', 'deepseek-ai/DeepSeek-V4-Pro', 'deepseek-ai/DeepSeek-R1', 'meta-llama/Llama-3.3-70B-Instruct-Turbo'],
+            ],
+            'fireworks' => [
+                'label' => 'Fireworks AI',
+                'base_url' => 'https://api.fireworks.ai/inference/v1/chat/completions',
+                'models' => ['accounts/fireworks/models/deepseek-v4-pro', 'accounts/fireworks/models/deepseek-v4-flash', 'accounts/fireworks/models/glm-5p2'],
+            ],
+            'perplexity' => [
+                'label' => 'Perplexity',
+                'base_url' => 'https://api.perplexity.ai/chat/completions',
+                'models' => ['sonar', 'sonar-pro', 'sonar-reasoning', 'sonar-reasoning-pro', 'sonar-deep-research'],
+            ],
+            'openai' => [
+                'label' => 'OpenAI',
+                'base_url' => '',
+                'models' => ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano', 'o3'],
+            ],
+            'ollama' => [
+                'label' => 'Self-hosted (Ollama / vLLM)',
+                'base_url' => 'http://localhost:11434/v1/chat/completions',
+                'models' => ['llama3.3', 'qwen2.5', 'mistral', 'deepseek-r1', 'phi4'],
+            ],
+        ];
+    }
+
+    /** Anthropic's own current lineup — the model picker's fallback list when API format is Anthropic. */
+    protected function anthropicModels(): array
+    {
+        return [
+            'claude-opus-5' => 'Claude Opus 5',
+            'claude-sonnet-5' => 'Claude Sonnet 5',
+            'claude-haiku-4-5-20251001' => 'Claude Haiku 4.5',
+            'claude-fable-5-1' => 'Claude Fable 5.1',
+        ];
+    }
+
+    /**
+     * Model options for the picker: whichever provider preset is currently
+     * selected, or Anthropic's lineup when the format is Anthropic and no
+     * preset is picked — always with the Model field's current value (and
+     * this picker's own current value) folded in. The self-merge matters:
+     * Filament validates a Select's submitted state against its own live
+     * options(), and this picker's options legitimately change whenever
+     * provider_preset/api_format change (e.g. after a plain TextInput edit
+     * elsewhere in the form) — without folding its own current value back
+     * in, a perfectly fine prior selection would fail validation on save
+     * purely because the option list moved out from under it, even though
+     * this field is cosmetic (dehydrated(false), never persisted).
+     */
+    protected function llmModelOptions(Get $get, string $prefix): array
+    {
+        $presets = $this->llmProviderPresets();
+        $presetKey = $get("{$prefix}provider_preset");
+
+        $options = isset($presets[$presetKey])
+            ? array_combine($presets[$presetKey]['models'], $presets[$presetKey]['models'])
+            : ($get("{$prefix}api_format") === 'anthropic' ? $this->anthropicModels() : []);
+
+        foreach ([$get("{$prefix}model"), $get("{$prefix}model_picker")] as $value) {
+            $value = trim((string) $value);
+
+            if ($value !== '' && ! array_key_exists($value, $options)) {
+                $options = [$value => $value] + $options;
+            }
+        }
+
+        return $options;
+    }
+
+    protected function aiToolFields(string $prefix, string $enableLabel, bool $messagingExtras): array
+    {
+        $presets = $this->llmProviderPresets();
+        $presetOptions = collect($presets)->map(fn (array $preset): string => $preset['label'])->all();
+
+        $fields = [
+            Toggle::make("{$prefix}enabled")
+                ->label($enableLabel)
+                ->columnSpanFull(),
+            Select::make("{$prefix}provider_preset")
+                ->label('Quick setup: pick a popular provider')
+                ->options($presetOptions)
+                ->searchable()
+                ->live()
+                ->dehydrated(false)
+                ->helperText('Fills in the provider name, base URL, and API format for you, and offers that provider\'s models below — everything stays editable, and picking nothing here is fine too.')
+                ->afterStateHydrated(function (Select $component, Get $get) use ($presets, $prefix): void {
+                    $currentProvider = trim((string) $get("{$prefix}provider"));
+                    $match = collect($presets)->search(fn (array $preset): bool => $preset['label'] === $currentProvider);
+                    $component->state($match !== false ? $match : null);
+                })
+                ->afterStateUpdated(function (Set $set, ?string $state) use ($presets, $prefix): void {
+                    if (! $state || ! isset($presets[$state])) {
+                        return;
+                    }
+
+                    $preset = $presets[$state];
+                    $set("{$prefix}provider", $preset['label']);
+                    $set("{$prefix}base_url", $preset['base_url']);
+                    $set("{$prefix}api_format", 'openai');
+                    $set("{$prefix}model", $preset['models'][0] ?? '');
+                })
+                ->columnSpanFull(),
+            Select::make("{$prefix}api_format")
+                ->label('API format')
+                ->options([
+                    'anthropic' => 'Anthropic (Claude Messages API)',
+                    'openai' => 'OpenAI-compatible (Chat Completions)',
+                ])
+                ->helperText('Almost every non-Anthropic provider (OpenAI, DeepSeek, Groq, Mistral, OpenRouter, xAI, a self-hosted Ollama/vLLM, ...) speaks the "OpenAI-compatible" format — pick that and set the base URL below to add any of them.')
+                ->required()
+                ->live()
+                ->native(false),
+            TextInput::make("{$prefix}provider")
+                ->label('Provider name (label only)')
+                ->placeholder('e.g. DeepSeek, Groq, OpenRouter')
+                ->helperText("Just for your own reference — doesn't affect the request. Auto-filled by the quick-setup picker above.")
+                ->required()
+                ->maxLength(100),
+            TextInput::make("{$prefix}base_url")
+                ->label('Base URL (optional)')
+                ->url()
+                ->maxLength(500)
+                ->placeholder("Leave blank for the API format's own default endpoint")
+                ->helperText('e.g. DeepSeek: https://api.deepseek.com/chat/completions')
+                ->columnSpanFull(),
+            Select::make("{$prefix}model_picker")
+                ->label('Popular models for this provider')
+                ->options(fn (Get $get): array => $this->llmModelOptions($get, $prefix))
+                ->searchable()
+                ->live()
+                ->dehydrated(false)
+                ->helperText('A short, curated list — providers ship new models often, so if a search here comes up empty, just type any model name straight into the Model field below instead.')
+                ->afterStateHydrated(function (Select $component, Get $get) use ($prefix): void {
+                    $component->state(trim((string) $get("{$prefix}model")) ?: null);
+                })
+                ->afterStateUpdated(fn (Set $set, ?string $state) => filled($state) ? $set("{$prefix}model", $state) : null)
+                ->columnSpanFull(),
+            TextInput::make("{$prefix}model")
+                ->label('Model')
+                ->placeholder('claude-haiku-4-5-20251001')
+                ->required()
+                ->maxLength(100),
+            TextInput::make("{$prefix}api_key")
+                ->label('API Key')
+                ->password()
+                ->revealable()
+                ->maxLength(500)
+                ->placeholder(fn (Get $get): string => $get("{$prefix}has_api_key") ? '••••••••' : 'sk-...')
+                ->helperText(fn (Get $get): string => $get("{$prefix}has_api_key")
+                    ? 'Already saved and encrypted — leave blank to keep it.'
+                    : 'Stored encrypted per company.'),
+        ];
+
+        if ($messagingExtras) {
+            $fields[] = MarkdownEditor::make("{$prefix}sales_guidelines")
+                ->label('সেলস এজেন্টের কথাবার্তার নির্দেশনা')
+                ->helperText('লেখা, শিরোনাম, তালিকা ও উদাহরণ এডিট করে Save changes চাপুন। সেভ করা নির্দেশনা এই কোম্পানির পরবর্তী AI উত্তরে ব্যবহৃত হবে। উদাহরণের দাম ও প্রতিশ্রুতি প্রকৃত তথ্য নয়; FAQ-এর প্রস্তুত উত্তর আলাদাভাবে এডিট করতে হবে। ছবি শনাক্তকরণ বা নতুন অর্ডার-অ্যাকশন শুধু নির্দেশনা লিখে চালু হয় না।')
+                ->toolbarButtons(['bold', 'italic', 'heading', 'bulletList', 'orderedList', 'blockquote', 'table', 'undo', 'redo'])
+                ->maxLength(16000)
+                ->hintAction(Action::make('restoreSalesGuidelines')
+                    ->label('ডিফল্ট লেখা ফিরিয়ে আনুন')
+                    ->action(fn (Set $set) => $set("{$prefix}sales_guidelines", app(AiSettingsService::class)->defaultSalesGuidelines())))
+                ->columnSpanFull();
+            $fields[] = Toggle::make("{$prefix}review_mode")->label('Draft replies for staff review')->helperText('Suggestions appear in CRM → Sales Automation. No automatic reply is sent in this mode.');
+            foreach (['daily_run_limit' => 'Daily run limit', 'max_run_tokens' => 'Token budget per run', 'daily_budget_usd' => 'Daily estimated budget (USD)', 'input_cost_per_million' => 'Input price per million tokens (USD)', 'output_cost_per_million' => 'Output price per million tokens (USD)', 'follow_up_delay_hours' => 'Sales follow-up delay (hours)'] as $key => $label) {
+                $fields[] = TextInput::make($prefix.$key)->label($label)->numeric()->minValue(0)->required();
+            }
+            $fields[] = Toggle::make("{$prefix}sales_follow_ups_enabled")->label('Enable sales follow-ups')->helperText('One approved-template follow-up per checkout link or sent quotation; stops after reply, purchase, opt-out or handoff.');
+            $fields[] = TextInput::make("{$prefix}follow_up_template")->label('Approved WhatsApp follow-up template')->helperText('Template must accept one body parameter: customer name.');
+            $fields[] = TextInput::make("{$prefix}follow_up_template_language")->label('Template language')->maxLength(20);
+            $fields[] = TextInput::make("{$prefix}confidence_threshold")
+                ->label('Confidence threshold (0–1)')
+                ->numeric()
+                ->step(0.05)
+                ->minValue(0)
+                ->maxValue(1)
+                ->required()
+                ->helperText('Replies below this confidence are held for a human instead of being sent.');
+            $fields[] = TextInput::make("{$prefix}max_consecutive_ai_replies")
+                ->label('Max consecutive AI replies')
+                ->numeric()
+                ->minValue(1)
+                ->maxValue(20)
+                ->required();
+            $fields[] = Textarea::make("{$prefix}brand_voice")
+                ->label('Brand voice (optional)')
+                ->rows(3)
+                ->maxLength(2000)
+                ->placeholder("e.g. friendly, uses simple Bengali, addresses customers as 'আপনি'")
+                ->columnSpanFull();
+        }
+
+        return $fields;
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('testWoocommerceWebhook')
-                ->label('Send test webhook')
-                ->icon(Heroicon::OutlinedPaperAirplane)
-                ->color('gray')
-                ->action('testWoocommerceWebhook')
-                ->visible(fn (): bool => $this->hasSelectedCompany()),
-            Action::make('syncWooOrder')
-                ->label('Sync an order now')
-                ->icon(Heroicon::OutlinedArrowPath)
-                ->color('gray')
-                ->schema([
-                    TextInput::make('woo_order_id')
-                        ->label('WooCommerce order ID')
-                        ->helperText('The number shown on the order in WooCommerce (e.g. 38044) — not the ERP order number.')
-                        ->numeric()
-                        ->required(),
-                ])
-                // A plain string ->action('syncWooOrder') would look
-                // identical to testWoocommerceWebhook()'s above, but isn't:
-                // Filament only opens this action's modal (to collect the
-                // schema's data first) when the action is a Closure. A
-                // string action is wired as a raw wire:click that invokes
-                // the method with zero arguments, straight past the modal —
-                // a hard TypeError against this method's required $data.
-                ->action(fn (array $data): mixed => $this->syncWooOrder($data))
-                ->visible(fn (): bool => $this->hasSelectedCompany()),
             Action::make('saveChanges')
                 ->label('Save changes')
                 ->icon(Heroicon::OutlinedCheck)
@@ -176,6 +450,143 @@ class Integrations extends Page
                 ->keyBindings(['mod+s'])
                 ->visible(fn (): bool => $this->hasSelectedCompany()),
         ];
+    }
+
+    /**
+     * The WooCommerce tab's three action buttons (test webhook, sync one
+     * order now, and the full product import), placed inside the tab body
+     * itself rather than the page header. Each is its own
+     * "{actionName}Action()"-named method (not a shared array-returning
+     * helper) because Filament's action-testing helpers
+     * (callAction()/assertActionVisible()) resolve a page-level action by
+     * name via exactly that method-name convention — see
+     * InteractsWithActions::resolveAction() — regardless of where inside
+     * the schema the Action itself is rendered.
+     */
+    protected function testWoocommerceWebhookAction(): Action
+    {
+        return Action::make('testWoocommerceWebhook')
+            ->label('Send test webhook')
+            ->icon(Heroicon::OutlinedPaperAirplane)
+            ->color('gray')
+            ->action('testWoocommerceWebhook')
+            ->visible(fn (): bool => $this->hasSelectedCompany());
+    }
+
+    protected function syncWooOrderAction(): Action
+    {
+        return Action::make('syncWooOrder')
+            ->label('Sync an order now')
+            ->icon(Heroicon::OutlinedArrowPath)
+            ->color('gray')
+            ->schema([
+                TextInput::make('woo_order_id')
+                    ->label('WooCommerce order ID')
+                    ->helperText('The number shown on the order in WooCommerce (e.g. 38044) — not the ERP order number.')
+                    ->numeric()
+                    ->required(),
+            ])
+            // A plain string ->action('syncWooOrder') would look identical
+            // to testWoocommerceWebhookAction()'s above, but isn't: Filament
+            // only opens this action's modal (to collect the schema's data
+            // first) when the action is a Closure. A string action is wired
+            // as a raw wire:click that invokes the method with zero
+            // arguments, straight past the modal — a hard TypeError against
+            // this method's required $data.
+            ->action(fn (array $data): mixed => $this->syncWooOrder($data))
+            ->visible(fn (): bool => $this->hasSelectedCompany());
+    }
+
+    /**
+     * Pulls published products from the WooCommerce site into this
+     * company's catalog (matched by SKU/slug; nothing is deleted) — the
+     * same WooCommerceImportService::importProducts() call
+     * StorefrontSettingResource::syncWooCommerceAction() used to make from
+     * its own now-removed "WooCommerce Import" section, adapted to resolve
+     * the company from page state instead of a bound Resource $record.
+     */
+    protected function syncWooCommerceImportAction(): Action
+    {
+        return Action::make('syncWooCommerceImport')
+            ->label('Sync WooCommerce')
+            ->icon(Heroicon::OutlinedArrowPath)
+            ->color('gray')
+            ->visible(fn (): bool => $this->hasSelectedCompany() && $this->hasWooCommerceCredentials())
+            ->requiresConfirmation()
+            ->modalDescription('Pulls published products from the WooCommerce site into this company\'s catalog. Products are matched by SKU/slug and updated; nothing is deleted.')
+            ->schema([
+                Toggle::make('download_images')
+                    ->label('Download product images')
+                    ->default(true),
+            ])
+            ->action(function (array $data): void {
+                $company = $this->selectedCompany();
+
+                try {
+                    $result = app(WooCommerceImportService::class)->importProducts(
+                        $company,
+                        downloadImages: (bool) ($data['download_images'] ?? true),
+                    );
+
+                    Notification::make()
+                        ->title('WooCommerce sync complete')
+                        ->body("Created: {$result['created']}, updated: {$result['updated']}, skipped: {$result['skipped']}.")
+                        ->success()
+                        ->send();
+                } catch (\RuntimeException $exception) {
+                    Notification::make()
+                        ->title('WooCommerce sync failed')
+                        ->body($exception->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    /** Checked against the persisted row, matching testWoocommerceWebhook()/syncWooOrder()'s own use of the saved secret over unsaved form state. */
+    protected function hasWooCommerceCredentials(): bool
+    {
+        $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $this->companyId)->first();
+
+        return $setting !== null
+            && filled($setting->woocommerce_base_url)
+            && filled(data_get($setting->woocommerce_credentials, 'consumer_key'))
+            && filled(data_get($setting->woocommerce_credentials, 'consumer_secret'));
+    }
+
+    /**
+     * Every Meta Pixel & CAPI column on StorefrontSetting, with the default
+     * each field falls back to when a brand-new company has no
+     * StorefrontSetting row yet — mirrors the "fill every key explicitly"
+     * requirement noted on mount() above, now covering the fields absorbed
+     * from the retired MetaCapiSettings page.
+     */
+    protected function metaFieldDefaults(): array
+    {
+        return [
+            'meta_tracking_enabled' => false,
+            'meta_consent_required' => false,
+            'meta_consent_message' => null,
+            'meta_browser_tracking_enabled' => true,
+            'meta_advanced_matching_enabled' => false,
+            'meta_browser_events' => StorefrontMetaTrackingService::DEFAULT_BROWSER_EVENTS,
+            'meta_custom_events_enabled' => false,
+            'meta_custom_events' => [],
+            'meta_capi_enabled' => false,
+            'meta_purchase_timing' => 'immediate',
+            'meta_purchase_success_ratio_threshold' => 70,
+            'meta_status_events_enabled' => false,
+            'meta_status_events' => StorefrontMetaTrackingService::DEFAULT_STATUS_EVENTS,
+            'meta_pixel_id' => null,
+            'meta_domain_verification_tags' => [],
+            'meta_tracking_credentials' => [],
+        ];
+    }
+
+    /** @return array<int, string> */
+    protected function metaFields(): array
+    {
+        return array_keys($this->metaFieldDefaults());
     }
 
     /**
@@ -334,71 +745,31 @@ class Integrations extends Page
                 Tabs::make('integrations')
                     ->columnSpanFull()
                     ->tabs([
-                        Tab::make('AI Assistant')
+                        Tab::make('AI Integration')
                             ->icon(Heroicon::OutlinedSparkles)
                             ->visible(fn (): bool => $this->canManageAi())
                             ->schema([
-                                Toggle::make('ai_enabled')
-                                    ->label('Enable AI auto-reply for this company')
+                                Placeholder::make('ai_integration_note')
+                                    ->hiddenLabel()
+                                    ->content('Each AI-powered tool below can be pointed at its own provider/model — pick a fast cheap model for chat replies, a stronger one for ad strategy, a creative-writing one for landing pages, or the same provider everywhere.')
                                     ->columnSpanFull(),
-                                Select::make('ai_api_format')
-                                    ->label('API format')
-                                    ->options([
-                                        'anthropic' => 'Anthropic (Claude Messages API)',
-                                        'openai' => 'OpenAI-compatible (Chat Completions)',
-                                    ])
-                                    ->helperText('Almost every non-Anthropic provider (OpenAI, DeepSeek, Groq, Mistral, OpenRouter, xAI, a self-hosted Ollama/vLLM, ...) speaks the "OpenAI-compatible" format — pick that and set the base URL below to add any of them.')
-                                    ->required()
-                                    ->native(false),
-                                TextInput::make('ai_provider')
-                                    ->label('Provider name (label only)')
-                                    ->placeholder('e.g. DeepSeek, Groq, OpenRouter')
-                                    ->helperText("Just for your own reference — doesn't affect the request.")
-                                    ->required()
-                                    ->maxLength(100),
-                                TextInput::make('ai_base_url')
-                                    ->label('Base URL (optional)')
-                                    ->url()
-                                    ->maxLength(500)
-                                    ->placeholder("Leave blank for the API format's own default endpoint")
-                                    ->helperText('e.g. DeepSeek: https://api.deepseek.com/chat/completions')
-                                    ->columnSpanFull(),
-                                TextInput::make('ai_model')
-                                    ->label('Model')
-                                    ->placeholder('claude-haiku-4-5-20251001')
-                                    ->required()
-                                    ->maxLength(100),
-                                TextInput::make('ai_api_key')
-                                    ->label('API Key')
-                                    ->password()
-                                    ->revealable()
-                                    ->maxLength(500)
-                                    ->placeholder(fn (Get $get): string => $get('ai_has_api_key') ? '••••••••' : 'sk-...')
-                                    ->helperText(fn (Get $get): string => $get('ai_has_api_key')
-                                        ? 'Already saved and encrypted — leave blank to keep it.'
-                                        : 'Stored encrypted per company.'),
-                                TextInput::make('ai_confidence_threshold')
-                                    ->label('Confidence threshold (0–1)')
-                                    ->numeric()
-                                    ->step(0.05)
-                                    ->minValue(0)
-                                    ->maxValue(1)
-                                    ->required()
-                                    ->helperText('Replies below this confidence are held for a human instead of being sent.'),
-                                TextInput::make('ai_max_consecutive_ai_replies')
-                                    ->label('Max consecutive AI replies')
-                                    ->numeric()
-                                    ->minValue(1)
-                                    ->maxValue(20)
-                                    ->required(),
-                                Textarea::make('ai_brand_voice')
-                                    ->label('Brand voice (optional)')
-                                    ->rows(3)
-                                    ->maxLength(2000)
-                                    ->placeholder("e.g. friendly, uses simple Bengali, addresses customers as 'আপনি'")
-                                    ->columnSpanFull(),
-                            ])
-                            ->columns(2),
+                                Tabs::make('ai_tools')
+                                    ->columnSpanFull()
+                                    ->tabs([
+                                        Tab::make('Auto Messaging')
+                                            ->icon(Heroicon::OutlinedChatBubbleLeftRight)
+                                            ->schema($this->aiToolFields('ai_messaging_', 'Enable AI auto-reply for this company', true))
+                                            ->columns(2),
+                                        Tab::make('Ad Assistant')
+                                            ->icon(Heroicon::OutlinedMegaphone)
+                                            ->schema($this->aiToolFields('ai_ad_assistant_', 'Enable AI for Meta Ads recommendations', false))
+                                            ->columns(2),
+                                        Tab::make('Landing Page Builder')
+                                            ->icon(Heroicon::OutlinedRectangleStack)
+                                            ->schema($this->aiToolFields('ai_landing_page_', 'Enable AI for offer landing page generation', false))
+                                            ->columns(2),
+                                    ]),
+                            ]),
 
                         Tab::make('WooCommerce')
                             ->icon(Heroicon::OutlinedShoppingBag)
@@ -422,7 +793,7 @@ class Integrations extends Page
                                     ->maxLength(255),
                                 Placeholder::make('woocommerce_note')
                                     ->hiddenLabel()
-                                    ->content('Save credentials here, then run (or re-run) the actual product import from Storefront Settings → WooCommerce Import.')
+                                    ->content('Save credentials here, then use "Sync WooCommerce" below to pull products.')
                                     ->columnSpanFull(),
                                 TextInput::make('woocommerce_credentials.webhook_secret')
                                     ->label('Order webhook secret')
@@ -442,7 +813,13 @@ class Integrations extends Page
                                     ->columnSpanFull(),
                                 Placeholder::make('woocommerce_webhook_note')
                                     ->hiddenLabel()
-                                    ->content('Order sync (WooCommerce → ERP) uses a webhook, not the import button above: in WordPress go to WooCommerce → Settings → Advanced → Webhooks → Add webhook. Set Topic to "Order updated" (it covers created/updated/deleted), Delivery URL to the URL above, and Secret to the same secret set above — the two must match exactly.')
+                                    ->content('Order sync (WooCommerce → ERP) uses a webhook, not the import button below: in WordPress go to WooCommerce → Settings → Advanced → Webhooks → Add webhook. Set Topic to "Order updated" (it covers created/updated/deleted), Delivery URL to the URL above, and Secret to the same secret set above — the two must match exactly.')
+                                    ->columnSpanFull(),
+                                SchemaActions::make([
+                                    $this->testWoocommerceWebhookAction(),
+                                    $this->syncWooOrderAction(),
+                                    $this->syncWooCommerceImportAction(),
+                                ])
                                     ->columnSpanFull(),
                             ])
                             ->columns(2),
@@ -467,11 +844,19 @@ class Integrations extends Page
                                     ->revealable()
                                     ->maxLength(255)
                                     ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'zinipay'),
+                                TextInput::make('payment_credentials.zinipay_base_url')
+                                    ->label('ZiniPay base URL')
+                                    ->url()
+                                    ->maxLength(255)
+                                    ->placeholder(ZiniPayClient::DEFAULT_BASE_URL)
+                                    ->helperText('Leave empty for the default. Change only if ZiniPay gives you a different API host.')
+                                    ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'zinipay'),
                                 TextInput::make('payment_credentials.paystation_merchant_id')
                                     ->label('PayStation Merchant ID')
                                     ->password()
                                     ->revealable()
                                     ->maxLength(255)
+                                    ->helperText('This company\'s own PayStation MID — do not reuse another company\'s or website\'s MID.')
                                     ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
                                 TextInput::make('payment_credentials.paystation_password')
                                     ->label('PayStation Password / API key')
@@ -479,9 +864,16 @@ class Integrations extends Page
                                     ->revealable()
                                     ->maxLength(255)
                                     ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
+                                TextInput::make('payment_credentials.paystation_base_url')
+                                    ->label('PayStation base URL')
+                                    ->url()
+                                    ->maxLength(255)
+                                    ->placeholder(PayStationClient::DEFAULT_BASE_URL)
+                                    ->helperText('Leave empty for the default. Change only if PayStation gives you a different API host.')
+                                    ->visible(fn (Get $get): bool => $get('online_payment_gateway') === 'paystation'),
                                 Placeholder::make('payment_note')
                                     ->hiddenLabel()
-                                    ->content('More gateway options (base URLs, manual bKash/Nagad numbers) are on Storefront Settings → Online Payments.')
+                                    ->content('Each company must use its own gateway merchant account — never reuse another company\'s or website\'s credentials (violates most BD payment gateway terms and can trigger account suspension). Manual bKash/Nagad numbers for Offer-page checkouts are on Storefront Settings → Checkout & Delivery.')
                                     ->columnSpanFull(),
                             ])
                             ->columns(2),
@@ -492,25 +884,225 @@ class Integrations extends Page
                                 Toggle::make('meta_tracking_enabled')
                                     ->label('Enable Meta tracking')
                                     ->columnSpanFull(),
-                                TextInput::make('meta_pixel_id')
-                                    ->label('Primary Pixel / Dataset ID')
-                                    ->maxLength(32)
-                                    ->regex('/^\d{5,32}$/'),
-                                Toggle::make('meta_capi_enabled')
-                                    ->label('Server-side events (Conversions API)'),
-                                TextInput::make('meta_tracking_credentials.access_token')
-                                    ->label('Conversions API access token')
-                                    ->password()
-                                    ->revealable()
-                                    ->maxLength(1000)
-                                    ->helperText('Stored encrypted.')
-                                    ->columnSpanFull(),
-                                Placeholder::make('meta_note')
-                                    ->hiddenLabel()
-                                    ->content('Event lists, consent settings, additional Pixels, testing tools, and the event log are on the Meta CAPI page.')
-                                    ->columnSpanFull(),
-                            ])
-                            ->columns(2),
+
+                                // Nested tabs, same UX as the AI Integration
+                                // tab's per-tool Tabs — each section becomes
+                                // its own sub-tab instead of a stacked,
+                                // collapsible Section.
+                                Tabs::make('meta_capi_sections')
+                                    ->columnSpanFull()
+                                    ->tabs([
+                                        Tab::make('Connection & Pixels')
+                                            ->icon(Heroicon::OutlinedLink)
+                                            ->schema([
+                                                Placeholder::make('meta_connection_note')
+                                                    ->hiddenLabel()
+                                                    ->content('Connect the primary Pixel/Dataset, optional additional destinations, domain verification, and CAPI credentials.')
+                                                    ->columnSpanFull(),
+                                                TextInput::make('meta_pixel_id')
+                                                    ->label('Primary Pixel / Dataset ID')
+                                                    ->maxLength(32)
+                                                    ->regex('/^\d{5,32}$/'),
+                                                Toggle::make('meta_capi_enabled')
+                                                    ->label('Server-side events')
+                                                    ->live()
+                                                    ->helperText('Provider failure never blocks checkout or order operations.'),
+                                                TextInput::make('meta_tracking_credentials.access_token')
+                                                    ->label('Conversions API access token')
+                                                    ->password()
+                                                    ->revealable()
+                                                    ->maxLength(1000)
+                                                    ->helperText('Stored encrypted and kept separate from WhatsApp/Messenger channel tokens.')
+                                                    ->visible(fn (Get $get): bool => (bool) $get('meta_capi_enabled')),
+                                                TextInput::make('meta_tracking_credentials.test_event_code')
+                                                    ->label('Test event code')
+                                                    ->maxLength(100)
+                                                    ->helperText('Optional. Clear the Events Manager test code before production traffic.')
+                                                    ->visible(fn (Get $get): bool => (bool) $get('meta_capi_enabled')),
+                                                Repeater::make('meta_tracking_credentials.additional_pixels')
+                                                    ->label('Additional Pixels / Datasets')
+                                                    ->schema([
+                                                        TextInput::make('pixel_id')
+                                                            ->label('Pixel / Dataset ID')
+                                                            ->required()
+                                                            ->regex('/^\d{5,32}$/')
+                                                            ->maxLength(32),
+                                                        TextInput::make('access_token')
+                                                            ->label('CAPI access token')
+                                                            ->password()
+                                                            ->revealable()
+                                                            ->maxLength(1000),
+                                                        TextInput::make('test_event_code')
+                                                            ->label('Test event code')
+                                                            ->maxLength(100),
+                                                    ])
+                                                    ->columns(3)
+                                                    ->addActionLabel('Add Pixel / Dataset')
+                                                    ->helperText('The complete list is encrypted with the primary CAPI credentials. A token is optional for browser-only delivery.')
+                                                    ->columnSpanFull(),
+                                                Repeater::make('meta_domain_verification_tags')
+                                                    ->label('Domain verification values')
+                                                    ->schema([
+                                                        TextInput::make('content')
+                                                            ->label('facebook-domain-verification content')
+                                                            ->required()
+                                                            ->regex('/^[A-Za-z0-9_-]{8,255}$/')
+                                                            ->maxLength(255),
+                                                    ])
+                                                    ->addActionLabel('Add verification value')
+                                                    ->helperText('Enter only the content value from Meta, not the full HTML meta tag.')
+                                                    ->columnSpanFull(),
+                                            ])
+                                            ->columns(2),
+
+                                        Tab::make('Consent & Advanced Matching')
+                                            ->icon(Heroicon::OutlinedShieldCheck)
+                                            ->schema([
+                                                Placeholder::make('meta_consent_note')
+                                                    ->hiddenLabel()
+                                                    ->content('Control the storefront consent gate and privacy-minimized authenticated-customer matching.')
+                                                    ->columnSpanFull(),
+                                                Toggle::make('meta_consent_required')
+                                                    ->label('Require customer consent')
+                                                    ->live()
+                                                    ->helperText('Off by default: Pixel and server events fire for every visitor immediately. Turn on only if local regulation requires an accept/decline choice before measurement — while on, Pixel and server events stay off until each customer accepts.'),
+                                                Toggle::make('meta_advanced_matching_enabled')
+                                                    ->label('Authenticated-customer advanced matching')
+                                                    ->helperText('Initializes each browser Pixel with SHA-256 hashed account identifiers; raw identifiers are never embedded.')
+                                                    ->visible(fn (Get $get): bool => (bool) $get('meta_browser_tracking_enabled')),
+                                                Textarea::make('meta_consent_message')
+                                                    ->label('Consent message')
+                                                    ->rows(3)
+                                                    ->maxLength(500)
+                                                    ->placeholder('We use Meta measurement cookies to understand storefront activity and improve advertising.')
+                                                    ->columnSpanFull()
+                                                    ->visible(fn (Get $get): bool => (bool) $get('meta_consent_required')),
+                                            ])
+                                            ->columns(2),
+
+                                        Tab::make('Browser Events')
+                                            ->icon(Heroicon::OutlinedCursorArrowRays)
+                                            ->schema([
+                                                Placeholder::make('meta_browser_events_note')
+                                                    ->hiddenLabel()
+                                                    ->content('Choose standard storefront funnel events and optional selector-based behavioural events.')
+                                                    ->columnSpanFull(),
+                                                Toggle::make('meta_browser_tracking_enabled')
+                                                    ->label('Browser Pixel events')
+                                                    ->live()
+                                                    ->helperText('Tracks only the selected storefront events after consent, when consent is required.'),
+                                                CheckboxList::make('meta_browser_events')
+                                                    ->label('Browser events to send')
+                                                    ->options(StorefrontMetaTrackingService::BROWSER_EVENTS)
+                                                    ->columns(2)
+                                                    ->columnSpanFull()
+                                                    ->visible(fn (Get $get): bool => (bool) $get('meta_browser_tracking_enabled')),
+                                                Toggle::make('meta_custom_events_enabled')
+                                                    ->label('Custom behavioural events')
+                                                    ->live()
+                                                    ->helperText('Use stable CSS selectors that exist on the storefront.')
+                                                    ->visible(fn (Get $get): bool => (bool) $get('meta_browser_tracking_enabled')),
+                                                Repeater::make('meta_custom_events')
+                                                    ->label('Link, click, visibility, and time events')
+                                                    ->schema([
+                                                        Select::make('type')
+                                                            ->options(StorefrontMetaTrackingService::CUSTOM_EVENT_TYPES)
+                                                            ->required()
+                                                            ->live(),
+                                                        TextInput::make('event_name')
+                                                            ->label('Meta custom event name')
+                                                            ->required()
+                                                            ->regex('/^[A-Za-z][A-Za-z0-9_]{0,49}$/')
+                                                            ->maxLength(50),
+                                                        TextInput::make('selector')
+                                                            ->label('CSS selector')
+                                                            ->required(fn (Get $get): bool => in_array($get('type'), ['link', 'click', 'scroll'], true))
+                                                            ->maxLength(255)
+                                                            ->placeholder('#whatsapp-button')
+                                                            ->visible(fn (Get $get): bool => in_array($get('type'), ['link', 'click', 'scroll'], true)),
+                                                        TextInput::make('seconds')
+                                                            ->label('Seconds on page')
+                                                            ->numeric()
+                                                            ->integer()
+                                                            ->minValue(1)
+                                                            ->maxValue(3600)
+                                                            ->default(10)
+                                                            ->visible(fn (Get $get): bool => $get('type') === 'time'),
+                                                    ])
+                                                    ->columns(2)
+                                                    ->addActionLabel('Add custom event')
+                                                    ->reorderable()
+                                                    ->columnSpanFull()
+                                                    ->visible(fn (Get $get): bool => (bool) $get('meta_browser_tracking_enabled')
+                                                        && (bool) $get('meta_custom_events_enabled')),
+                                            ]),
+
+                                        Tab::make('Purchase Delivery')
+                                            ->icon(Heroicon::OutlinedShoppingCart)
+                                            ->schema([
+                                                Placeholder::make('meta_purchase_note')
+                                                    ->hiddenLabel()
+                                                    ->content('Choose when the deduplicated Purchase event is eligible for server delivery.')
+                                                    ->columnSpanFull(),
+                                                Select::make('meta_purchase_timing')
+                                                    ->label('Purchase event timing')
+                                                    ->options(StorefrontMetaTrackingService::PURCHASE_TIMINGS)
+                                                    ->required()
+                                                    ->live()
+                                                    ->helperText('Delayed Purchase retains encrypted attribution only until successful server delivery.'),
+                                                TextInput::make('meta_purchase_success_ratio_threshold')
+                                                    ->label('Trusted courier success ratio')
+                                                    ->numeric()
+                                                    ->integer()
+                                                    ->minValue(0)
+                                                    ->maxValue(100)
+                                                    ->suffix('%')
+                                                    ->visible(fn (Get $get): bool => $get('meta_purchase_timing') === 'risk_aware'),
+                                            ])
+                                            ->columns(2),
+
+                                        Tab::make('Order Status Events')
+                                            ->icon(Heroicon::OutlinedArrowsRightLeft)
+                                            ->schema([
+                                                Placeholder::make('meta_status_events_note')
+                                                    ->hiddenLabel()
+                                                    ->content('Send selected committed order lifecycle changes as privacy-minimized custom server events.')
+                                                    ->columnSpanFull(),
+                                                Toggle::make('meta_status_events_enabled')
+                                                    ->label('Order status events')
+                                                    ->live()
+                                                    ->helperText('Events use hashed customer identifiers and never inherit the admin browser session.'),
+                                                CheckboxList::make('meta_status_events')
+                                                    ->label('Lifecycle events to send')
+                                                    ->options(StorefrontMetaTrackingService::STATUS_EVENTS)
+                                                    ->columns(2)
+                                                    ->columnSpanFull()
+                                                    ->visible(fn (Get $get): bool => (bool) $get('meta_status_events_enabled')),
+                                            ]),
+
+                                        Tab::make('Event Log & Retries')
+                                            ->icon(Heroicon::OutlinedQueueList)
+                                            // Gated here, not just inside
+                                            // MetaEventLogTable::mount()'s
+                                            // own abort_unless — a settings
+                                            // manager without sales.view
+                                            // must never even have the
+                                            // widget attempt to mount, or
+                                            // its 403 corrupts this whole
+                                            // page's render (embedding a
+                                            // Livewire component is not the
+                                            // same as a plain hidden field).
+                                            ->visible(fn (): bool => Auth::user()?->hasPermission('sales.view') ?? false)
+                                            ->schema([
+                                                Placeholder::make('meta_event_log_note')
+                                                    ->hiddenLabel()
+                                                    ->content('Inspect privacy-minimized per-Pixel delivery attempts and queue a retry for failed or pending events.')
+                                                    ->columnSpanFull(),
+                                                SchemaLivewire::make(MetaEventLogTable::class)
+                                                    ->key('metaEventLogTable'),
+                                            ]),
+                                    ]),
+                            ]),
                     ]),
             ]);
     }
@@ -521,17 +1113,23 @@ class Integrations extends Page
         $state = $this->form->getState();
 
         if ($this->canManageAi()) {
-            $aiSettings->save($company, [
-                'enabled' => $state['ai_enabled'] ?? false,
-                'api_format' => $state['ai_api_format'] ?? null,
-                'provider' => $state['ai_provider'] ?? null,
-                'base_url' => $state['ai_base_url'] ?? null,
-                'model' => $state['ai_model'] ?? null,
-                'confidence_threshold' => $state['ai_confidence_threshold'] ?? null,
-                'max_consecutive_ai_replies' => $state['ai_max_consecutive_ai_replies'] ?? null,
-                'brand_voice' => $state['ai_brand_voice'] ?? null,
-                'api_key' => $state['ai_api_key'] ?? null,
-            ]);
+            foreach (AiSettingsService::TOOLS as $tool => $label) {
+                $prefix = "ai_{$tool}_";
+
+                $aiSettings->save($company, $tool, [
+                    'enabled' => $state["{$prefix}enabled"] ?? false,
+                    'api_format' => $state["{$prefix}api_format"] ?? null,
+                    'provider' => $state["{$prefix}provider"] ?? null,
+                    'base_url' => $state["{$prefix}base_url"] ?? null,
+                    'model' => $state["{$prefix}model"] ?? null,
+                    'confidence_threshold' => $state["{$prefix}confidence_threshold"] ?? null,
+                    'max_consecutive_ai_replies' => $state["{$prefix}max_consecutive_ai_replies"] ?? null,
+                    'brand_voice' => $state["{$prefix}brand_voice"] ?? null,
+                    'sales_guidelines' => $state["{$prefix}sales_guidelines"] ?? null,
+                    ...collect(['review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'])->mapWithKeys(fn ($key) => [$key => $state[$prefix.$key] ?? null])->all(),
+                    'api_key' => $state["{$prefix}api_key"] ?? null,
+                ]);
+            }
         }
 
         StorefrontSetting::withoutGlobalScopes()->updateOrCreate(
@@ -542,15 +1140,12 @@ class Integrations extends Page
                 'online_payment_enabled',
                 'online_payment_gateway',
                 'payment_credentials',
-                'meta_tracking_enabled',
-                'meta_pixel_id',
-                'meta_capi_enabled',
-                'meta_tracking_credentials',
+                ...$this->metaFields(),
             ]),
         );
 
-        // Re-fill from the fresh, now-persisted state (same "never keep the
-        // plaintext key in the browser" treatment as AiAssistantSettings).
+        // Re-fill from the fresh, now-persisted state — never keeps the
+        // plaintext API keys in the browser past a save.
         $this->mount($aiSettings);
 
         Notification::make()

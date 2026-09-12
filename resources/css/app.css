@@ -57,6 +57,38 @@ body[data-storefront-theme='marketplace_pro'] {
     object-fit: contain;
 }
 
+/*
+ * Per-slide "Fit to frame" (StorefrontSlide::fit_to_frame): always show the
+ * whole banner image, never cropped, at every breakpoint -- for artwork that
+ * isn't the exact banner ratio (letterboxed against the banner background
+ * rather than cover-cropped). Higher specificity than the base and the
+ * desktop `object-fit: cover` rules, so it wins at all sizes without
+ * `!important`.
+ */
+.storefront-image-banner img.storefront-image-banner-fit {
+    object-fit: contain;
+}
+
+/*
+ * Hero Slides -> "Pagination display": the owner can hide the banner's dot
+ * navigation independently per display type
+ * (StorefrontSetting::banner_pagination_desktop / _mobile, both default on).
+ * "Mobile" is every width below the banner's own 1024px desktop breakpoint.
+ * The two-class selector outranks the `.flex` utility on the nav wrapper, so
+ * no `!important` is needed.
+ */
+@media (max-width: 1023.98px) {
+    .storefront-image-banner-hide-nav-mobile .storefront-image-banner-nav {
+        display: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    .storefront-image-banner-hide-nav-desktop .storefront-image-banner-nav {
+        display: none;
+    }
+}
+
 .marketplace-container,
 .marketplace-section {
     width: min(100%, var(--storefront-content-width));
@@ -463,6 +495,20 @@ body[data-storefront-theme='marketplace_pro'] {
 @media (min-width: 1024px) {
     .storefront-image-banner {
         aspect-ratio: 3 / 1;
+    }
+
+    /*
+     * Marketplace Pro keeps the desktop banner shorter than the Built-in
+     * theme's full 3:1 so the "Shop by category" row directly beneath it
+     * stays in view without scrolling on large screens (owner request,
+     * screenshot 2026-09-08). Its Hero Slides upload editor locks to this
+     * same 4:1 ratio (StorefrontThemeRegistry::BANNER_SPECS), and
+     * max-height keeps the banner in check on ultra-wide monitors. The
+     * shared mobile rule above is unchanged.
+     */
+    body[data-storefront-theme='marketplace_pro'] .storefront-image-banner {
+        aspect-ratio: 4 / 1;
+        max-height: 30rem;
     }
 
     .storefront-image-banner img {

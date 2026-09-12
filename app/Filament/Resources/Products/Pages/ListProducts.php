@@ -23,6 +23,21 @@ class ListProducts extends ListRecords
         return [ProductStatsOverview::class];
     }
 
+    /**
+     * The "Quick Edit" row action is an EditAction, and Filament would
+     * otherwise hand every EditAction the full edit-page URL (so it would
+     * navigate away instead of opening its slide-over). Exempt only that
+     * named action; the plain "Edit (full page)" action keeps its redirect.
+     */
+    public function getDefaultActionUrl(Action $action): ?string
+    {
+        if ($action->getName() === 'quickEdit') {
+            return null;
+        }
+
+        return parent::getDefaultActionUrl($action);
+    }
+
     protected function getHeaderActions(): array
     {
         return [

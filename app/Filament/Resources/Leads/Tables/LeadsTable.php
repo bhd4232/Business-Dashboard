@@ -23,6 +23,8 @@ class LeadsTable
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('phone')->searchable(),
+                TextColumn::make('temperature')->badge()->sortable(),
+                TextColumn::make('qualification_score')->label('Qualification score')->sortable(),
                 TextColumn::make('source')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => Lead::SOURCES[$state] ?? (string) $state),
@@ -50,6 +52,8 @@ class LeadsTable
             ->defaultSort('created_at', 'desc')
             ->filters([
                 SelectFilter::make('status')->options(Lead::STATUSES),
+                SelectFilter::make('temperature')->options(['cold' => 'Cold', 'warm' => 'Warm', 'hot' => 'Hot']),
+                Filter::make('unassigned')->label('Unassigned leads')->query(fn (Builder $query) => $query->whereNull('assigned_to')),
                 SelectFilter::make('source')->options(Lead::SOURCES),
                 SelectFilter::make('assigned_to')->relationship('assignedUser', 'name')->label('Assigned To'),
                 Filter::make('follow_up_today')

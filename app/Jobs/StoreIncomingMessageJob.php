@@ -564,7 +564,7 @@ class StoreIncomingMessageJob implements ShouldQueue
         if ($message->type === 'text'
             && filled($message->body)
             && ! data_get($message->raw_payload, '_local.ai_processed_at')) {
-            AiAutoReplyJob::dispatch($conversation->getKey(), $message->getKey());
+            AiAutoReplyJob::dispatch($conversation->getKey(), $message->getKey())->delay(now()->addSeconds(3));
         }
     }
 

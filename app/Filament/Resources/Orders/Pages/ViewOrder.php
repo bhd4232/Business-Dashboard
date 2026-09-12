@@ -68,6 +68,7 @@ class ViewOrder extends ViewRecord
                 ->icon('heroicon-o-truck')
                 ->visible(fn (): bool => $this->canBookCourier())
                 ->schema($this->courierBookingForm())
+                ->fillForm(fn (): array => app(CourierService::class)->bookingFormDefaults($this->record, 'manual'))
                 ->action(function (array $data): void {
                     app(CourierService::class)->createManualBooking($this->record, $data);
                     $this->record->refresh();
@@ -81,6 +82,7 @@ class ViewOrder extends ViewRecord
                     ->where('is_active', true)
                     ->exists())
                 ->schema($this->steadfastBookingForm())
+                ->fillForm(fn (): array => app(CourierService::class)->bookingFormDefaults($this->record, 'steadfast'))
                 ->action(function (array $data): void {
                     $provider = CourierProvider::query()->findOrFail($data['courier_provider_id']);
                     app(CourierService::class)->createSteadfastBooking($this->record, $provider, $data);
@@ -149,21 +151,20 @@ class ViewOrder extends ViewRecord
                 ->label('Tracking ID')
                 ->helperText('Leave blank to auto-generate a manual tracking ID.')
                 ->maxLength(255),
+            // Prefilled by the action's ->fillForm() from
+            // CourierService::bookingFormDefaults() — the single source of
+            // truth for recipient + COD defaults.
             TextInput::make('recipient_name')
                 ->required()
-                ->default($this->record->customer_name ?: $this->record->customer?->name)
                 ->maxLength(255),
             TextInput::make('recipient_phone')
                 ->tel()
-                ->default($this->record->customer?->phone)
                 ->maxLength(255),
             Textarea::make('recipient_address')
-                ->default($this->record->customer?->address)
                 ->rows(3),
             TextInput::make('cod_amount')
                 ->numeric()
                 ->prefix('৳')
-                ->default((float) $this->record->due_amount)
                 ->minValue(0),
             Textarea::make('note')
                 ->rows(2),
@@ -205,9 +206,10 @@ class ViewOrder extends ViewRecord
             TextInput::make('alternative_phone')
                 ->tel()
                 ->maxLength(255),
+            // recipient_email + delivery_type are prefilled by the action's
+            // ->fillForm() (CourierService::bookingFormDefaults()).
             TextInput::make('recipient_email')
                 ->email()
-                ->default($this->record->customer?->email)
                 ->maxLength(255),
             TextInput::make('item_description')
                 ->maxLength(255),
@@ -219,7 +221,6 @@ class ViewOrder extends ViewRecord
                     0 => 'Home Delivery',
                     1 => 'Point Delivery / Hub Pickup',
                 ])
-                ->default(0)
                 ->native(false),
         ];
     }

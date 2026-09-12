@@ -18,4 +18,14 @@ class CreateOrder extends CreateRecord
             $this->getStickySaveFormAction(),
         ];
     }
+
+    /**
+     * After creating an order, go straight back to the orders list (owner
+     * request) instead of Filament's default jump to the new order's View
+     * page. The "Created" success toast still fires.
+     */
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('index');
+    }
 }

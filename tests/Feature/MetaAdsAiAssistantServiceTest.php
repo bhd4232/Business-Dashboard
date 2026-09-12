@@ -33,7 +33,7 @@ class MetaAdsAiAssistantServiceTest extends TestCase
         ]);
         app(CompanyContext::class)->set($this->company);
 
-        app(AiSettingsService::class)->save($this->company, [
+        app(AiSettingsService::class)->save($this->company, AiSettingsService::TOOL_AD_ASSISTANT, [
             'enabled' => true,
             'provider' => 'anthropic',
             'model' => 'claude-test',
@@ -112,7 +112,7 @@ class MetaAdsAiAssistantServiceTest extends TestCase
     public function test_ai_not_enabled_rejects_before_any_http_call(): void
     {
         Http::fake();
-        app(AiSettingsService::class)->save($this->company, ['enabled' => false, 'api_key' => 'test-key']);
+        app(AiSettingsService::class)->save($this->company, AiSettingsService::TOOL_AD_ASSISTANT, ['enabled' => false, 'api_key' => 'test-key']);
         $account = $this->account();
 
         try {

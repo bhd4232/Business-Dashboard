@@ -19,6 +19,7 @@ class BroadcastRecipient extends Model
 
     public const STATUSES = [
         'pending' => 'Pending',
+        'sending' => 'Sending / delivery requires reconciliation',
         'sent' => 'Sent',
         'failed' => 'Failed',
     ];

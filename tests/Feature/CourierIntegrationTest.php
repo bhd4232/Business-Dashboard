@@ -665,7 +665,7 @@ class CourierIntegrationTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(\App\Filament\Pages\CourierMerchantDashboard::class)
+        Livewire::test(CourierMerchantDashboard::class)
             ->mountAction('bookingStatus', arguments: ['key' => 'delivered'])
             ->assertMountedActionModalSee(['DELIVERED-CARD'])
             ->assertMountedActionModalDontSee(['CANCELLED-CARD']);
@@ -965,6 +965,82 @@ class CourierIntegrationTest extends TestCase
 
         $this->assertSame($steadfast->getKey(), CourierBooking::where('order_id', $order->getKey())->first()?->courier_provider_id);
         Http::assertSent(fn ($request): bool => str_ends_with((string) $request->url(), '/create_order'));
+    }
+
+    public function test_courier_cod_amount_is_the_full_invoice_total_with_a_zone_fee_fallback(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'COD Co', 'slug' => 'cod-co', 'invoice_prefix' => 'CODC',
+            'currency' => 'BDT', 'timezone' => 'Asia/Dhaka', 'is_active' => true,
+            'settings' => ['shipping_zones' => ['inside' => ['dhaka']]],
+        ]);
+        app(CompanyContext::class)->set($company);
+
+        CourierProvider::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => 'Rider', 'slug' => 'rider', 'driver' => CourierProvider::DRIVER_MANUAL,
+            'is_active' => true,
+            'settings' => ['delivery_fees' => ['inside' => 60]],
+        ]);
+
+        $customer = Customer::query()->create([
+            'name' => 'COD Buyer', 'phone' => '+8801700000001', 'address' => 'Mirpur, Dhaka',
+            'opening_balance' => 0, 'is_active' => true,
+        ]);
+        $product = Product::query()->create([
+            'name' => 'COD Product', 'sku' => 'COD-SKU-1', 'price' => 500, 'sale_price' => 500,
+            'cost_price' => 300, 'stock' => 5, 'unit' => 'pcs', 'reorder_level' => 1,
+            'vat_rate' => 0, 'is_active' => true, 'status' => Product::STATUS_AVAILABLE,
+        ]);
+        StockMovement::query()->create(['product_id' => $product->getKey(), 'type' => 'opening', 'quantity' => 5]);
+
+        $order = Order::query()->create([
+            'customer_id' => $customer->getKey(), 'order_date' => now()->toDateString(),
+            'discount' => 0, 'vat' => 0, 'paid_amount' => 200, 'status' => 'draft',
+        ]);
+        OrderItem::query()->create([
+            'order_id' => $order->getKey(), 'product_id' => $product->getKey(),
+            'quantity' => 1, 'unit_price' => 500,
+        ]);
+        $order->update(['status' => 'confirmed']);
+        $order->refresh();
+
+        // The order auto-picked up the ৳60 "inside" zone fee on creation, so
+        // total_amount is 560. COD is that full total, NOT the ৳300 still due
+        // after the ৳200 advance.
+        $this->assertSame('560.00', $order->total_amount);
+        $this->assertSame(560.0, $order->courierCodAmount());
+
+        // Order with no shipping fee of its own (staff zeroed it, or no zone
+        // config): the zone delivery charge is added back on top of the total.
+        $order->update(['shipping_fee' => 0]);
+        $order->refresh();
+        $this->assertSame('500.00', $order->total_amount);
+        $this->assertSame(560.0, $order->courierCodAmount());
+    }
+
+    public function test_book_courier_popup_prefills_recipient_from_the_order_customer_and_the_full_cod(): void
+    {
+        $company = Company::defaultCompany();
+        $user = User::factory()->create(['role' => 'sales_staff', 'is_active' => true]);
+        $user->companies()->sync([$company->getKey() => ['role' => 'sales_staff', 'is_default' => true]]);
+        app(CompanyContext::class)->set($company);
+        CourierProvider::query()->create([
+            'company_id' => $company->getKey(), 'name' => 'Rider', 'slug' => 'rider',
+            'driver' => CourierProvider::DRIVER_MANUAL, 'is_active' => true, 'is_default' => true,
+        ]);
+
+        $order = $this->orderForCompany($company);
+        $this->actingAs($user);
+
+        Livewire::test(ListOrders::class)
+            ->mountTableAction('bookCourier', $order)
+            ->assertTableActionDataSet([
+                'recipient_name' => 'Courier Customer',
+                'recipient_phone' => '+8801700000000',
+                'recipient_address' => 'Dhaka',
+                'cod_amount' => $order->courierCodAmount(),
+            ]);
     }
 
     public function test_courier_payment_history_view_details_action_fetches_the_payment_via_the_corrected_endpoint(): void

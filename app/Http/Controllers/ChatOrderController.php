@@ -6,9 +6,11 @@ use App\Models\ChatOrderLink;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Quotation;
 use App\Services\CompanyContext;
 use App\Services\Crm\ConversationMessengerService;
 use App\Services\Crm\LeadConversionService;
+use App\Services\Crm\SalesFollowUpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +29,10 @@ class ChatOrderController extends Controller
 
         if (! $link->opened_at) {
             $link->forceFill(['opened_at' => now()])->saveQuietly();
+        }
+
+        if ($link->conversation) {
+            app(SalesFollowUpService::class)->schedule($link->conversation, $link);
         }
 
         return view('chat-order.show', ['link' => $link]);
@@ -57,7 +63,21 @@ class ChatOrderController extends Controller
         $context->set($link->company);
 
         try {
-            $order = DB::transaction(function () use ($link, $data) {
+            $createdOrder = false;
+            $order = DB::transaction(function () use ($link, $data, &$createdOrder) {
+                $link = ChatOrderLink::query()->whereKey($link->getKey())->lockForUpdate()->firstOrFail();
+                if ($link->converted_order_id) {
+                    return $link->convertedOrder;
+                }
+                abort_unless($link->isUsable(), 410, 'This order link has expired.');
+                if ($link->quotation_id) {
+                    $quotation = Quotation::query()->whereKey($link->quotation_id)->lockForUpdate()->firstOrFail();
+                    if ($quotation->converted_order_id) {
+                        $link->update(['converted_order_id' => $quotation->converted_order_id]);
+
+                        return $quotation->convertedOrder;
+                    }
+                }
                 $customer = $this->resolveCustomer($link, $data);
 
                 $order = Order::query()->create([
@@ -86,6 +106,7 @@ class ChatOrderController extends Controller
                 }
 
                 $order->refresh();
+                $createdOrder = true;
 
                 $link->forceFill(['converted_order_id' => $order->getKey()])->save();
 
@@ -104,7 +125,9 @@ class ChatOrderController extends Controller
                 return $order;
             });
 
-            $this->recordAndConfirm($link, $order);
+            if ($createdOrder) {
+                $this->recordAndConfirm($link, $order);
+            }
         } finally {
             $context->clear();
         }

@@ -22,6 +22,10 @@ class LeadConversionService
         }
 
         return DB::transaction(function () use ($lead) {
+            $lead = Lead::query()->whereKey($lead->getKey())->lockForUpdate()->firstOrFail();
+            if ($lead->converted_customer_id) {
+                return $lead->convertedCustomer;
+            }
             $existing = Customer::query()
                 ->where('company_id', $lead->company_id)
                 ->where('phone', $lead->phone)
@@ -59,6 +63,13 @@ class LeadConversionService
         }
 
         return DB::transaction(function () use ($quotation) {
+            $quotation = Quotation::query()->whereKey($quotation->getKey())->lockForUpdate()->firstOrFail();
+            if ($quotation->converted_order_id) {
+                return $quotation->convertedOrder;
+            }
+            if ($quotation->status !== 'accepted') {
+                throw new \RuntimeException('Only accepted quotations can be converted to an order.');
+            }
             $customer = $quotation->customer
                 ?? ($quotation->lead ? $this->convertToCustomer($quotation->lead) : null);
 

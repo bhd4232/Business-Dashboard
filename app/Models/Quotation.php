@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\GeneratesSequentialNumber;
+use App\Services\Crm\SalesFollowUpService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -37,6 +38,14 @@ class Quotation extends Model
             $quotation->quotation_number ??= static::nextQuotationNumber();
             $quotation->status ??= 'draft';
         });
+        static::updated(function (Quotation $quotation): void {
+            if ($quotation->wasChanged('status') && $quotation->status === 'sent' && $quotation->lead_id) {
+                $conversation = Conversation::query()->where('company_id', $quotation->company_id)->where('lead_id', $quotation->lead_id)->latest('last_message_at')->first();
+                if ($conversation) {
+                    app(SalesFollowUpService::class)->schedule($conversation, quotation: $quotation);
+                }
+            }
+        });
     }
 
     protected function sequentialNumberColumn(): string
@@ -50,8 +59,9 @@ class Quotation extends Model
         $lastNumber = self::query()
             ->withoutGlobalScopes()
             ->where('quotation_number', 'like', $base.'%')
-            // See Order::nextOrderNumber() — length-first keeps the sort
-            // numerically correct once the daily sequence passes 9999.
+            // Length-first keeps the sort numerically correct once the daily
+            // sequence passes 9999 ("...-10000" would otherwise rank below
+            // "...-9999" under a plain string ORDER BY).
             ->orderByRaw('LENGTH(quotation_number) desc')
             ->orderByDesc('quotation_number')
             ->value('quotation_number');

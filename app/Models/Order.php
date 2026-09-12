@@ -390,30 +390,37 @@ class Order extends Model
         return 'order_number';
     }
 
+    /**
+     * `PREFIX-YYYYMMDD-NN`, where the trailing number is a single running
+     * counter per company that does NOT reset each day -- it is the company's
+     * total order count so far, plus one. So two orders placed today read
+     * `...-01`, `...-02`, and tomorrow's next order is `...-03` rather than
+     * restarting at `...-01`. The date segment is the placement date, kept for
+     * readability only; the running number is what makes an invoice findable.
+     * Padded to a minimum of two digits and grows naturally past 99.
+     *
+     * Counting rows (rather than parsing the largest existing suffix) keeps
+     * this database-agnostic and means every order advances the counter --
+     * including admin orders that submit the pre-filled number from the form.
+     * A concurrent insert that grabs the same number collides on the
+     * `order_number` UNIQUE index and GeneratesSequentialNumber retries, at
+     * which point the now-committed row makes the recount land one higher.
+     */
     public static function nextOrderNumber(?Company $company = null): string
     {
         $company ??= app()->bound('company.context') ? app('company.context')->company() : null;
         $company ??= Company::defaultCompany();
         $prefix = $company?->invoice_prefix ?: 'INV';
-        $base = $prefix.'-'.now()->format('Ymd').'-';
-        $lastNumber = self::query()
+
+        // withoutGlobalScopes(): count for *this* company regardless of the
+        // active company context, and include trashed orders -- a trashed
+        // order still consumed a number and must not have it re-minted.
+        $sequence = self::query()
+            ->withoutGlobalScopes()
             ->when($company, fn ($query) => $query->where('company_id', $company->getKey()))
-            ->where('order_number', 'like', $base.'%')
-            // Same-prefix numbers can differ in digit count once the daily
-            // sequence passes 999, at which point a plain string ORDER BY
-            // would rank "...-1000" below "...-999". Sorting by length
-            // first keeps the numerically-largest suffix on top.
-            ->orderByRaw('LENGTH(order_number) desc')
-            ->orderByDesc('order_number')
-            ->value('order_number');
+            ->count() + 1;
 
-        // Read everything after the fixed-length $base prefix rather than a
-        // hardcoded substr(-3) -- once the daily count passes 999 the suffix
-        // itself grows past 3 digits (e.g. "...-1000"), and a fixed -3 would
-        // silently truncate that back down to "000" and re-mint duplicates.
-        $sequence = $lastNumber ? ((int) substr($lastNumber, strlen($base))) + 1 : 1;
-
-        return $base.str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
+        return $prefix.'-'.now()->format('Ymd').'-'.str_pad((string) $sequence, 2, '0', STR_PAD_LEFT);
     }
 
     public function syncTotalsStockAndCustomerBalance(): void
@@ -475,6 +482,27 @@ class Order extends Model
     public function isAccounted(): bool
     {
         return in_array($this->status, self::ACCOUNTED_STATUSES, true);
+    }
+
+    /**
+     * What a courier should collect on delivery: the full invoice total
+     * (products − discount + VAT + shipping), never reduced by an advance
+     * already paid. If the order carries no shipping fee of its own, the zone
+     * delivery charge for the customer's address is added on top so the COD
+     * always includes delivery (owner rule).
+     */
+    public function courierCodAmount(): float
+    {
+        $this->loadMissing('customer');
+
+        $total = (float) $this->total_amount;
+
+        if ((float) $this->shipping_fee <= 0 && $this->company) {
+            $total += (float) app(ShippingFeeService::class)
+                ->feeFor($this->customer?->address, $this->company)['fee'];
+        }
+
+        return round(max($total, 0), 2);
     }
 
     public function workflowStage(): string

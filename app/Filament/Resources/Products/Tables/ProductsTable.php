@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\Products\Tables;
 
+use App\Filament\Concerns\PersistsProductFormData;
 use App\Models\Product;
 use App\Support\CompanyMedia;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -19,10 +22,18 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ProductsTable
 {
+    use PersistsProductFormData;
+
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('category'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
+                'category',
+                // Pool members live in other companies, so the eager load
+                // must drop CompanyScope or it would only ever see members
+                // of the currently-active company.
+                'stockPool.products' => fn ($query) => $query->withoutGlobalScopes()->with('company'),
+            ]))
             ->columns([
                 ImageColumn::make('image')
                     ->label('Image')
@@ -71,6 +82,16 @@ class ProductsTable
                     ->color(fn (Product $record): string => $record->isLowStock() ? 'danger' : 'success')
                     ->description(fn (Product $record): ?string => $record->isLowStock() ? 'Low stock' : null),
 
+                TextColumn::make('stock_pool')
+                    ->label('Shared with')
+                    ->badge()
+                    ->color('info')
+                    ->icon('heroicon-o-squares-2x2')
+                    ->placeholder('—')
+                    ->toggleable()
+                    ->state(fn (Product $record): ?string => self::poolCompaniesLabel($record))
+                    ->tooltip('Stock is shared with these companies (Inventory → Shared Stock Pools)'),
+
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -115,6 +136,16 @@ class ProductsTable
                     ->query(fn (Builder $query): Builder => $query->whereColumn('stock', '<=', 'reorder_level'))
                     ->toggle(),
 
+                TernaryFilter::make('pooled')
+                    ->label('Shared stock pool')
+                    ->trueLabel('In a shared pool')
+                    ->falseLabel('Not pooled')
+                    ->queries(
+                        true: fn (Builder $query): Builder => $query->whereNotNull('stock_pool_id'),
+                        false: fn (Builder $query): Builder => $query->whereNull('stock_pool_id'),
+                        blank: fn (Builder $query): Builder => $query,
+                    ),
+
                 SelectFilter::make('brand')
                     ->label('Brand')
                     ->options(fn (): array => Product::query()
@@ -126,16 +157,56 @@ class ProductsTable
                     ->searchable(),
             ])
             ->recordActions([
-                ViewAction::make()
-                    ->label('View')
-                    ->color('info')
-                    ->icon('heroicon-o-eye'),
-                EditAction::make(),
+                ActionGroup::make([
+                    ViewAction::make()
+                        ->label('View')
+                        ->color('info')
+                        ->icon('heroicon-o-eye'),
+
+                    // Full product form in a slide-over, right on the list —
+                    // ListProducts::getDefaultActionUrl() keeps this named
+                    // action from redirecting to the edit page like the plain
+                    // EditAction below does.
+                    EditAction::make('quickEdit')
+                        ->label('Quick Edit')
+                        ->icon('heroicon-o-bolt')
+                        ->slideOver()
+                        ->modalWidth(Width::FiveExtraLarge)
+                        ->mutateRecordDataUsing(fn (array $data): array => self::mutateProductDataBeforeFill($data))
+                        ->using(fn (Product $record, array $data): Product => self::saveProductFromForm($record, $data)),
+
+                    EditAction::make()
+                        ->label('Edit (full page)'),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * The other companies a product's stock is pooled with (see StockPool),
+     * or null when it isn't pooled. Relies on the `stockPool.products` eager
+     * load in configure() so it never fires a per-row query.
+     */
+    protected static function poolCompaniesLabel(Product $record): ?string
+    {
+        if (! $record->stock_pool_id || ! $record->relationLoaded('stockPool') || ! $record->stockPool) {
+            return $record->stock_pool_id ? 'Pooled' : null;
+        }
+
+        $others = $record->stockPool->products
+            ->reject(fn (Product $member): bool => (int) $member->getKey() === (int) $record->getKey())
+            ->map(fn (Product $member): ?string => $member->company?->name)
+            ->filter()
+            ->unique()
+            ->sort()
+            ->implode(', ');
+
+        $prefix = $record->isPoolSource() ? 'Source · ' : '';
+
+        return $others !== '' ? $prefix.$others : ($record->isPoolSource() ? 'Pool source' : 'Pooled');
     }
 }

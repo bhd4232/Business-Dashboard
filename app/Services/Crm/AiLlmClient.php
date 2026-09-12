@@ -29,6 +29,7 @@ class AiLlmClient
         protected string $apiKey,
         protected string $model,
         protected ?string $baseUrl = null,
+        protected int $timeoutSeconds = 60,
     ) {}
 
     /**
@@ -47,7 +48,7 @@ class AiLlmClient
         $response = Http::withHeaders([
             'x-api-key' => $this->apiKey,
             'anthropic-version' => '2023-06-01',
-        ])->timeout(60)->post($url, [
+        ])->timeout($this->timeoutSeconds)->connectTimeout(min(10, $this->timeoutSeconds))->post($url, [
             'model' => $this->model,
             'max_tokens' => 1024,
             'system' => $system,
@@ -90,9 +91,11 @@ class AiLlmClient
         }
 
         $response = Http::withToken($this->apiKey)
-            ->timeout(60)
+            ->timeout($this->timeoutSeconds)
+            ->connectTimeout(min(10, $this->timeoutSeconds))
             ->post($url, [
                 'model' => $this->model,
+                'max_tokens' => 1024,
                 'messages' => $openAiMessages,
                 'tools' => array_map(fn (array $tool): array => [
                     'type' => 'function',

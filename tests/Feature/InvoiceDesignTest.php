@@ -392,7 +392,7 @@ class InvoiceDesignTest extends TestCase
             ->assertSee('PDF-CONTENT');
     }
 
-    public function test_order_numbers_use_a_three_digit_daily_sequence_and_survive_overflow(): void
+    public function test_order_number_uses_one_running_sequence_that_does_not_reset_each_day(): void
     {
         $company = Company::query()->create([
             'name' => 'Sequence Co',
@@ -407,19 +407,76 @@ class InvoiceDesignTest extends TestCase
         $today = now()->format('Ymd');
 
         $first = Order::query()->create(['customer_name' => 'Buyer One', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
-        $this->assertSame("ZMG-{$today}-001", $first->order_number);
+        $this->assertSame("ZMG-{$today}-01", $first->order_number);
 
         $second = Order::query()->create(['customer_name' => 'Buyer Two', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
-        $this->assertSame("ZMG-{$today}-002", $second->order_number);
+        $this->assertSame("ZMG-{$today}-02", $second->order_number);
 
-        // Once the daily count passes 999 the suffix grows past 3 digits --
-        // the next number must read the whole numeric remainder (not just
-        // its last 3 characters) or it would wrap back to "-000" and collide
-        // with a number already used earlier today.
-        $second->forceFill(['order_number' => "ZMG-{$today}-999"])->saveQuietly();
-        $this->assertSame("ZMG-{$today}-1000", Order::nextOrderNumber($company));
+        // The next day's orders keep counting up -- they do NOT restart at 01.
+        $this->travel(1)->day();
+        $tomorrow = now()->format('Ymd');
 
-        $second->forceFill(['order_number' => "ZMG-{$today}-1000"])->saveQuietly();
-        $this->assertSame("ZMG-{$today}-1001", Order::nextOrderNumber($company));
+        $third = Order::query()->create(['customer_name' => 'Buyer Three', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
+        $this->assertSame("ZMG-{$tomorrow}-03", $third->order_number);
+
+        $fourth = Order::query()->create(['customer_name' => 'Buyer Four', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
+        $this->assertSame("ZMG-{$tomorrow}-04", $fourth->order_number);
+
+        $this->travelBack();
+    }
+
+    public function test_order_number_sequence_continues_from_the_existing_order_count_and_grows_past_two_digits(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Legacy Co',
+            'slug' => 'legacy-co',
+            'invoice_prefix' => 'ZMG',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($company);
+
+        // 128 orders already exist under the old daily-reset scheme (their
+        // explicit numbers are left untouched).
+        foreach (range(1, 128) as $i) {
+            Order::query()->create([
+                'order_number' => 'ZMG-LEGACY-'.$i,
+                'customer_name' => "Legacy {$i}",
+                'status' => 'draft',
+                'source' => Order::SOURCE_ADMIN,
+            ]);
+        }
+
+        $today = now()->format('Ymd');
+        $next = Order::query()->create(['customer_name' => 'New Buyer', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
+
+        // 128 existing + this one => 129; the two-digit pad never truncates.
+        $this->assertSame("ZMG-{$today}-129", $next->order_number);
+        $this->assertSame("ZMG-{$today}-130", Order::nextOrderNumber($company));
+    }
+
+    public function test_trashed_orders_still_count_towards_the_sequence(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Trash Seq Co',
+            'slug' => 'trash-seq-co',
+            'invoice_prefix' => 'ZMG',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($company);
+
+        $today = now()->format('Ymd');
+
+        $first = Order::query()->create(['customer_name' => 'Buyer One', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
+        $second = Order::query()->create(['customer_name' => 'Buyer Two', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
+        $first->delete();
+
+        // The trashed order keeps its number reserved -- the next order is 03,
+        // not a re-used 01.
+        $third = Order::query()->create(['customer_name' => 'Buyer Three', 'status' => 'draft', 'source' => Order::SOURCE_ADMIN]);
+        $this->assertSame("ZMG-{$today}-03", $third->order_number);
     }
 }

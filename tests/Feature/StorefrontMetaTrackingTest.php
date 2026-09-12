@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Pages\MetaCapiSettings;
+use App\Filament\Pages\Integrations;
 use App\Models\Category;
 use App\Models\Company;
 use App\Models\Customer;
@@ -263,13 +263,19 @@ class StorefrontMetaTrackingTest extends TestCase
 
     public function test_legacy_meta_events_page_redirects_to_consolidated_event_log(): void
     {
+        $company = Company::query()->create([
+            'name' => 'Legacy Meta Events Co', 'slug' => 'legacy-meta-events-co',
+            'invoice_prefix' => 'LME', 'currency' => 'BDT', 'timezone' => 'Asia/Dhaka', 'is_active' => true,
+        ]);
         $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $user->companies()->attach($company, ['role' => 'super_admin', 'is_default' => true]);
 
         $this->actingAs($user)
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true])
             ->get('/admin/storefront/storefront-meta-events')
-            ->assertRedirect(MetaCapiSettings::getUrl(['section' => 'event_log']));
+            ->assertRedirect(Integrations::getUrl());
 
-        $this->get(MetaCapiSettings::getUrl(['section' => 'event_log']))
+        $this->get(Integrations::getUrl())
             ->assertOk()
             ->assertSee('Event Log &amp; Retries', false);
     }
@@ -417,15 +423,22 @@ class StorefrontMetaTrackingTest extends TestCase
         $this->assertStringNotContainsString('never-log-status-token', $audit->error);
     }
 
-    public function test_meta_capi_page_consolidates_settings_and_event_navigation(): void
+    /**
+     * MetaCapiSettings' bespoke section-nav header (the CSS/section-switch
+     * assertions the old version of this test carried) is retired along with
+     * that page — every Meta field now lives in one flat Tab on Integrations
+     * via Filament's own Tabs component, which renders every tab's content
+     * up front rather than section-by-section, so no "select a section"
+     * step is needed to reach any field.
+     */
+    public function test_integrations_page_exposes_the_full_meta_capi_configuration_and_event_log(): void
     {
-        [, , $setting] = $this->store('Status Settings Store', 'status-settings.example.test');
+        $this->store('Status Settings Store', 'status-settings.example.test');
         $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
         $this->actingAs($user);
 
-        $component = Livewire::test(MetaCapiSettings::class)
-            ->assertSet('activeSection', 'overview')
+        Livewire::test(Integrations::class)
             ->assertFormFieldExists('meta_status_events_enabled')
             ->assertFormFieldExists('meta_status_events')
             ->assertFormFieldExists('meta_consent_required')
@@ -435,101 +448,36 @@ class StorefrontMetaTrackingTest extends TestCase
             ->assertFormFieldExists('meta_tracking_credentials.additional_pixels')
             ->assertFormFieldExists('meta_domain_verification_tags')
             ->assertSee('Connection & Pixels')
-            ->assertSee('Consent & Matching')
+            ->assertSee('Consent & Advanced Matching')
             ->assertSee('Event Log & Retries')
-            ->assertSee('zz-meta-capi-page', false)
-            ->assertSee('zz-meta-mobile-nav', false)
-            ->assertSee('.zz-meta-custom-header {', false)
-            ->assertSee('.zz-meta-custom-header .fi-header-subheading {', false)
-            ->assertSee('font-size: var(--text-sm);', false)
-            ->assertSee('line-height: var(--text-sm--line-height);', false)
-            ->assertSee('Open Meta CAPI navigation')
-            ->assertSeeInOrder(['Open Meta CAPI navigation', 'Meta Pixel & Conversions API'])
-            ->assertSee('meta-capi-mobile-section-overview', false)
-            ->assertSee('x-on:click="close()"', false)
-            ->assertDontSee('overflow-x: auto;', false)
-            ->assertDontSee('font-size: 30px;', false)
-            ->assertDontSee('font-size: 25px;', false)
-            ->assertDontSee('font-size: 22px;', false)
-            ->assertSee('border-block-start: 1px solid var(--gray-200);', false)
-            ->assertSee('border-block-start-color: var(--gray-700);', false)
-            ->assertSee('.zz-meta-rail:hover .zz-meta-nav-panel', false)
-            ->assertSee('.zz-meta-rail:hover .zz-meta-nav-label', false)
-            ->assertSee('.zz-meta-rail:hover .zz-meta-nav-link.fi-btn', false)
-            ->assertSee('inline-size: 2.5rem;', false)
-            ->assertSee('inline-size: 100%;', false)
-            ->assertSee('display: none;', false)
-            ->assertSee('display: inline-flex;', false)
-            ->assertSee('padding-top: 10px;', false)
-            ->assertSee('position: sticky;', false)
-            ->assertSee('top: 4rem;', false)
-            ->assertSee('z-index: 20;', false)
-            ->assertSee('@media (max-width: 1023px)', false)
-            ->assertSee('@media (prefers-reduced-motion: reduce)', false)
-            ->assertSee('Master control and a quick readiness summary')
-            ->assertDontSee('Connect the primary Pixel/Dataset')
-            ->assertDontSee('Inspect privacy-minimized per-Pixel delivery attempts');
-
-        $component
-            ->call('selectSection', 'connection')
-            ->assertSet('activeSection', 'connection')
-            ->assertSee('Connect the primary Pixel/Dataset')
-            ->assertDontSee('Master control and a quick readiness summary')
-            ->assertFormFieldVisible('meta_pixel_id')
-            ->assertFormFieldVisible('meta_capi_enabled')
+            ->assertFormFieldHidden('meta_tracking_credentials.access_token')
+            ->assertFormFieldHidden('meta_status_events')
+            ->fillForm([
+                'meta_capi_enabled' => true,
+                'meta_status_events_enabled' => true,
+            ])
+            ->assertFormFieldVisible('meta_tracking_credentials.access_token')
             ->assertFormFieldVisible('meta_tracking_credentials.additional_pixels')
             ->assertFormFieldVisible('meta_domain_verification_tags')
-            ->assertFormFieldHidden('meta_tracking_credentials.access_token')
-            ->assertSeeHtml('aria-current="page"')
-            ->assertSeeHtml('data-active="true"');
-
-        $component
-            ->fillForm(['meta_capi_enabled' => true])
-            ->assertFormFieldVisible('meta_tracking_credentials.access_token')
-            ->call('selectSection', 'consent')
-            ->assertSet('activeSection', 'consent')
-            ->assertFormFieldVisible('meta_consent_required')
-            ->call('selectSection', 'browser_events')
-            ->assertSet('activeSection', 'browser_events')
-            ->assertFormFieldVisible('meta_browser_tracking_enabled')
-            ->call('selectSection', 'purchase')
-            ->assertSet('activeSection', 'purchase')
-            ->assertFormFieldVisible('meta_purchase_timing')
-            ->call('selectSection', 'status_events')
-            ->assertSet('activeSection', 'status_events')
-            ->assertFormFieldVisible('meta_status_events_enabled')
-            ->call('selectSection', 'event_log')
-            ->assertSet('activeSection', 'event_log')
-            ->assertSee('Inspect privacy-minimized per-Pixel delivery attempts')
-            ->assertDontSee('Connect the primary Pixel/Dataset');
+            ->assertFormFieldVisible('meta_status_events');
     }
 
-    public function test_meta_capi_page_saves_company_scoped_settings(): void
+    public function test_integrations_page_saves_the_full_meta_capi_configuration(): void
     {
         [, , $setting] = $this->store('CAPI Settings Store', 'capi-settings.example.test');
         $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
 
         $this->actingAs($user);
 
-        Livewire::test(MetaCapiSettings::class)
-            ->fillForm(['meta_tracking_enabled' => true])
-            ->call('selectSection', 'connection')
+        Livewire::test(Integrations::class)
             ->fillForm([
+                'meta_tracking_enabled' => true,
                 'meta_pixel_id' => '9988776655443322',
                 'meta_capi_enabled' => true,
                 'meta_tracking_credentials.access_token' => 'encrypted-capi-token',
-            ])
-            ->call('selectSection', 'consent')
-            ->fillForm([
                 'meta_consent_required' => true,
-            ])
-            ->call('selectSection', 'browser_events')
-            ->fillForm([
                 'meta_browser_tracking_enabled' => true,
                 'meta_browser_events' => ['PageView', 'Purchase'],
-            ])
-            ->call('selectSection', 'purchase')
-            ->fillForm([
                 'meta_purchase_timing' => 'confirmed',
             ])
             ->call('save')
@@ -541,6 +489,8 @@ class StorefrontMetaTrackingTest extends TestCase
         $this->assertTrue($setting->meta_capi_enabled);
         $this->assertSame('9988776655443322', $setting->meta_pixel_id);
         $this->assertSame('encrypted-capi-token', $setting->meta_tracking_credentials['access_token']);
+        $this->assertTrue($setting->meta_consent_required);
+        $this->assertSame(['PageView', 'Purchase'], $setting->meta_browser_events);
         $this->assertSame('confirmed', $setting->meta_purchase_timing);
     }
 

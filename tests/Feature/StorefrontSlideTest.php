@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\StorefrontSlides\Pages\CreateStorefrontSlide;
+use App\Filament\Resources\StorefrontSlides\Pages\ListStorefrontSlides;
 use App\Models\Company;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
+use App\Models\User;
 use App\Services\CompanyContext;
+use Filament\Forms\Components\Toggle;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class StorefrontSlideTest extends TestCase
@@ -62,6 +67,103 @@ class StorefrontSlideTest extends TestCase
             ->assertSee('Big Summer Sale')
             ->assertSee('Up to 50% off electronics')
             ->assertSee('Shop now');
+    }
+
+    public function test_fit_to_frame_slide_is_marked_so_its_image_is_never_cropped(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'slides-fit.example.test');
+
+        app(CompanyContext::class)->set($company);
+
+        StorefrontSlide::query()->create([
+            'image' => 'storefront/slides/off-ratio.jpg',
+            'fit_to_frame' => true,
+            'is_active' => true,
+        ]);
+
+        $this->get('http://slides-fit.example.test/')
+            ->assertOk()
+            ->assertSee('storefront/slides/off-ratio.jpg', false)
+            ->assertSee('storefront-image-banner-fit', false);
+    }
+
+    public function test_a_standard_slide_is_not_marked_fit_to_frame(): void
+    {
+        $company = $this->createPublishedStorefrontCompany('Gadget Store', 'slides-nofit.example.test');
+
+        app(CompanyContext::class)->set($company);
+
+        StorefrontSlide::query()->create([
+            'image' => 'storefront/slides/exact-ratio.jpg',
+            'is_active' => true,
+        ]);
+
+        $this->get('http://slides-nofit.example.test/')
+            ->assertOk()
+            ->assertSee('storefront/slides/exact-ratio.jpg', false)
+            ->assertDontSee('storefront-image-banner-fit', false);
+    }
+
+    public function test_hero_slide_form_exposes_the_fit_to_frame_toggle(): void
+    {
+        $user = User::factory()->create();
+        $company = $user->defaultCompany();
+        app(CompanyContext::class)->set($company);
+        $this->actingAs($user);
+
+        $toggle = collect(
+            Livewire::test(CreateStorefrontSlide::class)
+                ->instance()
+                ->getSchema('form')
+                ?->getFlatComponents(withHidden: true)
+        )->first(fn ($component): bool => $component instanceof Toggle && $component->getName() === 'fit_to_frame');
+
+        $this->assertInstanceOf(Toggle::class, $toggle);
+        $this->assertFalse($toggle->getDefaultState());
+    }
+
+    public function test_hero_slides_page_pagination_toggles_persist_per_display(): void
+    {
+        $user = User::factory()->create();
+        $company = $user->defaultCompany();
+        app(CompanyContext::class)->set($company);
+        $this->actingAs($user);
+
+        $setting = StorefrontSetting::withoutGlobalScopes()->firstOrCreate(['company_id' => $company->getKey()]);
+
+        Livewire::test(ListStorefrontSlides::class)
+            ->assertActionExists('paginationDisplay')
+            ->callAction('paginationDisplay', [
+                'banner_pagination_desktop' => false,
+                'banner_pagination_mobile' => true,
+            ])
+            ->assertHasNoActionErrors();
+
+        $setting->refresh();
+        $this->assertFalse($setting->showsBannerPagination('desktop'));
+        $this->assertTrue($setting->showsBannerPagination('mobile'));
+    }
+
+    public function test_hero_slides_page_pagination_form_prefills_the_current_values(): void
+    {
+        $user = User::factory()->create();
+        $company = $user->defaultCompany();
+        app(CompanyContext::class)->set($company);
+        $this->actingAs($user);
+
+        $setting = StorefrontSetting::withoutGlobalScopes()->firstOrCreate(['company_id' => $company->getKey()]);
+        $setting->update(['banner_pagination_desktop' => false, 'banner_pagination_mobile' => false]);
+
+        // Mount and submit without touching anything: if the form prefilled
+        // from the row (not its own ->default(true)), both stay off.
+        Livewire::test(ListStorefrontSlides::class)
+            ->mountAction('paginationDisplay')
+            ->callMountedAction()
+            ->assertHasNoActionErrors();
+
+        $setting->refresh();
+        $this->assertFalse($setting->showsBannerPagination('desktop'));
+        $this->assertFalse($setting->showsBannerPagination('mobile'));
     }
 
     public function test_inactive_and_out_of_window_slides_are_hidden(): void

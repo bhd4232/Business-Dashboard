@@ -4,20 +4,148 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Editable sales-agent conversation guidelines:** Settings → Integrations → AI Integration → Auto Messaging now has a native Filament Markdown editor with formatting and a restore-default action. The supplied Bengali sales playbook loads by default; saved company-specific guidance reaches subsequent AI requests without a deployment. Illustrative prices and promises never replace verified product facts.
+  - Multi-step AI requests release unused token reservations when actual provider usage arrives; absent usage retains the conservative bound. Unicode guidance is measured as UTF-8 content rather than JSON escape sequences.
+- **CRM sales automation (2026-09-10):** evidence-backed lead qualification, staff temperature overrides, variant-aware checkout, draft quotations, AI review/run reports and budget controls, and opt-out-aware scheduled WhatsApp template follow-ups (off by default).
+- **Bangla/Banglish sales replies:** understand colloquial Bengali and Latin-letter Bengali; short language-matched replies, requested price/stock details only, no automatic introduction or appended sales questions. Preserve verified catalog facts and disclose AI identity when asked.
+- **CRM automation reliability:** persistent human handoff, renewed Inbox presence, conversation-level AI locks, source-message deduplication, internal-note exclusion, send-time suppression, atomic broadcast claims and transaction-protected conversions.
+
+- **Image Generation: "Start from an image" — run Regenerate or Remove background on a photo you upload.** The Image Generation form now takes an optional reference-image upload. With one attached, **Generate** offers *Reimagine it from my prompt* (image-to-image, with a subtle / balanced / strong strength) or *Just remove its background*, and runs that on the upload instead of generating from scratch — the same two operations that were already available as per-image buttons on finished results. The section is hidden unless a configured provider supports an edit operation (Google Imagen is generate-only). The upload is compressed to WebP, stored in the company's storage and registered in the Media Hub, and the derived image goes through the same monthly-cap, approval, and audit-log path as any other generation.
+
+  **Technical Notes:** no schema change — reuses the `generated_images.operation` / `reference_image_path` columns from v2.15.0. New form fields `reference_image` (FileUpload via the shared `OptimizesUploadedImages` path into `CompanyStorageService` `ai-reference-uploads/`), `reference_operation`, `reference_strength`; `ImageGeneration::generateFromUploadedReference()` and a shared `queueDerivedGeneration()` now behind both the gallery actions and the form upload.
+
+- **Investor form now captures the deed-paper and register fields.** Investor Identity gains **Display / Pseudonym** (deed clause 3 — used on shared reports when set, otherwise the real name) and **Date of Birth**, and the NID field is relabelled **NID / Passport**. A new **Nominee** section (deed clause 10) records the nominee's name, NID / passport, phone, relation, and address. A new **Security Documents** section records the **Stamp No.** (৳100 deed-paper stamp serials — comma-separate if more than one) and **Cheque No.** (the undated security cheque). All optional; the same fields show on the investor's view page.
+
+  **Technical Notes:** `2026_09_10_120000_add_nominee_and_security_fields_to_investors_table` adds `display_name`, `date_of_birth`, `nominee_name`, `nominee_nid_or_passport`, `nominee_phone`, `nominee_relation`, `nominee_address`, `stamp_number`, `cheque_number` to `investors`, each guarded with `Schema::hasColumn` so a database that already carries some of them stays a safe no-op. Per-investment stamp serials and the security cheque continue to live on each Investment's Security Instrument record; these investor-level fields are the quick register reference.
+
 ### Changed
 
+- **Invoice numbers now use one continuous running number per company instead of restarting at `01` every day.** In `PREFIX-YYYYMMDD-NN`, the `NN` was the count of *that day's* orders, so every date produced its own `-01`, `-02`, … and the same suffix repeated across dozens of dates — a specific invoice was hard to locate and the scheme made no sense to a newcomer. `NN` is now the company's total order count so far, plus one, and never resets: two orders placed today read `…-01` and `…-02`, tomorrow's next order is `…-03`, and so on. The date segment stays, for readability only. The number is padded to a minimum of two digits and grows past `99` on its own. **Already-issued invoice numbers are left exactly as they are** — only orders created from the deploy onward use the running number, so the first new one continues from wherever the business currently stands (128 existing orders → next is `…-129`). Trashed orders keep their number reserved. Quotations and storefront complaints keep their own separate daily numbering. `Order::nextOrderNumber()`.
 - **The storefront home page and product/category listing pages are now cached per company (10 minutes)**, so a high-traffic storefront doesn't re-run the same product/category query for every single visitor. A plain category/sort/page browse is cached; a search or a reseller's filtered catalog always hits the database instead (per-request/per-customer, not worth caching). Any admin edit to a product, category, or storefront setting invalidates the cache immediately — the 10-minute window is only a safety net beyond that.
 
 ### Technical Notes
 
 - New `App\Support\StorefrontListingCache` (`storefront-home-products:`, `storefront-categories:`, `storefront-products:` cache keys). The product-listing page is parameterized by category/sort/page, so instead of enumerating every combination to forget, its keys carry a per-company "generation" number that `forgetCompany()` bumps — old keys simply become unreachable and expire via TTL, on any cache driver. `Product`, `Category`, and `StorefrontSetting` now call it from their existing `saved`/`deleted` hooks (`Category`/`StorefrontSetting` already forgot the separate, pre-existing `storefront-home:{companyId}` slide cache there; that call is unchanged).
 - Production Redis is now also the recommended session backend: `SESSION_DRIVER=redis` with `SESSION_CONNECTION=session` (new `redis.session` connection in `config/database.php`, `REDIS_SESSION_DB` defaults to its own database `2`, separate from the queue's `0` and cache's `1`) so a busy storefront isn't reading/writing a session row in MySQL on every request, and a `cache:clear` can never sign out every active session along with it. `.env.production.example`/`.env.example` and `docs/deployment.md` ("Redis on Coolify") updated accordingly; `database` remains supported for both if Redis isn't available yet.
-- Full suite: 1040 passed (5637 assertions).
+- Full suite: 1040 passed (5637 assertions) as of this change.
 
-## [2.11.3] - 2026-09-02
+## [2.15.0] - 2026-09-10
+
+**Release type:** Minor Feature Update
+
+### Added
+
+- **Image Generation: "Regenerate" and "Remove background" on any finished image.**
+  - **Regenerate** feeds a generated image back in as the starting point for a new one, guided by a prompt you can edit and a "how much to change" setting (subtle / balanced / strong). Uses OpenAI's or a custom endpoint's image-edit API, or Stability's SD3 image-to-image.
+  - **Remove background** produces a new copy with the background made transparent (Stability's remove-background). The original is untouched.
+  - Both are per-image buttons in the results gallery, and each is only offered when a configured provider actually supports it (Google Imagen is generate-only). Background removal always yields a single image; the derived image goes through the same Media Hub registration, monthly cap, approval, and audit-log path as a fresh generation. The Image Library gains a "Kind" column and filter (Generated / Image-to-image / Background removed).
+
+### Fixed
+
+- **The Orders list's bulk "Change status" action did nothing when the selection contained any order that couldn't legally reach the chosen stage.** `OrdersTable` was missing the `use Illuminate\Validation\ValidationException` import, so the bulk loop's `catch (ValidationException)` matched a non-existent class — the first ineligible order's `ValidationException` escaped the loop, Livewire turned it into a silent component error, and no order was updated and no notification appeared. The bulk **"Book courier"** action had the same latent failure. Restoring the import makes ineligible orders count as "skipped" as intended; a new regression test drives the bulk action with an ineligible order first.
+
+### Technical Notes
+
+- `generated_images.operation` column; `ImageGenerationRequest` carries `operation` + `referenceImage` + `strength`; each provider adapter declares `supportsOperation()` and `ImageProviderResolver::formatsSupporting()` reports which `api_format`s can run a given operation; `GenerateImageJob` loads the reference bytes from `reference_image_path` and rejects an unsupported operation before any HTTP call.
+
+## [2.14.1] - 2026-09-10
 
 **Release type:** Patch/Fix Update
 
+### Changed
+
+- **Hero Slides gained a "Pagination display" control to hide the banner's dot navigation, separately for desktop and mobile.** A new button on the Storefront → Hero Slides list opens a two-toggle form ("Show pagination on desktop" / "Show pagination on mobile"); the dots (and the pause/play button beside them) can be hidden on one display type while staying on the other. Both default on, so nothing changes until an owner turns a toggle off. "Mobile" is every width below the banner's own `1024px` desktop breakpoint. The whole banner carousel is affected, not a single slide. New `storefront_settings.banner_pagination_desktop` / `banner_pagination_mobile` columns; the storefront applies them as `.storefront-image-banner-hide-nav-desktop` / `-mobile` classes on the banner with CSS that hides `.storefront-image-banner-nav` at the matching breakpoint. Autoplay is unchanged.
+
+## [2.14.0] - 2026-09-10
+
+**Release type:** Minor Feature Update
+
+### Added
+
+- **New "AI Tools" area — an Image Generation tool with a shared Prompt Enhancer, a generation library, and governance controls.** A top-level **AI Tools** section in the admin sidebar, separate from the per-module AI features (Ad Assistant, Landing Page Builder, Auto Messaging). It opens a **Tool Menu** hub; Video Generation and Content Creation show as reserved "Coming soon" tiles.
+  - **Image Generation** turns a prompt into product shots, ad creatives, or offer banners. Providers are configured on **AI Tools → Image Providers** (super-admin): one or more profiles — OpenAI Images, Google Imagen, Stability AI, or any OpenAI-images-compatible endpoint — each with its own model and **encrypted-per-company** API key; staff pick one at generation time. The tool takes a prompt, a context, an aspect-ratio preset, and 1–4 variations; generation runs in a queued job, results appear in a self-refreshing gallery, and each finished image is compressed to WebP, stored in the company's storage, **and registered in the Media Hub** so it is pickable from every "Select From Media" field.
+  - **✨ Enhance** rewrites a rough prompt before generation — adapting to the chosen image provider (natural language for OpenAI/Imagen, keyword tags for Stability) and the company's own visual house-style note. Always explicit: a before/after you edit and accept, or keep your original. Configured on **AI Tools → Prompt Enhancer** (super-admin), where the expert default guidance per context can also be overridden.
+  - **Attach actions** — a finished image can be set as a product's featured image (also what Meta ad creatives use) or added to its gallery, set as an offer's landing-page cover banner, or flagged as a reference for the future AI Video tool.
+  - **Image Library** collects every generation with filters (context, status, creator, favourites, video references, attached/not, review state), plus "Reuse prompt" (re-opens the tool prefilled) and favourites.
+  - **Governance** (**AI Tools → Image Governance**, super-admin, all optional and off by default): a monthly image cap per role, an approval step for chosen roles (their images can't be attached to a record until a reviewer approves them), and a this-month usage / estimated-cost dashboard by person and provider (estimate uses an admin-set "approx. cost per image" per provider — no billing API is called). Every generation, attach, and review decision is written to the Audit Logs.
+  - **Access:** new permission keys `ai_tools.menu`, `ai_tools.image_generation`, `ai_tools.image_generation.review`, plus reserved `ai_tools.video_generation` / `ai_tools.content_creation`. Super Admin and the built-in Manager role hold the first three by default; all are selectable on custom roles.
+
+  **Technical Notes:** new `generated_images` table (`BelongsToCompany` + `CompanyScope`, registered in `MultiCompanyIsolationTest`). `companies.settings` gains `ai_tools.image_generation` (provider list), `ai_tools.prompt_enhancer`, `ai_tools.image_governance`, `prompt_guides`, and `image_brand_style` — each owned by its own service (`ImageProviderSettingsService`, `PromptEnhancerConfigService`, `ImageGovernanceService`, `PromptGuideRepository`); `AiSettingsService` is not involved. Provider adapters and every LLM call are `Http::fake()`-mocked in tests.
+## [2.13.4] - 2026-09-08
+
+**Release type:** Patch/Fix Update
+
+### Changed
+
+- **Hero Slides gained a per-slide "Fit to frame" toggle.** When on, that banner image is always shown in full — never cropped — with a thin strip of the banner background above/below if it isn't the exact banner ratio (the same "fit to screen" behaviour mobile already uses, now available on desktop for a specific slide). Off by default, so the standard edge-to-edge crop-to-fit is unchanged. New `storefront_slides.fit_to_frame` column; the storefront applies it as a `.storefront-image-banner-fit` class that forces `object-fit: contain` at every breakpoint.
+## [2.13.3] - 2026-09-08
+
+**Release type:** Patch/Fix Update
+
+### Changed
+
+- **The Marketplace Pro storefront's hero banner is shorter on desktop**, so the "Shop by category" row directly below it stays in view without scrolling on large screens. Its slot ratio changes from `3:1` to `4:1` (`1920×480`, capped at `30rem` / 480px tall on monitors ≥1920px wide), and the Hero Slides upload editor now locks new artwork to that same ratio. Mobile is unchanged, and the Built-in and Noor Solar themes keep their existing banner sizes. `StorefrontThemeRegistry::BANNER_SPECS`, `.storefront-image-banner` (scoped `body[data-storefront-theme='marketplace_pro']`).
+## [2.13.2] - 2026-09-08
+
+**Release type:** Patch/Fix Update
+
+### Fixed
+
+- **An image field whose preview is stuck on "Loading / Waiting for size" can now always be cleared.** When the preview of an already-saved image can't load — a slow or failing company-media URL, an offline mobile webview, the dev server under load — FilePond's own remove ("×") button never appears, so a required image field looked permanently occupied and the whole form couldn't be saved. Every FileUpload in the app now carries a small **"Remove"** action in its label row (next to "Select From Media"), added once globally via `FileUpload::configureUsing()` in `AppServiceProvider` (`App\Support\FileUploadClearAction`). It sits outside FilePond so it's always reachable; one click empties the field. The stored file is left in storage — same as the native remove — so a mis-click is recoverable from the Media Hub. The action is only shown while the field actually holds a value.
+## [2.13.1] - 2026-09-08
+
+**Release type:** Patch/Fix Update
+
+### Changed
+
+- **Inbox message thread redesigned as modern chat bubbles** (WhatsApp/Messenger-style, owner-approved design pass). Messages now render as colored rounded bubbles — amber for your replies, neutral cards for the customer's — instead of plain callout boxes, with consecutive messages from the same side grouped together (no repeated spacing, and only the last bubble in a run gets the rounded "tail" corner). The conversation list now shows a colored initials avatar per contact instead of a generic channel icon. Delivery status is now a tick icon (single/double/red alert) next to the timestamp, with the status text kept for screen readers; the WhatsApp→SMS fallback badge and internal-note bubbles were restyled to match. The reply composer is now a floating pill shape. Purely visual — every Livewire binding, filter, and keyboard/screen-reader behavior on the page is unchanged.
+## [2.13.0] - 2026-09-07
+
+**Release type:** Minor Feature Update
+
+### Added
+
+- **"Quick Edit" on the Products list.** Each product row's actions menu (View / Quick Edit / Edit (full page)) now has a **Quick Edit** entry that opens the complete product form — every field, including the variations repeater — in a slide-over over the list, so common fixes no longer need a full page navigation. It saves through the same path as the full edit page (`App\Filament\Concerns\PersistsProductFormData`): `sale_price` still mirrors to `price`, and a changed stock value still creates a proper opening/adjustment `StockMovement` rather than a bare column write. The full-page Edit is unchanged and still available from the same menu.
+- **"Bulk link products" tool for Shared Stock Pools** (super-admin). Instead of opening the single-record Create form once per product, pick a **source company** and a **linked company**, then match many of the source company's products to their counterpart in the linked company on one screen and link them all with one **Save links** — the same stage-inline-then-save shape as "Bulk Update Stock". A **Suggest matches** button pre-fills rows by exact SKU, then exact name. Every link goes through the existing `StockPoolResource::syncMembers()`, so pool mechanics (shared live stock, `StockMovementService` resync) are identical to the form; a product that already owns a pool just gets the new counterpart added to it.
+- **Status quick-filter tabs on the Orders list** (Nuport-style order dashboard). Above the table: **All** plus one tab per order status (Draft / Confirmed / Processing / Completed / Cancelled / Returned / Refunded), each with a live count badge; clicking a tab shows only orders in that status. The Status column filter still works alongside the tabs for deep links and combining with other filters.
+
+### Changed
+
+- **Every dashboard's stat cards are now one uniform, compact size, and smaller again on phones.** The main Dashboard previously mixed sizes — Business Overview was compacted while Customer Success & Risk and Courier Health used Filament's larger default — and the Courier / Meta Ads dashboards were full-size too. A single shared rule on `.fi-wi-stats-overview-stat` in the admin theme now gives every stat card the same padding and number size app-wide (10px / 20px on desktop), with a `max-width: 640px` block shrinking them further on phones (8px / 16px). The per-widget `.zz-business-overview-stat` sizing was removed so it no longer blocks the mobile shrink; its click-to-drilldown affordance is unchanged.
+- **The Products list and the Shared Stock Pools list now show which company a product's stock is pooled with.** Products gains a toggleable "Shared with" column (the other companies' names, with a "Source" marker on the pool owner) and a "Shared stock pool" filter. The Shared Stock Pools list replaces its inline `name (company)` text with dedicated **Source company** / **Pools into** / **Linked products** columns.
+- **Creating an order now returns to the orders list**, instead of Filament's default jump to the new order's detail page. The "Created" toast still confirms the save.
+- **Courier COD is now the full invoice total, including delivery** — every "Book courier" / "Book Steadfast" form (and the bulk action) defaults the COD to the order's `total_amount` (products − discount + VAT + shipping), no longer reduced by any advance already paid. When the order carries no shipping fee of its own, the zone delivery charge for the customer's address (`ShippingFeeService`) is added on top, so the courier always collects for delivery. New `Order::courierCodAmount()`; the field is still editable per booking.
+- **On phones, the Orders list's "New order" button now sits on the same row as the page title** instead of wrapping to its own line (same `.fi-header` mobile-layout treatment the Products list already uses; desktop is unchanged).
+
+### Fixed
+
+- **The courier booking form now reliably pre-fills the recipient name, phone, and address from the order.** The prefill (plus the COD default) is now applied through one shared `CourierService::bookingFormDefaults()` via the action's `->fillForm()`, instead of per-field `->default()` calls that could come up blank.
+## [2.12.0] - 2026-09-06
+
+**Release type:** Minor Feature Update
+
+### Added
+
+- **Each AI-powered tool now has its own provider/model/API-key config, instead of one shared global AI setting.** Settings → Integrations' "AI Assistant" tab is renamed **"AI Integration"** and now holds three independent sub-tabs — **Auto Messaging** (Inbox AI reply), **Ad Assistant** (Meta Ads recommendations), and **Landing Page Builder** (Offer landing-page copy) — so a cheap fast model can be picked for chat replies, a stronger reasoning model for ad strategy, a creative-writing model for landing pages, or the same provider everywhere, without one setting overriding another. `AiSettingsService::all()`/`save()` now take an explicit tool argument (`TOOL_MESSAGING` / `TOOL_AD_ASSISTANT` / `TOOL_LANDING_PAGE`), storing each under `companies.settings->ai_tools->{tool}`. Existing companies are unaffected on upgrade: any tool not yet saved under the new per-tool shape transparently falls back (in-memory only) to the old shared `settings->ai` config, so Auto Messaging, Ad Assistant, and Landing Page Builder all keep working exactly as configured today until an admin explicitly customizes one of them. The now-redundant standalone "AI Assistant Settings" page under the CRM cluster is removed — Settings → Integrations is the one place AI is configured.
+- **Settings → Integrations is now the single, complete place for WooCommerce, Payment Gateway, and Meta Pixel & CAPI configuration** — each tab used to hold only a subset, with the rest duplicated or scattered elsewhere:
+  - **WooCommerce tab**: "Send test webhook" and "Sync an order now" moved from the page header into the tab body, and a new **"Sync WooCommerce"** button (the full product import, matched by SKU/slug) now lives there too — previously a separate, duplicate-credentials section on Storefront Settings, now removed from there.
+  - **Payment Gateway tab**: added the ZiniPay/PayStation base-URL override fields (previously only on Storefront Settings' now-removed "Online Payments" section).
+  - **Meta Pixel & CAPI tab**: expanded from just Pixel ID/access token to the *entire* configuration — consent gate, advanced matching, browser events (incl. custom selector-based events), purchase-event timing, order status events, additional Pixels/Datasets, and domain verification — plus the **Event Log & Retries** table itself, embedded directly on the page. Each section renders as its own sub-tab (same nested-tab style as the AI Integration tab) instead of a stack of collapsible sections, and both tab groups now carry an icon per sub-tab — the AI tools get new icons (chat bubble, megaphone, stacked pages), and the Meta sections reuse the exact icons the old dedicated Meta CAPI page's own section-nav used (link, shield-check, cursor, cart, arrows, queue list).
+  - Manual bKash/Nagad numbers for Offer-page checkouts and other non-gateway storefront content are unaffected and stay on Storefront Settings.
+- **AI Integration's provider/model fields now have a "quick setup" picker.** Each AI tool's tab (Auto Messaging, Ad Assistant, Landing Page Builder) gained two optional, searchable dropdowns above the existing free-text fields: pick a popular OpenAI-compatible provider (DeepSeek, Groq, OpenRouter, Mistral, xAI, Together AI, Fireworks AI, Perplexity, OpenAI, or a self-hosted Ollama/vLLM endpoint) to auto-fill its provider name, base URL, and API format, then pick from that provider's own short list of well-known models (searchable) to fill the Model field. Both pickers are pure convenience — the underlying Provider/Base URL/Model fields stay 100% free-text, so any provider or model not listed can still be typed in directly, same as before.
+- **Offers now have "Preview" and "Open Page" buttons** — on the list and on the edit page, next to "Generate Landing Page with AI" — since there was previously no way to actually see a generated (or hand-built) landing page. "Preview" works for any offer regardless of status (admin-only, bypasses the published check, same convention as the storefront's own preview). "Open Page" is the real customer-facing URL and only appears once the offer is Published and the company has a domain set.
+## [2.11.4] - 2026-09-05
+
+**Release type:** Patch/Fix Update
+
+### Changed
+
+- **Every admin page now uses the full width available beside the sidebar on desktop.** The panel content was previously capped at 80rem (Filament's default `7xl`) and centred, leaving wide empty gutters on large monitors — forms, tables, and dashboards now stretch edge to edge. Phones and tablets are unaffected: their viewport is already narrower than the old cap, so only the desktop layout widens. Set once on the panel via `->maxContentWidth(Width::Full)` in `AdminPanelProvider`; the login and other simple/centred auth pages keep their own narrow width.
+## [2.11.3] - 2026-09-02
+
+**Release type:** Patch/Fix Update
 ### Changed
 
 - **Inbox (CRM) smoothness improvements, web + mobile:**
