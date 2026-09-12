@@ -25,9 +25,9 @@ use Illuminate\Validation\ValidationException;
  * ApprovalGateService later is a self-contained follow-up.
  *
  * Rule 1 (never violate): inventory_purchase, capital_investment,
- * owner_withdrawal, asset_purchase, loan, and fund_transfer transaction
- * types NEVER create an Expense record — they move funds between a Fund
- * Account and an asset/liability, they are not spend.
+ * owner_withdrawal, asset_purchase, loan, fund_transfer, and investor_payout
+ * transaction types NEVER create an Expense record — they move funds between
+ * a Fund Account and an asset/liability, they are not spend.
  */
 class VoucherService
 {
@@ -38,7 +38,7 @@ class VoucherService
     protected const ACCOUNT_REQUIRED_TYPES = [
         'inventory_purchase', 'business_expense', 'supplier_payment', 'customer_payment',
         'capital_investment', 'owner_withdrawal', 'refund',
-        'asset_purchase', 'loan', 'other',
+        'asset_purchase', 'loan', 'other', 'investor_payout',
     ];
 
     public function submit(array $data, User $user): Voucher
@@ -279,7 +279,7 @@ class VoucherService
             'business_expense' => $this->bookExpense($voucher),
             'inventory_purchase' => $this->bookAccountLedger($voucher, 'out'),
             'capital_investment', 'loan' => $this->bookAccountLedger($voucher, 'in'),
-            'owner_withdrawal', 'refund', 'asset_purchase' => $this->bookAccountLedger($voucher, 'out'),
+            'owner_withdrawal', 'refund', 'asset_purchase', 'investor_payout' => $this->bookAccountLedger($voucher, 'out'),
             'other' => $this->bookAccountLedger($voucher, $voucher->isCredit() ? 'in' : 'out'),
             default => null,
         };

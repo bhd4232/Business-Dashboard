@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
 class Investment extends Model
@@ -12,7 +13,7 @@ class Investment extends Model
 
     public const PAYMENT_METHODS = ['cash' => 'Cash', 'bkash' => 'bKash', 'bank' => 'Bank', 'other' => 'Other'];
 
-    protected $fillable = ['company_id', 'project_id', 'investor_id', 'amount', 'payment_method', 'payment_reference', 'invested_at', 'received_by'];
+    protected $fillable = ['company_id', 'project_id', 'investor_id', 'amount', 'payment_method', 'payment_reference', 'invested_at', 'override_reason', 'received_by', 'voucher_id'];
 
     protected $casts = ['amount' => 'decimal:2', 'invested_at' => 'date'];
 
@@ -27,6 +28,19 @@ class Investment extends Model
             }
 
             $investment->company_id = $project->company_id;
+
+            // A project that never configured an investment window
+            // (investment_opens_at/closes_at both null) is unrestricted --
+            // this is an opt-in feature (v3 P2.3, Q4).
+            if (! $investment->exists && $project->investment_closes_at && ! $project->isWithinInvestmentWindow()) {
+                if (! Auth::user()?->hasPermission('investments.override_investment_window')) {
+                    throw ValidationException::withMessages(['invested_at' => 'The investment window for this project has closed. Only a user with the override permission may add an investment now.']);
+                }
+
+                if (blank($investment->override_reason)) {
+                    throw ValidationException::withMessages(['override_reason' => 'A reason is required to add an investment after the window has closed.']);
+                }
+            }
 
             $otherPartnerId = $project->investments()
                 ->when($investment->exists, fn ($query) => $query->whereKeyNot($investment->getKey()))
@@ -68,5 +82,11 @@ class Investment extends Model
     public function documents()
     {
         return $this->morphMany(InvestmentDocument::class, 'documentable');
+    }
+
+    /** The capital_investment voucher booked when this money came in (v3 P2.5), if any. */
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
     }
 }

@@ -616,7 +616,7 @@ Related planning documents:
 
 **Goal:** Track deal-specific investment capital, transparent direct costs, Shariah-based profit sharing, security instruments, and auditable payouts.
 
-**Status:** Partially done. The calculation core shipped, but a 2026-09-07 audit against the client's real signed documents found the contract/legal fields, document management, per-investor reporting, loss handling, and a settlement-correction path all missing. See `01_INVESTOR_MODULE_v3_GAP_ANALYSIS.md` for the full gap list and progress. Sprint 1 (P1.1–P1.7 — contract fields, company gap-fill contribution, corrected annualized return, document attachments, printable investor report + register, settlement draft/confirm/void, loss handling) is complete in the working tree.
+**Status:** Partially done. The calculation core shipped, but a 2026-09-07 audit against the client's real signed documents found the contract/legal fields, document management, per-investor reporting, loss handling, and a settlement-correction path all missing. See `01_INVESTOR_MODULE_v3_GAP_ANALYSIS.md` for the full gap list and progress. Sprint 1 (P1.1–P1.7 — contract fields, company gap-fill contribution, corrected annualized return, document attachments, printable investor report + register, settlement draft/confirm/void, loss handling) and Sprint 2 (P2.1–P2.5 — channel-partner modeling, code-audit bug fixes, an optional investment window, notice-period + withdraw/reinvest tracking, and ledger/Voucher integration) are complete in the working tree.
 
 **Completed:**
 
@@ -637,15 +637,19 @@ Related planning documents:
 - **(Sprint 1)** Browser-print (Bengali-correct) per-investor payout report and project investor register, built from `Company::logo`/address/date-format — no dompdf (can't shape Bengali conjuncts).
 - **(Sprint 1)** Settlement lifecycle: a settlement is created `draft` (figures computed, nothing paid), promoted to `confirmed` (locks figures, unlocks payouts) or `voided` (deletes the draft/confirmed settlement and payouts, re-opens the project) while no payout has been paid; forward-only status transitions enforced in the model.
 - **(Sprint 1)** Loss handling per the deed's clause 4: a losing settlement records an explicit `outcome` (`loss_investor_borne` — capital eroded proportionally, or `loss_manager_borne` — investors keep full principal, company absorbs the loss) plus a required, audited `loss_reason`.
+- **(Sprint 2, 2026-09-12)** Channel-partner modeling: an `is_channel_partner` toggle (list filter/badge, payout-history tab, signed-agreement document tab); deleting an investor is also blocked while anyone is referred under them.
+- **(Sprint 2)** Three code-audit bug fixes: first-time channel-partner assignment no longer wrongly demands the reassignment permission/reason; the investments-module delete Gate now defers to `investments.manage` instead of hard-denying everyone but a super_admin; a project's investments freeze from `closed` onward, not only once `settled`.
+- **(Sprint 2)** An optional, per-project investment window (`investment_opens_at`/`closes_at`) — opt-in, a project that never sets one is unrestricted. Adding an investment after the window closes needs the separately-grantable `investments.override_investment_window` permission plus a logged reason.
+- **(Sprint 2)** Per-cycle investor elections (withdraw / reinvest / partial reinvest — a (partial) reinvest auto-creates the rollover Investment in the chosen next project) and 60-day written exit-notice tracking (deed clauses 5–6), both pure record-keeping, nothing else is blocked by them.
+- **(Sprint 2)** Ledger integration on the existing Voucher/FundSource system (Q5): an optional per-project receiving/payout fund source books a pending `capital_investment` voucher when an investment comes in and a pending `investor_payout` voucher when a payout is marked paid — someone still verifies/approves through the normal Voucher workflow; a project that never configures a fund source creates no vouchers.
 
 **Future Work:**
 
 - Multiple channel partners in one project with an owner-approved distribution rule.
 - Multi-currency investments.
-- Partial early withdrawal and reinvestment after the contractual 1.5–2 month window.
 - Investor-facing portal.
-- Written notice-period tracking (60 days / 2 months) and a logged investment-window override.
-- Ledger integration (`Voucher`/`FundSource`) for investor capital-in / payout-out.
+- Auto-creating an Investment when a reinvest election's target project's investment window has since closed currently still requires the override permission/reason like any other late investment — no special-cased bypass for reinvestment rollovers.
+- A scheduled per-company job to auto-flip a project's status from `open` to `running` once its investment window ends (the window itself already works; only the automatic status flip is unbuilt).
 
 **Done Criteria:**
 

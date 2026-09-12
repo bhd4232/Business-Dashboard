@@ -2,15 +2,24 @@
 
 namespace App\Filament\Resources\ProjectSettlements\RelationManagers;
 
+use App\Filament\Resources\Vouchers\VoucherResource;
+use App\Models\InvestmentProject;
+use App\Models\InvestorCycleElection;
+use App\Models\SettlementPayout;
+use App\Services\Investment\CycleElectionService;
+use App\Services\Investment\InvestmentLedgerService;
+use App\Support\MoneyFormatter;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use RuntimeException;
 
 class PayoutsRelationManager extends RelationManager
 {
@@ -32,7 +41,7 @@ class PayoutsRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table->columns([
+        return $table->modifyQueryUsing(fn ($query) => $query->with('cycleElection'))->columns([
             TextColumn::make('investor.name'),
             TextColumn::make('investment_amount')->moneyWithoutTrailingZeroes('BDT'),
             TextColumn::make('profit_share_amount')->moneyWithoutTrailingZeroes('BDT'),
@@ -40,17 +49,81 @@ class PayoutsRelationManager extends RelationManager
             TextColumn::make('recipient_name'),
             TextColumn::make('payment_status')->badge(),
             TextColumn::make('paid_at')->date()->placeholder('-'),
+            TextColumn::make('cycleElection.election')
+                ->label('Election')
+                ->badge()
+                ->formatStateUsing(fn (?string $state): string => $state ? InvestorCycleElection::ELECTIONS[$state] : '-')
+                ->color(fn (?string $state): string => $state ? 'success' : 'gray'),
+            TextColumn::make('voucher.status')
+                ->label('Voucher')
+                ->badge()
+                ->placeholder('-')
+                ->url(fn (SettlementPayout $record): ?string => $record->voucher_id ? VoucherResource::getUrl('view', ['record' => $record->voucher_id]) : null),
         ])->recordActions([
             Action::make('report')->label('Report')->icon('heroicon-o-document-text')
                 ->url(fn ($record): string => route('investments.reports.investor-payout', $record))
                 ->openUrlInNewTab(),
             EditAction::make()->visible(fn ($record): bool => $this->payoutsUnlocked() && $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false)),
+            Action::make('election')
+                ->label('Record Election')
+                ->icon('heroicon-o-arrow-path-rounded-square')
+                ->color('gray')
+                ->visible(fn (SettlementPayout $record): bool => ! $record->cycleElection && (auth()->user()?->hasPermission('investments.settle') ?? false))
+                ->schema([
+                    Select::make('election')
+                        ->options(InvestorCycleElection::ELECTIONS)
+                        ->required()
+                        ->live(),
+                    TextInput::make('reinvest_amount')
+                        ->label('Reinvest Amount')
+                        ->numeric()->prefix('৳')->minValue(0.01)
+                        ->required(fn (Get $get): bool => $get('election') === 'partial_reinvest')
+                        ->visible(fn (Get $get): bool => $get('election') === 'partial_reinvest')
+                        ->helperText(fn (SettlementPayout $record): string => 'Total payout: '.MoneyFormatter::currency((float) $record->total_payout)),
+                    Select::make('next_project_id')
+                        ->label('Next Project')
+                        ->options(fn (): array => InvestmentProject::query()->whereIn('status', ['open', 'running'])->pluck('name', 'id')->all())
+                        ->searchable()
+                        ->required(fn (Get $get): bool => in_array($get('election'), ['reinvest', 'partial_reinvest'], true))
+                        ->visible(fn (Get $get): bool => in_array($get('election'), ['reinvest', 'partial_reinvest'], true)),
+                ])
+                ->requiresConfirmation()
+                ->modalDescription('This is a one-time record per payout. A (partial) reinvest also creates the rollover investment in the chosen project immediately.')
+                ->action(function (SettlementPayout $record, array $data): void {
+                    try {
+                        app(CycleElectionService::class)->recordElection(
+                            $record,
+                            $data['election'],
+                            filled($data['reinvest_amount'] ?? null) ? (float) $data['reinvest_amount'] : null,
+                            filled($data['next_project_id'] ?? null) ? InvestmentProject::query()->find($data['next_project_id']) : null,
+                            (int) auth()->id(),
+                        );
+                    } catch (RuntimeException $exception) {
+                        Notification::make()->danger()->title('Could not record the election')->body($exception->getMessage())->send();
+
+                        return;
+                    }
+
+                    Notification::make()->success()->title('Election recorded')->send();
+                }),
+            Action::make('deleteElection')
+                ->label('Undo Election')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn (SettlementPayout $record): bool => $record->cycleElection !== null && $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false))
+                ->requiresConfirmation()
+                ->modalDescription('This removes the recorded election. The reinvestment Investment row (if one was created) is kept — void it separately if it was a mistake.')
+                ->action(function (SettlementPayout $record): void {
+                    $record->cycleElection?->delete();
+                    Notification::make()->success()->title('Election removed')->send();
+                }),
             Action::make('markPaid')->label('Mark as Paid')->icon('heroicon-o-check-circle')->color('success')
                 ->visible(fn ($record): bool => $this->payoutsUnlocked() && $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false))
                 ->requiresConfirmation()
                 ->modalDescription('Confirm the payout has actually been sent to the investor.')
-                ->action(function ($record): void {
+                ->action(function (SettlementPayout $record): void {
                     $record->update(['payment_status' => 'paid', 'paid_at' => now()->toDateString()]);
+                    app(InvestmentLedgerService::class)->recordInvestorPayoutPaid($record, (int) auth()->id());
                     $this->syncSettlementStatus();
                     Notification::make()->success()->title('Investor payout marked paid')->send();
                 }),

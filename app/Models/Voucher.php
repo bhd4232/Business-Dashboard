@@ -59,6 +59,7 @@ class Voucher extends Model
         'refund' => 'Refund',
         'asset_purchase' => 'Asset Purchase',
         'fund_transfer' => 'Fund Transfer',
+        'investor_payout' => 'Investor Payout (Mudarabah)',
         'other' => 'Other',
     ];
 
@@ -75,7 +76,7 @@ class Voucher extends Model
     /** Transaction types that create an Asset, never an Expense (Rule 1). */
     public const NON_EXPENSE_TRANSACTION_TYPES = [
         'inventory_purchase', 'capital_investment', 'owner_withdrawal',
-        'asset_purchase', 'loan', 'fund_transfer',
+        'asset_purchase', 'loan', 'fund_transfer', 'investor_payout',
     ];
 
     protected $fillable = [

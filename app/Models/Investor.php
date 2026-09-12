@@ -30,7 +30,11 @@ class Investor extends Model
                 }
             }
 
-            if (! $investor->exists || ! $investor->isDirty('channel_partner_id')) {
+            // Only a *change* to an already-assigned channel partner needs the
+            // elevated permission + a logged reason (v3 P2.2 — the reassignment
+            // safeguard was wrongly blocking the very first assignment on an
+            // existing investor, since `isDirty` is also true going from null).
+            if (! $investor->exists || ! $investor->isDirty('channel_partner_id') || $investor->getOriginal('channel_partner_id') === null) {
                 return;
             }
 
@@ -64,6 +68,23 @@ class Investor extends Model
         return $this->hasMany(SettlementPayout::class);
     }
 
+    /** Payouts this investor has received as a channel partner (v3 P2.1). */
+    public function channelPartnerPayouts()
+    {
+        return $this->hasMany(ChannelPartnerPayout::class);
+    }
+
+    public function documents()
+    {
+        return $this->morphMany(InvestmentDocument::class, 'documentable');
+    }
+
+    /** 60-day written exit notices (v3 P2.4). */
+    public function withdrawalNotices()
+    {
+        return $this->hasMany(InvestmentWithdrawalNotice::class);
+    }
+
     /**
      * Name to print on shared documents — the pseudonym if the investor asked
      * for one (deed clause 3), otherwise the real name.
@@ -81,5 +102,10 @@ class Investor extends Model
     public function totalProfitReceivedLifetime(): float
     {
         return (float) $this->settlementPayouts()->where('payment_status', 'paid')->sum('profit_share_amount');
+    }
+
+    public function totalChannelPartnerPayoutsPaidLifetime(): float
+    {
+        return (float) $this->channelPartnerPayouts()->where('payment_status', 'paid')->sum('amount');
     }
 }

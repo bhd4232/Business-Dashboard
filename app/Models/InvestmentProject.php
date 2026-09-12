@@ -15,9 +15,9 @@ class InvestmentProject extends Model
 
     public const STATUSES = ['open' => 'Open', 'running' => 'Running', 'closed' => 'Closed', 'settled' => 'Settled'];
 
-    protected $fillable = ['company_id', 'project_code', 'name', 'description', 'deal_reference', 'purchase_id', 'duration_type', 'trade_cycle_days', 'start_date', 'end_date', 'target_amount', 'company_contribution_amount', 'company_contribution_note', 'investor_share_percent', 'channel_partner_share_percent', 'company_share_percent', 'status'];
+    protected $fillable = ['company_id', 'project_code', 'name', 'description', 'deal_reference', 'purchase_id', 'duration_type', 'trade_cycle_days', 'start_date', 'end_date', 'investment_opens_at', 'investment_closes_at', 'target_amount', 'company_contribution_amount', 'company_contribution_note', 'receiving_fund_source_id', 'payout_fund_source_id', 'investor_share_percent', 'channel_partner_share_percent', 'company_share_percent', 'status'];
 
-    protected $casts = ['start_date' => 'date', 'end_date' => 'date', 'target_amount' => 'decimal:2', 'company_contribution_amount' => 'decimal:2', 'investor_share_percent' => 'decimal:2', 'channel_partner_share_percent' => 'decimal:2', 'company_share_percent' => 'decimal:2', 'trade_cycle_days' => 'integer'];
+    protected $casts = ['start_date' => 'date', 'end_date' => 'date', 'investment_opens_at' => 'date', 'investment_closes_at' => 'date', 'target_amount' => 'decimal:2', 'company_contribution_amount' => 'decimal:2', 'investor_share_percent' => 'decimal:2', 'channel_partner_share_percent' => 'decimal:2', 'company_share_percent' => 'decimal:2', 'trade_cycle_days' => 'integer'];
 
     protected static function booted(): void
     {
@@ -82,9 +82,59 @@ class InvestmentProject extends Model
         return $this->morphMany(InvestmentDocument::class, 'documentable');
     }
 
+    /** Where incoming investor capital is booked as a voucher (v3 P2.5). */
+    public function receivingFundSource()
+    {
+        return $this->belongsTo(FundSource::class, 'receiving_fund_source_id');
+    }
+
+    /** Where outgoing investor/channel-partner payouts are booked as a voucher (v3 P2.5). */
+    public function payoutFundSource()
+    {
+        return $this->belongsTo(FundSource::class, 'payout_fund_source_id');
+    }
+
     public function totalInvested(): float
     {
         return (float) $this->investments()->sum('amount');
+    }
+
+    /**
+     * Whether a *new* investment can be added right now without the
+     * `investments.override_investment_window` permission (v3 P2.3). A
+     * project that never set a window (both columns null) is never
+     * restricted -- this feature is opt-in, per project.
+     */
+    public function isWithinInvestmentWindow(): bool
+    {
+        if ($this->status !== 'open') {
+            return false;
+        }
+
+        return ! $this->investment_closes_at || now()->toDateString() <= $this->investment_closes_at->toDateString();
+    }
+
+    /**
+     * Short label for a project-list/view badge. Null when no window is
+     * configured for this project at all.
+     */
+    public function investmentWindowLabel(): ?string
+    {
+        if (! $this->investment_opens_at && ! $this->investment_closes_at) {
+            return null;
+        }
+
+        if (! $this->isWithinInvestmentWindow()) {
+            return 'Window closed';
+        }
+
+        if ($this->investment_closes_at) {
+            $daysLeft = now()->startOfDay()->diffInDays($this->investment_closes_at->copy()->startOfDay(), false);
+
+            return $daysLeft <= 0 ? 'Closes today' : "Closes in {$daysLeft} day".($daysLeft === 1 ? '' : 's');
+        }
+
+        return 'Investment open';
     }
 
     /**

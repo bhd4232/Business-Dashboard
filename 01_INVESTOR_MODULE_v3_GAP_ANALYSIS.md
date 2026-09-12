@@ -523,11 +523,31 @@ Sprint 1 (P1 — legal/operational core):
 **Sprint 1 সম্পূর্ণ।** Migrations: `2026_09_07_100000/100100/100200/100300`. Full suite green।
 
 Sprint 2 (P2):
-  8. P2.2  — বাগ ফিক্স (দ্রুত, স্বয়ংসম্পূর্ণ) — আগে করলেও চলে
-  9. P2.1  — channel partner modeling (is_channel_partner, delete guard, agreement doc)
-  10. P2.3 — investment window (soft override permission)
-  11. P2.4 — notice period + withdraw/reinvest
-  12. P2.5 — ledger integration (Voucher/FundSource; account mapping confirm)
+  ✅ 8.  P2.2  — বাগ ফিক্স: first-time channel-partner assign, referredInvestors delete guard,
+              Gate delete→investments.manage, investments freeze at closed+settled — DONE ২০২৬-০৯-১২
+  ✅ 9.  P2.1  — channel partner modeling: is_channel_partner টগল + table filter/badge,
+              partner agreement doc (reused investment_documents), payout history tab,
+              referredInvestors() delete guard — DONE
+  ✅ 10. P2.3 — investment window: investment_opens_at/closes_at (opt-in, nullable),
+              investments.override_investment_window permission + override_reason,
+              window badge (project view/table) — DONE (scheduled auto open→running flip
+              left undone — marked optional in the outline, not built)
+  ✅ 11. P2.4 — notice period + withdraw/reinvest: `investor_cycle_elections`
+              (withdraw / reinvest / partial_reinvest, auto-creates the rollover
+              Investment) + `investment_withdrawal_notices` (60-day tracking,
+              no hard block elsewhere) — DONE
+  ✅ 12. P2.5 — ledger integration: `investment_projects.receiving_fund_source_id`
+              / `payout_fund_source_id` (opt-in, nullable); `Voucher::TRANSACTION_TYPES`
+              gains `investor_payout`; `InvestmentLedgerService` books a pending
+              `capital_investment` credit voucher on Investment create and a pending
+              `investor_payout` debit voucher on payout markPaid — through the existing
+              `VoucherService::submit()`, never bypassing it. `vouchers.transaction_type`
+              converted enum → string (same fix as `2026_07_17` / this module's own
+              `2026_09_07_100300`) to admit the new value. Voucher-creation failure never
+              breaks the underlying Investment/payout save — DONE
+
+**Sprint 2 সম্পূর্ণ (P2.1–P2.5)।** Migrations: `2026_09_12_100000/100100/100200`.
+New tests in `InvestmentSettlementTest`. Full suite verified green (see UPDATE_NOTES.md)।
 
 Sprint 3:
   13. P3   — PII, polish, test coverage

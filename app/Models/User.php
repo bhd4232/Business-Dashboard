@@ -268,6 +268,7 @@ class User extends Authenticatable implements FilamentUser
         'investments.manage' => 'Investments: Manage Projects and Investors',
         'investments.settle' => 'Investments: Calculate Settlements and Pay Payouts',
         'investments.manage_channel_partner' => 'Investments: Change Assigned Channel Partner',
+        'investments.override_investment_window' => 'Investments: Add Investment After Window Closes',
         'marketing.view' => 'Marketing/Ads: View',
         'marketing.create' => 'Marketing/Ads: Create',
         'marketing.update' => 'Marketing/Ads: Update',
@@ -304,6 +305,8 @@ class User extends Authenticatable implements FilamentUser
         InvestorSecurityInstrument::class => 'investments',
         InvestmentWitness::class => 'investments',
         InvestmentDocument::class => 'investments',
+        InvestorCycleElection::class => 'investments',
+        InvestmentWithdrawalNotice::class => 'investments',
         ProjectSettlement::class => 'investments',
         SettlementPayout::class => 'investments',
         ChannelPartnerPayout::class => 'investments',
@@ -548,6 +551,10 @@ class User extends Authenticatable implements FilamentUser
             return match ($ability) {
                 'viewAny', 'view' => $this->hasPermission('investments.view'),
                 'create', 'update' => $this->hasPermission('investments.manage'),
+                // No dedicated investments.delete permission exists — a Resource's
+                // own canDelete() (e.g. InvestorResource: no investments/referrals
+                // left) adds the real guard on top of this (v3 P2.2).
+                'delete', 'deleteAny', 'forceDelete', 'forceDeleteAny', 'restore', 'restoreAny' => $this->hasPermission('investments.manage'),
                 default => false,
             };
         }

@@ -20,8 +20,10 @@ use App\Models\ExpenseCategory;
 use App\Models\Investment;
 use App\Models\InvestmentDocument;
 use App\Models\InvestmentProject;
+use App\Models\InvestmentWithdrawalNotice;
 use App\Models\InvestmentWitness;
 use App\Models\Investor;
+use App\Models\InvestorCycleElection;
 use App\Models\InvestorSecurityInstrument;
 use App\Models\Order;
 use App\Models\OrderCost;
@@ -220,6 +222,8 @@ class AppServiceProvider extends ServiceProvider
             InvestorSecurityInstrument::class,
             InvestmentWitness::class,
             InvestmentDocument::class,
+            InvestorCycleElection::class,
+            InvestmentWithdrawalNotice::class,
             ProjectSettlement::class,
             SettlementPayout::class,
             ChannelPartnerPayout::class,

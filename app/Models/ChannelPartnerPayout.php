@@ -9,7 +9,7 @@ class ChannelPartnerPayout extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'settlement_id', 'investor_id', 'amount', 'payment_status', 'paid_at', 'payment_method', 'payment_reference'];
+    protected $fillable = ['company_id', 'settlement_id', 'investor_id', 'amount', 'payment_status', 'paid_at', 'payment_method', 'payment_reference', 'voucher_id'];
 
     protected $casts = ['amount' => 'decimal:2', 'paid_at' => 'date'];
 
@@ -21,5 +21,11 @@ class ChannelPartnerPayout extends Model
     public function investor()
     {
         return $this->belongsTo(Investor::class);
+    }
+
+    /** The investor_payout voucher booked when this was marked paid (v3 P2.5), if any. */
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
     }
 }
