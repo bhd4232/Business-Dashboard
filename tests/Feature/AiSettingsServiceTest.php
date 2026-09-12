@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Services\Crm\AiSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Tests\TestCase;
 
 /**
@@ -19,6 +20,19 @@ use Tests\TestCase;
 class AiSettingsServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_sales_guidelines_are_isolated_and_preserved_on_partial_save(): void
+    {
+        $company = $this->company();
+        $other = Company::query()->create(['name' => 'Other guideline company', 'slug' => 'other-guidelines', 'is_active' => true]);
+        $service = app(AiSettingsService::class);
+        $service->save($company, 'messaging', ['sales_guidelines' => 'আপনি বলুন।']);
+        $service->save($company, 'messaging', ['model' => 'test-model']);
+        $this->assertSame('আপনি বলুন।', $service->all($company->fresh(), 'messaging')['sales_guidelines']);
+        $this->assertSame($service->defaultSalesGuidelines(), $service->all($other, 'messaging')['sales_guidelines']);
+        $service->save($company, 'messaging', ['sales_guidelines' => '']);
+        $this->assertSame('', $service->all($company->fresh(), 'messaging')['sales_guidelines']);
+    }
 
     public function test_a_freely_named_provider_can_be_saved_with_its_own_base_url(): void
     {
@@ -219,7 +233,7 @@ class AiSettingsServiceTest extends TestCase
             'confidence_threshold' => 0.75,
             'max_consecutive_ai_replies' => 3,
             'brand_voice' => '',
-            'api_key' => \Illuminate\Support\Facades\Crypt::encryptString('legacy-key'),
+            'api_key' => Crypt::encryptString('legacy-key'),
         ];
         $company->forceFill(['settings' => $settings])->save();
     }

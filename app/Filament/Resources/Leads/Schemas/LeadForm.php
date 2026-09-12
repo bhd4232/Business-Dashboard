@@ -7,6 +7,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -78,6 +79,12 @@ class LeadForm
                         Textarea::make('note')
                             ->rows(2),
                     ]),
+                Section::make('Sales qualification')->schema([
+                    Select::make('temperature')->options(['cold' => 'Cold', 'warm' => 'Warm', 'hot' => 'Hot'])->required()->default('cold'),
+                    Toggle::make('temperature_locked')->label('Keep staff-selected temperature')->helperText('Prevents later AI qualification from changing this rating.'),
+                    TextInput::make('qualification_score')->numeric()->disabled()->dehydrated(false),
+                    Textarea::make('qualification_summary')->label('Confirmed preferences and summary')->disabled()->dehydrated(false)->rows(5),
+                ]),
             ]);
     }
 }

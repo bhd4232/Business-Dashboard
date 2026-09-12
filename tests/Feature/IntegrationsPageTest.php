@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\Integrations;
+use App\Jobs\RetryStorefrontMetaEventJob;
+use App\Livewire\MetaEventLogTable;
 use App\Models\Company;
 use App\Models\CourierProvider;
 use App\Models\MetaAdAccount;
+use App\Models\StorefrontMetaEvent;
 use App\Models\StorefrontSetting;
 use App\Models\User;
 use App\Models\UserRole;
@@ -13,12 +16,30 @@ use App\Services\CompanyContext;
 use App\Services\Crm\AiSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Tests\TestCase;
 
 class IntegrationsPageTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_sales_guidelines_editor_saves_and_reloads_company_specific_text(): void
+    {
+        $company = $this->makeCompany();
+        $this->actingAs($this->makeSuperAdmin($company))
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+        $guidelines = "## কথা বলার নিয়ম\n\nআপনি বলুন। একবারে একটি প্রশ্ন করুন।";
+        Livewire::test(Integrations::class)
+            ->assertSee('সেলস এজেন্টের কথাবার্তার নির্দেশনা')
+            ->assertSet('data.ai_messaging_sales_guidelines', app(AiSettingsService::class)->defaultSalesGuidelines())
+            ->set('data.ai_messaging_sales_guidelines', $guidelines)
+            ->call('save')
+            ->assertHasNoFormErrors();
+        Livewire::test(Integrations::class)->assertSet('data.ai_messaging_sales_guidelines', $guidelines);
+        $this->assertSame($guidelines, app(AiSettingsService::class)->all($company->fresh(), 'messaging')['sales_guidelines']);
+        $this->assertSame('', app(AiSettingsService::class)->all($company->fresh(), 'ad_assistant')['sales_guidelines']);
+    }
 
     public function test_super_admin_can_save_every_tab_in_one_go_for_a_brand_new_company(): void
     {
@@ -533,27 +554,27 @@ class IntegrationsPageTest extends TestCase
         $this->actingAs($user)
             ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
 
-        $event = \App\Models\StorefrontMetaEvent::query()->create([
+        $event = StorefrontMetaEvent::query()->create([
             'company_id' => $company->getKey(),
             'pixel_id' => '1234567890123456',
             'event_name' => 'Purchase',
             'event_id' => 'evt-'.uniqid(),
-            'status' => \App\Models\StorefrontMetaEvent::STATUS_FAILED,
+            'status' => StorefrontMetaEvent::STATUS_FAILED,
             'attempts' => 1,
         ]);
 
-        \Illuminate\Support\Facades\Queue::fake();
+        Queue::fake();
 
         Livewire::test(Integrations::class)
             ->assertSee('Purchase')
             ->assertSee($event->event_id);
 
-        Livewire::test(\App\Livewire\MetaEventLogTable::class)
+        Livewire::test(MetaEventLogTable::class)
             ->callTableAction('retry', $event)
             ->assertNotified('Meta event retry queued');
 
-        \Illuminate\Support\Facades\Queue::assertPushed(
-            \App\Jobs\RetryStorefrontMetaEventJob::class,
+        Queue::assertPushed(
+            RetryStorefrontMetaEventJob::class,
             fn ($job): bool => $job->metaEventId === $event->getKey(),
         );
     }

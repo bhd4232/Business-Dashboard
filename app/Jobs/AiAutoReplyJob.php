@@ -15,7 +15,11 @@ class AiAutoReplyJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 1; // a failed AI reply escalates instead of retrying
+    public int $tries = 25; // lock contention is released; inference failures hand off
+
+    public int $timeout = 70;
+
+    public bool $failOnTimeout = true;
 
     public int $uniqueFor = 3600;
 
@@ -55,14 +59,22 @@ class AiAutoReplyJob implements ShouldBeUnique, ShouldQueue
                 return;
             }
 
-            $lock = Cache::lock('ai-auto-reply-processing:'.$source->getKey(), 600);
+            $lock = Cache::lock('crm:conversation:'.$conversation->getKey(), 80);
 
             if (! $lock->get()) {
+                $this->release(3);
+
                 return;
             }
 
             try {
                 $source->refresh();
+
+                if ($conversation->messages()->where('direction', 'incoming')->where('id', '>', $source->getKey())->exists()) {
+                    $this->markProcessed($source);
+
+                    return;
+                }
 
                 if ($this->alreadyProcessed($source)) {
                     $this->markProcessed($source);
@@ -75,6 +87,21 @@ class AiAutoReplyJob implements ShouldBeUnique, ShouldQueue
             } finally {
                 $lock->release();
             }
+        } finally {
+            $context->clear();
+        }
+    }
+
+    public function failed(?\Throwable $exception): void
+    {
+        $conversation = Conversation::withoutGlobalScopes()->with('company')->find($this->conversationId);
+        if (! $conversation?->company) {
+            return;
+        }
+        $context = app(CompanyContext::class);
+        $context->set($conversation->company);
+        try {
+            app(AiReplyService::class)->escalate($conversation, 'AI processing timed out or failed; please review the conversation.');
         } finally {
             $context->clear();
         }

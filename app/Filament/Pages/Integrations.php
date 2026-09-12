@@ -17,6 +17,7 @@ use App\Services\ZiniPayClient;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -164,6 +165,10 @@ class Integrations extends Page
             $fill["{$prefix}confidence_threshold"] = $ai['confidence_threshold'];
             $fill["{$prefix}max_consecutive_ai_replies"] = $ai['max_consecutive_ai_replies'];
             $fill["{$prefix}brand_voice"] = $ai['brand_voice'];
+            $fill["{$prefix}sales_guidelines"] = $ai['sales_guidelines'];
+            foreach (['review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'] as $key) {
+                $fill[$prefix.$key] = $ai[$key];
+            }
             $fill["{$prefix}api_key"] = '';
             $fill["{$prefix}has_api_key"] = filled($ai['api_key']);
         }
@@ -393,6 +398,22 @@ class Integrations extends Page
         ];
 
         if ($messagingExtras) {
+            $fields[] = MarkdownEditor::make("{$prefix}sales_guidelines")
+                ->label('সেলস এজেন্টের কথাবার্তার নির্দেশনা')
+                ->helperText('লেখা, শিরোনাম, তালিকা ও উদাহরণ এডিট করে Save changes চাপুন। সেভ করা নির্দেশনা এই কোম্পানির পরবর্তী AI উত্তরে ব্যবহৃত হবে। উদাহরণের দাম ও প্রতিশ্রুতি প্রকৃত তথ্য নয়; FAQ-এর প্রস্তুত উত্তর আলাদাভাবে এডিট করতে হবে। ছবি শনাক্তকরণ বা নতুন অর্ডার-অ্যাকশন শুধু নির্দেশনা লিখে চালু হয় না।')
+                ->toolbarButtons(['bold', 'italic', 'heading', 'bulletList', 'orderedList', 'blockquote', 'table', 'undo', 'redo'])
+                ->maxLength(16000)
+                ->hintAction(Action::make('restoreSalesGuidelines')
+                    ->label('ডিফল্ট লেখা ফিরিয়ে আনুন')
+                    ->action(fn (Set $set) => $set("{$prefix}sales_guidelines", app(AiSettingsService::class)->defaultSalesGuidelines())))
+                ->columnSpanFull();
+            $fields[] = Toggle::make("{$prefix}review_mode")->label('Draft replies for staff review')->helperText('Suggestions appear in CRM → Sales Automation. No automatic reply is sent in this mode.');
+            foreach (['daily_run_limit' => 'Daily run limit', 'max_run_tokens' => 'Token budget per run', 'daily_budget_usd' => 'Daily estimated budget (USD)', 'input_cost_per_million' => 'Input price per million tokens (USD)', 'output_cost_per_million' => 'Output price per million tokens (USD)', 'follow_up_delay_hours' => 'Sales follow-up delay (hours)'] as $key => $label) {
+                $fields[] = TextInput::make($prefix.$key)->label($label)->numeric()->minValue(0)->required();
+            }
+            $fields[] = Toggle::make("{$prefix}sales_follow_ups_enabled")->label('Enable sales follow-ups')->helperText('One approved-template follow-up per checkout link or sent quotation; stops after reply, purchase, opt-out or handoff.');
+            $fields[] = TextInput::make("{$prefix}follow_up_template")->label('Approved WhatsApp follow-up template')->helperText('Template must accept one body parameter: customer name.');
+            $fields[] = TextInput::make("{$prefix}follow_up_template_language")->label('Template language')->maxLength(20);
             $fields[] = TextInput::make("{$prefix}confidence_threshold")
                 ->label('Confidence threshold (0–1)')
                 ->numeric()
@@ -1104,6 +1125,8 @@ class Integrations extends Page
                     'confidence_threshold' => $state["{$prefix}confidence_threshold"] ?? null,
                     'max_consecutive_ai_replies' => $state["{$prefix}max_consecutive_ai_replies"] ?? null,
                     'brand_voice' => $state["{$prefix}brand_voice"] ?? null,
+                    'sales_guidelines' => $state["{$prefix}sales_guidelines"] ?? null,
+                    ...collect(['review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'])->mapWithKeys(fn ($key) => [$key => $state[$prefix.$key] ?? null])->all(),
                     'api_key' => $state["{$prefix}api_key"] ?? null,
                 ]);
             }

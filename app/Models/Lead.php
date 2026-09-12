@@ -34,6 +34,8 @@ class Lead extends Model
         'interest', 'estimated_value', 'assigned_to', 'next_follow_up_at',
         'follow_up_reminded_at', 'opted_out_at', 'converted_customer_id', 'converted_order_id',
         'note', 'created_by',
+        'qualification', 'temperature', 'qualification_score', 'qualification_summary',
+        'temperature_locked',
     ];
 
     protected $casts = [
@@ -41,6 +43,9 @@ class Lead extends Model
         'follow_up_reminded_at' => 'datetime',
         'opted_out_at' => 'datetime',
         'estimated_value' => 'decimal:2',
+        'qualification' => 'array',
+        'qualification_score' => 'integer',
+        'temperature_locked' => 'boolean',
     ];
 
     protected static function booted(): void

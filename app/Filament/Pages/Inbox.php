@@ -7,6 +7,7 @@ use App\Models\ChatOrderLink;
 use App\Models\Conversation;
 use App\Models\ConversationChannel;
 use App\Models\ConversationMessage;
+use App\Models\CrmAiRun;
 use App\Models\Product;
 use App\Models\QuickReply;
 use App\Services\CompanyContext;
@@ -69,7 +70,7 @@ class Inbox extends Page
     /** Conversations shown before the "Load more conversations" action expands the list. */
     public int $conversationsPerPage = 30;
 
-    /** microtime of the last markHumanPresent() write — the poll renews the window at most once a minute. */
+    /** microtime of the last markHumanPresent() write — the poll renews the window at most once every 10 seconds. */
     public ?float $humanPresentMarkedAt = null;
 
     public bool $showManualForm = false;
@@ -138,6 +139,24 @@ class Inbox extends Page
         }
 
         return [
+            Action::make('useAiSuggestion')->label('Use AI suggestion')->icon(Heroicon::OutlinedSparkles)
+                ->visible(fn () => $this->canManageConversations && $this->selectedConversationId !== null)
+                ->action(function (): void {
+                    abort_unless($this->canManageConversations, 403);
+                    $conversation = $this->selectedConversation;
+                    if (! $conversation) {
+                        return;
+                    }
+                    $run = CrmAiRun::query()->where('conversation_id', $conversation->getKey())->where('status', 'suggested')->latest('id')->first();
+                    if (! $run || $conversation->messages()->where('direction', 'incoming')->where('id', '>', $run->source_message_id)->exists()) {
+                        Notification::make()->title('No current AI suggestion.')->warning()->send();
+
+                        return;
+                    }
+                    $this->replyBody = $run->suggested_reply;
+                    $this->composerMode = 'reply';
+                    $run->update(['status' => 'reviewed']);
+                }),
             ActionGroup::make($channelActions)
                 ->label(function () use ($channels): string {
                     if ($this->channelId === null) {
@@ -477,7 +496,7 @@ class Inbox extends Page
         $this->selectedConversation?->markRead();
         // Renew the human-present window on each visible poll tick so it keeps
         // rolling for as long as an agent has this thread open — but the write
-        // itself is throttled to once a minute: the 8s poll fires constantly
+        // itself is throttled to once every 10 seconds: the 8s poll fires constantly
         // while the page is visible, and every explicit selection marks
         // presence immediately anyway.
         $this->markHumanPresentThrottled();
@@ -494,7 +513,7 @@ class Inbox extends Page
 
         $now = microtime(true);
 
-        if ($this->humanPresentMarkedAt !== null && ($now - $this->humanPresentMarkedAt) < 60) {
+        if ($this->humanPresentMarkedAt !== null && ($now - $this->humanPresentMarkedAt) < 10) {
             return;
         }
 
@@ -564,7 +583,11 @@ class Inbox extends Page
         $conversation = $this->selectedConversation;
 
         if ($conversation) {
-            $conversation->update(['ai_enabled' => ! $conversation->ai_enabled]);
+            $enabled = ! $conversation->ai_enabled;
+            $conversation->update([
+                'ai_enabled' => $enabled,
+                ...($enabled ? ['human_handled_until' => null, 'status' => 'open'] : []),
+            ]);
             $this->forgetInboxComputedProperties();
         }
     }

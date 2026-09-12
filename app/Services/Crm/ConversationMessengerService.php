@@ -6,6 +6,7 @@ use App\Jobs\MarkConversationReadJob;
 use App\Models\Conversation;
 use App\Models\ConversationChannel;
 use App\Models\ConversationMessage;
+use App\Models\CrmAiRun;
 use App\Models\StorefrontSetting;
 use App\Models\User;
 use App\Services\Meta\MetaGraphException;
@@ -33,6 +34,7 @@ class ConversationMessengerService
         ?User $sender = null,
         string $type = 'text',
         ?string $mediaUrl = null,
+        array $automation = [],
     ): ConversationMessage {
         $message = ConversationMessage::query()->create([
             'conversation_id' => $conversation->getKey(),
@@ -43,13 +45,21 @@ class ConversationMessengerService
             'media_mime' => $mediaUrl ? 'image/*' : null,
             'delivery_status' => 'sending',
             'sent_by' => $sender?->getKey(),
-            'generated_by' => 'human',
+            'generated_by' => $automation === [] ? 'human' : 'ai',
+            'ai_confidence' => $automation['confidence'] ?? null,
+            'ai_meta' => $automation['meta'] ?? null,
             'sent_at' => now(),
         ]);
 
         $this->updateConversationAfterAttempt($conversation, $sender);
 
-        return $this->deliver($message, $conversation);
+        $delivered = $this->deliver($message, $conversation);
+        if ($sender && $delivered->delivery_status === 'sent') {
+            CrmAiRun::query()->where('conversation_id', $conversation->getKey())->whereIn('status', ['handed_off', 'budget_blocked'])
+                ->whereNull('resolved_at')->update(['resolved_at' => now()]);
+        }
+
+        return $delivered;
     }
 
     public function retry(ConversationMessage $message, ?User $sender = null): ConversationMessage
@@ -131,9 +141,16 @@ class ConversationMessengerService
             $raw = is_array($message->raw_payload) ? $message->raw_payload : [];
             data_set($raw, '_local.marked_read_at', now()->toIso8601String());
             $message->forceFill(['raw_payload' => $raw])->saveQuietly();
+            $channel->clearDiagnosticError('read_receipt');
 
             return true;
         } catch (Throwable $exception) {
+            // Best-effort: a stray read-receipt failure (e.g. a stale message
+            // ID) must never leave the channel permanently flagged "Needs
+            // attention" — nothing else clears the 'read_receipt' source, so
+            // without the clearDiagnosticError() call above, one failed
+            // receipt would stick forever even while sending/receiving kept
+            // working fine.
             $channel->recordDiagnosticError($this->safeMessage($exception), 'read_receipt');
 
             return false;

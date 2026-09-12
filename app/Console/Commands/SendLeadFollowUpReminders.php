@@ -6,6 +6,7 @@ use App\Filament\Resources\Leads\LeadResource;
 use App\Models\Lead;
 use App\Models\StorefrontSetting;
 use App\Services\BusinessNotificationService;
+use App\Services\Crm\ContactSuppressionService;
 use App\Services\StorefrontNotificationService;
 use Illuminate\Console\Command;
 
@@ -58,6 +59,9 @@ class SendLeadFollowUpReminders extends Command
 
     protected function messageLead(Lead $lead, StorefrontNotificationService $notifications): void
     {
+        if (app(ContactSuppressionService::class)->suppressed((int) $lead->company_id, (string) $lead->phone)) {
+            return;
+        }
         $phone = trim((string) $lead->phone);
 
         if ($phone === '') {

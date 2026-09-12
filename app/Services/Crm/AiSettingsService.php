@@ -56,6 +56,16 @@ class AiSettingsService
         'confidence_threshold' => 0.75,
         'max_consecutive_ai_replies' => 3,
         'brand_voice' => '',
+        'review_mode' => false,
+        'daily_run_limit' => 300,
+        'max_run_tokens' => 20000,
+        'daily_budget_usd' => 0,
+        'input_cost_per_million' => 0,
+        'output_cost_per_million' => 0,
+        'sales_follow_ups_enabled' => false,
+        'follow_up_delay_hours' => 4,
+        'follow_up_template' => '',
+        'follow_up_template_language' => 'bn',
     ];
 
     public function all(Company $company, string $tool): array
@@ -67,6 +77,7 @@ class AiSettingsService
         }
 
         $settings = array_merge(self::DEFAULTS, $stored);
+        $settings['sales_guidelines'] = $stored['sales_guidelines'] ?? ($tool === self::TOOL_MESSAGING ? $this->defaultSalesGuidelines() : '');
         $settings['api_key'] = $this->decrypt($stored['api_key'] ?? null);
 
         return $settings;
@@ -88,6 +99,17 @@ class AiSettingsService
             'confidence_threshold' => min(max((float) ($data['confidence_threshold'] ?? 0.75), 0), 1),
             'max_consecutive_ai_replies' => max((int) ($data['max_consecutive_ai_replies'] ?? 3), 1),
             'brand_voice' => trim((string) ($data['brand_voice'] ?? '')),
+            'sales_guidelines' => mb_substr(trim((string) ($data['sales_guidelines'] ?? $existing['sales_guidelines'] ?? ($tool === self::TOOL_MESSAGING ? $this->defaultSalesGuidelines() : ''))), 0, 16000),
+            'review_mode' => (bool) ($data['review_mode'] ?? $existing['review_mode'] ?? false),
+            'daily_run_limit' => max(1, min(10000, (int) ($data['daily_run_limit'] ?? $existing['daily_run_limit'] ?? 300))),
+            'max_run_tokens' => max(3000, min(50000, (int) ($data['max_run_tokens'] ?? $existing['max_run_tokens'] ?? 20000))),
+            'daily_budget_usd' => max(0, (float) ($data['daily_budget_usd'] ?? $existing['daily_budget_usd'] ?? 0)),
+            'input_cost_per_million' => max(0, (float) ($data['input_cost_per_million'] ?? $existing['input_cost_per_million'] ?? 0)),
+            'output_cost_per_million' => max(0, (float) ($data['output_cost_per_million'] ?? $existing['output_cost_per_million'] ?? 0)),
+            'sales_follow_ups_enabled' => (bool) ($data['sales_follow_ups_enabled'] ?? $existing['sales_follow_ups_enabled'] ?? false),
+            'follow_up_delay_hours' => max(1, min(168, (int) ($data['follow_up_delay_hours'] ?? $existing['follow_up_delay_hours'] ?? 4))),
+            'follow_up_template' => trim((string) ($data['follow_up_template'] ?? $existing['follow_up_template'] ?? '')),
+            'follow_up_template_language' => trim((string) ($data['follow_up_template_language'] ?? $existing['follow_up_template_language'] ?? 'bn')),
             'api_key' => filled($data['api_key'] ?? null)
                 ? Crypt::encryptString(trim((string) $data['api_key']))
                 : ($existing['api_key'] ?? null), // keep existing when left blank
@@ -101,6 +123,11 @@ class AiSettingsService
         $settings = $this->all($company, $tool);
 
         return $settings['enabled'] && filled($settings['api_key']);
+    }
+
+    public function defaultSalesGuidelines(): string
+    {
+        return trim(file_get_contents(resource_path('ai/sales-agent-guidelines.bn.md')));
     }
 
     /**

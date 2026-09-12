@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\GeneratesSequentialNumber;
+use App\Services\Crm\SalesFollowUpService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -36,6 +37,14 @@ class Quotation extends Model
         static::creating(function (Quotation $quotation): void {
             $quotation->quotation_number ??= static::nextQuotationNumber();
             $quotation->status ??= 'draft';
+        });
+        static::updated(function (Quotation $quotation): void {
+            if ($quotation->wasChanged('status') && $quotation->status === 'sent' && $quotation->lead_id) {
+                $conversation = Conversation::query()->where('company_id', $quotation->company_id)->where('lead_id', $quotation->lead_id)->latest('last_message_at')->first();
+                if ($conversation) {
+                    app(SalesFollowUpService::class)->schedule($conversation, quotation: $quotation);
+                }
+            }
         });
     }
 

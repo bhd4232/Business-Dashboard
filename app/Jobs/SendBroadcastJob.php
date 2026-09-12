@@ -13,10 +13,12 @@ class SendBroadcastJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 1;
+    public int $tries = 1000;
+
+    public int $maxExceptions = 1;
 
     /** Generous ceiling for a large recipient list; send() is safe to re-run. */
-    public int $timeout = 1800;
+    public int $timeout = 70;
 
     public int $uniqueFor = 1800;
 
@@ -39,6 +41,9 @@ class SendBroadcastJob implements ShouldBeUnique, ShouldQueue
 
         try {
             $broadcasts->send($broadcast);
+            if ($broadcast->fresh()->status === 'sending' && $broadcast->recipients()->where('status', 'pending')->exists()) {
+                $this->release(1);
+            }
         } finally {
             $context->clear();
         }

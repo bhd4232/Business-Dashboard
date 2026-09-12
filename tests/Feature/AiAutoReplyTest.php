@@ -5,10 +5,10 @@ namespace Tests\Feature;
 use App\Jobs\AiAutoReplyJob;
 use App\Models\Company;
 use App\Models\CompanyFaq;
-use App\Models\CourierProvider;
 use App\Models\Conversation;
 use App\Models\ConversationChannel;
 use App\Models\ConversationMessage;
+use App\Models\CourierProvider;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\CompanyContext;
@@ -130,6 +130,7 @@ class AiAutoReplyTest extends TestCase
             $this->anthropicToolUse('submit_reply', [
                 'answer' => 'Smart Bulb-এর দাম ৪২০ টাকা, স্টকে আছে।',
                 'used_product_ids' => [$this->product->getKey()],
+                'reply_keys' => ['product:'.$this->product->getKey()],
                 'confidence' => 0.95,
                 'needs_human' => false,
             ]),
@@ -142,7 +143,7 @@ class AiAutoReplyTest extends TestCase
         $this->assertNotNull($reply);
         $this->assertSame('ai', $reply->generated_by);
         $this->assertStringContainsString('৪২০', $reply->body);
-        $this->assertStringContainsString('অ্যাসিস্ট্যান্ট', $reply->body); // transparency prefix
+        $this->assertStringNotContainsString('অ্যাসিস্ট্যান্ট', $reply->body); // no unsolicited introduction
         $this->assertSame('open', $conversation->fresh()->status);
     }
 
@@ -308,6 +309,7 @@ class AiAutoReplyTest extends TestCase
                 'direction' => 'outgoing',
                 'type' => 'text',
                 'body' => "AI reply {$i}",
+                'delivery_status' => 'sent',
                 'generated_by' => 'ai',
                 'sent_at' => now()->addSeconds($i),
             ]);
@@ -338,6 +340,7 @@ class AiAutoReplyTest extends TestCase
             $this->anthropicToolUse('lookup_product', ['name' => 'Smart Bulb']),
             $this->anthropicToolUse('submit_reply', [
                 'answer' => 'Smart Bulb-এর দাম ৪২০ টাকা।',
+                'reply_keys' => ['product:'.$this->product->getKey()],
                 'used_product_ids' => [$this->product->getKey()],
                 'confidence' => 0.95,
                 'needs_human' => false,
@@ -358,7 +361,7 @@ class AiAutoReplyTest extends TestCase
 
     public function test_faq_lookup_tool_is_company_scoped_across_cached_calls(): void
     {
-        CompanyFaq::query()->create([
+        $faq = CompanyFaq::query()->create([
             'question' => 'Warranty period?',
             'answer' => 'Six months warranty on all electronics.',
             'keywords' => 'warranty',
@@ -386,12 +389,14 @@ class AiAutoReplyTest extends TestCase
             $this->anthropicToolUse('lookup_faq', ['topic' => 'warranty']),
             $this->anthropicToolUse('submit_reply', [
                 'answer' => 'রাউন্ড ১: ছয় মাস ওয়ারেন্টি।',
+                'reply_keys' => ['faq:'.$faq->getKey()],
                 'confidence' => 0.9,
                 'needs_human' => false,
             ]),
             $this->anthropicToolUse('lookup_faq', ['topic' => 'warranty']),
             $this->anthropicToolUse('submit_reply', [
                 'answer' => 'রাউন্ড ২: ছয় মাস ওয়ারেন্টি।',
+                'reply_keys' => ['faq:'.$faq->getKey()],
                 'confidence' => 0.9,
                 'needs_human' => false,
             ]),
@@ -407,7 +412,7 @@ class AiAutoReplyTest extends TestCase
 
             $reply = $conversation->messages()->where('direction', 'outgoing')->first();
             $this->assertNotNull($reply);
-            $this->assertStringContainsString('ছয় মাস', $reply->body);
+            $this->assertStringContainsString('Six months warranty', $reply->body);
         }
     }
 
@@ -425,12 +430,14 @@ class AiAutoReplyTest extends TestCase
             $this->anthropicToolUse('lookup_delivery_charge', []),
             $this->anthropicToolUse('submit_reply', [
                 'answer' => 'রাউন্ড ১: ডেলিভারি চার্জ ৬০ টাকা অথবা ১২০ টাকা।',
+                'reply_keys' => ['delivery:current'],
                 'confidence' => 0.9,
                 'needs_human' => false,
             ]),
             $this->anthropicToolUse('lookup_delivery_charge', []),
             $this->anthropicToolUse('submit_reply', [
                 'answer' => 'রাউন্ড ২: ডেলিভারি চার্জ ৬০ টাকা অথবা ১২০ টাকা।',
+                'reply_keys' => ['delivery:current'],
                 'confidence' => 0.9,
                 'needs_human' => false,
             ]),

@@ -130,12 +130,16 @@ class BroadcastService
             ->where('company_id', $broadcast->company_id)
             ->first();
         $channel = $broadcast->whatsappChannel;
+        $deadline = microtime(true) + 25;
 
         $broadcast->recipients()
             ->where('status', 'pending')
             ->orderBy('id')
-            ->chunkById(50, function (Collection $chunk) use ($broadcast, $setting, $channel): void {
+            ->chunkById(50, function (Collection $chunk) use ($broadcast, $setting, $channel, $deadline) {
                 foreach ($chunk as $recipient) {
+                    if (microtime(true) >= $deadline || $broadcast->fresh()->status === 'cancelled') {
+                        return false;
+                    }
                     $this->sendToRecipient($broadcast, $recipient, $setting, $channel);
                     // Gentle stagger -- friendly to both Meta's and the SMS
                     // gateway's rate limits, not a hard requirement of either.
@@ -144,8 +148,11 @@ class BroadcastService
             });
 
         $broadcast->refresh();
+        if ($broadcast->status === 'cancelled' || $broadcast->recipients()->where('status', 'pending')->exists()) {
+            return;
+        }
         $broadcast->forceFill([
-            'status' => ($broadcast->recipients_count > 0 && $broadcast->sent_count === 0)
+            'status' => ($broadcast->recipients()->where('status', 'sending')->exists() || ($broadcast->recipients_count > 0 && $broadcast->sent_count === 0))
                 ? 'failed'
                 : 'completed',
             'completed_at' => now(),
@@ -159,6 +166,17 @@ class BroadcastService
         ?ConversationChannel $channel,
     ): void {
         if ($recipient->status !== 'pending') {
+            return;
+        }
+
+        if (BroadcastRecipient::query()->whereKey($recipient->getKey())->where('status', 'pending')->update(['status' => 'sending']) !== 1) {
+            return;
+        }
+
+        if (app(ContactSuppressionService::class)->suppressed((int) $broadcast->company_id, $recipient->phone)) {
+            $recipient->update(['status' => 'failed', 'error' => 'Contact opted out before delivery.']);
+            $broadcast->increment('failed_count');
+
             return;
         }
 
@@ -188,7 +206,7 @@ class BroadcastService
 
     protected function sendWhatsApp(Broadcast $broadcast, BroadcastRecipient $recipient, ?ConversationChannel $channel): bool
     {
-        if (! $channel || ! $channel->is_active
+        if (! $channel || (int) $channel->company_id !== (int) $broadcast->company_id || ! $channel->is_active
             || blank($channel->access_token) || blank($channel->external_id)
             || blank($broadcast->whatsapp_template_name)) {
             return false;
