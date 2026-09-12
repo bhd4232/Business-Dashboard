@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Support\StorefrontListingCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -14,8 +15,14 @@ class Category extends Model
 
     protected static function booted(): void
     {
-        static::saved(fn (Category $category) => Cache::forget("storefront-home:{$category->company_id}"));
-        static::deleted(fn (Category $category) => Cache::forget("storefront-home:{$category->company_id}"));
+        static::saved(function (Category $category): void {
+            Cache::forget("storefront-home:{$category->company_id}");
+            StorefrontListingCache::forgetCompany($category->company_id);
+        });
+        static::deleted(function (Category $category): void {
+            Cache::forget("storefront-home:{$category->company_id}");
+            StorefrontListingCache::forgetCompany($category->company_id);
+        });
     }
 
     public function products()

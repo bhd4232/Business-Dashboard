@@ -20,9 +20,20 @@ All notable production changes to Business Dashboard are documented here.
 
   **Technical Notes:** `2026_09_10_120000_add_nominee_and_security_fields_to_investors_table` adds `display_name`, `date_of_birth`, `nominee_name`, `nominee_nid_or_passport`, `nominee_phone`, `nominee_relation`, `nominee_address`, `stamp_number`, `cheque_number` to `investors`, each guarded with `Schema::hasColumn` so a database that already carries some of them stays a safe no-op. Per-investment stamp serials and the security cheque continue to live on each Investment's Security Instrument record; these investor-level fields are the quick register reference.
 
+### Fixed
+
+- **Opening the CRM cluster (`/admin/crm`) landed on the new Sales Automation page instead of Leads.** Every other CRM cluster item (Leads, Quotations, Inbox, Conversation Channels, Broadcasts, Company FAQs, Quick Replies) declares an explicit `navigationSort`, with Leads at `0` as the cluster's intended landing page; the new `SalesAutomation` and `SalesFollowUps` pages shipped without one, so Filament's default ordering put `SalesAutomation` ahead of Leads and silently changed the cluster root. Both now declare `navigationSort` (`7` and `8`), after every existing cluster item; Leads is the landing page again.
+
 ### Changed
 
 - **Invoice numbers now use one continuous running number per company instead of restarting at `01` every day.** In `PREFIX-YYYYMMDD-NN`, the `NN` was the count of *that day's* orders, so every date produced its own `-01`, `-02`, … and the same suffix repeated across dozens of dates — a specific invoice was hard to locate and the scheme made no sense to a newcomer. `NN` is now the company's total order count so far, plus one, and never resets: two orders placed today read `…-01` and `…-02`, tomorrow's next order is `…-03`, and so on. The date segment stays, for readability only. The number is padded to a minimum of two digits and grows past `99` on its own. **Already-issued invoice numbers are left exactly as they are** — only orders created from the deploy onward use the running number, so the first new one continues from wherever the business currently stands (128 existing orders → next is `…-129`). Trashed orders keep their number reserved. Quotations and storefront complaints keep their own separate daily numbering. `Order::nextOrderNumber()`.
+- **The storefront home page and product/category listing pages are now cached per company (10 minutes)**, so a high-traffic storefront doesn't re-run the same product/category query for every single visitor. A plain category/sort/page browse is cached; a search or a reseller's filtered catalog always hits the database instead (per-request/per-customer, not worth caching). Any admin edit to a product, category, or storefront setting invalidates the cache immediately — the 10-minute window is only a safety net beyond that.
+
+### Technical Notes
+
+- New `App\Support\StorefrontListingCache` (`storefront-home-products:`, `storefront-categories:`, `storefront-products:` cache keys). The product-listing page is parameterized by category/sort/page, so instead of enumerating every combination to forget, its keys carry a per-company "generation" number that `forgetCompany()` bumps — old keys simply become unreachable and expire via TTL, on any cache driver. `Product`, `Category`, and `StorefrontSetting` now call it from their existing `saved`/`deleted` hooks (`Category`/`StorefrontSetting` already forgot the separate, pre-existing `storefront-home:{companyId}` slide cache there; that call is unchanged).
+- Production Redis is now also the recommended session backend: `SESSION_DRIVER=redis` with `SESSION_CONNECTION=session` (new `redis.session` connection in `config/database.php`, `REDIS_SESSION_DB` defaults to its own database `2`, separate from the queue's `0` and cache's `1`) so a busy storefront isn't reading/writing a session row in MySQL on every request, and a `cache:clear` can never sign out every active session along with it. `.env.production.example`/`.env.example` and `docs/deployment.md` ("Redis on Coolify") updated accordingly; `database` remains supported for both if Redis isn't available yet.
+- Full suite: 1213 passed (as of the Sales Automation navigation-sort fix above).
 
 ## [2.15.0] - 2026-09-10
 
@@ -35,11 +46,14 @@ All notable production changes to Business Dashboard are documented here.
   - **Remove background** produces a new copy with the background made transparent (Stability's remove-background). The original is untouched.
   - Both are per-image buttons in the results gallery, and each is only offered when a configured provider actually supports it (Google Imagen is generate-only). Background removal always yields a single image; the derived image goes through the same Media Hub registration, monthly cap, approval, and audit-log path as a fresh generation. The Image Library gains a "Kind" column and filter (Generated / Image-to-image / Background removed).
 
-  **Technical Notes:** `generated_images.operation` column; `ImageGenerationRequest` carries `operation` + `referenceImage` + `strength`; each provider adapter declares `supportsOperation()` and `ImageProviderResolver::formatsSupporting()` reports which `api_format`s can run a given operation; `GenerateImageJob` loads the reference bytes from `reference_image_path` and rejects an unsupported operation before any HTTP call.
-
 ### Fixed
 
 - **The Orders list's bulk "Change status" action did nothing when the selection contained any order that couldn't legally reach the chosen stage.** `OrdersTable` was missing the `use Illuminate\Validation\ValidationException` import, so the bulk loop's `catch (ValidationException)` matched a non-existent class — the first ineligible order's `ValidationException` escaped the loop, Livewire turned it into a silent component error, and no order was updated and no notification appeared. The bulk **"Book courier"** action had the same latent failure. Restoring the import makes ineligible orders count as "skipped" as intended; a new regression test drives the bulk action with an ineligible order first.
+
+### Technical Notes
+
+- `generated_images.operation` column; `ImageGenerationRequest` carries `operation` + `referenceImage` + `strength`; each provider adapter declares `supportsOperation()` and `ImageProviderResolver::formatsSupporting()` reports which `api_format`s can run a given operation; `GenerateImageJob` loads the reference bytes from `reference_image_path` and rejects an unsupported operation before any HTTP call.
+
 ## [2.14.1] - 2026-09-10
 
 **Release type:** Patch/Fix Update

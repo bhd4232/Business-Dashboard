@@ -2,6 +2,65 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-12 - Fix: Sales Automation navigation sort order (CRM cluster landing page)
+
+Reason — owner: "fix the sales-automation navigation sort order." Follow-up to the merge-conflict resolution above: full-suite verification there surfaced `AdminNavigationClustersTest::test_cluster_roots_open_the_first_authorized_page` failing on plain `origin/main` (confirmed pre-existing, unrelated to the storefront/session work, and flagged to the owner rather than fixed at the time since it needed a call on intended design). Owner has now asked for it directly.
+
+Diagnosis: every existing CRM cluster item declares an explicit `navigationSort` (`LeadResource` = `0`, intentionally the cluster's landing page; `QuotationResource` = `1`; `Inbox` = `2`; `ConversationChannelResource` = `3`; `BroadcastResource` = `4`; `CompanyFaqResource`/`ConnectWhatsAppBusinessApp` = `5`; `QuickReplyResource` = `6`). The two new pages from the CRM sales-automation feature — `SalesAutomation` and `SalesFollowUps` — shipped with no `navigationSort` at all, so Filament's default ordering placed `SalesAutomation` ahead of Leads, silently making it the `/admin/crm` landing page instead.
+
+What changed:
+
+- `app/Filament/Pages/SalesAutomation.php` — added `protected static ?int $navigationSort = 7;` (first free slot after the existing cluster items).
+- `app/Filament/Pages/SalesFollowUps.php` — added `protected static ?int $navigationSort = 8;` (right after, since the two pages belong to the same feature).
+- No change to `LeadResource` or any other existing cluster item — Leads was always correctly `0`; the gap was only in the two new pages.
+
+Important changed files:
+
+- `app/Filament/Pages/SalesAutomation.php`
+- `app/Filament/Pages/SalesFollowUps.php`
+
+Verification:
+
+- Targeted run — `AdminNavigationClustersTest::test_cluster_roots_open_the_first_authorized_page`: **passed** (was failing before this fix, confirmed against plain `origin/main` too).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1213 passed, 0 failed** — every test now green, including the one pre-existing failure this branch inherited from `main`.
+
+Commit status: Not committed — awaiting owner's explicit approval to commit and push (per CLAUDE.md commit policy).
+
+## 2026-09-12 - Perf: storefront listing cache + Redis-backed sessions for high-traffic scaling
+
+Reason — owner asked what happens to server load once thousands of customers visit the storefront daily, and asked for the two concrete fixes proposed in that conversation: (1) cache the storefront home/product-listing/category page data instead of re-querying the database on every visit, and (2) move sessions off `SESSION_DRIVER=database` onto Redis in production so a session read/write isn't happening on every single request.
+
+What changed:
+
+- New `app/Support/StorefrontListingCache.php` — caches per company (10 minutes): the home page's category/product listings (`home()`), the product-listing page's category sidebar (`categories()`), and its paginated product listing (`listing()`). The listing page is parameterized by category/sort/page, so instead of enumerating every combination to forget on a change, its keys (and the category-sidebar key) carry a per-company "generation" number — `forgetCompany()` bumps it, so every previously cached key for that company simply becomes unreachable and expires unused via TTL, on any cache driver (file/database/redis), not just tag-capable ones.
+- `app/Http/Controllers/Storefront/HomeController.php` — categories + products now fetched through `StorefrontListingCache::home()`.
+- `app/Http/Controllers/Storefront/ProductIndexController.php` — the category sidebar always goes through `StorefrontListingCache::categories()`. The product listing goes through `StorefrontListingCache::listing()` only for a plain category/sort/page browse; a search query or a reseller's filtered catalog (per-request/per-customer) always hits the database directly rather than growing the cache with one-off keys. `withQueryString()` is applied *after* the cache lookup so a cache hit still reflects the current request's own query string.
+- `app/Models/Product.php`, `app/Models/Category.php`, `app/Models/StorefrontSetting.php` — `saved`/`deleted` hooks now also call `StorefrontListingCache::forgetCompany()`, so an admin edit shows up immediately; the 10-minute TTL is only a safety net beyond these three models. (`Category`/`StorefrontSetting` already forgot the separate, pre-existing `storefront-home:{companyId}` slide cache in the same hooks — that call is unchanged, this is additive.)
+- `config/database.php` — new `redis.session` connection with its own database (`REDIS_SESSION_DB`, defaults to `2`), separate from the queue's `default` (`0`) and cache's `cache` (`1`) connections, so a `php artisan cache:clear` / `Cache::flush()` can never sign out every active customer/admin session along with the cache.
+- `.env.production.example` / `.env.example` — `SESSION_DRIVER=redis` with `SESSION_CONNECTION=session` now recommended for production (was `database`); `database` remains supported if Redis isn't available yet.
+- `docs/deployment.md` — "Redis on Coolify" section renamed to cover session too, documents the new env values and `redis.session` connection, and explains why each of the three things Redis now speeds up (AI FAQ cache, storefront listing cache, sessions) matters at scale.
+
+Important changed files:
+
+- `app/Support/StorefrontListingCache.php` (new)
+- `app/Http/Controllers/Storefront/HomeController.php`
+- `app/Http/Controllers/Storefront/ProductIndexController.php`
+- `app/Models/Product.php`
+- `app/Models/Category.php`
+- `app/Models/StorefrontSetting.php`
+- `config/database.php`
+- `.env.production.example`, `.env.example`
+- `docs/deployment.md`
+
+Verification:
+
+- Targeted run — `StorefrontFoundationTest`, `StorefrontThemeTest`, `StorefrontBannerTest`, `StorefrontMenuTest`, `ResellerSelfServiceTest`, `ResellerStorefrontTest`: **60 passed**, including the reseller/search paths that deliberately bypass the cache.
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1040 passed, 0 failed**.
+- `npm run build`: succeeded (no frontend code changed; only run so the test suite's `@vite`-dependent views had a manifest to render).
+- Not yet covered by a dedicated regression test for the cache-hit/invalidation behavior itself (existing tests pass because `RefreshDatabase` + the `array` cache driver in `phpunit.xml` mean each test still sees fresh data either way) — worth a follow-up test if this needs to be guarded long-term.
+
+Commit status: Committed and pushed (owner approved: "হ্যাঁ, কমিট এবং পুশ করে দাও"); then merged with `main` to resolve the conflict this update note documents merging around (main had advanced substantially — CRM sales automation, image generation upload, investor form fields — while this branch was open).
+
 ## 2026-09-12 - Investor form: father's name / address / NID-Passport, nominee, stamp & cheque no.
 
 Reason — owner: "ইনভেস্টর ফর্মে এই ফিল্ডগুলো যুক্ত কর পিতার নাম, ঠিকানা, NID/Passport অপশন রাখবে, ইনভেস্টরের তথ্যের পর বসাবে নমিনীর নাম, নমিনী অপশনসহ NID/Passport, নমিনীর ফোন নাম্বার, স্টাম্প নং., চেক নং.।" — father's name, address and an NID/Passport option already existed on the form (as `guardian_name` / `address` / `nid_number`); this adds the pieces that didn't: a nominee block placed right after the investor's own information, plus stamp and cheque numbers.
