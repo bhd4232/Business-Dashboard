@@ -4,6 +4,14 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- CRM vision input for privately stored customer images, with a dashboard toggle and compatible-model requirement.
+
+### Fixed
+
+- Sync new Messenger Page/Business Suite replies, preserve own-send attribution, deduplicate echoes and pause AI after external replies. Add Messenger Test & Subscribe. Hide IDs in chat titles and directly clarify generic Bengali order requests.
+
 ### Fixed
 
 - Release Notes now keeps inline **Technical Notes:** entries in the technical audience even when they contain none of the existing database/deployment keywords. Ordinary feature notes remain visible to all permitted users.

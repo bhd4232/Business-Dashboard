@@ -7,6 +7,7 @@ use App\Filament\Pages\SalesAutomation;
 use App\Filament\Widgets\CrmSalesMetrics;
 use App\Jobs\AiAutoReplyJob;
 use App\Jobs\RefreshMessengerProfileJob;
+use App\Jobs\StoreIncomingMessageJob;
 use App\Models\ChatOrderLink;
 use App\Models\Company;
 use App\Models\Conversation;
@@ -18,6 +19,8 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Services\CompanyContext;
+use App\Services\CompanyStorageService;
+use App\Services\Crm\AiLlmClient;
 use App\Services\Crm\AiReplyService;
 use App\Services\Crm\AiSettingsService;
 use App\Services\Crm\SalesCartService;
@@ -28,6 +31,8 @@ use App\Services\Meta\MetaGraphService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -79,6 +84,78 @@ class CrmSalesAutomationTest extends TestCase
         return ChatOrderLink::query()->create(['conversation_id' => $this->conversation->id, 'prefill' => ['items' => []]]);
     }
 
+    public function test_customer_image_reaches_vision_model_without_a_caption(): void
+    {
+        Storage::fake('local');
+        $this->settings(['vision_enabled' => true, 'max_run_tokens' => 30000]);
+        $image = imagecreatetruecolor(20, 20);
+        ob_start();
+        imagepng($image);
+        $bytes = ob_get_clean();
+        imagedestroy($image);
+        $path = app(CompanyStorageService::class)->putPrivate($this->company, 'conversation-media', 'vision.png', $bytes);
+        $this->conversation->messages()->create(['direction' => 'incoming', 'type' => 'image', 'body' => null, 'media_path' => $path, 'media_mime' => 'image/png', 'sent_at' => now()]);
+        Http::fake(['api.anthropic.com/*' => Http::response($this->response(['reply_keys' => [], 'prompt_key' => 'variant', 'language' => 'bn'])), 'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'vision-reply']]])]);
+        app(AiReplyService::class)->maybeReply($this->conversation);
+        $this->assertSame('sent', CrmAiRun::query()->sole()->status, (string) CrmAiRun::query()->sole()->reason);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'anthropic') && data_get(collect($request['messages'])->last(), 'content.0.source.media_type') === 'image/jpeg');
+        $this->assertSame('open', $this->conversation->fresh()->status);
+    }
+
+    public function test_openai_vision_uses_image_url_blocks(): void
+    {
+        Http::fake(['api.openai.com/*' => Http::response(['choices' => [['message' => ['content' => 'ok']]]])]);
+        (new AiLlmClient('openai', 'test', 'vision-model'))->chat('Test', [['role' => 'user', 'content' => [['type' => 'image', 'source' => ['media_type' => 'image/jpeg', 'data' => 'abc']], ['type' => 'text', 'text' => 'What product?']]]], []);
+        Http::assertSent(fn ($request) => data_get($request->data(), 'messages.1.content.0.image_url.url') === 'data:image/jpeg;base64,abc');
+    }
+
+    public function test_business_suite_echo_syncs_once_and_pauses_ai_without_creating_an_incoming_message(): void
+    {
+        Queue::fake();
+        $channel = $this->conversation->channel;
+        $channel->update(['provider' => 'messenger']);
+        $this->conversation->update(['provider' => 'messenger']);
+        $payload = ['object' => 'page', 'entry' => [['id' => $channel->external_id, 'messaging' => [[
+            'sender' => ['id' => $channel->external_id], 'recipient' => ['id' => $this->conversation->external_contact_id],
+            'timestamp' => now()->getTimestampMs(), 'message' => ['is_echo' => true, 'mid' => 'suite-1', 'text' => 'প্রোডাক্টের নাম দিন'],
+        ]]]]];
+        $job = new StoreIncomingMessageJob($channel->id, $payload);
+        $job->handle(app(CompanyContext::class), app(MetaGraphService::class));
+        $job->handle(app(CompanyContext::class), app(MetaGraphService::class));
+        $reply = $this->conversation->messages()->where('external_message_id', 'suite-1')->sole();
+        $this->assertSame('outgoing', $reply->direction);
+        $this->assertSame('page', $reply->generated_by);
+        $this->assertTrue($this->conversation->fresh()->human_handled_until->isFuture());
+        Queue::assertNotPushed(AiAutoReplyJob::class);
+    }
+
+    public function test_own_api_echo_preserves_ai_attribution_even_before_send_response(): void
+    {
+        $channel = $this->conversation->channel;
+        $channel->update(['provider' => 'messenger']);
+        $this->conversation->update(['provider' => 'messenger']);
+        $own = $this->conversation->messages()->create(['direction' => 'outgoing', 'type' => 'text', 'body' => 'Reply', 'generated_by' => 'ai', 'delivery_status' => 'sending', 'sent_at' => now()]);
+        $payload = ['object' => 'page', 'entry' => [['id' => $channel->external_id, 'messaging' => [[
+            'sender' => ['id' => $channel->external_id], 'recipient' => ['id' => $this->conversation->external_contact_id],
+            'message' => ['is_echo' => true, 'mid' => 'own-echo', 'text' => 'Reply', 'metadata' => 'crm-message:'.$own->id],
+        ]]]]];
+        (new StoreIncomingMessageJob($channel->id, $payload))->handle(app(CompanyContext::class), app(MetaGraphService::class));
+        $this->assertSame('ai', $own->fresh()->generated_by);
+        $this->assertSame('own-echo', $own->fresh()->external_message_id);
+        $this->assertNull($this->conversation->fresh()->human_handled_until);
+    }
+
+    public function test_generic_bengali_order_request_asks_for_product_without_llm_or_handoff(): void
+    {
+        $this->conversation->messages()->where('direction', 'incoming')->update(['body' => 'Hi']);
+        $this->incoming('আমি একটি অর্ডার করতে চাই');
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'order-clarification']]])]);
+        app(AiReplyService::class)->maybeReply($this->conversation);
+        $this->assertSame('আপনি কোন প্রোডাক্ট নিতে চান? নাম অথবা ছবি শেয়ার করুন।', $this->conversation->messages()->where('direction', 'outgoing')->sole()->body);
+        $this->assertSame('open', $this->conversation->fresh()->status);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'anthropic'));
+    }
+
     public function test_profile_name_replaces_id_placeholder_and_updates_generated_lead_name(): void
     {
         $this->conversation->channel->update(['provider' => 'messenger']);
@@ -95,6 +172,16 @@ class CrmSalesAutomationTest extends TestCase
     {
         $this->conversation->update(['contact_name' => null]);
         $this->assertSame('নাম পাওয়া যায়নি', $this->conversation->profileDisplayName());
+    }
+
+    public function test_order_request_keeps_existing_product_context_instead_of_asking_again(): void
+    {
+        $this->conversation->messages()->where('direction', 'incoming')->update(['body' => 'Lamp নিতে চাই']);
+        $this->incoming('আমি একটি অর্ডার করতে চাচ্ছি');
+        Http::fake(['api.anthropic.com/*' => Http::response($this->response(['reply_keys' => [], 'prompt_key' => 'quantity', 'language' => 'bn'])), 'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'quantity-clarification']]])]);
+        app(AiReplyService::class)->maybeReply($this->conversation);
+        $this->assertSame('কতটি নিতে চান?', $this->conversation->messages()->where('direction', 'outgoing')->sole()->body);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'anthropic'));
     }
 
     public function test_banglish_price_reply_has_no_unsolicited_stock_or_question(): void

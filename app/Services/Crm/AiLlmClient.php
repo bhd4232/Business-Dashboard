@@ -84,6 +84,11 @@ class AiLlmClient
         $openAiMessages = [['role' => 'system', 'content' => $system]];
 
         foreach ($messages as $message) {
+            if ($message['role'] === 'user' && is_array($message['content'])) {
+                $message['content'] = array_map(fn (array $block): array => ($block['type'] ?? '') === 'image'
+                    ? ['type' => 'image_url', 'image_url' => ['url' => 'data:'.$block['source']['media_type'].';base64,'.$block['source']['data']]]
+                    : $block, $message['content']);
+            }
             // Tool-call rounds are already in OpenAI shape — pass through.
             $openAiMessages[] = ($message['role'] === 'tool' || isset($message['tool_calls']))
                 ? $message

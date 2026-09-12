@@ -222,7 +222,7 @@ class ConversationChannelResource extends Resource
             Action::make('testAndSubscribe')
                 ->label(fn (ConversationChannel $record): string => $record->provider === 'whatsapp'
                     ? 'Test & Subscribe'
-                    : 'Test Connection')
+                    : 'Test & Subscribe')
                 ->icon(Heroicon::OutlinedSignal)
                 ->action(function (ConversationChannel $record): void {
                     try {
@@ -231,7 +231,7 @@ class ConversationChannelResource extends Resource
                         Notification::make()
                             ->title($record->provider === 'whatsapp'
                                 ? 'WhatsApp channel connected and subscribed.'
-                                : 'Messenger channel connected.')
+                                : 'Messenger connected; message echoes subscribed.')
                             ->body($record->provider === 'whatsapp'
                                 ? 'Also confirm the callback is verified and the messages webhook field is enabled in Meta. Inbound confirmed appears only after a real customer message reaches the ERP.'
                                 : null)

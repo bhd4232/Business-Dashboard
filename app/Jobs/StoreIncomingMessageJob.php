@@ -250,8 +250,17 @@ class StoreIncomingMessageJob implements ShouldQueue
     protected function handleMessenger(ConversationChannel $channel, MetaGraphService $metaGraph): void
     {
         foreach ($this->payload['entry'] ?? [] as $entry) {
+            if ((string) ($entry['id'] ?? '') !== (string) $channel->external_id) {
+                continue;
+            }
             foreach ($entry['messaging'] ?? [] as $event) {
                 $psid = (string) data_get($event, 'sender.id', '');
+
+                if ($psid === (string) $channel->external_id && data_get($event, 'message.is_echo') === true) {
+                    $this->ingestMessengerEcho($channel, $event);
+
+                    continue;
+                }
 
                 if ($psid === '' || $psid === $channel->external_id) {
                     continue; // echoes of our own page messages
@@ -315,6 +324,57 @@ class StoreIncomingMessageJob implements ShouldQueue
         }
     }
 
+    protected function ingestMessengerEcho(ConversationChannel $channel, array $event): void
+    {
+        $contactId = (string) data_get($event, 'recipient.id', '');
+        $mid = (string) data_get($event, 'message.mid', '');
+        if ($contactId === '' || $mid === '') {
+            return;
+        }
+        $message = DB::transaction(function () use ($channel, $event, $contactId, $mid) {
+            $conversation = Conversation::query()->firstOrCreate(
+                ['channel_id' => $channel->id, 'external_contact_id' => $contactId],
+                ['company_id' => $channel->company_id, 'provider' => 'messenger', 'status' => 'open'],
+            );
+            $conversation = Conversation::query()->whereKey($conversation->id)->lockForUpdate()->firstOrFail();
+            $metadata = (string) data_get($event, 'message.metadata', '');
+            if (preg_match('/^crm-message:(\d+)$/', $metadata, $match)) {
+                $own = $conversation->messages()->whereKey($match[1])->where('direction', 'outgoing')->first();
+                if ($own && (! $own->external_message_id || $own->external_message_id === $mid)) {
+                    $own->update(['external_message_id' => $mid, 'delivery_status' => 'sent']);
+
+                    return null;
+                }
+            }
+            // Our own API replies already have this ID. Never overwrite their AI/staff attribution.
+            if (ConversationMessage::query()->where('external_message_id', $mid)->exists()) {
+                return null;
+            }
+            $attachment = data_get($event, 'message.attachments.0');
+            $sentAt = isset($event['timestamp']) ? Carbon::createFromTimestampMs((int) $event['timestamp']) : now();
+            $message = $conversation->messages()->create([
+                'direction' => 'outgoing', 'external_message_id' => $mid,
+                'type' => $attachment ? $this->normalizeType((string) ($attachment['type'] ?? 'document')) : 'text',
+                'body' => data_get($event, 'message.text'), 'delivery_status' => 'sent',
+                'generated_by' => 'page', 'raw_payload' => $event, 'sent_at' => $sentAt,
+            ]);
+            $pauseUntil = $sentAt->copy()->addDay();
+            $updates = [];
+            if (! $conversation->last_message_at || $sentAt->greaterThan($conversation->last_message_at)) {
+                $updates['last_message_at'] = $sentAt;
+            }
+            if ($pauseUntil->isFuture() && (! $conversation->human_handled_until || $pauseUntil->greaterThan($conversation->human_handled_until))) {
+                $updates['human_handled_until'] = $pauseUntil;
+            }
+            $conversation->forceFill($updates)->saveQuietly();
+
+            return $message;
+        });
+        if ($message && ($url = data_get($event, 'message.attachments.0.payload.url'))) {
+            DownloadConversationMediaJob::dispatch($message->id, $channel->id, null, $url)->afterCommit();
+        }
+    }
+
     protected function ingestMessage(
         ConversationChannel $channel,
         string $externalContactId,
@@ -354,7 +414,7 @@ class StoreIncomingMessageJob implements ShouldQueue
 
         $this->dispatchFollowUps($message, $conversation, $channel, $data);
 
-        if ($conversation->provider === 'messenger' && $conversation->profileDisplayName() === 'নাম পাওয়া যায়নি') {
+        if ($conversation->provider === 'messenger' && $conversation->profileDisplayName() === 'নাম পাওয়া যায়নি') {
             RefreshMessengerProfileJob::dispatch((int) $conversation->getKey())->afterCommit();
         }
 

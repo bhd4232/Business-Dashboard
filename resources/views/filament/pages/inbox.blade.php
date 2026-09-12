@@ -21,7 +21,7 @@
         'internal' => 'Internal note',
     ];
     $displayName = $conversation
-        ? ($conversation->contact_name ?: $conversation->contact_phone ?: 'Contact '.$conversation->external_contact_id)
+        ? $conversation->profileDisplayName()
         : null;
     $canManage = $this->canManageConversations;
     $isSuperAdmin = auth()->user()?->isSuperAdmin() ?? false;
@@ -387,7 +387,7 @@
                             <ul class="space-y-[5px]" aria-label="Conversation list">
                                 @forelse ($conversations as $item)
                                     @php
-                                        $itemName = $item->contact_name ?: $item->contact_phone ?: 'Contact '.$item->external_contact_id;
+                                        $itemName = $item->profileDisplayName();
                                         $preview = $item->latestMessage
                                             ? \Illuminate\Support\Str::limit((string) ($item->latestMessage->body ?: ucfirst($item->latestMessage->type)), 72)
                                             : 'No messages yet';
@@ -803,6 +803,8 @@
                                             <div class="flex flex-wrap items-center justify-end gap-2 text-xs opacity-80">
                                                 @if ($message->generated_by === 'ai')
                                                     <span>AI assistant</span>
+                                                @elseif ($message->generated_by === 'page')
+                                                    Page / Business Suite
                                                 @elseif ($message->generated_by === 'phone_app')
                                                     <span class="inline-flex items-center gap-1" title="Sent from the WhatsApp Business App on the phone, synced in via Coexistence">
                                                         <x-filament::icon icon="heroicon-o-device-phone-mobile" class="h-3 w-3" />
@@ -1144,7 +1146,7 @@
                                 @elseif ($conversation->lead)
                                     <div>
                                         <dt class="text-gray-500 dark:text-gray-400">Lead</dt>
-                                        <dd class="font-medium">{{ $conversation->lead->name }}</dd>
+                                        <dd class="font-medium">{{ preg_match('/^Chat contact \d+$/i', $conversation->lead->name) ? $conversation->profileDisplayName() : $conversation->lead->name }}</dd>
                                     </div>
                                 @endif
                                 <div>
