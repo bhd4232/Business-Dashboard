@@ -6,6 +6,7 @@ use App\Filament\Pages\Inbox;
 use App\Filament\Pages\SalesAutomation;
 use App\Filament\Widgets\CrmSalesMetrics;
 use App\Jobs\AiAutoReplyJob;
+use App\Jobs\RefreshMessengerProfileJob;
 use App\Models\ChatOrderLink;
 use App\Models\Company;
 use App\Models\Conversation;
@@ -23,6 +24,7 @@ use App\Services\Crm\SalesCartService;
 use App\Services\Crm\SalesFollowUpService;
 use App\Services\Crm\SalesQualificationService;
 use App\Services\Crm\SalesReplyRenderer;
+use App\Services\Meta\MetaGraphService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -75,6 +77,24 @@ class CrmSalesAutomationTest extends TestCase
     private function link(): ChatOrderLink
     {
         return ChatOrderLink::query()->create(['conversation_id' => $this->conversation->id, 'prefill' => ['items' => []]]);
+    }
+
+    public function test_profile_name_replaces_id_placeholder_and_updates_generated_lead_name(): void
+    {
+        $this->conversation->channel->update(['provider' => 'messenger']);
+        $lead = Lead::query()->create(['name' => 'Chat contact 123456', 'phone' => '123456', 'source' => 'facebook', 'status' => 'new']);
+        $this->conversation->update(['provider' => 'messenger', 'external_contact_id' => '123456', 'contact_name' => 'Contact 123456', 'lead_id' => $lead->id]);
+        $this->assertSame('নাম পাওয়া যায়নি', $this->conversation->profileDisplayName());
+        Http::fake(['graph.facebook.com/*' => Http::response(['first_name' => 'Rahim', 'last_name' => 'Ahmed'])]);
+        (new RefreshMessengerProfileJob($this->conversation->id))->handle(app(MetaGraphService::class));
+        $this->assertSame('Rahim Ahmed', $this->conversation->fresh()->profileDisplayName());
+        $this->assertSame('Rahim Ahmed', $lead->fresh()->name);
+    }
+
+    public function test_missing_profile_name_never_falls_back_to_phone_or_id(): void
+    {
+        $this->conversation->update(['contact_name' => null]);
+        $this->assertSame('নাম পাওয়া যায়নি', $this->conversation->profileDisplayName());
     }
 
     public function test_banglish_price_reply_has_no_unsolicited_stock_or_question(): void

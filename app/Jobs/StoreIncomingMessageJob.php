@@ -354,6 +354,10 @@ class StoreIncomingMessageJob implements ShouldQueue
 
         $this->dispatchFollowUps($message, $conversation, $channel, $data);
 
+        if ($conversation->provider === 'messenger' && $conversation->profileDisplayName() === 'নাম পাওয়া যায়নি') {
+            RefreshMessengerProfileJob::dispatch((int) $conversation->getKey())->afterCommit();
+        }
+
         return $message;
     }
 

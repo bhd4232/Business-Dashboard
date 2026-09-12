@@ -2,6 +2,26 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-12 - CRM Inbox: Messenger contacts weren't picking up their real name
+
+Reason — owner: reported ZamZam International's WhatsApp Inbox shows real contact names, but ZamZam Gadget's Inbox contacts stay on the generic "Contact 28427039453582435" placeholder for Messenger conversations.
+
+Root cause: WhatsApp's own webhook payload carries the contact's profile name, so it's captured for free at message-ingest time. Messenger's webhook does not — the contact's name has to be fetched separately from Meta's Graph API (`GET /{psid}?fields=first_name,last_name`). That lookup (`MetaGraphService::messengerProfileName()`) already existed in this codebase, but nothing ever called it, so every Messenger conversation was stuck on its `Contact {psid}` fallback name forever. This is an existing, uncommitted feature from another session's in-progress Messenger work (`app/Jobs/RefreshMessengerProfileJob.php`, already written and tested there) — this change extracts just that self-contained piece (the job, the dispatch hooks, and its two tests) so it can ship on its own without waiting on that session's other unrelated in-flight changes (a Messenger "echo" message importer and a diagnostics-badge fix, both left untouched in the working tree for that session to commit separately).
+
+What changed:
+
+- **`app/Jobs/RefreshMessengerProfileJob.php`** (new) — for a Messenger conversation still on the placeholder name, calls `MetaGraphService::messengerProfileName()` and updates `contact_name` (and the auto-created lead's name, if any) once a real name comes back. Guarded so it never overwrites a name staff already typed while the request was in flight, and any Graph API failure is caught and logged, never surfaced to the user.
+- **`app/Jobs/StoreIncomingMessageJob.php`** — dispatches the job after a new Messenger message is stored, if the conversation still shows the placeholder name.
+- **`app/Filament/Pages/Inbox.php`** — also dispatches it when staff open a Messenger conversation still on the placeholder, so an older conversation heals the first time someone looks at it.
+- **`app/Services/Meta/MetaGraphService.php`** — no logic change here; `messengerProfileName()` was already present, just never called.
+- **`tests/Feature/CrmSalesAutomationTest.php`** (+2) — a placeholder name is replaced (and the generated lead renamed) once Graph returns a name; a conversation with no name at all stays on the Bengali "নাম পাওয়া যায়নি" placeholder rather than falling back to the phone number or contact ID.
+
+Important — Meta has restricted first_name/last_name access on Messenger PSIDs for some apps/permission tiers over the years. This fix makes the lookup actually run; if the ZamZam Gadget Messenger page's access token doesn't have permission for it, Graph will return an error, the job logs it and leaves the placeholder in place — worth checking the Laravel log after this deploys if the real names still don't appear.
+
+Verification: `php artisan test --filter="test_profile_name_replaces_id_placeholder_and_updates_generated_lead_name|test_missing_profile_name_never_falls_back_to_phone_or_id" tests/Feature/CrmSalesAutomationTest.php tests/Feature/MetaMessagingReliabilityTest.php` — 20 passed. Full `php artisan test` — 1254 passed, 2 failed; both pre-existing and unrelated (`AdminNavigationClustersTest` — CRM Sales Automation cluster routing; `ReleaseNotesTest` — stale `config/release.php` version).
+
+Commit status: NOT committed. Awaiting owner approval.
+
 ## 2026-09-12 - Courier Fraud Check: Steadfast could report a false clean history
 
 Reason — owner: reported seeing two different fraud-check results for the same phone number (+8801819701516) — a third-party "nuport" app showed real Steadfast history (49 total, 46 delivered, 3 undelivered, 93.88%), while our ERP's own Courier Fraud Check on the order form showed "No courier history found" / Steadfast 0/0.

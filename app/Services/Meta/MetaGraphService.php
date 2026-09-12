@@ -21,6 +21,17 @@ class MetaGraphService
         return preg_match('/\Av\d+\.\d+\z/', $version) === 1 ? $version : 'v25.0';
     }
 
+    public function messengerProfileName(ConversationChannel $channel, string $contactId): ?string
+    {
+        if ($channel->provider !== 'messenger' || ! $channel->is_active || blank($channel->access_token)) {
+            return null;
+        }
+        $profile = $this->request('GET', rawurlencode($contactId), (string) $channel->access_token, ['fields' => 'first_name,last_name'], retry: false);
+        $name = trim((string) ($profile['first_name'] ?? '').' '.(string) ($profile['last_name'] ?? ''));
+
+        return $name !== '' ? mb_substr($name, 0, 255) : null;
+    }
+
     public function url(string $path): string
     {
         return 'https://graph.facebook.com/'.$this->version().'/'.ltrim($path, '/');
