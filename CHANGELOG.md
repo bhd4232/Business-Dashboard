@@ -20,6 +20,10 @@ All notable production changes to Business Dashboard are documented here.
 
   **Technical Notes:** `2026_09_10_120000_add_nominee_and_security_fields_to_investors_table` adds `display_name`, `date_of_birth`, `nominee_name`, `nominee_nid_or_passport`, `nominee_phone`, `nominee_relation`, `nominee_address`, `stamp_number`, `cheque_number` to `investors`, each guarded with `Schema::hasColumn` so a database that already carries some of them stays a safe no-op. Per-investment stamp serials and the security cheque continue to live on each Investment's Security Instrument record; these investor-level fields are the quick register reference.
 
+### Fixed
+
+- **Opening the CRM cluster (`/admin/crm`) landed on the new Sales Automation page instead of Leads.** Every other CRM cluster item (Leads, Quotations, Inbox, Conversation Channels, Broadcasts, Company FAQs, Quick Replies) declares an explicit `navigationSort`, with Leads at `0` as the cluster's intended landing page; the new `SalesAutomation` and `SalesFollowUps` pages shipped without one, so Filament's default ordering put `SalesAutomation` ahead of Leads and silently changed the cluster root. Both now declare `navigationSort` (`7` and `8`), after every existing cluster item; Leads is the landing page again.
+
 ### Changed
 
 - **Invoice numbers now use one continuous running number per company instead of restarting at `01` every day.** In `PREFIX-YYYYMMDD-NN`, the `NN` was the count of *that day's* orders, so every date produced its own `-01`, `-02`, … and the same suffix repeated across dozens of dates — a specific invoice was hard to locate and the scheme made no sense to a newcomer. `NN` is now the company's total order count so far, plus one, and never resets: two orders placed today read `…-01` and `…-02`, tomorrow's next order is `…-03`, and so on. The date segment stays, for readability only. The number is padded to a minimum of two digits and grows past `99` on its own. **Already-issued invoice numbers are left exactly as they are** — only orders created from the deploy onward use the running number, so the first new one continues from wherever the business currently stands (128 existing orders → next is `…-129`). Trashed orders keep their number reserved. Quotations and storefront complaints keep their own separate daily numbering. `Order::nextOrderNumber()`.
@@ -29,7 +33,7 @@ All notable production changes to Business Dashboard are documented here.
 
 - New `App\Support\StorefrontListingCache` (`storefront-home-products:`, `storefront-categories:`, `storefront-products:` cache keys). The product-listing page is parameterized by category/sort/page, so instead of enumerating every combination to forget, its keys carry a per-company "generation" number that `forgetCompany()` bumps — old keys simply become unreachable and expire via TTL, on any cache driver. `Product`, `Category`, and `StorefrontSetting` now call it from their existing `saved`/`deleted` hooks (`Category`/`StorefrontSetting` already forgot the separate, pre-existing `storefront-home:{companyId}` slide cache there; that call is unchanged).
 - Production Redis is now also the recommended session backend: `SESSION_DRIVER=redis` with `SESSION_CONNECTION=session` (new `redis.session` connection in `config/database.php`, `REDIS_SESSION_DB` defaults to its own database `2`, separate from the queue's `0` and cache's `1`) so a busy storefront isn't reading/writing a session row in MySQL on every request, and a `cache:clear` can never sign out every active session along with it. `.env.production.example`/`.env.example` and `docs/deployment.md` ("Redis on Coolify") updated accordingly; `database` remains supported for both if Redis isn't available yet.
-- Full suite: 1040 passed (5637 assertions) as of this change.
+- Full suite: 1213 passed (as of the Sales Automation navigation-sort fix above).
 
 ## [2.15.0] - 2026-09-10
 

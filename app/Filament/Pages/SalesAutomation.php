@@ -22,6 +22,12 @@ class SalesAutomation extends Page implements HasTable
 
     protected static ?string $cluster = Crm::class;
 
+    // Every other CRM cluster item declares an explicit navigationSort
+    // (Leads = 0, the cluster's intended landing page); without one here
+    // this page sorted before Leads and silently became the cluster root
+    // instead, per Filament's default ordering.
+    protected static ?int $navigationSort = 7;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSparkles;
 
     protected static ?string $title = 'Sales Automation';

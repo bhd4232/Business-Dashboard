@@ -2,6 +2,30 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-12 - Fix: Sales Automation navigation sort order (CRM cluster landing page)
+
+Reason — owner: "fix the sales-automation navigation sort order." Follow-up to the merge-conflict resolution above: full-suite verification there surfaced `AdminNavigationClustersTest::test_cluster_roots_open_the_first_authorized_page` failing on plain `origin/main` (confirmed pre-existing, unrelated to the storefront/session work, and flagged to the owner rather than fixed at the time since it needed a call on intended design). Owner has now asked for it directly.
+
+Diagnosis: every existing CRM cluster item declares an explicit `navigationSort` (`LeadResource` = `0`, intentionally the cluster's landing page; `QuotationResource` = `1`; `Inbox` = `2`; `ConversationChannelResource` = `3`; `BroadcastResource` = `4`; `CompanyFaqResource`/`ConnectWhatsAppBusinessApp` = `5`; `QuickReplyResource` = `6`). The two new pages from the CRM sales-automation feature — `SalesAutomation` and `SalesFollowUps` — shipped with no `navigationSort` at all, so Filament's default ordering placed `SalesAutomation` ahead of Leads, silently making it the `/admin/crm` landing page instead.
+
+What changed:
+
+- `app/Filament/Pages/SalesAutomation.php` — added `protected static ?int $navigationSort = 7;` (first free slot after the existing cluster items).
+- `app/Filament/Pages/SalesFollowUps.php` — added `protected static ?int $navigationSort = 8;` (right after, since the two pages belong to the same feature).
+- No change to `LeadResource` or any other existing cluster item — Leads was always correctly `0`; the gap was only in the two new pages.
+
+Important changed files:
+
+- `app/Filament/Pages/SalesAutomation.php`
+- `app/Filament/Pages/SalesFollowUps.php`
+
+Verification:
+
+- Targeted run — `AdminNavigationClustersTest::test_cluster_roots_open_the_first_authorized_page`: **passed** (was failing before this fix, confirmed against plain `origin/main` too).
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1213 passed, 0 failed** — every test now green, including the one pre-existing failure this branch inherited from `main`.
+
+Commit status: Not committed — awaiting owner's explicit approval to commit and push (per CLAUDE.md commit policy).
+
 ## 2026-09-12 - Perf: storefront listing cache + Redis-backed sessions for high-traffic scaling
 
 Reason — owner asked what happens to server load once thousands of customers visit the storefront daily, and asked for the two concrete fixes proposed in that conversation: (1) cache the storefront home/product-listing/category page data instead of re-querying the database on every visit, and (2) move sessions off `SESSION_DRIVER=database` onto Redis in production so a session read/write isn't happening on every single request.
