@@ -2,6 +2,23 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-12 - Investor form: father's name / address / NID-Passport, nominee, stamp & cheque no.
+
+Reason — owner: "ইনভেস্টর ফর্মে এই ফিল্ডগুলো যুক্ত কর পিতার নাম, ঠিকানা, NID/Passport অপশন রাখবে, ইনভেস্টরের তথ্যের পর বসাবে নমিনীর নাম, নমিনী অপশনসহ NID/Passport, নমিনীর ফোন নাম্বার, স্টাম্প নং., চেক নং.।" — father's name, address and an NID/Passport option already existed on the form (as `guardian_name` / `address` / `nid_number`); this adds the pieces that didn't: a nominee block placed right after the investor's own information, plus stamp and cheque numbers.
+
+What changed:
+
+- **`app/Models/Investor.php`** — `$fillable` gains `display_name`, `date_of_birth`, `stamp_number`, `cheque_number`, `nominee_name`, `nominee_nid_or_passport`, `nominee_phone`, `nominee_relation`, `nominee_address`; `date_of_birth` cast to `date`. New `reportName()` — returns the pseudonym (`display_name`) when set, else the real name, for documents shared with an investor under the deed's clause 3.
+- **`app/Filament/Resources/Investors/InvestorResource.php`** — Investor Identity gains Display/Pseudonym and Date of Birth, and NID Number is relabelled **NID / Passport**. A new **Nominee** section (positioned after Investor Identity, per the owner's request) holds name / NID-Passport / phone / relation / address. A new **Security Documents** section holds **Stamp No.** and **Cheque No.**. Matching `infolist()` entries on the view page.
+- **`database/migrations/2026_09_10_120000_add_nominee_and_security_fields_to_investors_table.php`** — adds the nine columns above to `investors`, each `Schema::hasColumn`-guarded.
+- **`tests/Feature/InvestorFormTest.php`** (new, 2 tests) — create and edit both round-trip every new field through the Filament form.
+
+Important: only the fields the owner asked for on the Investor's own record are added here. Per-investment contract/stamp/cheque detail already has its own place on `InvestorSecurityInstrument` (Investment → Security Instruments) and is untouched by this change.
+
+Verification: `php artisan test tests/Feature/InvestorFormTest.php tests/Feature/MultiCompanyIsolationTest.php` — 9 passed. Full `php artisan test` — 1184 passed, 1 failed; the failure (`ReleaseNotesTest > database related release notes are hidden from non super admin users`) is a transient read of `CHANGELOG.md` mid-edit by another concurrent session (the file is live-parsed from disk) — re-ran in isolation immediately after and it passed. Unrelated to this change.
+
+Commit status: Committed and pushed.
+
 ## 2026-09-10 - AI Tools / Image Generation: upload-your-own reference image on the form (plan 11, Phase 4 final follow-up)
 
 Reason — owner: "ফেজ ৪ এর শেষ ফলো-আপ (form থেকে reference upload) কর" — the one deferred Phase 4 item: let a user upload a photo on the Image Generation form and run image-to-image / background removal on it, instead of only regenerating an existing library image.
