@@ -5,6 +5,8 @@ use App\Http\Controllers\Admin\BackupDownloadController;
 use App\Http\Controllers\Admin\CompanySwitchController;
 use App\Http\Controllers\Admin\ConversationMediaController;
 use App\Http\Controllers\Admin\CustomerCsvController;
+use App\Http\Controllers\Admin\InvestmentDocumentDownloadController;
+use App\Http\Controllers\Admin\InvestmentReportController;
 use App\Http\Controllers\Admin\InvestorContractDownloadController;
 use App\Http\Controllers\Admin\LegacyAdminClusterRedirectController;
 use App\Http\Controllers\Admin\OrderPdfController;
@@ -610,6 +612,18 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/admin/investor-security-instruments/{instrument}/contract', InvestorContractDownloadController::class)
         ->whereNumber('instrument')
         ->name('investor-security-instruments.contract');
+
+    Route::get('/admin/investment-documents/{document}/download', InvestmentDocumentDownloadController::class)
+        ->whereNumber('document')
+        ->name('investment-documents.download');
+
+    Route::get('/admin/investments/settlement-payouts/{payout}/report', [InvestmentReportController::class, 'investorPayout'])
+        ->whereNumber('payout')
+        ->name('investments.reports.investor-payout');
+
+    Route::get('/admin/investments/projects/{project}/register', [InvestmentReportController::class, 'projectRegister'])
+        ->whereNumber('project')
+        ->name('investments.reports.project-register');
 
     Route::get('/admin/finance/{legacy}/{path?}', LegacyAdminClusterRedirectController::class)
         ->whereIn('legacy', ['fund-sources', 'fund-transfers'])

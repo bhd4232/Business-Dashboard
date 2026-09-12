@@ -15,9 +15,9 @@ class InvestmentProject extends Model
 
     public const STATUSES = ['open' => 'Open', 'running' => 'Running', 'closed' => 'Closed', 'settled' => 'Settled'];
 
-    protected $fillable = ['company_id', 'project_code', 'name', 'description', 'deal_reference', 'purchase_id', 'duration_type', 'trade_cycle_days', 'start_date', 'end_date', 'target_amount', 'investor_share_percent', 'channel_partner_share_percent', 'company_share_percent', 'status'];
+    protected $fillable = ['company_id', 'project_code', 'name', 'description', 'deal_reference', 'purchase_id', 'duration_type', 'trade_cycle_days', 'start_date', 'end_date', 'target_amount', 'company_contribution_amount', 'company_contribution_note', 'investor_share_percent', 'channel_partner_share_percent', 'company_share_percent', 'status'];
 
-    protected $casts = ['start_date' => 'date', 'end_date' => 'date', 'target_amount' => 'decimal:2', 'investor_share_percent' => 'decimal:2', 'channel_partner_share_percent' => 'decimal:2', 'company_share_percent' => 'decimal:2', 'trade_cycle_days' => 'integer'];
+    protected $casts = ['start_date' => 'date', 'end_date' => 'date', 'target_amount' => 'decimal:2', 'company_contribution_amount' => 'decimal:2', 'investor_share_percent' => 'decimal:2', 'channel_partner_share_percent' => 'decimal:2', 'company_share_percent' => 'decimal:2', 'trade_cycle_days' => 'integer'];
 
     protected static function booted(): void
     {
@@ -77,9 +77,25 @@ class InvestmentProject extends Model
         return $this->hasOne(ProjectSettlement::class, 'project_id');
     }
 
+    public function documents()
+    {
+        return $this->morphMany(InvestmentDocument::class, 'documentable');
+    }
+
     public function totalInvested(): float
     {
         return (float) $this->investments()->sum('amount');
+    }
+
+    /**
+     * Capital the profit pool and the "rate per lac" are spread over: the
+     * external investors plus whatever the company itself put in to close a
+     * funding gap (v3 P1.7). The company's slice of the investor pool then
+     * folds back into company_net at settlement.
+     */
+    public function totalCapitalBase(): float
+    {
+        return $this->totalInvested() + (float) $this->company_contribution_amount;
     }
 
     public function totalCostItems(): float

@@ -616,7 +616,7 @@ Related planning documents:
 
 **Goal:** Track deal-specific investment capital, transparent direct costs, Shariah-based profit sharing, security instruments, and auditable payouts.
 
-**Status:** Done.
+**Status:** Partially done. The calculation core shipped, but a 2026-09-07 audit against the client's real signed documents found the contract/legal fields, document management, per-investor reporting, loss handling, and a settlement-correction path all missing. See `01_INVESTOR_MODULE_v3_GAP_ANALYSIS.md` for the full gap list and progress. Sprint 1 (P1.1–P1.7 — contract fields, company gap-fill contribution, corrected annualized return, document attachments, printable investor report + register, settlement draft/confirm/void, loss handling) is complete in the working tree.
 
 **Completed:**
 
@@ -632,6 +632,11 @@ Related planning documents:
 - Super Admin-only settlement and channel-partner reassignment, mandatory reassignment reason, and audit logging.
 - Default Filament project, investor, investment/security, settlement, and payout workflows.
 - Financial calculation, isolation, permission, audit, Filament page-flow, and signed Shearing Machine example coverage.
+- **(Sprint 1, 2026-09-07)** Deed-paper contract fields (contract date/reference, stamp serials, cheque bank/branch/account/holder), nominee section, date of birth, and Display/Pseudonym on the investor; witnesses on the deed; a company gap-fill contribution (`company_contribution_amount`) that shares the investor-pool rate over `investorCapital + companyContribution` while channel proration stays over external capital only.
+- **(Sprint 1)** Polymorphic document attachments (`investment_documents`) on cost items, investments, projects, and settlements, in the company's private storage; a cost item without a linked Purchase or an attached receipt blocks settlement unless explicitly acknowledged.
+- **(Sprint 1)** Browser-print (Bengali-correct) per-investor payout report and project investor register, built from `Company::logo`/address/date-format — no dompdf (can't shape Bengali conjuncts).
+- **(Sprint 1)** Settlement lifecycle: a settlement is created `draft` (figures computed, nothing paid), promoted to `confirmed` (locks figures, unlocks payouts) or `voided` (deletes the draft/confirmed settlement and payouts, re-opens the project) while no payout has been paid; forward-only status transitions enforced in the model.
+- **(Sprint 1)** Loss handling per the deed's clause 4: a losing settlement records an explicit `outcome` (`loss_investor_borne` — capital eroded proportionally, or `loss_manager_borne` — investors keep full principal, company absorbs the loss) plus a required, audited `loss_reason`.
 
 **Future Work:**
 
@@ -639,8 +644,8 @@ Related planning documents:
 - Multi-currency investments.
 - Partial early withdrawal and reinvestment after the contractual 1.5–2 month window.
 - Investor-facing portal.
-- Written notice-period tracking (60 days / 2 months).
-- Explicit loss-sharing and settlement reversal workflows.
+- Written notice-period tracking (60 days / 2 months) and a logged investment-window override.
+- Ledger integration (`Voucher`/`FundSource`) for investor capital-in / payout-out.
 
 **Done Criteria:**
 

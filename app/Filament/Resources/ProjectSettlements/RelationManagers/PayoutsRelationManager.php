@@ -41,10 +41,15 @@ class PayoutsRelationManager extends RelationManager
             TextColumn::make('payment_status')->badge(),
             TextColumn::make('paid_at')->date()->placeholder('-'),
         ])->recordActions([
-            EditAction::make()->visible(fn ($record): bool => $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false)),
+            Action::make('report')->label('Report')->icon('heroicon-o-document-text')
+                ->url(fn ($record): string => route('investments.reports.investor-payout', $record))
+                ->openUrlInNewTab(),
+            EditAction::make()->visible(fn ($record): bool => $this->payoutsUnlocked() && $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false)),
             Action::make('markPaid')->label('Mark as Paid')->icon('heroicon-o-check-circle')->color('success')
-                ->visible(fn ($record): bool => $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false))
-                ->requiresConfirmation()->action(function ($record): void {
+                ->visible(fn ($record): bool => $this->payoutsUnlocked() && $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false))
+                ->requiresConfirmation()
+                ->modalDescription('Confirm the payout has actually been sent to the investor.')
+                ->action(function ($record): void {
                     $record->update(['payment_status' => 'paid', 'paid_at' => now()->toDateString()]);
                     $this->syncSettlementStatus();
                     Notification::make()->success()->title('Investor payout marked paid')->send();
@@ -52,10 +57,18 @@ class PayoutsRelationManager extends RelationManager
         ]);
     }
 
+    /** Payouts can only be edited / paid once the settlement is confirmed. */
+    private function payoutsUnlocked(): bool
+    {
+        return $this->getOwnerRecord()->status === 'confirmed';
+    }
+
     private function syncSettlementStatus(): void
     {
         $settlement = $this->getOwnerRecord();
-        if (! $settlement->payouts()->where('payment_status', 'pending')->exists() && ! $settlement->channelPartnerPayouts()->where('payment_status', 'pending')->exists()) {
+        if ($settlement->status === 'confirmed'
+            && ! $settlement->payouts()->where('payment_status', 'pending')->exists()
+            && ! $settlement->channelPartnerPayouts()->where('payment_status', 'pending')->exists()) {
             $settlement->update(['status' => 'paid_out']);
         }
     }

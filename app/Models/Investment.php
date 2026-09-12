@@ -59,4 +59,14 @@ class Investment extends Model
     {
         return $this->hasMany(InvestorSecurityInstrument::class);
     }
+
+    public function witnesses()
+    {
+        return $this->hasMany(InvestmentWitness::class);
+    }
+
+    public function documents()
+    {
+        return $this->morphMany(InvestmentDocument::class, 'documentable');
+    }
 }

@@ -31,7 +31,9 @@ use App\Models\FundSource;
 use App\Models\FundTransfer;
 use App\Models\GeneratedImage;
 use App\Models\Investment;
+use App\Models\InvestmentDocument;
 use App\Models\InvestmentProject;
+use App\Models\InvestmentWitness;
 use App\Models\Investor;
 use App\Models\InvestorSecurityInstrument;
 use App\Models\Lead;
@@ -109,7 +111,7 @@ class MultiCompanyIsolationTest extends TestCase
             ChatOrderLink::class, CompanyFaq::class, QuickReply::class,
             InvestmentProject::class, Investor::class,
             Investment::class, ProjectCostItem::class,
-            InvestorSecurityInstrument::class, ProjectSettlement::class,
+            InvestorSecurityInstrument::class, InvestmentWitness::class, InvestmentDocument::class, ProjectSettlement::class,
             SettlementPayout::class, ChannelPartnerPayout::class,
             MetaAdAccount::class, MetaAdCampaign::class, MetaAdSet::class, MetaAd::class, MetaAdProposal::class, MetaAudience::class,
             Offer::class, OfferItem::class, ProductReview::class,

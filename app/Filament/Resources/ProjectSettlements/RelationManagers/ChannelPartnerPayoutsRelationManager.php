@@ -34,14 +34,16 @@ class ChannelPartnerPayoutsRelationManager extends RelationManager
             TextColumn::make('paid_at')->date()->placeholder('-'),
         ])->recordActions([
             Action::make('markPaid')->label('Mark as Paid')->icon('heroicon-o-check-circle')->color('success')
-                ->visible(fn ($record): bool => $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false))
+                ->visible(fn ($record): bool => $this->getOwnerRecord()->status === 'confirmed' && $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false))
                 ->schema([
                     Select::make('payment_method')->options(['cash' => 'Cash', 'bkash' => 'bKash', 'bank' => 'Bank', 'other' => 'Other'])->required(),
                     TextInput::make('payment_reference'),
                 ])->requiresConfirmation()->action(function ($record, array $data): void {
                     $record->update([...$data, 'payment_status' => 'paid', 'paid_at' => now()->toDateString()]);
                     $settlement = $this->getOwnerRecord();
-                    if (! $settlement->payouts()->where('payment_status', 'pending')->exists()) {
+                    if ($settlement->status === 'confirmed'
+                        && ! $settlement->payouts()->where('payment_status', 'pending')->exists()
+                        && ! $settlement->channelPartnerPayouts()->where('payment_status', 'pending')->exists()) {
                         $settlement->update(['status' => 'paid_out']);
                     }
                     Notification::make()->success()->title('Channel payout marked paid')->send();

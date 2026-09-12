@@ -55,18 +55,48 @@ class InvestmentSettlementTest extends TestCase
     {
         [$project, $investorA, $investorB] = $this->profitableProject();
 
-        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id);
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
 
         $this->assertEquals(100000, $settlement->total_cost);
         $this->assertEquals(100000, $settlement->net_profit);
         $this->assertEquals(40000, $settlement->investor_pool_amount);
         $this->assertEquals(0, $settlement->channel_partner_amount);
         $this->assertEquals(60000, $settlement->company_net_amount);
-        $this->assertEquals(608.33, $settlement->annualized_return_percent);
+        // Investor yield annualized on a 360-day year: (40000 / 100000) × (360 / 60) × 100.
+        $this->assertEquals(240.00, $settlement->annualized_return_percent);
+        // Investor pool ÷ (total capital ÷ 1 lakh) = 40000 ÷ 1.
+        $this->assertEquals(40000.00, $settlement->rate_per_lac);
         $this->assertEquals(24000, $settlement->payouts()->where('investor_id', $investorA->id)->value('profit_share_amount'));
         $this->assertEquals(16000, $settlement->payouts()->where('investor_id', $investorB->id)->value('profit_share_amount'));
         $this->assertEquals(84000, $settlement->payouts()->where('investor_id', $investorA->id)->value('total_payout'));
         $this->assertSame('settled', $project->fresh()->status);
+    }
+
+    public function test_company_gap_fill_contribution_shares_the_pool_and_folds_into_company_net(): void
+    {
+        // Project-01 shape: ৳62 lakh target, ৳53 lakh from one investor,
+        // ৳9 lakh contributed by the company to close the gap.
+        $project = $this->project([
+            'name' => 'Gap Fill Project',
+            'company_contribution_amount' => 900000,
+        ]);
+        $investor = $this->investor('Gap Fill Investor', '01810000050');
+        $this->investment($project, $investor, 5300000);
+        ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Machine', 'amount' => 6455442]);
+
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 7000000, $this->user->id, acknowledgeUnprovenCosts: true);
+
+        $this->assertEquals(544558, $settlement->net_profit);
+        $this->assertEquals(217823.20, $settlement->investor_pool_amount);
+        // Rate per lac over the ৳62 lakh capital base.
+        $this->assertEquals(3513.28, $settlement->rate_per_lac);
+        // The single investor gets a strict proportional slice (53/62 of the pool).
+        $investorShare = round(217823.20 * (5300000 / 6200000), 2);
+        $this->assertEquals($investorShare, $settlement->payouts()->where('investor_id', $investor->id)->value('profit_share_amount'));
+        // Company net = its 50% base + the 9-lakh slice of the pool + rounding dust.
+        $this->assertEquals(round(544558 - $investorShare - 0, 2), $settlement->company_net_amount);
+        // Investors only see the pool line, so annualized uses pool ÷ base.
+        $this->assertEquals(round((217823.20 / 6200000) * 6 * 100, 2), $settlement->annualized_return_percent);
     }
 
     public function test_shearing_machine_settlement_matches_the_signed_sheet_example(): void
@@ -90,7 +120,7 @@ class InvestmentSettlementTest extends TestCase
             'amount' => 255500,
         ]);
 
-        $settlement = app(SettlementService::class)->calculateAndSettle($project, 7000000, $this->user->id);
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 7000000, $this->user->id, acknowledgeUnprovenCosts: true);
 
         $this->assertEquals(6199942, $project->totalLandedCost());
         $this->assertEquals(255500, $project->totalLocalExpense());
@@ -112,7 +142,7 @@ class InvestmentSettlementTest extends TestCase
         $this->investment($project, $direct, 40000);
         ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Direct cost', 'amount' => 100000]);
 
-        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id);
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
 
         $this->assertEquals(6000, $settlement->channel_partner_amount);
         $this->assertEquals(54000, $settlement->company_net_amount);
@@ -126,7 +156,7 @@ class InvestmentSettlementTest extends TestCase
         $this->investment($project, $investor, 100000);
         ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Cost', 'amount' => 100000]);
 
-        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id);
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
 
         $this->assertEquals(50000, $settlement->investor_pool_amount);
         $this->assertEquals(0, $settlement->channel_partner_amount);
@@ -158,33 +188,174 @@ class InvestmentSettlementTest extends TestCase
         $this->assertDatabaseMissing('investment_projects', ['name' => 'Invalid Split Project']);
     }
 
+    public function test_settlement_is_blocked_when_a_cost_item_has_no_purchase_or_receipt(): void
+    {
+        $project = $this->project();
+        $investor = $this->investor('Proof Investor', '01880000001');
+        $this->investment($project, $investor, 100000);
+        $cost = ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Undocumented cost', 'amount' => 50000]);
+
+        try {
+            app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id);
+            $this->fail('Settlement went through without cost proof.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('Undocumented cost', $e->getMessage());
+        }
+
+        // Attaching a receipt clears the block.
+        $cost->documents()->create(['company_id' => $project->company_id, 'category' => 'cost_receipt', 'file_path' => app(CompanyStorageService::class)->putPrivate($this->company, 'investment-documents', 'receipt.pdf', 'receipt')]);
+        $settlement = app(SettlementService::class)->calculateAndSettle($project->fresh(), 200000, $this->user->id);
+        $this->assertEquals(150000, $settlement->net_profit);
+    }
+
+    public function test_settlement_proceeds_when_unproven_costs_are_acknowledged(): void
+    {
+        $project = $this->project();
+        $investor = $this->investor('Ack Investor', '01880000002');
+        $this->investment($project, $investor, 100000);
+        ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Cost', 'amount' => 50000]);
+
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+
+        $this->assertEquals(150000, $settlement->net_profit);
+    }
+
+    public function test_investment_documents_are_company_scoped_and_downloadable(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $project = $this->project(['status' => 'open']);
+        $path = app(CompanyStorageService::class)->putPrivate($this->company, 'investment-documents', 'sheet.pdf', 'settlement sheet');
+        $document = $project->documents()->create(['company_id' => $this->company->id, 'category' => 'settlement_sheet', 'file_path' => $path]);
+
+        $this->actingAs($this->user)
+            ->withSession(['current_company_id' => $this->company->id])
+            ->get(route('investment-documents.download', $document))
+            ->assertOk();
+
+        $other = \App\Models\Company::query()->create(['name' => 'Doc Other', 'slug' => 'doc-other', 'invoice_prefix' => 'DO', 'is_active' => true]);
+        $this->withSession(['current_company_id' => $other->id])
+            ->get(route('investment-documents.download', $document))
+            ->assertNotFound();
+    }
+
     public function test_settlement_cannot_be_created_twice(): void
     {
         [$project] = $this->profitableProject();
-        app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id);
+        app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
 
         $this->expectException(RuntimeException::class);
-        app(SettlementService::class)->calculateAndSettle($project->fresh(), 200000, $this->user->id);
+        app(SettlementService::class)->calculateAndSettle($project->fresh(), 200000, $this->user->id, acknowledgeUnprovenCosts: true);
     }
 
-    public function test_negative_profit_is_blocked(): void
+    public function test_negative_profit_without_a_loss_outcome_is_blocked(): void
     {
-        $project = $this->project();
-        $investor = $this->investor('Investor', '01730000000');
-        $this->investment($project, $investor, 100000);
-        ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Cost', 'amount' => 150000]);
+        [$project] = $this->losingProject();
 
         $this->expectException(RuntimeException::class);
-        app(SettlementService::class)->calculateAndSettle($project, 100000, $this->user->id);
+        app(SettlementService::class)->calculateAndSettle($project, 100000, $this->user->id, acknowledgeUnprovenCosts: true);
     }
 
-    public function test_confirmed_settlement_amounts_are_immutable(): void
+    public function test_negative_profit_requires_a_loss_reason(): void
+    {
+        [$project] = $this->losingProject();
+
+        $this->expectException(RuntimeException::class);
+        app(SettlementService::class)->calculateAndSettle($project, 100000, $this->user->id, acknowledgeUnprovenCosts: true, outcome: 'loss_investor_borne');
+    }
+
+    public function test_loss_borne_by_investors_erodes_capital_in_proportion(): void
+    {
+        [$project, $investorA, $investorB] = $this->losingProject(); // A 60k, B 40k, cost 150k
+
+        $settlement = app(SettlementService::class)->calculateAndSettle(
+            $project, 100000, $this->user->id,
+            acknowledgeUnprovenCosts: true, outcome: 'loss_investor_borne', lossReason: 'Shipment sank — force majeure',
+        );
+
+        $this->assertEquals(-50000, $settlement->net_profit);
+        $this->assertSame('loss_investor_borne', $settlement->outcome);
+        // 50k loss over 100k capital: A bears 30k, B bears 20k.
+        $this->assertEquals(-30000, $settlement->payouts()->where('investor_id', $investorA->id)->value('profit_share_amount'));
+        $this->assertEquals(30000, $settlement->payouts()->where('investor_id', $investorA->id)->value('total_payout'));
+        $this->assertEquals(20000, $settlement->payouts()->where('investor_id', $investorB->id)->value('total_payout'));
+        $this->assertEquals(0, $settlement->channel_partner_amount);
+        $this->assertEquals(0, $settlement->company_net_amount); // no company contribution
+    }
+
+    public function test_loss_borne_by_company_returns_full_principal_to_investors(): void
+    {
+        [$project, $investorA, $investorB] = $this->losingProject();
+
+        $settlement = app(SettlementService::class)->calculateAndSettle(
+            $project, 100000, $this->user->id,
+            acknowledgeUnprovenCosts: true, outcome: 'loss_manager_borne', lossReason: 'Manager negligence',
+        );
+
+        $this->assertEquals(60000, $settlement->payouts()->where('investor_id', $investorA->id)->value('total_payout'));
+        $this->assertEquals(40000, $settlement->payouts()->where('investor_id', $investorB->id)->value('total_payout'));
+        $this->assertEquals(0, $settlement->payouts()->where('investor_id', $investorA->id)->value('profit_share_amount'));
+        $this->assertEquals(-50000, $settlement->company_net_amount); // company eats the whole loss
+    }
+
+    public function test_settlement_figures_are_immutable(): void
     {
         [$project] = $this->profitableProject();
-        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id);
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
 
         $this->expectException(ValidationException::class);
         $settlement->update(['net_profit' => 1]);
+    }
+
+    public function test_settlement_is_created_as_a_draft_and_confirmed_by_super_admin(): void
+    {
+        [$project] = $this->profitableProject();
+        $service = app(SettlementService::class);
+        $settlement = $service->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+
+        $this->assertSame('draft', $settlement->status);
+
+        $service->confirmSettlement($settlement, $this->user->id);
+        $this->assertSame('confirmed', $settlement->fresh()->status);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'settlement_confirmed', 'auditable_id' => $settlement->id]);
+    }
+
+    public function test_settlement_status_cannot_skip_from_draft_to_paid_out(): void
+    {
+        [$project] = $this->profitableProject();
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+
+        $this->expectException(ValidationException::class);
+        $settlement->update(['status' => 'paid_out']);
+    }
+
+    public function test_void_deletes_the_settlement_and_reopens_the_project(): void
+    {
+        [$project, $investorA] = $this->profitableProject();
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+        $payoutId = $settlement->payouts()->first()->id;
+
+        app(SettlementService::class)->voidSettlement($settlement, 'Wrong selling amount entered', $this->user->id);
+
+        $this->assertDatabaseMissing('project_settlements', ['id' => $settlement->id]);
+        $this->assertDatabaseMissing('settlement_payouts', ['id' => $payoutId]);
+        $this->assertSame('closed', $project->fresh()->status);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'settlement_voided']);
+
+        // The project can be settled again.
+        $fresh = app(SettlementService::class)->calculateAndSettle($project->fresh(), 210000, $this->user->id, acknowledgeUnprovenCosts: true);
+        $this->assertSame('draft', $fresh->status);
+    }
+
+    public function test_void_is_blocked_once_a_payout_has_been_paid(): void
+    {
+        [$project] = $this->profitableProject();
+        $service = app(SettlementService::class);
+        $settlement = $service->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+        $service->confirmSettlement($settlement, $this->user->id);
+        $settlement->payouts()->first()->update(['payment_status' => 'paid', 'paid_at' => now()->toDateString()]);
+
+        $this->expectException(RuntimeException::class);
+        $service->voidSettlement($settlement->fresh(), 'Too late', $this->user->id);
     }
 
     public function test_project_supports_only_one_channel_partner(): void
@@ -235,7 +406,7 @@ class InvestmentSettlementTest extends TestCase
     public function test_settlement_writes_a_dedicated_audit_event(): void
     {
         [$project] = $this->profitableProject();
-        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id);
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
 
         $this->assertDatabaseHas('audit_logs', ['action' => 'project_settled', 'auditable_type' => $settlement::class, 'auditable_id' => $settlement->id, 'user_id' => $this->user->id]);
     }
@@ -328,6 +499,36 @@ class InvestmentSettlementTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_investor_payout_report_and_project_register_render(): void
+    {
+        [$project, $investorA] = $this->profitableProject();
+        $investorA->update(['guardian_name' => 'Guardian A', 'nominee_name' => 'Nominee A', 'display_name' => 'Alpha']);
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+        $payout = $settlement->payouts()->where('investor_id', $investorA->id)->first();
+        $payout->update(['payment_status' => 'paid', 'paid_at' => now()->toDateString(), 'recipient_bank_name' => 'Test Bank', 'recipient_account_number' => '123456']);
+
+        $this->actingAs($this->user)->withSession(['current_company_id' => $this->company->id]);
+
+        $this->get(route('investments.reports.investor-payout', $payout))
+            ->assertOk()
+            ->assertSee('বিনিয়োগ মুনাফা রিপোর্ট')
+            ->assertSee('Alpha')          // pseudonym used on the shared report
+            ->assertDontSee('Investor A')  // real name withheld
+            ->assertSee('Test Bank')
+            ->assertSee('Paid');
+
+        $this->get(route('investments.reports.project-register', $project))
+            ->assertOk()
+            ->assertSee('Investor A')   // register keeps the legal name
+            ->assertSee('Guardian A')
+            ->assertSee('Nominee A');
+
+        $other = Company::query()->create(['name' => 'Report Other', 'slug' => 'report-other', 'invoice_prefix' => 'RO', 'is_active' => true]);
+        $this->withSession(['current_company_id' => $other->id])
+            ->get(route('investments.reports.project-register', $project))
+            ->assertNotFound();
+    }
+
     private function profitableProject(): array
     {
         $project = $this->project();
@@ -337,6 +538,19 @@ class InvestmentSettlementTest extends TestCase
         $this->investment($project, $investorB, 40000);
         ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Machine', 'amount' => 90000]);
         ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'local_expense', 'label' => 'Delivery', 'amount' => 10000]);
+
+        return [$project, $investorA, $investorB];
+    }
+
+    /** A ৳100k capital / ৳150k cost project — settled at revenue 100k it loses 50k. */
+    private function losingProject(): array
+    {
+        $project = $this->project();
+        $investorA = $this->investor('Loss Investor A', '01820000001');
+        $investorB = $this->investor('Loss Investor B', '01820000002');
+        $this->investment($project, $investorA, 60000);
+        $this->investment($project, $investorB, 40000);
+        ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Machine', 'amount' => 150000]);
 
         return [$project, $investorA, $investorB];
     }

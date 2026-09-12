@@ -10,19 +10,55 @@ class ProjectSettlement extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'project_id', 'total_revenue', 'total_cost', 'net_profit', 'investor_pool_amount', 'channel_partner_amount', 'company_net_amount', 'annualized_return_percent', 'status', 'settled_by', 'settled_at'];
+    public const STATUSES = ['draft' => 'Draft', 'confirmed' => 'Confirmed', 'paid_out' => 'Paid out'];
 
-    protected $casts = ['total_revenue' => 'decimal:2', 'total_cost' => 'decimal:2', 'net_profit' => 'decimal:2', 'investor_pool_amount' => 'decimal:2', 'channel_partner_amount' => 'decimal:2', 'company_net_amount' => 'decimal:2', 'annualized_return_percent' => 'decimal:2', 'settled_at' => 'datetime'];
+    public const OUTCOMES = [
+        'profit' => 'Profit',
+        'loss_investor_borne' => 'Loss — borne by investors',
+        'loss_manager_borne' => 'Loss — borne by company',
+    ];
+
+    protected $fillable = ['company_id', 'project_id', 'total_revenue', 'total_cost', 'net_profit', 'investor_pool_amount', 'channel_partner_amount', 'company_net_amount', 'annualized_return_percent', 'rate_per_lac', 'outcome', 'loss_reason', 'status', 'settled_by', 'settled_at'];
+
+    protected $casts = ['total_revenue' => 'decimal:2', 'total_cost' => 'decimal:2', 'net_profit' => 'decimal:2', 'investor_pool_amount' => 'decimal:2', 'channel_partner_amount' => 'decimal:2', 'company_net_amount' => 'decimal:2', 'annualized_return_percent' => 'decimal:2', 'rate_per_lac' => 'decimal:2', 'settled_at' => 'datetime'];
 
     protected static function booted(): void
     {
         static::updating(function (self $settlement): void {
-            $immutable = ['project_id', 'total_revenue', 'total_cost', 'net_profit', 'investor_pool_amount', 'channel_partner_amount', 'company_net_amount', 'annualized_return_percent', 'settled_by', 'settled_at'];
+            // Computed figures are never hand-edited — in draft or confirmed.
+            // A wrong settlement is corrected by voiding it and settling again,
+            // not by editing the numbers in place.
+            $immutable = ['project_id', 'total_revenue', 'total_cost', 'net_profit', 'investor_pool_amount', 'channel_partner_amount', 'company_net_amount', 'annualized_return_percent', 'rate_per_lac', 'outcome', 'loss_reason', 'settled_by', 'settled_at'];
 
             if ($settlement->isDirty($immutable)) {
-                throw ValidationException::withMessages(['settlement' => 'Confirmed settlement amounts are immutable. Create a reversal before correcting them.']);
+                throw ValidationException::withMessages(['settlement' => 'Settlement figures are immutable. Void the settlement and recalculate instead.']);
+            }
+
+            // Status only moves forward: draft → confirmed → paid_out.
+            if ($settlement->isDirty('status')) {
+                $allowed = [
+                    'draft' => ['confirmed'],
+                    'confirmed' => ['paid_out'],
+                    'paid_out' => [],
+                ];
+                $from = $settlement->getOriginal('status');
+
+                if (! in_array($settlement->status, $allowed[$from] ?? [], true)) {
+                    throw ValidationException::withMessages(['status' => "A settlement cannot move from {$from} to {$settlement->status}."]);
+                }
             }
         });
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === 'draft';
+    }
+
+    public function hasPaidPayouts(): bool
+    {
+        return $this->payouts()->where('payment_status', 'paid')->exists()
+            || $this->channelPartnerPayouts()->where('payment_status', 'paid')->exists();
     }
 
     public function project()
@@ -43,5 +79,10 @@ class ProjectSettlement extends Model
     public function channelPartnerPayouts()
     {
         return $this->hasMany(ChannelPartnerPayout::class, 'settlement_id');
+    }
+
+    public function documents()
+    {
+        return $this->morphMany(InvestmentDocument::class, 'documentable');
     }
 }

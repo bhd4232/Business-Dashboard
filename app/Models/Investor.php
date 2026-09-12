@@ -11,9 +11,9 @@ class Investor extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'name', 'display_name', 'guardian_name', 'date_of_birth', 'phone', 'email', 'address', 'nid_number', 'stamp_number', 'cheque_number', 'channel_partner_id', 'channel_partner_change_reason', 'nominee_name', 'nominee_nid_or_passport', 'nominee_phone', 'nominee_relation', 'nominee_address'];
+    protected $fillable = ['company_id', 'name', 'display_name', 'guardian_name', 'date_of_birth', 'phone', 'email', 'address', 'nid_number', 'stamp_number', 'cheque_number', 'channel_partner_id', 'is_channel_partner', 'channel_partner_change_reason', 'nominee_name', 'nominee_nid_or_passport', 'nominee_phone', 'nominee_relation', 'nominee_address'];
 
-    protected $casts = ['date_of_birth' => 'date'];
+    protected $casts = ['date_of_birth' => 'date', 'is_channel_partner' => 'boolean'];
 
     protected static function booted(): void
     {

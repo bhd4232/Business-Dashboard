@@ -5,7 +5,9 @@ namespace App\Filament\Resources\InvestmentRecords;
 use App\Filament\Clusters\Investments;
 use App\Filament\Resources\InvestmentProjects\InvestmentProjectResource;
 use App\Filament\Resources\InvestmentRecords\Pages\ViewInvestmentRecord;
+use App\Filament\Resources\InvestmentProjects\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\InvestmentRecords\RelationManagers\SecurityInstrumentsRelationManager;
+use App\Filament\Resources\InvestmentRecords\RelationManagers\WitnessesRelationManager;
 use App\Models\Investment;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -37,7 +39,7 @@ class InvestmentRecordResource extends Resource
 
     public static function getRelations(): array
     {
-        return [SecurityInstrumentsRelationManager::class];
+        return [SecurityInstrumentsRelationManager::class, WitnessesRelationManager::class, DocumentsRelationManager::class];
     }
 
     public static function getPages(): array
