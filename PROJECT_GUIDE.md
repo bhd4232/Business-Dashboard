@@ -408,6 +408,8 @@ tests/Feature/CustomerRiskTest.php
 
 ### Release and Update Safety
 
+Release-note audience filtering in `app/Support/AppRelease.php` recognizes inline `Technical Notes:` labels as well as technical section headings and operational keywords. Managers receive ordinary feature entries; technical entries remain available to super admins. Verify `/admin/settings/release-notes` with `php artisan test --compact tests/Feature/ReleaseNotesTest.php`, including the inline-label regression fixture.
+
 - Human-readable release metadata is centralized in `AppRelease`, `CHANGELOG.md`, and `config/release.php`; machine deployment identity is resolved separately by `AppDeployment`.
 - `npm run build` writes `public/build/deployment.json` atomically. Its artifact identity combines Git/platform commit (when available), a deterministic whole-source hash (including PHP, routes, migrations, views, frontend source, public static files, locks, and changelog), and the built Vite manifest hash. Same-commit source/asset changes therefore still produce a new identity.
 - Runtime readiness compares the metadata asset hash with the actual Vite manifest and fails closed when build metadata is missing, mixed, or belongs to another runtime commit.

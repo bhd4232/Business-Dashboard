@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Release Notes now keeps inline **Technical Notes:** entries in the technical audience even when they contain none of the existing database/deployment keywords. Ordinary feature notes remain visible to all permitted users.
+
 ### Added
 
 - **Editable sales-agent conversation guidelines:** Settings → Integrations → AI Integration → Auto Messaging now has a native Filament Markdown editor with formatting and a restore-default action. The supplied Bengali sales playbook loads by default; saved company-specific guidance reaches subsequent AI requests without a deployment. Illustrative prices and promises never replace verified product facts.
