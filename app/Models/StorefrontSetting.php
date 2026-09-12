@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Services\StorefrontMetaTrackingService;
+use App\Support\StorefrontListingCache;
 use App\Support\StorefrontThemeRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -579,8 +580,14 @@ class StorefrontSetting extends Model
             $setting->reseller_program_enabled ??= true;
         });
 
-        static::saved(fn (StorefrontSetting $setting) => Cache::forget("storefront-home:{$setting->company_id}"));
-        static::deleted(fn (StorefrontSetting $setting) => Cache::forget("storefront-home:{$setting->company_id}"));
+        static::saved(function (StorefrontSetting $setting): void {
+            Cache::forget("storefront-home:{$setting->company_id}");
+            StorefrontListingCache::forgetCompany($setting->company_id);
+        });
+        static::deleted(function (StorefrontSetting $setting): void {
+            Cache::forget("storefront-home:{$setting->company_id}");
+            StorefrontListingCache::forgetCompany($setting->company_id);
+        });
 
         // Checkout payment options now live entirely in StorefrontPaymentMethod
         // (dashboard-managed, see that model) rather than the cod_enabled/

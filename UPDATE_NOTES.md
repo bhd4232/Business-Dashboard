@@ -2,6 +2,41 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-12 - Perf: storefront listing cache + Redis-backed sessions for high-traffic scaling
+
+Reason — owner asked what happens to server load once thousands of customers visit the storefront daily, and asked for the two concrete fixes proposed in that conversation: (1) cache the storefront home/product-listing/category page data instead of re-querying the database on every visit, and (2) move sessions off `SESSION_DRIVER=database` onto Redis in production so a session read/write isn't happening on every single request.
+
+What changed:
+
+- New `app/Support/StorefrontListingCache.php` — caches per company (10 minutes): the home page's category/product listings (`home()`), the product-listing page's category sidebar (`categories()`), and its paginated product listing (`listing()`). The listing page is parameterized by category/sort/page, so instead of enumerating every combination to forget on a change, its keys (and the category-sidebar key) carry a per-company "generation" number — `forgetCompany()` bumps it, so every previously cached key for that company simply becomes unreachable and expires unused via TTL, on any cache driver (file/database/redis), not just tag-capable ones.
+- `app/Http/Controllers/Storefront/HomeController.php` — categories + products now fetched through `StorefrontListingCache::home()`.
+- `app/Http/Controllers/Storefront/ProductIndexController.php` — the category sidebar always goes through `StorefrontListingCache::categories()`. The product listing goes through `StorefrontListingCache::listing()` only for a plain category/sort/page browse; a search query or a reseller's filtered catalog (per-request/per-customer) always hits the database directly rather than growing the cache with one-off keys. `withQueryString()` is applied *after* the cache lookup so a cache hit still reflects the current request's own query string.
+- `app/Models/Product.php`, `app/Models/Category.php`, `app/Models/StorefrontSetting.php` — `saved`/`deleted` hooks now also call `StorefrontListingCache::forgetCompany()`, so an admin edit shows up immediately; the 10-minute TTL is only a safety net beyond these three models. (`Category`/`StorefrontSetting` already forgot the separate, pre-existing `storefront-home:{companyId}` slide cache in the same hooks — that call is unchanged, this is additive.)
+- `config/database.php` — new `redis.session` connection with its own database (`REDIS_SESSION_DB`, defaults to `2`), separate from the queue's `default` (`0`) and cache's `cache` (`1`) connections, so a `php artisan cache:clear` / `Cache::flush()` can never sign out every active customer/admin session along with the cache.
+- `.env.production.example` / `.env.example` — `SESSION_DRIVER=redis` with `SESSION_CONNECTION=session` now recommended for production (was `database`); `database` remains supported if Redis isn't available yet.
+- `docs/deployment.md` — "Redis on Coolify" section renamed to cover session too, documents the new env values and `redis.session` connection, and explains why each of the three things Redis now speeds up (AI FAQ cache, storefront listing cache, sessions) matters at scale.
+
+Important changed files:
+
+- `app/Support/StorefrontListingCache.php` (new)
+- `app/Http/Controllers/Storefront/HomeController.php`
+- `app/Http/Controllers/Storefront/ProductIndexController.php`
+- `app/Models/Product.php`
+- `app/Models/Category.php`
+- `app/Models/StorefrontSetting.php`
+- `config/database.php`
+- `.env.production.example`, `.env.example`
+- `docs/deployment.md`
+
+Verification:
+
+- Targeted run — `StorefrontFoundationTest`, `StorefrontThemeTest`, `StorefrontBannerTest`, `StorefrontMenuTest`, `ResellerSelfServiceTest`, `ResellerStorefrontTest`: **60 passed**, including the reseller/search paths that deliberately bypass the cache.
+- Full `php artisan test` (plain, no `--env` flag, per CLAUDE.md): **1040 passed, 0 failed**.
+- `npm run build`: succeeded (no frontend code changed; only run so the test suite's `@vite`-dependent views had a manifest to render).
+- Not yet covered by a dedicated regression test for the cache-hit/invalidation behavior itself (existing tests pass because `RefreshDatabase` + the `array` cache driver in `phpunit.xml` mean each test still sees fresh data either way) — worth a follow-up test if this needs to be guarded long-term.
+
+Commit status: Not committed — awaiting owner's explicit approval to commit and push (per CLAUDE.md commit policy).
+
 ## 2026-08-30 - Fix: WooCommerce orders that oversell ERP stock never synced
 
 Reason — with the "Sync an order now" button finally working (previous entry), the owner ran it against WooCommerce order **#38044** and got the real answer at last: "Sync failed: Insufficient stock for this sale quantity." (`Illuminate\Validation\ValidationException`). This is the actual root cause of the entire investigation in this session — every real webhook delivery for this order had been failing the exact same way, just invisibly (500, no reachable detail) until this tool existed.

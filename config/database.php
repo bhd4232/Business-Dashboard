@@ -181,6 +181,20 @@ return [
             'database' => env('REDIS_CACHE_DB', '1'),
         ],
 
+        // Its own database (not the "cache" one above) so a `cache:clear` /
+        // `Cache::flush()` — which only touches the cache store's own Redis
+        // database — never signs out every active customer/admin session.
+        // Used only when SESSION_DRIVER=redis (see SESSION_CONNECTION in
+        // config/session.php); irrelevant otherwise.
+        'session' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_SESSION_DB', '2'),
+        ],
+
     ],
 
 ];

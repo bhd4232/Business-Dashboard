@@ -4,6 +4,16 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **The storefront home page and product/category listing pages are now cached per company (10 minutes)**, so a high-traffic storefront doesn't re-run the same product/category query for every single visitor. A plain category/sort/page browse is cached; a search or a reseller's filtered catalog always hits the database instead (per-request/per-customer, not worth caching). Any admin edit to a product, category, or storefront setting invalidates the cache immediately — the 10-minute window is only a safety net beyond that.
+
+### Technical Notes
+
+- New `App\Support\StorefrontListingCache` (`storefront-home-products:`, `storefront-categories:`, `storefront-products:` cache keys). The product-listing page is parameterized by category/sort/page, so instead of enumerating every combination to forget, its keys carry a per-company "generation" number that `forgetCompany()` bumps — old keys simply become unreachable and expire via TTL, on any cache driver. `Product`, `Category`, and `StorefrontSetting` now call it from their existing `saved`/`deleted` hooks (`Category`/`StorefrontSetting` already forgot the separate, pre-existing `storefront-home:{companyId}` slide cache there; that call is unchanged).
+- Production Redis is now also the recommended session backend: `SESSION_DRIVER=redis` with `SESSION_CONNECTION=session` (new `redis.session` connection in `config/database.php`, `REDIS_SESSION_DB` defaults to its own database `2`, separate from the queue's `0` and cache's `1`) so a busy storefront isn't reading/writing a session row in MySQL on every request, and a `cache:clear` can never sign out every active session along with it. `.env.production.example`/`.env.example` and `docs/deployment.md` ("Redis on Coolify") updated accordingly; `database` remains supported for both if Redis isn't available yet.
+- Full suite: 1040 passed (5637 assertions).
+
 ## [2.11.3] - 2026-09-02
 
 **Release type:** Patch/Fix Update
