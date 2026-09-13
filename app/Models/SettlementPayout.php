@@ -9,7 +9,7 @@ class SettlementPayout extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'settlement_id', 'investor_id', 'investment_amount', 'profit_share_amount', 'total_payout', 'payment_status', 'paid_at', 'payment_method', 'recipient_name', 'recipient_bank_name', 'recipient_branch', 'recipient_account_number', 'payment_reference'];
+    protected $fillable = ['company_id', 'settlement_id', 'investor_id', 'investment_amount', 'profit_share_amount', 'total_payout', 'payment_status', 'paid_at', 'payment_method', 'recipient_name', 'recipient_bank_name', 'recipient_branch', 'recipient_account_number', 'payment_reference', 'voucher_id'];
 
     protected $casts = ['investment_amount' => 'decimal:2', 'profit_share_amount' => 'decimal:2', 'total_payout' => 'decimal:2', 'paid_at' => 'date'];
 
@@ -21,5 +21,16 @@ class SettlementPayout extends Model
     public function investor()
     {
         return $this->belongsTo(Investor::class);
+    }
+
+    public function cycleElection()
+    {
+        return $this->hasOne(InvestorCycleElection::class, 'settlement_payout_id');
+    }
+
+    /** The investor_payout voucher booked when this was marked paid (v3 P2.5), if any. */
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class);
     }
 }

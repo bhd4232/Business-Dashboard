@@ -12,9 +12,9 @@ class InvestorSecurityInstrument extends Model
 
     public const CHEQUE_STATUSES = ['held_by_investor' => 'Held by investor', 'returned' => 'Returned', 'cashed' => 'Cashed'];
 
-    protected $fillable = ['company_id', 'investment_id', 'cheque_number', 'cheque_bank_name', 'cheque_amount', 'cheque_status', 'guarantor_name', 'guarantor_nid', 'guarantor_phone', 'contract_document_path'];
+    protected $fillable = ['company_id', 'investment_id', 'contract_date', 'contract_reference', 'stamp_serial_numbers', 'cheque_number', 'cheque_bank_name', 'cheque_branch', 'cheque_account_number', 'cheque_account_holder', 'cheque_amount', 'cheque_status', 'guarantor_name', 'guarantor_nid', 'guarantor_phone', 'guarantor_relation', 'guarantor_address', 'investor_signed_cheque_terms', 'contract_document_path'];
 
-    protected $casts = ['cheque_amount' => 'decimal:2'];
+    protected $casts = ['cheque_amount' => 'decimal:2', 'contract_date' => 'date', 'stamp_serial_numbers' => 'array', 'investor_signed_cheque_terms' => 'boolean'];
 
     protected static function booted(): void
     {

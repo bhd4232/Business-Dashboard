@@ -166,7 +166,7 @@ class Integrations extends Page
             $fill["{$prefix}max_consecutive_ai_replies"] = $ai['max_consecutive_ai_replies'];
             $fill["{$prefix}brand_voice"] = $ai['brand_voice'];
             $fill["{$prefix}sales_guidelines"] = $ai['sales_guidelines'];
-            foreach (['review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'] as $key) {
+            foreach (['vision_enabled', 'review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'] as $key) {
                 $fill[$prefix.$key] = $ai[$key];
             }
             $fill["{$prefix}api_key"] = '';
@@ -407,6 +407,15 @@ class Integrations extends Page
                     ->label('ডিফল্ট লেখা ফিরিয়ে আনুন')
                     ->action(fn (Set $set) => $set("{$prefix}sales_guidelines", app(AiSettingsService::class)->defaultSalesGuidelines())))
                 ->columnSpanFull();
+            $fields[] = Toggle::make("{$prefix}vision_enabled")
+                ->label('Read customer images (vision)')
+                ->live()
+                ->afterStateUpdated(function (bool $state, Get $get, Set $set) use ($prefix): void {
+                    if ($state && (int) $get($prefix.'max_run_tokens') < 30000) {
+                        $set($prefix.'max_run_tokens', 30000);
+                    }
+                })
+                ->helperText('Requires a vision-capable model. Enabling raises the per-run token budget to at least 30,000 for image input; review the budget before saving. The latest customer image is sent privately to your AI provider.');
             $fields[] = Toggle::make("{$prefix}review_mode")->label('Draft replies for staff review')->helperText('Suggestions appear in CRM → Sales Automation. No automatic reply is sent in this mode.');
             foreach (['daily_run_limit' => 'Daily run limit', 'max_run_tokens' => 'Token budget per run', 'daily_budget_usd' => 'Daily estimated budget (USD)', 'input_cost_per_million' => 'Input price per million tokens (USD)', 'output_cost_per_million' => 'Output price per million tokens (USD)', 'follow_up_delay_hours' => 'Sales follow-up delay (hours)'] as $key => $label) {
                 $fields[] = TextInput::make($prefix.$key)->label($label)->numeric()->minValue(0)->required();
@@ -1126,7 +1135,7 @@ class Integrations extends Page
                     'max_consecutive_ai_replies' => $state["{$prefix}max_consecutive_ai_replies"] ?? null,
                     'brand_voice' => $state["{$prefix}brand_voice"] ?? null,
                     'sales_guidelines' => $state["{$prefix}sales_guidelines"] ?? null,
-                    ...collect(['review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'])->mapWithKeys(fn ($key) => [$key => $state[$prefix.$key] ?? null])->all(),
+                    ...collect(['vision_enabled', 'review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'])->mapWithKeys(fn ($key) => [$key => $state[$prefix.$key] ?? null])->all(),
                     'api_key' => $state["{$prefix}api_key"] ?? null,
                 ]);
             }

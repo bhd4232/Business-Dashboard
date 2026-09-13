@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Clusters\Crm;
+use App\Jobs\RefreshMessengerProfileJob;
 use App\Models\ChatOrderLink;
 use App\Models\Conversation;
 use App\Models\ConversationChannel;
@@ -474,6 +475,9 @@ class Inbox extends Page
         $this->resetManualDraftState();
         $this->selectedConversationId = (int) $conversation->getKey();
         $conversation->markRead();
+        if ($conversation->provider === 'messenger' && $conversation->profileDisplayName() === 'নাম পাওয়া যায়নি') {
+            RefreshMessengerProfileJob::dispatch((int) $conversation->getKey());
+        }
         $conversation->markHumanPresent();
         $this->humanPresentMarkedAt = microtime(true);
         app(ConversationMessengerService::class)->dispatchLatestIncomingRead($conversation);

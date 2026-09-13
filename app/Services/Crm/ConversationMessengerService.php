@@ -185,6 +185,7 @@ class ConversationMessengerService
                     $contactId,
                     (string) $message->body,
                     $message->media_path,
+                    'crm-message:'.$message->getKey(),
                 );
 
         } catch (Throwable $exception) {

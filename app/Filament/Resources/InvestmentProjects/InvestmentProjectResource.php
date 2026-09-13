@@ -8,6 +8,7 @@ use App\Filament\Resources\InvestmentProjects\Pages\EditInvestmentProject;
 use App\Filament\Resources\InvestmentProjects\Pages\ListInvestmentProjects;
 use App\Filament\Resources\InvestmentProjects\Pages\ViewInvestmentProject;
 use App\Filament\Resources\InvestmentProjects\RelationManagers\CostItemsRelationManager;
+use App\Filament\Resources\InvestmentProjects\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\InvestmentProjects\RelationManagers\InvestmentsRelationManager;
 use App\Models\InvestmentProject;
 use App\Support\MoneyFormatter;
@@ -73,9 +74,33 @@ class InvestmentProjectResource extends Resource
                 DatePicker::make('end_date')
                     ->hintAction(static::fieldHelp('endDateHelp', 'Expected End Date', 'Project বা trade cycle শেষ হওয়ার প্রত্যাশিত তারিখ। নিশ্চিত না হলে খালি রাখা যায়; এটি Start Date-এর আগে হতে পারবে না।'))
                     ->afterOrEqual('start_date'),
+                DatePicker::make('investment_opens_at')
+                    ->label('Investment Window Opens')
+                    ->hintAction(static::fieldHelp('investmentOpensHelp', 'Investment Window Opens', 'যেদিন থেকে investor-রা এই project-এ টাকা জমা দেওয়া শুরু করতে পারবেন। ঐচ্ছিক — খালি রাখলে কোনো window restriction থাকবে না।')),
+                DatePicker::make('investment_closes_at')
+                    ->label('Investment Window Closes')
+                    ->hintAction(static::fieldHelp('investmentClosesHelp', 'Investment Window Closes', 'এই তারিখের পর নতুন investment যোগ করতে গেলে বিশেষ অনুমতি (Override) এবং একটি কারণ লাগবে। ঐচ্ছিক — খালি রাখলে কোনো window restriction থাকবে না।'))
+                    ->afterOrEqual('investment_opens_at'),
                 TextInput::make('target_amount')
                     ->hintAction(static::fieldHelp('targetAmountHelp', 'Target Amount', 'এই project-এর জন্য মোট কত টাকা investor-দের কাছ থেকে সংগ্রহের লক্ষ্য তা লিখুন। এটি funding progress দেখায়; settlement profit calculation-এ সরাসরি ব্যবহার হয় না।'))
                     ->numeric()->prefix('৳')->minValue(0),
+                TextInput::make('company_contribution_amount')
+                    ->hintAction(static::fieldHelp('companyContributionHelp', 'Company Contribution', 'Investor-রা target-এর চেয়ে কম দিলে company নিজে যত টাকা পূরণ করেছে। এই অংশও investor-pool rate-এ profit পায়, যা company-র net-এর সাথে যোগ হয়। gap না থাকলে ০ রাখুন।'))
+                    ->numeric()->prefix('৳')->minValue(0)->default(0)->required()->live(debounce: 500),
+                TextInput::make('company_contribution_note')
+                    ->hintAction(static::fieldHelp('companyContributionNoteHelp', 'Contribution Note', 'কেন company gap পূরণ করল — সংক্ষিপ্ত নোট (ঐচ্ছিক)।'))
+                    ->maxLength(255)
+                    ->visible(fn (Get $get): bool => (float) $get('company_contribution_amount') > 0),
+                Select::make('receiving_fund_source_id')
+                    ->label('Receiving Fund Source')
+                    ->hintAction(static::fieldHelp('receivingFundSourceHelp', 'Receiving Fund Source', 'ঐচ্ছিক। নির্বাচন করলে investor-দের প্রতিটি নতুন investment একটি pending capital investment voucher হিসেবে এই fund source-এ বুক হবে — কেউ verify/approve করবে বিদ্যমান Voucher workflow-এ। খালি রাখলে কোনো voucher তৈরি হবে না।'))
+                    ->relationship('receivingFundSource', 'name')
+                    ->searchable()->preload(),
+                Select::make('payout_fund_source_id')
+                    ->label('Payout Fund Source')
+                    ->hintAction(static::fieldHelp('payoutFundSourceHelp', 'Payout Fund Source', 'ঐচ্ছিক। নির্বাচন করলে investor/channel-partner payout "Mark as Paid" করলে একটি pending investor payout voucher তৈরি হবে এই fund source থেকে।'))
+                    ->relationship('payoutFundSource', 'name')
+                    ->searchable()->preload(),
                 Select::make('status')
                     ->hintAction(static::fieldHelp('statusHelp', 'Project Status', 'Open = investment নেওয়া হচ্ছে; Running = deal চলছে; Closed = হিসাব প্রস্তুত এবং settlement করা যাবে। Settled status হাতে দেওয়া যায় না—Calculate & Settle action সফল হলে স্বয়ংক্রিয়ভাবে হয়।'))
                     ->options(fn (?InvestmentProject $record): array => $record?->status === 'settled' ? ['settled' => 'Settled'] : array_diff_key(InvestmentProject::STATUSES, ['settled' => true]))->default('open')->required(),
@@ -152,10 +177,28 @@ class InvestmentProjectResource extends Resource
                 TextEntry::make('name'),
                 TextEntry::make('deal_reference')->placeholder('-'),
                 TextEntry::make('status')->badge(),
+                TextEntry::make('investment_window')
+                    ->label('Investment Window')
+                    ->state(fn (InvestmentProject $record): ?string => $record->investmentWindowLabel())
+                    ->badge()
+                    ->color(fn (InvestmentProject $record): string => $record->isWithinInvestmentWindow() ? 'success' : 'danger')
+                    ->visible(fn (InvestmentProject $record): bool => filled($record->investmentWindowLabel())),
                 TextEntry::make('start_date')->date(),
                 TextEntry::make('end_date')->date()->placeholder('-'),
                 TextEntry::make('target_amount')->moneyWithoutTrailingZeroes('BDT')->placeholder('-'),
                 TextEntry::make('total_invested')->state(fn (InvestmentProject $record): float => $record->totalInvested())->moneyWithoutTrailingZeroes('BDT'),
+                TextEntry::make('company_contribution_amount')
+                    ->label('Company Contribution')
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->placeholder('-')
+                    ->hint(fn (InvestmentProject $record): ?string => $record->company_contribution_note),
+                TextEntry::make('capital_base')
+                    ->label('Total Capital Base')
+                    ->state(fn (InvestmentProject $record): float => $record->totalCapitalBase())
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->helperText('Investor + company contribution — settlement-এ profit pool ও rate per lac এর উপর হিসাব হয়।'),
+                TextEntry::make('receivingFundSource.name')->label('Receiving Fund Source')->placeholder('Not configured — no voucher created'),
+                TextEntry::make('payoutFundSource.name')->label('Payout Fund Source')->placeholder('Not configured — no voucher created'),
                 TextEntry::make('funding_progress')
                     ->label('Funding Progress')
                     ->state(fn (InvestmentProject $record): ?float => static::fundingProgress($record))
@@ -203,6 +246,12 @@ class InvestmentProjectResource extends Resource
                     : null)
                 ->placeholder('No target'),
             TextColumn::make('status')->badge()->sortable(),
+            TextColumn::make('investment_window')
+                ->label('Window')
+                ->state(fn (InvestmentProject $record): ?string => $record->investmentWindowLabel())
+                ->badge()
+                ->color(fn (InvestmentProject $record): string => $record->isWithinInvestmentWindow() ? 'success' : 'danger')
+                ->placeholder('-'),
         ])->recordActions([ViewAction::make(), EditAction::make()])->toolbarActions([BulkActionGroup::make([DeleteBulkAction::make()])]);
     }
 
@@ -253,7 +302,7 @@ class InvestmentProjectResource extends Resource
 
     public static function getRelations(): array
     {
-        return [InvestmentsRelationManager::class, CostItemsRelationManager::class];
+        return [InvestmentsRelationManager::class, CostItemsRelationManager::class, DocumentsRelationManager::class];
     }
 
     public static function getPages(): array

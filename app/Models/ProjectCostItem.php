@@ -33,4 +33,19 @@ class ProjectCostItem extends Model
     {
         return $this->belongsTo(Purchase::class);
     }
+
+    public function documents()
+    {
+        return $this->morphMany(InvestmentDocument::class, 'documentable');
+    }
+
+    /**
+     * Transparency rule (deed clause 3 / channel-partner agreement clause 2):
+     * every cost line must be traceable — either linked to a Purchase record
+     * or backed by an uploaded receipt/invoice.
+     */
+    public function hasProof(): bool
+    {
+        return filled($this->purchase_id) || $this->documents()->exists();
+    }
 }

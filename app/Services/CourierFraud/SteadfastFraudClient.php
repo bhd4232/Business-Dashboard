@@ -56,8 +56,22 @@ class SteadfastFraudClient implements CourierFraudClient
                 return null;
             }
 
-            $delivered = (int) ($statsResponse->json('total_delivered') ?? 0);
-            $cancelled = (int) ($statsResponse->json('total_cancelled') ?? 0);
+            $stats = $statsResponse->json();
+
+            // The login POST redirects on both a correct and a wrong
+            // password, so a wrong/expired password still lands here as a
+            // "successful" request — just re-served Steadfast's login page
+            // (HTML, not JSON) because the session was never authenticated.
+            // Treat a response without the real keys as a failed check
+            // rather than defaulting to 0, which would misreport a clean
+            // delivery history for a phone number Steadfast never actually
+            // looked up.
+            if (! is_array($stats) || ! array_key_exists('total_delivered', $stats) || ! array_key_exists('total_cancelled', $stats)) {
+                return null;
+            }
+
+            $delivered = (int) $stats['total_delivered'];
+            $cancelled = (int) $stats['total_cancelled'];
 
             $this->logout($sessionCookies);
         } catch (Throwable $exception) {

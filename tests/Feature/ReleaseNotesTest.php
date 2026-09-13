@@ -121,6 +121,19 @@ class ReleaseNotesTest extends TestCase
             ->assertDontSee('Never run');
     }
 
+    public function test_inline_technical_notes_are_reserved_for_the_technical_audience(): void
+    {
+        File::shouldReceive('exists')->with(AppRelease::changelogPath())->andReturn(true);
+        File::shouldReceive('get')->with(AppRelease::changelogPath())->andReturn("## [9.0.0] - 2026-09-12\n\n### Added\n\n- Easier image editing.\n\n  **Technical Notes:** Uses the shared image adapter.\n");
+
+        $public = json_encode(AppRelease::userFacingChangelogEntries());
+        $technical = json_encode(AppRelease::technicalChangelogEntries());
+        $this->assertStringContainsString('Easier image editing.', $public);
+        $this->assertStringNotContainsString('Technical Notes', $public);
+        $this->assertStringContainsString('Technical Notes', $technical);
+        $this->assertStringNotContainsString('Easier image editing.', $technical);
+    }
+
     public function test_pending_release_is_not_presented_as_the_installed_version_before_upgrade(): void
     {
         $user = User::factory()->create([

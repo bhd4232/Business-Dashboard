@@ -9,10 +9,15 @@ use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -24,20 +29,42 @@ class SecurityInstrumentsRelationManager extends RelationManager
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            TextInput::make('cheque_number'),
-            TextInput::make('cheque_bank_name'),
-            TextInput::make('cheque_amount')->numeric()->prefix('৳')->default(fn (): float => (float) $this->getOwnerRecord()->amount),
-            Select::make('cheque_status')->options(InvestorSecurityInstrument::CHEQUE_STATUSES)->default('held_by_investor')->required(),
-            TextInput::make('guarantor_name'),
-            TextInput::make('guarantor_nid')->label('Guarantor NID'),
-            TextInput::make('guarantor_phone')->tel(),
-            FileUpload::make('contract_document_path')
-                ->label('Signed Contract')
-                ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
-                ->maxSize(10240)
-                ->disk(fn (): string => app(CompanyStorageService::class)->privateDiskName())
-                ->directory(fn (): string => app(CompanyStorageService::class)->privateDirectory(CompanyMedia::require($this->getOwnerRecord()), 'investor-contracts'))
-                ->columnSpanFull(),
+            Section::make('Contract (ডিট পেপার)')->schema([
+                DatePicker::make('contract_date'),
+                TextInput::make('contract_reference')->placeholder('Project-01/2026-INV-01')
+                    ->default(fn (): ?string => $this->getOwnerRecord()->project?->project_code),
+                TagsInput::make('stamp_serial_numbers')
+                    ->label('Stamp Serial Numbers')
+                    ->helperText('৩টি ৳১০০ স্ট্যাম্পের সিরিয়াল নম্বর — প্রতিটি লিখে Enter চাপুন।')
+                    ->columnSpanFull(),
+                FileUpload::make('contract_document_path')
+                    ->label('Signed Contract Scan')
+                    ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+                    ->maxSize(10240)
+                    ->disk(fn (): string => app(CompanyStorageService::class)->privateDiskName())
+                    ->directory(fn (): string => app(CompanyStorageService::class)->privateDirectory(CompanyMedia::require($this->getOwnerRecord()), 'investor-contracts'))
+                    ->columnSpanFull(),
+            ])->columns(2),
+            Section::make('Security Cheque')->schema([
+                TextInput::make('cheque_number'),
+                TextInput::make('cheque_bank_name')->label('Bank'),
+                TextInput::make('cheque_branch')->label('Branch'),
+                TextInput::make('cheque_account_number'),
+                TextInput::make('cheque_account_holder')->placeholder('TASNEEM KNITTING INDUSTRY'),
+                TextInput::make('cheque_amount')->numeric()->prefix('৳')->default(fn (): float => (float) $this->getOwnerRecord()->amount)
+                    ->helperText('সাধারণত investment amount-এর সমান (মূলধনের ১০০%)।'),
+                Select::make('cheque_status')->options(InvestorSecurityInstrument::CHEQUE_STATUSES)->default('held_by_investor')->required(),
+                Toggle::make('investor_signed_cheque_terms')
+                    ->label('Investor signed "won\'t cash unless breach"')
+                    ->helperText('চুক্তির ধারা ৭ — বিনিয়োগকারী স্বাক্ষর করেছেন যে চুক্তিভঙ্গ ছাড়া চেক ভাঙাবেন না।'),
+            ])->columns(2),
+            Section::make('Guarantor')->schema([
+                TextInput::make('guarantor_name'),
+                TextInput::make('guarantor_nid')->label('Guarantor NID / Passport'),
+                TextInput::make('guarantor_phone')->tel(),
+                TextInput::make('guarantor_relation')->label('Relation'),
+                Textarea::make('guarantor_address')->columnSpanFull(),
+            ])->columns(2),
         ]);
     }
 

@@ -3,14 +3,17 @@
 namespace App\Filament\Resources\InvestmentProjects\RelationManagers;
 
 use App\Filament\Resources\InvestmentRecords\InvestmentRecordResource;
+use App\Filament\Resources\Vouchers\VoucherResource;
 use App\Models\Investment;
 use App\Models\Investor;
+use App\Services\Investment\InvestmentLedgerService;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -24,7 +27,10 @@ class InvestmentsRelationManager extends RelationManager
 
     public function isReadOnly(): bool
     {
-        return $this->getOwnerRecord()->status === 'settled' || parent::isReadOnly();
+        // Frozen once the investment window is closed, not only once settled
+        // (v3 P2.2) -- the recorded investments feed the capital base and
+        // report figures from the moment the project stops accepting money.
+        return in_array($this->getOwnerRecord()->status, ['closed', 'settled'], true) || parent::isReadOnly();
     }
 
     public function form(Schema $schema): Schema
@@ -40,7 +46,21 @@ class InvestmentsRelationManager extends RelationManager
             Select::make('payment_method')->options(Investment::PAYMENT_METHODS)->required(),
             TextInput::make('payment_reference'),
             DatePicker::make('invested_at')->default(now())->required(),
+            Textarea::make('override_reason')
+                ->label('Reason (investment window closed)')
+                ->rows(2)
+                ->visible(fn (): bool => $this->windowRequiresOverride())
+                ->required(fn (): bool => $this->windowRequiresOverride())
+                ->helperText('এই project-এর investment window বন্ধ — এখানে একটি কারণ audit log-এ থাকবে।'),
         ]);
+    }
+
+    /** Whether adding a new investment right now needs the override reason. */
+    private function windowRequiresOverride(): bool
+    {
+        $project = $this->getOwnerRecord();
+
+        return (bool) $project->investment_closes_at && ! $project->isWithinInvestmentWindow();
     }
 
     public function table(Table $table): Table
@@ -52,7 +72,17 @@ class InvestmentsRelationManager extends RelationManager
             TextColumn::make('payment_method')->badge(),
             TextColumn::make('invested_at')->date(),
             TextColumn::make('security_instruments_count')->label('Security')->badge(),
-        ])->headerActions([CreateAction::make()->mutateDataUsing(fn (array $data): array => [...$data, 'company_id' => $this->getOwnerRecord()->company_id, 'received_by' => auth()->id()])])
+            TextColumn::make('override_reason')->label('Late-Window Override')->limit(30)->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('voucher.status')
+                ->label('Voucher')
+                ->badge()
+                ->placeholder('-')
+                ->url(fn (Investment $record): ?string => $record->voucher_id ? VoucherResource::getUrl('view', ['record' => $record->voucher_id]) : null),
+        ])->headerActions([
+            CreateAction::make()
+                ->mutateDataUsing(fn (array $data): array => [...$data, 'company_id' => $this->getOwnerRecord()->company_id, 'received_by' => auth()->id()])
+                ->after(fn (Investment $record) => app(InvestmentLedgerService::class)->recordInvestmentReceived($record)),
+        ])
             ->recordActions([
                 ViewAction::make()->url(fn (Investment $record): string => InvestmentRecordResource::getUrl('view', ['record' => $record])),
                 EditAction::make(),

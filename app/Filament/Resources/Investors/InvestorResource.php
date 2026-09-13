@@ -3,11 +3,14 @@
 namespace App\Filament\Resources\Investors;
 
 use App\Filament\Clusters\Investments;
+use App\Filament\Resources\InvestmentProjects\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\Investors\Pages\CreateInvestor;
 use App\Filament\Resources\Investors\Pages\EditInvestor;
 use App\Filament\Resources\Investors\Pages\ListInvestors;
 use App\Filament\Resources\Investors\Pages\ViewInvestor;
 use App\Filament\Resources\Investors\RelationManagers\InvestmentsRelationManager;
+use App\Filament\Resources\Investors\RelationManagers\PartnerPayoutsRelationManager;
+use App\Filament\Resources\Investors\RelationManagers\WithdrawalNoticesRelationManager;
 use App\Models\Investor;
 use App\Support\CompanyScopedUnique;
 use BackedEnum;
@@ -17,12 +20,15 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
@@ -55,11 +61,16 @@ class InvestorResource extends Resource
                     ->label('Channel Partner')
                     ->relationship('channelPartner', 'name', fn ($query, ?Investor $record) => $query->when($record, fn ($q) => $q->whereKeyNot($record->getKey())))
                     ->searchable()->preload()
-                    ->disabled(fn (?Investor $record): bool => filled($record?->channel_partner_id) && ! (auth()->user()?->hasPermission('investments.manage_channel_partner') ?? false))
+                    ->disabled(fn (?Investor $record): bool => filled($record?->getOriginal('channel_partner_id')) && ! (auth()->user()?->hasPermission('investments.manage_channel_partner') ?? false))
                     ->dehydrated(),
                 Textarea::make('channel_partner_change_reason')->label('Channel Partner Change Reason')
-                    ->required(fn (?Investor $record): bool => filled($record?->channel_partner_id) && (auth()->user()?->hasPermission('investments.manage_channel_partner') ?? false))
-                    ->visible(fn (?Investor $record): bool => filled($record?->channel_partner_id) && (auth()->user()?->hasPermission('investments.manage_channel_partner') ?? false))
+                    ->helperText('শুধু বিদ্যমান একজন channel partner-কে বদলানোর সময় লাগবে — প্রথমবার assign করলে দরকার নেই।')
+                    ->required(fn (?Investor $record): bool => filled($record?->getOriginal('channel_partner_id')) && (auth()->user()?->hasPermission('investments.manage_channel_partner') ?? false))
+                    ->visible(fn (?Investor $record): bool => filled($record?->getOriginal('channel_partner_id')) && (auth()->user()?->hasPermission('investments.manage_channel_partner') ?? false))
+                    ->columnSpanFull(),
+                Toggle::make('is_channel_partner')
+                    ->label('This investor is also a Channel Partner')
+                    ->helperText('অন্য investor-দের রেফার করেন এমন একজনকে চিহ্নিত করুন — তালিকায় আলাদা দেখাবে ও চুক্তির নথি/পেআউট হিস্ট্রি ট্যাব চালু হবে।')
                     ->columnSpanFull(),
                 Textarea::make('address')->columnSpanFull(),
             ])->columns(2),
@@ -95,8 +106,10 @@ class InvestorResource extends Resource
                 TextEntry::make('email')->placeholder('-'),
                 TextEntry::make('nid_number')->label('NID / Passport')->placeholder('-'),
                 TextEntry::make('channelPartner.name')->label('Channel Partner')->placeholder('Direct investor'),
+                TextEntry::make('is_channel_partner')->label('Is a Channel Partner')->formatStateUsing(fn (bool $state): string => $state ? 'Yes' : 'No')->badge()->color(fn (bool $state): string => $state ? 'success' : 'gray'),
                 TextEntry::make('lifetime_invested')->state(fn (Investor $record): float => $record->totalInvestedLifetime())->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('lifetime_profit')->state(fn (Investor $record): float => $record->totalProfitReceivedLifetime())->moneyWithoutTrailingZeroes('BDT'),
+                TextEntry::make('lifetime_partner_payouts')->label('Lifetime Channel Partner Earnings')->visible(fn (Investor $record): bool => $record->is_channel_partner)->state(fn (Investor $record): float => $record->totalChannelPartnerPayoutsPaidLifetime())->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('address')->columnSpanFull()->placeholder('-'),
             ])->columns(2),
             Section::make('Nominee')->schema([
@@ -117,10 +130,13 @@ class InvestorResource extends Resource
     {
         return $table->modifyQueryUsing(fn ($query) => $query->withSum('investments', 'amount'))->columns([
             TextColumn::make('name')->searchable()->sortable(),
+            IconColumn::make('is_channel_partner')->label('Partner')->boolean()->trueColor('success')->tooltip(fn (bool $state): string => $state ? 'Channel Partner' : 'Direct investor'),
             TextColumn::make('phone')->searchable(),
             TextColumn::make('nid_number')->label('NID')->searchable()->placeholder('-'),
             TextColumn::make('channelPartner.name')->label('Channel Partner')->placeholder('Direct'),
             TextColumn::make('investments_sum_amount')->label('Lifetime Invested')->moneyWithoutTrailingZeroes('BDT'),
+        ])->filters([
+            TernaryFilter::make('is_channel_partner')->label('Channel Partners'),
         ])->recordActions([ViewAction::make(), EditAction::make()]);
     }
 
@@ -136,12 +152,15 @@ class InvestorResource extends Resource
 
     public static function canDelete(Model $record): bool
     {
-        return $record instanceof Investor && ! $record->investments()->exists() && (auth()->user()?->hasPermission('investments.manage') ?? false);
+        return $record instanceof Investor
+            && ! $record->investments()->exists()
+            && ! $record->referredInvestors()->exists()
+            && (auth()->user()?->hasPermission('investments.manage') ?? false);
     }
 
     public static function getRelations(): array
     {
-        return [InvestmentsRelationManager::class];
+        return [InvestmentsRelationManager::class, DocumentsRelationManager::class, PartnerPayoutsRelationManager::class, WithdrawalNoticesRelationManager::class];
     }
 
     public static function getPages(): array

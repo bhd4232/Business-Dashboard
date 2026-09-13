@@ -110,6 +110,10 @@ class DownloadConversationMediaJob implements ShouldBeUnique, ShouldQueue
                 'raw_payload' => $raw,
             ])->save();
 
+            if ($message->direction === 'incoming' && $message->type === 'image') {
+                AiAutoReplyJob::dispatch($message->conversation_id, $message->id)->delay(now()->addSeconds(3));
+            }
+
             $channel->refresh();
 
             if (is_array($mediaError)

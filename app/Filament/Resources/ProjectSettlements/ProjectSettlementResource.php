@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ProjectSettlements;
 use App\Filament\Clusters\Investments;
 use App\Filament\Resources\ProjectSettlements\Pages\ListProjectSettlements;
 use App\Filament\Resources\ProjectSettlements\Pages\ViewProjectSettlement;
+use App\Filament\Resources\InvestmentProjects\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\ProjectSettlements\RelationManagers\ChannelPartnerPayoutsRelationManager;
 use App\Filament\Resources\ProjectSettlements\RelationManagers\PayoutsRelationManager;
 use App\Models\ProjectSettlement;
@@ -46,11 +47,24 @@ class ProjectSettlementResource extends Resource
                     ->state(fn (ProjectSettlement $record): float => $record->project->totalLocalExpense())
                     ->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('total_cost')->label('Total Direct Cost')->moneyWithoutTrailingZeroes('BDT'),
-                TextEntry::make('net_profit')->moneyWithoutTrailingZeroes('BDT')->badge()->color('success'),
+                TextEntry::make('net_profit')->moneyWithoutTrailingZeroes('BDT')->badge()
+                    ->color(fn (ProjectSettlement $record): string => $record->net_profit < 0 ? 'danger' : 'success'),
+                TextEntry::make('outcome')->badge()
+                    ->formatStateUsing(fn (string $state): string => ProjectSettlement::OUTCOMES[$state] ?? $state)
+                    ->color(fn (string $state): string => $state === 'profit' ? 'success' : 'danger'),
+                TextEntry::make('loss_reason')->placeholder('-')->visible(fn (ProjectSettlement $record): bool => $record->outcome !== 'profit')->columnSpanFull(),
                 TextEntry::make('investor_pool_amount')->moneyWithoutTrailingZeroes('BDT')->label(fn (ProjectSettlement $record): string => "Investor Pool ({$record->project->investor_share_percent}%)"),
                 TextEntry::make('channel_partner_amount')->moneyWithoutTrailingZeroes('BDT')->label(fn (ProjectSettlement $record): string => "Channel Partner ({$record->project->channel_partner_share_percent}% eligible share)"),
                 TextEntry::make('company_net_amount')->moneyWithoutTrailingZeroes('BDT')->label('Company Net (includes unallocated channel share)'),
-                TextEntry::make('annualized_return_percent')->suffix('%')->badge()->placeholder('Not available'),
+                TextEntry::make('annualized_return_percent')
+                    ->label('Annualized Investor Return')
+                    ->suffix('%')->badge()->placeholder('Not available')
+                    ->helperText('Investor pool ÷ মোট মূলধন, ৩৬০-দিন বছরে annualized।'),
+                TextEntry::make('rate_per_lac')
+                    ->label('Rate per Lac')
+                    ->moneyWithoutTrailingZeroes('BDT')
+                    ->placeholder('-')
+                    ->helperText('প্রতি ১ লাখ বিনিয়োগে investor-এর profit।'),
                 TextEntry::make('status')->badge(),
                 TextEntry::make('settledBy.name')->label('Settled By'),
                 TextEntry::make('settled_at')->dateTime(),
@@ -63,10 +77,17 @@ class ProjectSettlementResource extends Resource
         return $table->columns([
             TextColumn::make('project.project_code')->label('Project')->searchable(),
             TextColumn::make('project.name')->searchable(),
-            TextColumn::make('net_profit')->moneyWithoutTrailingZeroes('BDT')->sortable(),
+            TextColumn::make('net_profit')->moneyWithoutTrailingZeroes('BDT')->sortable()
+                ->color(fn (ProjectSettlement $record): string => $record->net_profit < 0 ? 'danger' : 'gray'),
             TextColumn::make('investor_pool_amount')->moneyWithoutTrailingZeroes('BDT'),
             TextColumn::make('company_net_amount')->moneyWithoutTrailingZeroes('BDT'),
-            TextColumn::make('status')->badge(),
+            TextColumn::make('outcome')->badge()
+                ->formatStateUsing(fn (string $state): string => ProjectSettlement::OUTCOMES[$state] ?? $state)
+                ->color(fn (string $state): string => $state === 'profit' ? 'success' : 'danger')
+                ->toggleable(),
+            TextColumn::make('status')->badge()->color(fn (string $state): string => match ($state) {
+                'draft' => 'warning', 'paid_out' => 'success', default => 'gray',
+            }),
             TextColumn::make('settled_at')->dateTime()->sortable(),
         ])->recordActions([ViewAction::make()]);
     }
@@ -88,7 +109,7 @@ class ProjectSettlementResource extends Resource
 
     public static function getRelations(): array
     {
-        return [PayoutsRelationManager::class, ChannelPartnerPayoutsRelationManager::class];
+        return [PayoutsRelationManager::class, ChannelPartnerPayoutsRelationManager::class, DocumentsRelationManager::class];
     }
 
     public static function getPages(): array

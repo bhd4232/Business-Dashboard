@@ -41,6 +41,40 @@ class SteadfastFraudClientTest extends TestCase
         $this->assertNull($result);
     }
 
+    public function test_it_returns_null_when_the_login_silently_fails(): void
+    {
+        // A wrong/expired password still redirects (back to the login page)
+        // rather than erroring, so the login step "succeeds" but the session
+        // is never actually authenticated. The stats request then gets
+        // re-served the login page's HTML instead of JSON — this must not
+        // be read as a clean 0/0 delivery history.
+        Http::fake(function ($request) {
+            $url = $request->url();
+            $method = $request->method();
+
+            if (str_contains($url, '/user/frauds/check/')) {
+                return Http::response('<html>login required</html>');
+            }
+
+            if ($method === 'GET' && str_contains($url, '/login')) {
+                return Http::response('<input type="hidden" name="_token" value="tok">');
+            }
+
+            if ($method === 'POST' && str_contains($url, '/login')) {
+                return Http::response('', 302);
+            }
+
+            return Http::response('', 404);
+        });
+
+        $result = (new SteadfastFraudClient)->checkByPhone('01712345678', [
+            'username' => 'owner@example.com',
+            'password' => 'wrong-password',
+        ]);
+
+        $this->assertNull($result);
+    }
+
     public function test_it_returns_delivery_stats_on_success_and_logs_out(): void
     {
         Http::fake($this->portal(delivered: 6, cancelled: 4));

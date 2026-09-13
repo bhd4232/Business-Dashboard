@@ -21,6 +21,17 @@ class MetaGraphService
         return preg_match('/\Av\d+\.\d+\z/', $version) === 1 ? $version : 'v25.0';
     }
 
+    public function messengerProfileName(ConversationChannel $channel, string $contactId): ?string
+    {
+        if ($channel->provider !== 'messenger' || ! $channel->is_active || blank($channel->access_token)) {
+            return null;
+        }
+        $profile = $this->request('GET', rawurlencode($contactId), (string) $channel->access_token, ['fields' => 'first_name,last_name'], retry: false);
+        $name = trim((string) ($profile['first_name'] ?? '').' '.(string) ($profile['last_name'] ?? ''));
+
+        return $name !== '' ? mb_substr($name, 0, 255) : null;
+    }
+
     public function url(string $path): string
     {
         return 'https://graph.facebook.com/'.$this->version().'/'.ltrim($path, '/');
@@ -138,6 +149,17 @@ class MetaGraphService
             $subscription['was_subscribed'] = $subscription['subscribed'];
             $this->subscribeWhatsApp($channel);
             $subscription['subscribed'] = true;
+        } elseif ($channel->provider === 'messenger') {
+            $path = rawurlencode((string) $channel->external_id).'/subscribed_apps';
+            $current = $this->request('GET', $path, (string) $channel->access_token, ['fields' => 'subscribed_fields']);
+            $fields = array_values(array_unique(['messages', 'message_echoes', 'message_deliveries', 'message_reads',
+                ...collect($current['data'] ?? [])->flatMap(fn ($app) => $app['subscribed_fields'] ?? [])->all()]));
+            $result = $this->request('POST', $path, (string) $channel->access_token, ['subscribed_fields' => implode(',', $fields)], retry: false);
+            if (! ($result['success'] ?? false)) {
+                throw new MetaGraphException('Meta did not confirm the Messenger webhook subscription.');
+            }
+            $channel->forceFill(['webhook_subscribed_at' => now()])->save();
+            $subscription = ['subscribed' => true, 'fields' => $fields];
         }
 
         $channel->clearDiagnosticError('connection');
@@ -203,7 +225,7 @@ class MetaGraphService
         return $messageId;
     }
 
-    public function sendMessenger(ConversationChannel $channel, string $psid, string $body, ?string $mediaUrl = null): string
+    public function sendMessenger(ConversationChannel $channel, string $psid, string $body, ?string $mediaUrl = null, ?string $metadata = null): string
     {
         $this->requireToken($channel);
         $mediaUrl = $this->outboundMediaUrl($mediaUrl);
@@ -212,7 +234,7 @@ class MetaGraphService
 
         $response = $this->request('POST', 'me/messages', (string) $channel->access_token, [
             'recipient' => ['id' => $psid],
-            'message' => ['text' => $messageBody],
+            'message' => array_filter(['text' => $messageBody, 'metadata' => $metadata], fn ($value) => $value !== null),
             'messaging_type' => 'RESPONSE',
         ], retry: false);
         $messageId = (string) ($response['message_id'] ?? '');

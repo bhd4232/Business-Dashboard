@@ -50,6 +50,14 @@ class Conversation extends Model
         'human_handled_until' => 'datetime',
     ];
 
+    public function profileDisplayName(): string
+    {
+        $name = trim((string) $this->contact_name);
+
+        return $name !== '' && ! preg_match('/^(?:(?:chat\s+)?contact\s+)?[\d+\s-]+$/i', $name)
+            ? $name : 'নাম পাওয়া যায়নি';
+    }
+
     public function channel(): BelongsTo
     {
         return $this->belongsTo(ConversationChannel::class, 'channel_id');

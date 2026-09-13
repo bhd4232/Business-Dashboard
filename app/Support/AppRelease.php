@@ -241,7 +241,8 @@ class AppRelease
 
     protected static function isTechnicalItem(string $item): bool
     {
-        return preg_match(self::TECHNICAL_ITEM_PATTERN, $item) === 1;
+        return preg_match('/\btechnical\s+notes\b/i', $item) === 1
+            || preg_match(self::TECHNICAL_ITEM_PATTERN, $item) === 1;
     }
 
     public static function parseChangelogBody(string $body): array
