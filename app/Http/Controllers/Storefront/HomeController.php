@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductCarousel;
 use App\Models\StorefrontSlide;
+use App\Support\StorefrontListingCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -34,9 +35,12 @@ class HomeController extends Controller
 
         abort_unless($setting?->is_published, 404);
 
-        return view($setting->homepageView(), [
-            'company' => $company,
-            'setting' => $setting,
+        // Home page listings are identical for every visitor of this company
+        // and change only when an admin edits a product/category/setting (all
+        // of which bump this cache — see StorefrontListingCache), so caching
+        // them keeps a busy storefront from re-running the same query on
+        // every single page load.
+        $listing = StorefrontListingCache::home($company->getKey(), fn (): array => [
             'categories' => Category::query()
                 ->where('is_active', true)
                 ->whereHas('products', fn ($query) => $query->where('is_active', true)->where('status', Product::STATUS_AVAILABLE))
@@ -50,6 +54,13 @@ class HomeController extends Controller
                 ->latest()
                 ->take(23)
                 ->get(),
+        ]);
+
+        return view($setting->homepageView(), [
+            'company' => $company,
+            'setting' => $setting,
+            'categories' => $listing['categories'],
+            'products' => $listing['products'],
             'carousels' => ProductCarousel::forHomepage(),
             'slides' => StorefrontSlide::forCompanyTheme($company->getKey(), $setting->storefrontTheme(), $setting->homepageTemplate()),
         ]);

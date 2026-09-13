@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ResellerProduct;
+use App\Support\StorefrontListingCache;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -37,7 +38,7 @@ class ProductIndexController extends Controller
         $sort = $request->string('sort')->value();
         $search = trim((string) $request->string('q'));
 
-        $products = Product::query()
+        $productsQuery = Product::query()
             ->with('category')
             ->where('is_active', true)
             ->where('status', Product::STATUS_AVAILABLE)
@@ -52,14 +53,30 @@ class ProductIndexController extends Controller
             ->when($search !== '', fn ($query) => $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")))
             ->when($sort === 'price_asc', fn ($query) => $query->orderByRaw('COALESCE(sale_price, price) asc'))
             ->when($sort === 'price_desc', fn ($query) => $query->orderByRaw('COALESCE(sale_price, price) desc'))
-            ->when(! in_array($sort, ['price_asc', 'price_desc'], true), fn ($query) => $query->latest())
-            ->paginate(24)
-            ->withQueryString();
+            ->when(! in_array($sort, ['price_asc', 'price_desc'], true), fn ($query) => $query->latest());
 
-        $categories = Category::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        // A plain category/sort/page browse is identical for every visitor
+        // and worth caching on a busy storefront; a search or a reseller's
+        // filtered catalog is per-request/per-customer, so those always hit
+        // the database instead of growing the cache with one-off keys.
+        // withQueryString() is applied after the cache lookup (not inside the
+        // cached closure) so a cache hit still reflects *this* request's
+        // query string rather than whatever first populated the cache entry.
+        $cacheable = ! $reseller instanceof Customer && $search === '';
+
+        $products = ($cacheable
+            ? StorefrontListingCache::listing(
+                $company->getKey(),
+                sprintf('%s|%s|%d', $category?->slug ?? '_all', $sort ?: '_default', $request->integer('page', 1)),
+                fn () => $productsQuery->paginate(24),
+            )
+            : $productsQuery->paginate(24)
+        )->withQueryString();
+
+        $categories = StorefrontListingCache::categories(
+            $company->getKey(),
+            fn () => Category::query()->where('is_active', true)->orderBy('name')->get(),
+        );
 
         return view('storefront.products.index', [
             'company' => $company,
