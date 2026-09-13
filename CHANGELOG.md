@@ -4,6 +4,17 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **Investor / Mudarabah module, Sprint 3 (P3 — polish, PII, test coverage):** NID/passport numbers are now encrypted at rest, the settlement view shows gross profit, an investment's cheque number is visible without an extra click, and three genuine bugs from the audit are fixed.
+  - **PII encryption:** an investor's NID/passport, their nominee's NID/passport, and a security instrument's guarantor NID/passport are now encrypted at rest (the same `encrypted` Eloquent cast this app already uses for stored access tokens and storefront checkout details) instead of sitting in plaintext columns.
+  - **Gross profit** (Selling − Landed Cost) now shows on a settlement's own admin page, not only on the printable per-investor report.
+  - **Inline cheque number:** a project's Investments table now shows each investment's security-cheque number directly, without opening its separate Security tab.
+  - **Bug fix — three relation managers were silently unusable:** creating a Security Instrument or a deed Witness (on an investment's page), uploading a document against a settlement, and correcting a payout's recipient bank details before marking it paid **could never actually be done from the admin panel** — those pages have no separate "Edit" page, and Filament's own default quietly freezes every relation manager on a view-only page. All four are fixed; nothing about who's allowed to do them changed.
+  - **New test coverage:** the settle action's on-screen form, both "Mark as Paid" flows (investor and channel partner), a user without settlement permission correctly seeing those actions hidden, and creating a Security Instrument with an uploaded contract — all now covered end-to-end, alongside the Investments navigation cluster.
+
+  **Technical Notes:** migration `2026_09_13_100000` converts `investors.nid_number`/`nominee_nid_or_passport` and `investor_security_instruments.guarantor_nid` from `string` to `text` (an encrypted payload runs longer than 255 chars) and re-encrypts existing plaintext values in place (idempotent — a second run is a no-op via a decrypt-first probe); reversible. `nid_number` dropped from the two places it was searched at the database level (`InvestorResource` table column, `InvestmentsRelationManager`'s investor select) since an encrypted column can't be matched with `LIKE`. `SecurityInstrumentsRelationManager`, `WitnessesRelationManager`, `DocumentsRelationManager`, and `PayoutsRelationManager` each gained an `isReadOnly(): false` override — real authorization is unchanged, enforced by the existing `investments` Gate and (for payouts) `payoutsUnlocked()`.
+
 ## [2.16.0] - 2026-09-13
 
 **Release type:** Minor Feature Update
