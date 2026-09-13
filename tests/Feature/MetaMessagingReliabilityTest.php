@@ -69,6 +69,23 @@ class MetaMessagingReliabilityTest extends TestCase
             && ! str_contains($request->url(), 'access_token'));
     }
 
+    public function test_messenger_subscription_failure_is_saved_with_correct_permission_guidance(): void
+    {
+        $this->channel->update(['provider' => 'messenger']);
+        Http::fake(['graph.facebook.com/*' => Http::sequence()
+            ->push(['id' => '111222333', 'name' => 'Page'])
+            ->push(['error' => ['code' => 200, 'message' => 'Permission denied']], 403)]);
+        try {
+            app(MetaGraphService::class)->testAndSubscribe($this->channel);
+            $this->fail('Expected subscription failure');
+        } catch (MetaGraphException $exception) {
+            $this->assertSame(200, $exception->graphCode);
+        }
+        $this->assertSame('connection', $this->channel->fresh()->last_error_source);
+        $this->assertStringContainsString('pages_manage_metadata', $this->channel->fresh()->last_error);
+        $this->assertStringNotContainsString('whatsapp_business', $this->channel->fresh()->last_error);
+    }
+
     public function test_non_idempotent_message_send_is_not_automatically_retried(): void
     {
         $conversation = $this->conversationWithCurrentInbound();

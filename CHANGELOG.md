@@ -10,6 +10,8 @@ All notable production changes to Business Dashboard are documented here.
 
 ### Fixed
 
+- Messenger subscription failures now retain actionable diagnostics; profile lookup failures are visible in Chat Channels, retry after five minutes on new requests, and retry immediately after a token change instead of remaining blocked for an hour.
+
 - Sync new Messenger Page/Business Suite replies, preserve own-send attribution, deduplicate echoes and pause AI after external replies. Add Messenger Test & Subscribe. Hide IDs in chat titles and directly clarify generic Bengali order requests.
 
 ### Fixed

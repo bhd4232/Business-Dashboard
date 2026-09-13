@@ -1655,3 +1655,8 @@ Every feature change should update:
 - `ERP_PHASE_ROADMAP.md` for phase status, done criteria, and future work
 
 Do not leave business-critical behavior only in code or conversation history.
+
+### Messenger connection and profile diagnostics (2026-09-13)
+- `MetaGraphService::testAndSubscribe` records subscription failures with Messenger-specific permission guidance. Chat Channels Last Error shows the saved error.
+- `RefreshMessengerProfileJob` records sanitized profile failures without overwriting other channel errors. Requests are throttled five minutes per conversation/token; a different token allows the next chat selection/inbound message to retry immediately. A running queue worker is required; staff names remain protected.
+- Verify with `php artisan test tests/Feature/MetaMessagingReliabilityTest.php tests/Feature/CrmSalesAutomationTest.php`. After deployment, run Test & Subscribe and inspect Last Error, then open a nameless conversation. No live Meta permissions are changed; name availability still depends on Meta returning a name.

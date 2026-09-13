@@ -168,6 +168,26 @@ class CrmSalesAutomationTest extends TestCase
         $this->assertSame('Rahim Ahmed', $lead->fresh()->name);
     }
 
+    public function test_profile_failure_is_visible_and_token_change_allows_immediate_retry(): void
+    {
+        $this->conversation->channel->update(['provider' => 'messenger']);
+        $this->conversation->update(['provider' => 'messenger', 'contact_name' => null]);
+        Http::fake(['graph.facebook.com/*' => Http::sequence()
+            ->push(['error' => ['code' => 200, 'message' => 'Permission denied']], 403)
+            ->push(['first_name' => 'Rahim', 'last_name' => 'Ahmed'])]);
+        $job = new RefreshMessengerProfileJob($this->conversation->id);
+        $job->handle(app(MetaGraphService::class));
+        $this->assertSame('profile', $this->conversation->channel->fresh()->last_error_source);
+        $this->assertStringContainsString('pages_messaging', $this->conversation->channel->fresh()->last_error);
+        $job->handle(app(MetaGraphService::class));
+        Http::assertSentCount(1);
+        $this->conversation->channel->update(['access_token' => 'replacement-token']);
+        $job->handle(app(MetaGraphService::class));
+        $this->assertSame('Rahim Ahmed', $this->conversation->fresh()->contact_name);
+        $this->assertNull($this->conversation->channel->fresh()->last_error);
+        Http::assertSentCount(2);
+    }
+
     public function test_missing_profile_name_never_falls_back_to_phone_or_id(): void
     {
         $this->conversation->update(['contact_name' => null]);

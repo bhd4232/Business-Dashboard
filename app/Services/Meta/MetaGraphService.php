@@ -141,30 +141,39 @@ class MetaGraphService
     /** @return array{health: array<string, mixed>, subscription: array<string, mixed>|null} */
     public function testAndSubscribe(ConversationChannel $channel): array
     {
-        $health = $this->channelHealth($channel);
-        $subscription = null;
+        try {
+            $health = $this->channelHealth($channel);
+            $subscription = null;
 
-        if ($channel->provider === 'whatsapp') {
-            $subscription = $this->whatsappSubscription($channel);
-            $subscription['was_subscribed'] = $subscription['subscribed'];
-            $this->subscribeWhatsApp($channel);
-            $subscription['subscribed'] = true;
-        } elseif ($channel->provider === 'messenger') {
-            $path = rawurlencode((string) $channel->external_id).'/subscribed_apps';
-            $current = $this->request('GET', $path, (string) $channel->access_token, ['fields' => 'subscribed_fields']);
-            $fields = array_values(array_unique(['messages', 'message_echoes', 'message_deliveries', 'message_reads',
-                ...collect($current['data'] ?? [])->flatMap(fn ($app) => $app['subscribed_fields'] ?? [])->all()]));
-            $result = $this->request('POST', $path, (string) $channel->access_token, ['subscribed_fields' => implode(',', $fields)], retry: false);
-            if (! ($result['success'] ?? false)) {
-                throw new MetaGraphException('Meta did not confirm the Messenger webhook subscription.');
+            if ($channel->provider === 'whatsapp') {
+                $subscription = $this->whatsappSubscription($channel);
+                $subscription['was_subscribed'] = $subscription['subscribed'];
+                $this->subscribeWhatsApp($channel);
+                $subscription['subscribed'] = true;
+            } elseif ($channel->provider === 'messenger') {
+                $path = rawurlencode((string) $channel->external_id).'/subscribed_apps';
+                $current = $this->request('GET', $path, (string) $channel->access_token, ['fields' => 'subscribed_fields']);
+                $fields = array_values(array_unique(['messages', 'message_echoes', 'message_deliveries', 'message_reads',
+                    ...collect($current['data'] ?? [])->flatMap(fn ($app) => $app['subscribed_fields'] ?? [])->all()]));
+                $result = $this->request('POST', $path, (string) $channel->access_token, ['subscribed_fields' => implode(',', $fields)], retry: false);
+                if (! ($result['success'] ?? false)) {
+                    throw new MetaGraphException('Meta did not confirm the Messenger webhook subscription.');
+                }
+                $channel->forceFill(['webhook_subscribed_at' => now()])->save();
+                $subscription = ['subscribed' => true, 'fields' => $fields];
             }
-            $channel->forceFill(['webhook_subscribed_at' => now()])->save();
-            $subscription = ['subscribed' => true, 'fields' => $fields];
+
+            $channel->clearDiagnosticError('connection');
+
+            return ['health' => $health, 'subscription' => $subscription];
+        } catch (MetaGraphException $exception) {
+            $message = $exception->getMessage();
+            if ($channel->provider === 'messenger' && in_array($exception->graphCode, [10, 200], true)) {
+                $message = 'Messenger subscription permission denied (code '.$exception->graphCode.'). Check pages_manage_metadata and pages_messaging permissions and the Page access token for this Page. '.$exception->getMessage();
+            }
+            $channel->recordDiagnosticError($message, 'connection');
+            throw new MetaGraphException($message, $exception->graphCode, $exception->httpStatus);
         }
-
-        $channel->clearDiagnosticError('connection');
-
-        return ['health' => $health, 'subscription' => $subscription];
     }
 
     /**
@@ -448,7 +457,7 @@ class MetaGraphService
         }
 
         if (in_array($code, [10, 200], true)) {
-            return 'The Meta token is missing a required permission. Grant whatsapp_business_messaging and whatsapp_business_management, then generate a new token.';
+            return 'Meta permission denied (code '.$code.'): '.$safeMessage;
         }
 
         if ($code === 131047 || Str::contains(Str::lower($safeMessage), ['24 hour', 're-engagement'])) {

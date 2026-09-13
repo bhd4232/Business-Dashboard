@@ -9,6 +9,7 @@ use App\Filament\Resources\ConversationChannels\Pages\ListConversationChannels;
 use App\Models\Company;
 use App\Models\ConversationChannel;
 use App\Services\CompanyContext;
+use App\Services\Meta\MetaGraphException;
 use App\Services\Meta\MetaGraphService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -238,6 +239,10 @@ class ConversationChannelResource extends Resource
                             ->success()
                             ->send();
                     } catch (\Throwable $exception) {
+                        if (! $exception instanceof MetaGraphException) {
+                            report($exception);
+                            $record->recordDiagnosticError('Connection test failed on the server. Check the application log.', 'connection');
+                        }
                         Notification::make()
                             ->title('Meta connection needs attention')
                             ->body($record->fresh()->last_error ?: 'Check the channel IDs and credentials, then retry.')
