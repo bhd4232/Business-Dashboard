@@ -78,7 +78,7 @@ Never commit `.env` or production credentials. `ADMIN_PASSWORD` must be at least
 
 `APP_URL` and `ASSET_URL` must both use `https://` in production. Coolify/Traefik terminates TLS at the reverse proxy, so `TRUSTED_PROXIES=*` allows Laravel to honor its forwarded HTTPS scheme. Restrict this value to known proxy addresses if the application container is also directly exposed to untrusted traffic.
 
-For small single-server or SQLite installs, keep `SESSION_DRIVER=file`, `CACHE_STORE=file`, and `QUEUE_CONNECTION=sync`. For higher traffic MySQL deployments, use Redis where available, or database queue/cache with a dedicated queue worker.
+For small single-server or SQLite installs, keep `SESSION_DRIVER=file`, `CACHE_STORE=file`, and `QUEUE_CONNECTION=sync`. For higher traffic MySQL deployments, use Redis where available (`SESSION_DRIVER=redis` with `SESSION_CONNECTION=session` — see "Redis on Coolify" below), or database queue/cache/sessions with a dedicated queue worker.
 
 ## File Uploads and Cloudflare R2
 
@@ -446,16 +446,22 @@ php artisan queue:work --sleep=1 --tries=3 --max-time=3600
 
 Use Supervisor or your hosting panel to keep the worker alive.
 
-### Redis on Coolify (recommended queue + cache backend)
+### Redis on Coolify (recommended queue + cache + session backend)
 
 The app ships with `predis/predis` (a pure-PHP Redis client — no server
-extension to compile, so it works on any Nixpacks build) and `config/queue.php`
-/ `config/cache.php` already have ready-to-use `redis` connection blocks. Two
-things it speeds up directly: the CRM Inbox's `AiAutoReplyJob` (moves the AI
-agent's LLM calls off the request/webhook thread and onto a real background
-worker) and `AiReplyService`'s FAQ/delivery-charge lookups (cached 5 minutes
-per company via `CACHE_STORE=redis`, instead of re-queried on every AI tool
-round).
+extension to compile, so it works on any Nixpacks build) and
+`config/queue.php` / `config/cache.php` / `config/database.php` already have
+ready-to-use `redis` connection blocks. Several things speed up directly: the
+CRM Inbox's `AiAutoReplyJob` (moves the AI agent's LLM calls off the
+request/webhook thread and onto a real background worker), `AiReplyService`'s
+FAQ/delivery-charge lookups (cached 5 minutes per company via
+`CACHE_STORE=redis`, instead of re-queried on every AI tool round), the
+storefront home/category/product-listing queries (`App\Support\
+StorefrontListingCache`, 10 minutes per company, invalidated immediately when
+a Product/Category/StorefrontSetting is saved — see those models' `booted()`
+hooks), and — with `SESSION_DRIVER=redis` — every logged-in request no longer
+reads/writes a session row in MySQL, which matters once thousands of
+customers are browsing concurrently.
 
 1. **Add a Redis resource in Coolify** — same "one-click resource" flow
    already used for the MySQL database (Coolify project → Resources → New
@@ -466,11 +472,19 @@ round).
    ```env
    QUEUE_CONNECTION=redis
    CACHE_STORE=redis
+   SESSION_DRIVER=redis
+   SESSION_CONNECTION=session
    REDIS_CLIENT=predis
    REDIS_HOST=<the Redis resource's internal hostname from Coolify>
    REDIS_PASSWORD=<the generated password>
    REDIS_PORT=6379
    ```
+   `SESSION_CONNECTION=session` puts sessions on their own Redis database
+   (`config/database.php` `redis.session`, `REDIS_SESSION_DB` defaults to
+   `2`) separate from the `cache` one (`REDIS_CACHE_DB`, default `1`) and the
+   queue's `default` one (`REDIS_DB`, default `0`) — so a `php artisan
+   cache:clear` can never sign out every active customer/admin session along
+   with it.
 3. **Run a supervised queue worker as a second persistent Coolify service**
    (New Resource → a second app pointed at the same repo/image, or a
    Coolify "Docker Compose" service) whose start command is:
@@ -485,9 +499,11 @@ round).
    execution) that a queued job actually completes.
 
 If a Redis resource isn't available yet, `QUEUE_CONNECTION=database` (needs
-only the existing `jobs` table + a running worker, no extra service) still
-works — the AI auto-reply pipeline just won't get the FAQ/delivery-charge
-caching speed-up, which only applies to `CACHE_STORE=redis`.
+only the existing `jobs` table + a running worker, no extra service) and
+`SESSION_DRIVER=database` still work — the AI auto-reply pipeline just won't
+get the FAQ/delivery-charge caching speed-up (that one is Redis-only; the
+storefront listing cache above works on any `CACHE_STORE`), and sessions add
+one extra database read/write per request instead of hitting Redis.
 
 ## Production Checklist
 

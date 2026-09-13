@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Support\StorefrontListingCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -78,6 +79,9 @@ class Product extends Model
 
             $product->slug = static::uniqueSlug($product);
         });
+
+        static::saved(fn (Product $product) => StorefrontListingCache::forgetCompany($product->company_id));
+        static::deleted(fn (Product $product) => StorefrontListingCache::forgetCompany($product->company_id));
     }
 
     public function category()

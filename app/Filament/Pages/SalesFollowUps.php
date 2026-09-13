@@ -20,6 +20,10 @@ class SalesFollowUps extends Page implements HasTable
 
     protected static ?string $cluster = Crm::class;
 
+    // See SalesAutomation::$navigationSort — same gap, same fix; placed
+    // right after it since the two pages are part of the same feature.
+    protected static ?int $navigationSort = 8;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
     protected static ?string $title = 'Sales Follow-ups';
