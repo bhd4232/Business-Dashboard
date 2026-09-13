@@ -14,7 +14,9 @@ class InvestorSecurityInstrument extends Model
 
     protected $fillable = ['company_id', 'investment_id', 'contract_date', 'contract_reference', 'stamp_serial_numbers', 'cheque_number', 'cheque_bank_name', 'cheque_branch', 'cheque_account_number', 'cheque_account_holder', 'cheque_amount', 'cheque_status', 'guarantor_name', 'guarantor_nid', 'guarantor_phone', 'guarantor_relation', 'guarantor_address', 'investor_signed_cheque_terms', 'contract_document_path'];
 
-    protected $casts = ['cheque_amount' => 'decimal:2', 'contract_date' => 'date', 'stamp_serial_numbers' => 'array', 'investor_signed_cheque_terms' => 'boolean'];
+    // guarantor_nid is encrypted at rest (v3 P3) -- see Investor::$casts for
+    // the same pattern on nid_number / nominee_nid_or_passport.
+    protected $casts = ['cheque_amount' => 'decimal:2', 'contract_date' => 'date', 'stamp_serial_numbers' => 'array', 'investor_signed_cheque_terms' => 'boolean', 'guarantor_nid' => 'encrypted'];
 
     protected static function booted(): void
     {

@@ -13,8 +13,8 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Section;
@@ -25,6 +25,22 @@ use Filament\Tables\Table;
 class SecurityInstrumentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'securityInstruments';
+
+    /**
+     * `InvestmentRecordResource` never registers an Edit page (the investment
+     * itself is edited from the project's InvestmentsRelationManager) — it
+     * has only a View page. Filament's panel-wide default freezes relation
+     * managers on any ViewRecord page, which would make this one permanently
+     * read-only with no writable page to fall back to (v3 P3 audit — no
+     * security instrument could ever be recorded through the admin UI).
+     * Always writable here; real authorization still comes from the
+     * `investments` Gate on InvestorSecurityInstrument's create/update/delete
+     * abilities.
+     */
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
 
     public function form(Schema $schema): Schema
     {

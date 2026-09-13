@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Clusters\Crm;
 use App\Filament\Clusters\Finance;
 use App\Filament\Clusters\Inventory;
+use App\Filament\Clusters\Investments;
 use App\Filament\Clusters\Purchasing;
 use App\Filament\Clusters\Reports as ReportsCluster;
 use App\Filament\Clusters\Sales;
@@ -27,10 +28,14 @@ use App\Filament\Resources\ExpenseCategories\ExpenseCategoryResource;
 use App\Filament\Resources\Expenses\ExpenseResource;
 use App\Filament\Resources\FundSources\FundSourceResource;
 use App\Filament\Resources\FundTransfers\FundTransferResource;
+use App\Filament\Resources\InvestmentProjects\InvestmentProjectResource;
+use App\Filament\Resources\InvestmentRecords\InvestmentRecordResource;
+use App\Filament\Resources\Investors\InvestorResource;
 use App\Filament\Resources\Leads\LeadResource;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\ProductCarousels\ProductCarouselResource;
 use App\Filament\Resources\Products\ProductResource;
+use App\Filament\Resources\ProjectSettlements\ProjectSettlementResource;
 use App\Filament\Resources\Purchases\PurchaseResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\StockMovements\StockMovementResource;
@@ -105,6 +110,12 @@ class AdminNavigationClustersTest extends TestCase
                 StockPoolResource::class,
             ],
             ReportsCluster::class => [Reports::class],
+            Investments::class => [
+                InvestmentProjectResource::class,
+                InvestorResource::class,
+                ProjectSettlementResource::class,
+                InvestmentRecordResource::class,
+            ],
             Settings::class => [
                 UserResource::class,
                 UserRoleResource::class,

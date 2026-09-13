@@ -470,11 +470,14 @@ $table->foreignId('payout_fund_source_id')->nullable()->constrained('fund_source
 
 ### 🟡 P3 — Polish / smaller
 
-- **PII:** `nid_or_passport`, `nominee_nid_or_passport`, `guarantor_nid` plaintext — encryption বা masking বিবেচনা করুন।
-- **Gross profit** settlement infolist-এ দেখান (P1.2-এ report-এ আছে)।
-- **Test coverage:** settle action UI form path, দুটি "Mark as Paid" flow, permission-denied path, security instrument create/upload; `AdminNavigationClustersTest`-এ Investments cluster যোগ করুন।
-- **Inline cheque number** — register view-এ investment row থেকে সরাসরি (এখন আলাদা relation manager)।
-- **Nominee multiple phone** — text field, strict validation নয় (register-এ দেখা গেছে)।
+✅ **সম্পূর্ণ (২০২৬-০৯-১৩)।** Migration: `2026_09_13_100000`।
+
+- ✅ **PII encryption:** `investors.nid_number` / `nominee_nid_or_passport` এবং `investor_security_instruments.guarantor_nid` — এখন `encrypted` cast (এই অ্যাপ ConversationChannel token / StorefrontCartRecord email-এ যে pattern ব্যবহার করে, একই)। কলাম `text`-এ convert করা হয়েছে (encrypted payload varchar(255)-এর চেয়ে বড়); বিদ্যমান plaintext ডেটা migration-এই re-encrypt হয়েছে (idempotent — দ্বিতীয়বার রান করলে no-op)। `InvestorResource` টেবিল ও `InvestmentsRelationManager`-এর investor-select থেকে `nid_number`-এর DB-level `searchable()` সরানো হয়েছে (encrypted ভ্যালুতে LIKE search কাজ করে না)।
+- ✅ **Gross profit** এখন `ProjectSettlementResource` infolist-এও দেখা যায় (আগে শুধু P1.2-এর printable report-এ ছিল)।
+- ✅ **Inline cheque number** — `InvestmentsRelationManager` (project → investments টেবিল)-এ সরাসরি একটা কলাম হিসেবে, আলাদা relation manager খোলার দরকার নেই।
+- ✅ **Nominee multiple phone** — যাচাই করা হয়েছে: `nominee_phone` ইতিমধ্যে একটা প্লেইন `TextInput` (কোনো regex/format rule নেই) — একাধিক নম্বর কমা দিয়ে লিখতে কোনো বাধা নেই। কোড পরিবর্তনের দরকার হয়নি।
+- ✅ **Test coverage:** settle action-এর UI form path, দুটি "Mark as Paid" flow (investor + channel partner), permission-denied path (`investments.settle` ছাড়া `manager` role-এর জন্য settle/markPaid action hidden), security instrument create + contract upload, `AdminNavigationClustersTest`-এ Investments cluster (৪টা resource) — সব নতুন টেস্ট `InvestmentSettlementTest`-এ।
+- 🐛 **বাগ পাওয়া ও ফিক্স করা হয়েছে (audit চলাকালীন):** `SecurityInstrumentsRelationManager` ও `WitnessesRelationManager` (`InvestmentRecordResource`-এ, যার কোনো Edit page নেই), `DocumentsRelationManager` (`ProjectSettlementResource`/`InvestmentRecordResource`-এ, একই কারণ), এবং `PayoutsRelationManager`-এর `EditAction` (`ProjectSettlementResource`-এ, একই কারণ) — Filament-এর panel-wide "ViewRecord পেজে relation manager read-only" ডিফল্টের কারণে **স্থায়ীভাবে frozen ছিল, কখনোই লেখা যেত না UI দিয়ে** (P1.1 document upload, P1.6 security instrument create, এবং payout-এর ভুল bank/account তথ্য সংশোধন — তিনটাই কিছু resource-এ silently ভাঙা ছিল)। ফিক্স: চারটাতেই `isReadOnly(): false` override — real authorization/business lock (Gate ও `payoutsUnlocked()`) যথারীতি বহাল থাকে।
 
 ---
 
@@ -550,7 +553,18 @@ Sprint 2 (P2):
 New tests in `InvestmentSettlementTest`. Full suite verified green (see UPDATE_NOTES.md)।
 
 Sprint 3:
-  13. P3   — PII, polish, test coverage
+  ✅ 13. P3 — PII encryption (nid_number/nominee_nid_or_passport/guarantor_nid),
+              gross profit on settlement infolist, inline cheque number column,
+              nominee multi-phone verified (no change needed), UI-level test
+              coverage (settle form, 2× mark-paid, permission-denied, security
+              instrument create/upload), AdminNavigationClustersTest Investments
+              cluster. Also fixed a real bug found during the audit: three
+              relation managers (SecurityInstruments/Witnesses on
+              InvestmentRecordResource, Documents on ProjectSettlementResource)
+              were permanently frozen because their host resources have no Edit
+              page — Filament's ViewRecord-page read-only default never had a
+              writable page to fall back to. `isReadOnly(): false` override on
+              all three — DONE ২০২৬-০৯-১৩
 
 প্রতিটি আইটেমের পর: affected test files + full `php artisan test` (NO --env flag,
 CLAUDE.md rule) + `npm run build` (frontend পরিবর্তন হলে)।

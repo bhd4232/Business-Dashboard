@@ -36,7 +36,9 @@ class InvestmentsRelationManager extends RelationManager
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            Select::make('investor_id')->relationship('investor', 'name')->searchable(['name', 'phone', 'nid_number'])->preload()
+            // 'nid_number' dropped from the search columns -- it is encrypted
+            // at rest (v3 P3), so a DB-level LIKE search can never match it.
+            Select::make('investor_id')->relationship('investor', 'name')->searchable(['name', 'phone'])->preload()
                 ->createOptionForm([
                     TextInput::make('name')->required(),
                     TextInput::make('phone')->required(),
@@ -65,12 +67,19 @@ class InvestmentsRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        return $table->modifyQueryUsing(fn ($query) => $query->withCount('securityInstruments'))->columns([
+        return $table->modifyQueryUsing(fn ($query) => $query->withCount('securityInstruments')->with('securityInstruments'))->columns([
             TextColumn::make('investor.name')->searchable(),
             TextColumn::make('investor.channelPartner.name')->label('Channel Partner')->placeholder('Direct'),
             TextColumn::make('amount')->moneyWithoutTrailingZeroes('BDT')->summarize(Sum::make()->moneyWithoutTrailingZeroes('BDT')),
             TextColumn::make('payment_method')->badge(),
             TextColumn::make('invested_at')->date(),
+            // Inline cheque number straight off the investment row (v3 P3) --
+            // previously only visible by opening the separate
+            // SecurityInstrumentsRelationManager on the investment's own view.
+            TextColumn::make('cheque_number')
+                ->label('Cheque No.')
+                ->state(fn (Investment $record): ?string => $record->securityInstruments->first()?->cheque_number)
+                ->placeholder('-'),
             TextColumn::make('security_instruments_count')->label('Security')->badge(),
             TextColumn::make('override_reason')->label('Late-Window Override')->limit(30)->placeholder('-')->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('voucher.status')

@@ -29,6 +29,20 @@ class DocumentsRelationManager extends RelationManager
 
     protected static ?string $title = 'Documents';
 
+    /**
+     * Shared across InvestmentProjectResource, ProjectSettlementResource and
+     * InvestmentRecordResource (see class docblock) — the latter two never
+     * register an Edit page. Filament's panel-wide default freezes relation
+     * managers on any ViewRecord page, which would make document upload
+     * permanently impossible on those two (v3 P3 audit). Always writable
+     * here; real authorization still comes from the `investments` Gate on
+     * InvestmentDocument's create/update/delete abilities.
+     */
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
+
     protected function ownerCompany(): Company
     {
         return CompanyMedia::require($this->getOwnerRecord());

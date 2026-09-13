@@ -19,6 +19,12 @@ class WitnessesRelationManager extends RelationManager
 
     protected static ?string $title = 'Deed Witnesses';
 
+    /** Same fix as SecurityInstrumentsRelationManager — see its docblock (v3 P3). */
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema->components([

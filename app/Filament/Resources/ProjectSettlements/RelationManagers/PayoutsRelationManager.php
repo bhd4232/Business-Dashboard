@@ -27,6 +27,22 @@ class PayoutsRelationManager extends RelationManager
 
     protected static ?string $title = 'Investor Payouts';
 
+    /**
+     * `ProjectSettlementResource` has no Edit page by design (settlement
+     * figures are immutable once confirmed) — but that leaves this relation
+     * manager's own EditAction (recipient bank details, correctable while a
+     * payout is still `pending`) with no writable page to fall back to under
+     * Filament's ViewRecord-page read-only default, so it silently never
+     * mounted (v3 P3 audit — same root cause as
+     * SecurityInstrumentsRelationManager::isReadOnly()). Always writable
+     * here; the real lock is EditAction's own `visible()` (payoutsUnlocked()
+     * + still pending + investments.settle permission).
+     */
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema->components([

@@ -13,7 +13,10 @@ class Investor extends Model
 
     protected $fillable = ['company_id', 'name', 'display_name', 'guardian_name', 'date_of_birth', 'phone', 'email', 'address', 'nid_number', 'stamp_number', 'cheque_number', 'channel_partner_id', 'is_channel_partner', 'channel_partner_change_reason', 'nominee_name', 'nominee_nid_or_passport', 'nominee_phone', 'nominee_relation', 'nominee_address'];
 
-    protected $casts = ['date_of_birth' => 'date', 'is_channel_partner' => 'boolean'];
+    // nid_number / nominee_nid_or_passport are encrypted at rest (v3 P3) --
+    // same `encrypted` cast this app already uses for other sensitive
+    // columns (ConversationChannel tokens, StorefrontCartRecord email).
+    protected $casts = ['date_of_birth' => 'date', 'is_channel_partner' => 'boolean', 'nid_number' => 'encrypted', 'nominee_nid_or_passport' => 'encrypted'];
 
     protected static function booted(): void
     {

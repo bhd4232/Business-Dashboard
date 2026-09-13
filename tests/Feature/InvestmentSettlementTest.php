@@ -8,12 +8,16 @@ use App\Filament\Resources\InvestmentProjects\Pages\ViewInvestmentProject;
 use App\Filament\Resources\InvestmentProjects\RelationManagers\CostItemsRelationManager;
 use App\Filament\Resources\InvestmentProjects\RelationManagers\InvestmentsRelationManager as ProjectInvestmentsRelationManager;
 use App\Filament\Resources\InvestmentRecords\InvestmentRecordResource;
+use App\Filament\Resources\InvestmentRecords\Pages\ViewInvestmentRecord;
+use App\Filament\Resources\InvestmentRecords\RelationManagers\SecurityInstrumentsRelationManager;
 use App\Filament\Resources\Investors\InvestorResource;
 use App\Filament\Resources\Investors\Pages\EditInvestor;
 use App\Filament\Resources\Investors\Pages\ViewInvestor;
 use App\Filament\Resources\Investors\RelationManagers\PartnerPayoutsRelationManager;
 use App\Filament\Resources\Investors\RelationManagers\WithdrawalNoticesRelationManager;
 use App\Filament\Resources\ProjectSettlements\Pages\ViewProjectSettlement;
+use App\Filament\Resources\ProjectSettlements\ProjectSettlementResource;
+use App\Filament\Resources\ProjectSettlements\RelationManagers\ChannelPartnerPayoutsRelationManager;
 use App\Filament\Resources\ProjectSettlements\RelationManagers\PayoutsRelationManager;
 use App\Models\Account;
 use App\Models\AuditLog;
@@ -26,6 +30,7 @@ use App\Models\Investor;
 use App\Models\InvestorCycleElection;
 use App\Models\InvestorSecurityInstrument;
 use App\Models\ProjectCostItem;
+use App\Models\ProjectSettlement;
 use App\Models\User;
 use App\Models\UserRole;
 use App\Models\Voucher;
@@ -35,7 +40,9 @@ use App\Services\Investment\CycleElectionService;
 use App\Services\Investment\InvestmentLedgerService;
 use App\Services\Investment\SettlementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -936,6 +943,186 @@ class InvestmentSettlementTest extends TestCase
         $this->withSession(['current_company_id' => $other->id])
             ->get(route('investments.reports.project-register', $project))
             ->assertNotFound();
+    }
+
+    // --- v3 P3: polish, PII, and UI-level test coverage -----------------
+
+    public function test_settle_action_creates_a_draft_settlement_through_the_ui_form(): void
+    {
+        [$project] = $this->profitableProject();
+
+        Livewire::test(ViewInvestmentProject::class, ['record' => $project->getRouteKey()])
+            ->mountAction('settle')
+            ->setActionData(['total_revenue' => 200000, 'outcome' => 'profit', 'acknowledge_unproven_costs' => true])
+            ->callMountedAction()
+            ->assertHasNoActionErrors();
+
+        $settlement = ProjectSettlement::query()->where('project_id', $project->id)->sole();
+        $this->assertSame('draft', $settlement->status);
+        $this->assertEquals(200000.0, (float) $settlement->total_revenue);
+    }
+
+    public function test_investor_payout_can_be_marked_paid_through_the_relation_manager_ui(): void
+    {
+        [$project] = $this->profitableProject();
+        $service = app(SettlementService::class);
+        $settlement = $service->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+        $service->confirmSettlement($settlement, $this->user->id);
+        $payout = $settlement->payouts()->first();
+
+        Livewire::test(PayoutsRelationManager::class, ['ownerRecord' => $settlement, 'pageClass' => ViewProjectSettlement::class])
+            ->mountTableAction('markPaid', $payout)
+            ->callMountedTableAction()
+            ->assertHasNoTableActionErrors();
+
+        $this->assertSame('paid', $payout->fresh()->payment_status);
+        $this->assertNotNull($payout->fresh()->paid_at);
+    }
+
+    public function test_investor_payout_recipient_details_can_be_corrected_through_the_relation_manager_ui(): void
+    {
+        [$project] = $this->profitableProject();
+        $service = app(SettlementService::class);
+        $settlement = $service->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+        $service->confirmSettlement($settlement, $this->user->id);
+        $payout = $settlement->payouts()->first();
+
+        // Same frozen-relation-manager bug as SecurityInstrumentsRelationManager
+        // (ProjectSettlementResource also has no Edit page) -- see
+        // PayoutsRelationManager::isReadOnly() (v3 P3 fix).
+        Livewire::test(PayoutsRelationManager::class, ['ownerRecord' => $settlement, 'pageClass' => ViewProjectSettlement::class])
+            ->mountTableAction('edit', $payout)
+            ->setTableActionData(['recipient_name' => 'Corrected Name', 'recipient_bank_name' => 'Dutch-Bangla Bank', 'recipient_account_number' => '99988877'])
+            ->callMountedTableAction()
+            ->assertHasNoTableActionErrors();
+
+        $payout->refresh();
+        $this->assertSame('Corrected Name', $payout->recipient_name);
+        $this->assertSame('Dutch-Bangla Bank', $payout->recipient_bank_name);
+        $this->assertSame('99988877', $payout->recipient_account_number);
+    }
+
+    public function test_channel_partner_payout_can_be_marked_paid_through_the_relation_manager_ui(): void
+    {
+        $partner = $this->investor('UI Channel Partner', '01890000040');
+        $referred = $this->investor('UI Referred Investor', '01890000041', $partner);
+        $project = $this->project();
+        $this->investment($project, $referred, 100000);
+        ProjectCostItem::query()->create(['project_id' => $project->id, 'category' => 'landed_cost', 'label' => 'Cost', 'amount' => 50000]);
+        $service = app(SettlementService::class);
+        $settlement = $service->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+        $service->confirmSettlement($settlement, $this->user->id);
+        $channelPayout = $settlement->channelPartnerPayouts()->firstOrFail();
+
+        Livewire::test(ChannelPartnerPayoutsRelationManager::class, ['ownerRecord' => $settlement, 'pageClass' => ViewProjectSettlement::class])
+            ->mountTableAction('markPaid', $channelPayout)
+            ->setTableActionData(['payment_method' => 'bank', 'payment_reference' => 'REF-1'])
+            ->callMountedTableAction()
+            ->assertHasNoTableActionErrors();
+
+        $this->assertSame('paid', $channelPayout->fresh()->payment_status);
+    }
+
+    public function test_settle_and_mark_paid_actions_are_hidden_without_the_investments_settle_permission(): void
+    {
+        [$project] = $this->profitableProject();
+        $service = app(SettlementService::class);
+        $settlement = $service->calculateAndSettle($project->fresh(), 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+        $service->confirmSettlement($settlement, $this->user->id);
+        $payout = $settlement->payouts()->first();
+
+        // 'manager' has investments.manage + investments.view but not the
+        // separately-granted investments.settle permission (v3 P3 gap: this
+        // permission-denied path had no UI-level test coverage).
+        $manager = User::factory()->create(['role' => 'manager']);
+        Auth::login($manager);
+
+        Livewire::test(ViewInvestmentProject::class, ['record' => $project->getRouteKey()])
+            ->assertActionHidden('settle');
+
+        Livewire::test(PayoutsRelationManager::class, ['ownerRecord' => $settlement, 'pageClass' => ViewProjectSettlement::class])
+            ->assertTableActionHidden('markPaid', $payout);
+    }
+
+    public function test_security_instrument_can_be_created_with_an_uploaded_contract_through_the_relation_manager(): void
+    {
+        Storage::fake('local');
+        $project = $this->project(['status' => 'open']);
+        $investor = $this->investor('Security UI Investor', '01890000010');
+        $investment = $this->investment($project, $investor, 50000);
+
+        // InvestmentRecordResource has no Edit page -- SecurityInstruments
+        // must be creatable straight from its (only) View page (v3 P3 fix;
+        // see SecurityInstrumentsRelationManager::isReadOnly()).
+        Livewire::test(SecurityInstrumentsRelationManager::class, ['ownerRecord' => $investment, 'pageClass' => ViewInvestmentRecord::class])
+            ->mountTableAction('create')
+            ->setTableActionData([
+                'cheque_number' => 'SBL-1002',
+                'cheque_bank_name' => 'Sonali Bank',
+                'cheque_status' => 'held_by_investor',
+                'guarantor_name' => 'Guarantor One',
+                'guarantor_nid' => '1234567890123',
+                'contract_document_path' => UploadedFile::fake()->create('signed-contract.pdf', 100, 'application/pdf'),
+            ])
+            ->callMountedTableAction()
+            ->assertHasNoTableActionErrors();
+
+        $instrument = InvestorSecurityInstrument::query()->where('investment_id', $investment->id)->sole();
+        $this->assertSame('SBL-1002', $instrument->cheque_number);
+        $this->assertSame('1234567890123', $instrument->guarantor_nid);
+        $this->assertNotNull($instrument->contract_document_path);
+        Storage::disk('local')->assertExists($instrument->contract_document_path);
+    }
+
+    public function test_investor_and_guarantor_nid_numbers_are_encrypted_at_rest(): void
+    {
+        $investor = Investor::query()->create([
+            'company_id' => $this->company->id,
+            'name' => 'PII Investor',
+            'phone' => '01890000020',
+            'nid_number' => '1990123456789',
+            'nominee_nid_or_passport' => 'BQ0912345',
+        ]);
+        $project = $this->project(['status' => 'open']);
+        $investment = $this->investment($project, $investor, 50000);
+        $instrument = InvestorSecurityInstrument::query()->create([
+            'investment_id' => $investment->id,
+            'guarantor_nid' => '1122334455667',
+        ]);
+
+        $rawInvestor = DB::table('investors')->where('id', $investor->id)->first();
+        $this->assertNotSame('1990123456789', $rawInvestor->nid_number);
+        $this->assertNotSame('BQ0912345', $rawInvestor->nominee_nid_or_passport);
+
+        $rawInstrument = DB::table('investor_security_instruments')->where('id', $instrument->id)->first();
+        $this->assertNotSame('1122334455667', $rawInstrument->guarantor_nid);
+
+        $this->assertSame('1990123456789', $investor->fresh()->nid_number);
+        $this->assertSame('BQ0912345', $investor->fresh()->nominee_nid_or_passport);
+        $this->assertSame('1122334455667', $instrument->fresh()->guarantor_nid);
+    }
+
+    public function test_settlement_infolist_shows_gross_profit(): void
+    {
+        [$project] = $this->profitableProject();
+        $settlement = app(SettlementService::class)->calculateAndSettle($project, 200000, $this->user->id, acknowledgeUnprovenCosts: true);
+
+        $this->actingAs($this->user)
+            ->withSession(['current_company_id' => $this->company->id])
+            ->get(ProjectSettlementResource::getUrl('view', ['record' => $settlement]))
+            ->assertOk()
+            ->assertSee('Gross Profit');
+    }
+
+    public function test_investments_relation_manager_shows_the_cheque_number_inline(): void
+    {
+        $project = $this->project(['status' => 'open']);
+        $investor = $this->investor('Cheque Column Investor', '01890000030');
+        $investment = $this->investment($project, $investor, 50000);
+        InvestorSecurityInstrument::query()->create(['investment_id' => $investment->id, 'cheque_number' => 'CHQ-9001']);
+
+        Livewire::test(ProjectInvestmentsRelationManager::class, ['ownerRecord' => $project, 'pageClass' => ViewInvestmentProject::class])
+            ->assertSee('CHQ-9001');
     }
 
     private function profitableProject(): array

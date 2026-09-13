@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\ProjectSettlements;
 
 use App\Filament\Clusters\Investments;
+use App\Filament\Resources\InvestmentProjects\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\ProjectSettlements\Pages\ListProjectSettlements;
 use App\Filament\Resources\ProjectSettlements\Pages\ViewProjectSettlement;
-use App\Filament\Resources\InvestmentProjects\RelationManagers\DocumentsRelationManager;
 use App\Filament\Resources\ProjectSettlements\RelationManagers\ChannelPartnerPayoutsRelationManager;
 use App\Filament\Resources\ProjectSettlements\RelationManagers\PayoutsRelationManager;
 use App\Models\ProjectSettlement;
@@ -41,6 +41,13 @@ class ProjectSettlementResource extends Resource
                 TextEntry::make('landed_cost')
                     ->label('Total Landed Cost')
                     ->state(fn (ProjectSettlement $record): float => $record->project->totalLandedCost())
+                    ->moneyWithoutTrailingZeroes('BDT'),
+                // Selling − landed cost only (v3 P3) -- same figure already
+                // shown on the printable per-investor report (P1.2), just
+                // missing here in the admin infolist until now.
+                TextEntry::make('gross_profit')
+                    ->label('Gross Profit (Selling − Landed Cost)')
+                    ->state(fn (ProjectSettlement $record): float => round((float) $record->total_revenue - $record->project->totalLandedCost(), 2))
                     ->moneyWithoutTrailingZeroes('BDT'),
                 TextEntry::make('local_expense')
                     ->label('Total Local Expense')

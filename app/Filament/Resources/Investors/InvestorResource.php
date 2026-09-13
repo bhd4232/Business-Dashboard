@@ -132,7 +132,9 @@ class InvestorResource extends Resource
             TextColumn::make('name')->searchable()->sortable(),
             IconColumn::make('is_channel_partner')->label('Partner')->boolean()->trueColor('success')->tooltip(fn (bool $state): string => $state ? 'Channel Partner' : 'Direct investor'),
             TextColumn::make('phone')->searchable(),
-            TextColumn::make('nid_number')->label('NID')->searchable()->placeholder('-'),
+            // Not ->searchable() -- nid_number is encrypted at rest (v3 P3),
+            // so a DB-level LIKE search can never match it.
+            TextColumn::make('nid_number')->label('NID')->placeholder('-'),
             TextColumn::make('channelPartner.name')->label('Channel Partner')->placeholder('Direct'),
             TextColumn::make('investments_sum_amount')->label('Lifetime Invested')->moneyWithoutTrailingZeroes('BDT'),
         ])->filters([
