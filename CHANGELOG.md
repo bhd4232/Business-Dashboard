@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Technical Notes
+
+- **Planning only — Investor profit & Reseller commission auto bank/MFS payout.** Added `10_INVESTOR_RESELLER_AUTO_PAYOUT_PLAN.md`: a design for a shared payout engine (`PayoutBatch`/`PayoutItem` + a `BeftnFileFormatter` adapter interface, plus a new `ResellerCommission` model with a configurable delivery-then-hold-window flow) that would let Investor settlement payouts and Reseller order-commission payouts be calculated, batched, and exported for bank (BEFTN, for one-debit/many-credit transfers — not NPSB, which is single-transaction/real-time) or MFS (bKash/Nagad/Rocket) disbursement, with a mandatory human-approval step before anything reaches a bank/MFS submission. No migration, model, or application code was written — the plan explicitly defers coding until the owner confirms several open business points with their bank and in-house (BEFTN connectivity mode, exact commission hold-period days, the commission rate formula, which MFS provider(s), and the batch approval rule).
+
 ### Added
 
 - **Image Generation: "Start from an image" — run Regenerate or Remove background on a photo you upload.** The Image Generation form now takes an optional reference-image upload. With one attached, **Generate** offers *Reimagine it from my prompt* (image-to-image, with a subtle / balanced / strong strength) or *Just remove its background*, and runs that on the upload instead of generating from scratch — the same two operations that were already available as per-image buttons on finished results. The section is hidden unless a configured provider supports an edit operation (Google Imagen is generate-only). The upload is compressed to WebP, stored in the company's storage and registered in the Media Hub, and the derived image goes through the same monthly-cap, approval, and audit-log path as any other generation.

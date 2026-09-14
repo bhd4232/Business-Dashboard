@@ -2,6 +2,26 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-11 - Investor profit & Reseller commission auto bank/MFS payout — plan document only
+
+Reason — owner (Bengali): ERP-এ investor profit ক্যালকুলেশন হয়ে ব্যাংক অ্যাকাউন্টে অটো পেমেন্ট (BEFTN, কারণ একাধিক ভিন্ন অ্যাকাউন্টে একসাথে পাঠাতে হবে, NPSB single-transaction rail-এ হবে না) করা যায় কিনা, এবং একই প্রশ্ন Reseller module-এর জন্য — রিসেলার ডেলিভারি কমপ্লিট হলে কমিশন MFS বা ব্যাংকে পাঠানো। Asked two clarifying questions before designing (answers below) and, per the third answer, built only a plan document — no code.
+
+Owner answers: (1) bank BEFTN connectivity mode — "এখনো জানি না, ব্যাংকে কথা বলে জানাবো" (not yet known, will confirm after talking to the bank); (2) reseller commission becomes payable "কিছুদিন hold রেখে (রিটার্ন উইন্ডো শেষে)" — a hold-after-delivery window, exact day count not yet given; (3) next step — "একটা বিস্তারিত plan ডকুমেন্ট বানাই (কোড ছাড়া)" (build a detailed plan document, no code).
+
+What changed (docs only):
+
+- **`10_INVESTOR_RESELLER_AUTO_PAYOUT_PLAN.md`** (new) — design for a shared payout engine covering both modules:
+  - NPSB vs. BEFTN technical explainer (why bulk multi-account payout needs BEFTN, and that there's no universal cross-bank API — file-export to the bank's bulk-payment portal is the only mode that doesn't depend on a bank negotiation).
+  - New tables: `company_payout_settings` (encrypted disbursing bank account + BEFTN mode + MFS credentials + configurable `reseller_commission_hold_days`), `payout_batches`, `payout_items` (polymorphic — points at `SettlementPayout` / `ChannelPartnerPayout` / a new `ResellerCommission`), `reseller_commissions`; retrofits `recipient_routing_number` onto the existing investor payout tables and a `reseller_payout_method`/account column onto `customers`.
+  - `ResellerCommissionService` (create on order delivered → `holding`; a daily per-company scheduled command promotes to `payable` once the hold window passes; reverses to `reversed` on a return within the window) and `PayoutBatchService` (batch → mandatory human approval → export file via a swappable `BeftnFileFormatter` adapter → submit → reconcile), reusing the existing `SettlementPayout`/`ChannelPartnerPayout` flow from the already-built Investor/Mudarabah module instead of replacing it.
+  - A phased rollout: Phase 1 (buildable now) is calculation + batching + a generic BEFTN file export the owner hand-carries to their bank's portal, with mandatory manual reconciliation; Phase 2 swaps in a bank-specific API/SFTP adapter once the owner's bank confirms one exists; Phase 3 is real MFS (bKash/Nagad/Rocket) disbursement-API integration, gated on a separate business approval with each provider.
+  - An explicit "Owner Decision লাগবে" checklist at the top (and echoed at the relevant steps) listing every business rule still needed before coding starts: BEFTN connectivity mode, exact hold-period days, the commission rate formula, which MFS provider(s) and whether a disbursement/B2C agreement already exists, single- vs. maker-checker batch approval, investor routing-number collection, clawback handling for a late return, and a TDS/withholding-tax check with the owner's accountant — per `CLAUDE.md`'s "never invent placeholder business rules," none of these were assumed.
+- **`CHANGELOG.md`** — new `[Unreleased]` → `### Technical Notes` entry (planning-only, no schema/app change, so it carries no user-facing `Added`/`Changed` entry).
+
+Verification: N/A — no code, migration, or test changed. `10_INVESTOR_RESELLER_AUTO_PAYOUT_PLAN.md` is self-contained for a future Claude Code session to execute once the owner's open decisions above are answered.
+
+Commit status: Committed + pushed to `origin/claude/auto-profit-payment-system-9acb0u` (owner approved: "জি কর").
+
 ## 2026-09-10 - AI Tools / Image Generation: upload-your-own reference image on the form (plan 11, Phase 4 final follow-up)
 
 Reason — owner: "ফেজ ৪ এর শেষ ফলো-আপ (form থেকে reference upload) কর" — the one deferred Phase 4 item: let a user upload a photo on the Image Generation form and run image-to-image / background removal on it, instead of only regenerating an existing library image.
