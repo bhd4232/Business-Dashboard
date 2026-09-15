@@ -28,7 +28,7 @@ Known simplification, flagged for the owner rather than silently built in: the s
 
 Verification: `php artisan test tests/Feature/AiSettingsServiceTest.php tests/Feature/IntegrationsPageTest.php tests/Feature/CrmSalesAutomationTest.php tests/Feature/AiAutoReplyTest.php tests/Feature/MetaMessagingReliabilityTest.php` — 99 passed (413 assertions). Full `php artisan test` (plain, no `--env`) — **1300 passed, 0 failed** (6650 assertions, ~568s). `npm run build` not run — no frontend asset changed (Filament/Livewire only).
 
-Commit status: Not committed — awaiting owner approval.
+Commit status: Committed (`de7c8ec2`, plus `5d50ba99` fixing the CHANGELOG entry's placement after merging in the v2.17.0 release-cut commit from origin) and pushed to `origin/main` (owner approved: "commit এবং push কর").
 
 ## 2026-09-13 - Investor / Mudarabah module v3 — Sprint 3 (P3)
 
