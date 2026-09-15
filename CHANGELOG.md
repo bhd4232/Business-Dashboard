@@ -4,6 +4,10 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-09-15
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **CRM Auto Messaging can now use a separate model just for reading customer photos, and a separate model to transcribe voice notes.** Previously, "Read customer images (vision)" required the main chat model itself to be vision-capable, and a voice note got no AI reply at all. Two new options on the Integrations page (Auto Messaging tab):
@@ -12,7 +16,6 @@ All notable production changes to Business Dashboard are documented here.
   - Both are optional and off by default — existing configurations (main model handles images inline, voice notes unanswered) are unchanged unless explicitly turned on.
 
   **Technical Notes:** new `AiVisionDescriber` and `AiVoiceTranscriber` services; new encrypted `image_api_key`/`voice_api_key` settings alongside the existing per-tool credential shape in `AiSettingsService`. `DownloadConversationMediaJob` now also queues the AI reply job for incoming voice notes (previously only images), and `AiReplyService` writes the transcript/description onto the source message's own `body` so it flows through the existing text-based reply pipeline unchanged.
-
 ## [2.17.0] - 2026-09-13
 
 **Release type:** Minor Feature Update
