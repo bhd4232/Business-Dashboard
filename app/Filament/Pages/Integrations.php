@@ -166,11 +166,19 @@ class Integrations extends Page
             $fill["{$prefix}max_consecutive_ai_replies"] = $ai['max_consecutive_ai_replies'];
             $fill["{$prefix}brand_voice"] = $ai['brand_voice'];
             $fill["{$prefix}sales_guidelines"] = $ai['sales_guidelines'];
-            foreach (['vision_enabled', 'review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'] as $key) {
+            foreach ([
+                'vision_enabled', 'image_model_enabled', 'image_api_format', 'image_provider', 'image_base_url', 'image_model',
+                'voice_enabled', 'voice_provider', 'voice_base_url', 'voice_model',
+                'review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language',
+            ] as $key) {
                 $fill[$prefix.$key] = $ai[$key];
             }
             $fill["{$prefix}api_key"] = '';
             $fill["{$prefix}has_api_key"] = filled($ai['api_key']);
+            $fill["{$prefix}image_api_key"] = '';
+            $fill["{$prefix}image_has_api_key"] = filled($ai['image_api_key']);
+            $fill["{$prefix}voice_api_key"] = '';
+            $fill["{$prefix}voice_has_api_key"] = filled($ai['voice_api_key']);
         }
 
         return $fill;
@@ -315,13 +323,129 @@ class Integrations extends Page
 
     protected function aiToolFields(string $prefix, string $enableLabel, bool $messagingExtras): array
     {
-        $presets = $this->llmProviderPresets();
-        $presetOptions = collect($presets)->map(fn (array $preset): string => $preset['label'])->all();
-
         $fields = [
             Toggle::make("{$prefix}enabled")
                 ->label($enableLabel)
                 ->columnSpanFull(),
+            ...$this->providerConnectionFields($prefix),
+        ];
+
+        if ($messagingExtras) {
+            $fields[] = MarkdownEditor::make("{$prefix}sales_guidelines")
+                ->label('সেলস এজেন্টের কথাবার্তার নির্দেশনা')
+                ->helperText('লেখা, শিরোনাম, তালিকা ও উদাহরণ এডিট করে Save changes চাপুন। সেভ করা নির্দেশনা এই কোম্পানির পরবর্তী AI উত্তরে ব্যবহৃত হবে। উদাহরণের দাম ও প্রতিশ্রুতি প্রকৃত তথ্য নয়; FAQ-এর প্রস্তুত উত্তর আলাদাভাবে এডিট করতে হবে। ছবি শনাক্তকরণ বা নতুন অর্ডার-অ্যাকশন শুধু নির্দেশনা লিখে চালু হয় না।')
+                ->toolbarButtons(['bold', 'italic', 'heading', 'bulletList', 'orderedList', 'blockquote', 'table', 'undo', 'redo'])
+                ->maxLength(16000)
+                ->hintAction(Action::make('restoreSalesGuidelines')
+                    ->label('ডিফল্ট লেখা ফিরিয়ে আনুন')
+                    ->action(fn (Set $set) => $set("{$prefix}sales_guidelines", app(AiSettingsService::class)->defaultSalesGuidelines())))
+                ->columnSpanFull();
+            $fields[] = Toggle::make("{$prefix}vision_enabled")
+                ->label('Read customer images (vision)')
+                ->live()
+                ->afterStateUpdated(function (bool $state, Get $get, Set $set) use ($prefix): void {
+                    if ($state && (int) $get($prefix.'max_run_tokens') < 30000) {
+                        $set($prefix.'max_run_tokens', 30000);
+                    }
+                })
+                ->helperText('Requires a vision-capable model. Enabling raises the per-run token budget to at least 30,000 for image input; review the budget before saving. The latest customer image is sent privately to your AI provider.');
+            $fields[] = Toggle::make("{$prefix}image_model_enabled")
+                ->label('Use a separate model for images')
+                ->live()
+                ->visible(fn (Get $get): bool => (bool) $get("{$prefix}vision_enabled"))
+                ->helperText('Off: the photo is sent straight to the model above, which must itself be vision-capable. On: a dedicated model/provider below reads the photo first and hands the agent a text description — useful when your main model has no vision support, or a different provider does a better or cheaper job just on photos.');
+            $imageFieldsActive = fn (Get $get): bool => (bool) $get("{$prefix}vision_enabled") && (bool) $get("{$prefix}image_model_enabled");
+            foreach ($this->providerConnectionFields("{$prefix}image_", $imageFieldsActive) as $field) {
+                $fields[] = $field->visible($imageFieldsActive);
+            }
+            $fields[] = Toggle::make("{$prefix}voice_enabled")
+                ->label('Transcribe voice messages')
+                ->live()
+                ->helperText("Requires a Whisper-compatible transcription model (OpenAI, Groq, or a self-hosted Whisper server). The customer's voice note is sent privately to this provider; the transcript is saved onto the message and answered like a normal text message.");
+            $fields[] = TextInput::make("{$prefix}voice_provider")
+                ->label('Provider name (label only)')
+                ->placeholder('e.g. OpenAI, Groq')
+                ->helperText("Just for your own reference — doesn't affect the request.")
+                ->maxLength(100)
+                ->visible(fn (Get $get): bool => (bool) $get("{$prefix}voice_enabled"));
+            $fields[] = TextInput::make("{$prefix}voice_base_url")
+                ->label('Base URL (optional)')
+                ->url()
+                ->maxLength(500)
+                ->placeholder('Leave blank for https://api.openai.com/v1/audio/transcriptions')
+                ->helperText('e.g. Groq: https://api.groq.com/openai/v1/audio/transcriptions')
+                ->columnSpanFull()
+                ->visible(fn (Get $get): bool => (bool) $get("{$prefix}voice_enabled"));
+            $fields[] = TextInput::make("{$prefix}voice_model")
+                ->label('Model')
+                ->placeholder('whisper-1')
+                ->maxLength(100)
+                ->visible(fn (Get $get): bool => (bool) $get("{$prefix}voice_enabled"));
+            $fields[] = TextInput::make("{$prefix}voice_api_key")
+                ->label('API Key')
+                ->password()
+                ->revealable()
+                ->maxLength(500)
+                ->placeholder(fn (Get $get): string => $get("{$prefix}voice_has_api_key") ? '••••••••' : 'sk-...')
+                ->helperText(fn (Get $get): string => $get("{$prefix}voice_has_api_key")
+                    ? 'Already saved and encrypted — leave blank to keep it.'
+                    : 'Stored encrypted per company.')
+                ->visible(fn (Get $get): bool => (bool) $get("{$prefix}voice_enabled"));
+            $fields[] = Toggle::make("{$prefix}review_mode")->label('Draft replies for staff review')->helperText('Suggestions appear in CRM → Sales Automation. No automatic reply is sent in this mode.');
+            foreach (['daily_run_limit' => 'Daily run limit', 'max_run_tokens' => 'Token budget per run', 'daily_budget_usd' => 'Daily estimated budget (USD)', 'input_cost_per_million' => 'Input price per million tokens (USD)', 'output_cost_per_million' => 'Output price per million tokens (USD)', 'follow_up_delay_hours' => 'Sales follow-up delay (hours)'] as $key => $label) {
+                $fields[] = TextInput::make($prefix.$key)->label($label)->numeric()->minValue(0)->required();
+            }
+            $fields[] = Toggle::make("{$prefix}sales_follow_ups_enabled")->label('Enable sales follow-ups')->helperText('One approved-template follow-up per checkout link or sent quotation; stops after reply, purchase, opt-out or handoff.');
+            $fields[] = TextInput::make("{$prefix}follow_up_template")->label('Approved WhatsApp follow-up template')->helperText('Template must accept one body parameter: customer name.');
+            $fields[] = TextInput::make("{$prefix}follow_up_template_language")->label('Template language')->maxLength(20);
+            $fields[] = TextInput::make("{$prefix}confidence_threshold")
+                ->label('Confidence threshold (0–1)')
+                ->numeric()
+                ->step(0.05)
+                ->minValue(0)
+                ->maxValue(1)
+                ->required()
+                ->helperText('Replies below this confidence are held for a human instead of being sent.');
+            $fields[] = TextInput::make("{$prefix}max_consecutive_ai_replies")
+                ->label('Max consecutive AI replies')
+                ->numeric()
+                ->minValue(1)
+                ->maxValue(20)
+                ->required();
+            $fields[] = Textarea::make("{$prefix}brand_voice")
+                ->label('Brand voice (optional)')
+                ->rows(3)
+                ->maxLength(2000)
+                ->placeholder("e.g. friendly, uses simple Bengali, addresses customers as 'আপনি'")
+                ->columnSpanFull();
+        }
+
+        return $fields;
+    }
+
+    /**
+     * The "provider connection" field set shared by every AI credential
+     * block on this page: the main tool models (Auto Messaging / Ad
+     * Assistant / Landing Page Builder) and the two Auto-Messaging-only
+     * sub-models below (image reading, voice transcription — voice builds
+     * its own smaller field set instead, since transcription is a different
+     * wire shape these quick-setup chat presets don't apply to). $prefix is
+     * the Livewire state-path prefix (e.g. "ai_messaging_" or
+     * "ai_messaging_image_") so no two credential blocks' fields collide.
+     * $requiredWhen defaults to always-required (the main tool blocks, whose
+     * fields are always on screen); the image sub-model block passes its own
+     * visibility condition here too, so a hidden, switched-off sub-model
+     * never blocks the form from saving (Filament does not skip validation
+     * on a merely-invisible field — required() must be conditioned to match,
+     * the same pattern already used throughout this codebase, e.g.
+     * CloudStorageSettings::required(fn (Get $get) => $get('enabled'))).
+     */
+    protected function providerConnectionFields(string $prefix, bool|\Closure $requiredWhen = true): array
+    {
+        $presets = $this->llmProviderPresets();
+        $presetOptions = collect($presets)->map(fn (array $preset): string => $preset['label'])->all();
+
+        return [
             Select::make("{$prefix}provider_preset")
                 ->label('Quick setup: pick a popular provider')
                 ->options($presetOptions)
@@ -353,14 +477,14 @@ class Integrations extends Page
                     'openai' => 'OpenAI-compatible (Chat Completions)',
                 ])
                 ->helperText('Almost every non-Anthropic provider (OpenAI, DeepSeek, Groq, Mistral, OpenRouter, xAI, a self-hosted Ollama/vLLM, ...) speaks the "OpenAI-compatible" format — pick that and set the base URL below to add any of them.')
-                ->required()
+                ->required($requiredWhen)
                 ->live()
                 ->native(false),
             TextInput::make("{$prefix}provider")
                 ->label('Provider name (label only)')
                 ->placeholder('e.g. DeepSeek, Groq, OpenRouter')
                 ->helperText("Just for your own reference — doesn't affect the request. Auto-filled by the quick-setup picker above.")
-                ->required()
+                ->required($requiredWhen)
                 ->maxLength(100),
             TextInput::make("{$prefix}base_url")
                 ->label('Base URL (optional)')
@@ -384,7 +508,7 @@ class Integrations extends Page
             TextInput::make("{$prefix}model")
                 ->label('Model')
                 ->placeholder('claude-haiku-4-5-20251001')
-                ->required()
+                ->required($requiredWhen)
                 ->maxLength(100),
             TextInput::make("{$prefix}api_key")
                 ->label('API Key')
@@ -396,56 +520,6 @@ class Integrations extends Page
                     ? 'Already saved and encrypted — leave blank to keep it.'
                     : 'Stored encrypted per company.'),
         ];
-
-        if ($messagingExtras) {
-            $fields[] = MarkdownEditor::make("{$prefix}sales_guidelines")
-                ->label('সেলস এজেন্টের কথাবার্তার নির্দেশনা')
-                ->helperText('লেখা, শিরোনাম, তালিকা ও উদাহরণ এডিট করে Save changes চাপুন। সেভ করা নির্দেশনা এই কোম্পানির পরবর্তী AI উত্তরে ব্যবহৃত হবে। উদাহরণের দাম ও প্রতিশ্রুতি প্রকৃত তথ্য নয়; FAQ-এর প্রস্তুত উত্তর আলাদাভাবে এডিট করতে হবে। ছবি শনাক্তকরণ বা নতুন অর্ডার-অ্যাকশন শুধু নির্দেশনা লিখে চালু হয় না।')
-                ->toolbarButtons(['bold', 'italic', 'heading', 'bulletList', 'orderedList', 'blockquote', 'table', 'undo', 'redo'])
-                ->maxLength(16000)
-                ->hintAction(Action::make('restoreSalesGuidelines')
-                    ->label('ডিফল্ট লেখা ফিরিয়ে আনুন')
-                    ->action(fn (Set $set) => $set("{$prefix}sales_guidelines", app(AiSettingsService::class)->defaultSalesGuidelines())))
-                ->columnSpanFull();
-            $fields[] = Toggle::make("{$prefix}vision_enabled")
-                ->label('Read customer images (vision)')
-                ->live()
-                ->afterStateUpdated(function (bool $state, Get $get, Set $set) use ($prefix): void {
-                    if ($state && (int) $get($prefix.'max_run_tokens') < 30000) {
-                        $set($prefix.'max_run_tokens', 30000);
-                    }
-                })
-                ->helperText('Requires a vision-capable model. Enabling raises the per-run token budget to at least 30,000 for image input; review the budget before saving. The latest customer image is sent privately to your AI provider.');
-            $fields[] = Toggle::make("{$prefix}review_mode")->label('Draft replies for staff review')->helperText('Suggestions appear in CRM → Sales Automation. No automatic reply is sent in this mode.');
-            foreach (['daily_run_limit' => 'Daily run limit', 'max_run_tokens' => 'Token budget per run', 'daily_budget_usd' => 'Daily estimated budget (USD)', 'input_cost_per_million' => 'Input price per million tokens (USD)', 'output_cost_per_million' => 'Output price per million tokens (USD)', 'follow_up_delay_hours' => 'Sales follow-up delay (hours)'] as $key => $label) {
-                $fields[] = TextInput::make($prefix.$key)->label($label)->numeric()->minValue(0)->required();
-            }
-            $fields[] = Toggle::make("{$prefix}sales_follow_ups_enabled")->label('Enable sales follow-ups')->helperText('One approved-template follow-up per checkout link or sent quotation; stops after reply, purchase, opt-out or handoff.');
-            $fields[] = TextInput::make("{$prefix}follow_up_template")->label('Approved WhatsApp follow-up template')->helperText('Template must accept one body parameter: customer name.');
-            $fields[] = TextInput::make("{$prefix}follow_up_template_language")->label('Template language')->maxLength(20);
-            $fields[] = TextInput::make("{$prefix}confidence_threshold")
-                ->label('Confidence threshold (0–1)')
-                ->numeric()
-                ->step(0.05)
-                ->minValue(0)
-                ->maxValue(1)
-                ->required()
-                ->helperText('Replies below this confidence are held for a human instead of being sent.');
-            $fields[] = TextInput::make("{$prefix}max_consecutive_ai_replies")
-                ->label('Max consecutive AI replies')
-                ->numeric()
-                ->minValue(1)
-                ->maxValue(20)
-                ->required();
-            $fields[] = Textarea::make("{$prefix}brand_voice")
-                ->label('Brand voice (optional)')
-                ->rows(3)
-                ->maxLength(2000)
-                ->placeholder("e.g. friendly, uses simple Bengali, addresses customers as 'আপনি'")
-                ->columnSpanFull();
-        }
-
-        return $fields;
     }
 
     protected function getHeaderActions(): array
@@ -1135,8 +1209,14 @@ class Integrations extends Page
                     'max_consecutive_ai_replies' => $state["{$prefix}max_consecutive_ai_replies"] ?? null,
                     'brand_voice' => $state["{$prefix}brand_voice"] ?? null,
                     'sales_guidelines' => $state["{$prefix}sales_guidelines"] ?? null,
-                    ...collect(['vision_enabled', 'review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language'])->mapWithKeys(fn ($key) => [$key => $state[$prefix.$key] ?? null])->all(),
+                    ...collect([
+                        'vision_enabled', 'image_model_enabled', 'image_api_format', 'image_provider', 'image_base_url', 'image_model',
+                        'voice_enabled', 'voice_provider', 'voice_base_url', 'voice_model',
+                        'review_mode', 'daily_run_limit', 'max_run_tokens', 'daily_budget_usd', 'input_cost_per_million', 'output_cost_per_million', 'sales_follow_ups_enabled', 'follow_up_delay_hours', 'follow_up_template', 'follow_up_template_language',
+                    ])->mapWithKeys(fn ($key) => [$key => $state[$prefix.$key] ?? null])->all(),
                     'api_key' => $state["{$prefix}api_key"] ?? null,
+                    'image_api_key' => $state["{$prefix}image_api_key"] ?? null,
+                    'voice_api_key' => $state["{$prefix}voice_api_key"] ?? null,
                 ]);
             }
         }

@@ -55,6 +55,58 @@ class AiSettingsServiceTest extends TestCase
         $this->assertSame('gsk-test-key', $settings['api_key']);
     }
 
+    /**
+     * The separate image-reading and voice-transcription sub-models are
+     * their own credential set — own provider/model/API key, encrypted and
+     * decrypted independently of the main model's api_key.
+     */
+    public function test_image_and_voice_sub_model_credentials_round_trip_independently_of_the_main_model(): void
+    {
+        $company = $this->company();
+
+        app(AiSettingsService::class)->save($company, AiSettingsService::TOOL_MESSAGING, [
+            'enabled' => true,
+            'api_format' => 'anthropic',
+            'provider' => 'Anthropic (Claude)',
+            'model' => 'claude-haiku-4-5-20251001',
+            'api_key' => 'main-key',
+            'vision_enabled' => true,
+            'image_model_enabled' => true,
+            'image_api_format' => 'openai',
+            'image_provider' => 'OpenRouter',
+            'image_base_url' => 'https://openrouter.ai/api/v1/chat/completions',
+            'image_model' => 'google/gemini-3-flash-preview',
+            'image_api_key' => 'image-key',
+            'voice_enabled' => true,
+            'voice_provider' => 'Groq',
+            'voice_base_url' => 'https://api.groq.com/openai/v1/audio/transcriptions',
+            'voice_model' => 'whisper-large-v3',
+            'voice_api_key' => 'voice-key',
+        ]);
+
+        $settings = app(AiSettingsService::class)->all($company->fresh(), AiSettingsService::TOOL_MESSAGING);
+
+        $this->assertSame('main-key', $settings['api_key']);
+        $this->assertTrue($settings['image_model_enabled']);
+        $this->assertSame('openai', $settings['image_api_format']);
+        $this->assertSame('google/gemini-3-flash-preview', $settings['image_model']);
+        $this->assertSame('image-key', $settings['image_api_key']);
+        $this->assertTrue($settings['voice_enabled']);
+        $this->assertSame('whisper-large-v3', $settings['voice_model']);
+        $this->assertSame('voice-key', $settings['voice_api_key']);
+
+        // Leaving the sub-model API keys out of a later save keeps them —
+        // the same "blank means unchanged" rule the main api_key already has.
+        app(AiSettingsService::class)->save($company->fresh(), AiSettingsService::TOOL_MESSAGING, [
+            'enabled' => true, 'api_format' => 'anthropic', 'provider' => 'Anthropic (Claude)',
+            'model' => 'claude-haiku-4-5-20251001', 'api_key' => 'main-key',
+        ]);
+
+        $settings = app(AiSettingsService::class)->all($company->fresh(), AiSettingsService::TOOL_MESSAGING);
+        $this->assertSame('image-key', $settings['image_api_key']);
+        $this->assertSame('voice-key', $settings['voice_api_key']);
+    }
+
     public function test_an_invalid_api_format_falls_back_to_the_default(): void
     {
         $company = $this->company();

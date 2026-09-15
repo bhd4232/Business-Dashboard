@@ -109,6 +109,85 @@ class CrmSalesAutomationTest extends TestCase
         Http::assertSent(fn ($request) => data_get($request->data(), 'messages.1.content.0.image_url.url') === 'data:image/jpeg;base64,abc');
     }
 
+    /**
+     * With a separate image model configured, the customer's photo never
+     * reaches the main tool-calling model as raw bytes — a dedicated
+     * model/provider describes it first, and that plain-text description
+     * (persisted onto the message) is what the main model actually sees.
+     */
+    public function test_separate_image_model_describes_the_photo_before_it_reaches_the_main_model(): void
+    {
+        Storage::fake('local');
+        $this->settings([
+            'vision_enabled' => true,
+            'image_model_enabled' => true,
+            'image_api_format' => 'anthropic',
+            'image_model' => 'claude-vision-test',
+            'image_api_key' => 'image-key',
+            'max_run_tokens' => 30000,
+        ]);
+        $image = imagecreatetruecolor(20, 20);
+        ob_start();
+        imagepng($image);
+        $bytes = ob_get_clean();
+        imagedestroy($image);
+        $path = app(CompanyStorageService::class)->putPrivate($this->company, 'conversation-media', 'vision.png', $bytes);
+        $photo = $this->conversation->messages()->create(['direction' => 'incoming', 'type' => 'image', 'body' => null, 'media_path' => $path, 'media_mime' => 'image/png', 'sent_at' => now()]);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::sequence()
+                ->push(['content' => [['type' => 'text', 'text' => 'A blue smart lamp, brand unreadable.']], 'usage' => ['input_tokens' => 5, 'output_tokens' => 5]])
+                ->push($this->response(['reply_keys' => [], 'prompt_key' => 'variant', 'language' => 'bn'])),
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'vision-reply']]]),
+        ]);
+
+        app(AiReplyService::class)->maybeReply($this->conversation);
+
+        $this->assertSame('sent', CrmAiRun::query()->latest('id')->first()->status);
+        $this->assertStringContainsString('blue smart lamp', $photo->fresh()->body);
+        // The second (main-model) request carries the description as plain
+        // text, never the image bytes.
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'anthropic')
+            && is_string(data_get(collect($request['messages'])->last(), 'content'))
+            && str_contains((string) data_get(collect($request['messages'])->last(), 'content'), 'blue smart lamp'));
+    }
+
+    /** A voice note is transcribed first, then answered exactly like a typed message. */
+    public function test_voice_note_is_transcribed_and_flows_through_the_normal_reply_pipeline(): void
+    {
+        Storage::fake('local');
+        $this->settings(['voice_enabled' => true, 'voice_api_key' => 'voice-key', 'max_run_tokens' => 30000]);
+        $path = app(CompanyStorageService::class)->putPrivate($this->company, 'conversation-media', 'note.ogg', 'fake-audio-bytes');
+        $note = $this->conversation->messages()->create(['direction' => 'incoming', 'type' => 'audio', 'body' => null, 'media_path' => $path, 'media_mime' => 'audio/ogg', 'sent_at' => now()]);
+
+        Http::fake([
+            'api.openai.com/v1/audio/transcriptions' => Http::response(['text' => 'ল্যাম্পের দাম কত?']),
+            'api.anthropic.com/*' => Http::response($this->response(['reply_keys' => [], 'prompt_key' => 'variant', 'language' => 'bn'])),
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'voice-reply']]]),
+        ]);
+
+        app(AiReplyService::class)->maybeReply($this->conversation);
+
+        $this->assertSame('ল্যাম্পের দাম কত?', $note->fresh()->body);
+        $this->assertSame('sent', CrmAiRun::query()->latest('id')->first()->status);
+    }
+
+    /** Voice transcription left off (the default) is a graceful, deterministic fallback — never a silent drop or an LLM call. */
+    public function test_voice_note_without_transcription_configured_gets_a_graceful_fallback(): void
+    {
+        Storage::fake('local');
+        $path = app(CompanyStorageService::class)->putPrivate($this->company, 'conversation-media', 'note.ogg', 'fake-audio-bytes');
+        $this->conversation->messages()->create(['direction' => 'incoming', 'type' => 'audio', 'body' => null, 'media_path' => $path, 'media_mime' => 'audio/ogg', 'sent_at' => now()]);
+
+        Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'voice-fallback']]])]);
+
+        app(AiReplyService::class)->maybeReply($this->conversation);
+
+        $this->assertSame('ভয়েস মেসেজটি শুনতে পারছি না। লিখে জানান।', $this->conversation->messages()->where('direction', 'outgoing')->sole()->body);
+        $this->assertSame('open', $this->conversation->fresh()->status);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'anthropic') || str_contains($request->url(), 'openai'));
+    }
+
     public function test_business_suite_echo_syncs_once_and_pauses_ai_without_creating_an_incoming_message(): void
     {
         Queue::fake();

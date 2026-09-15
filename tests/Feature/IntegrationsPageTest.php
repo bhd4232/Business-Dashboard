@@ -41,6 +41,70 @@ class IntegrationsPageTest extends TestCase
         $this->assertSame('', app(AiSettingsService::class)->all($company->fresh(), 'ad_assistant')['sales_guidelines']);
     }
 
+    /**
+     * The image sub-model credential block only renders (and is only
+     * required) once both "Read customer images" and "Use a separate model
+     * for images" are on — leaving it off must never block saving the rest
+     * of the form, since those fields are hidden and optional by default.
+     */
+    public function test_vision_alone_saves_without_the_optional_separate_image_model_fields(): void
+    {
+        $company = $this->makeCompany();
+        $this->actingAs($this->makeSuperAdmin($company))
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Livewire::test(Integrations::class)
+            ->set('data.ai_messaging_api_format', 'anthropic')
+            ->set('data.ai_messaging_provider', 'Anthropic (Claude)')
+            ->set('data.ai_messaging_model', 'claude-haiku-4-5-20251001')
+            ->set('data.ai_messaging_api_key', 'messaging-key')
+            ->set('data.ai_messaging_vision_enabled', true)
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $settings = app(AiSettingsService::class)->all($company->fresh(), 'messaging');
+        $this->assertTrue($settings['vision_enabled']);
+        $this->assertFalse($settings['image_model_enabled']);
+    }
+
+    public function test_separate_image_model_and_voice_transcription_settings_save_and_reload(): void
+    {
+        $company = $this->makeCompany();
+        $this->actingAs($this->makeSuperAdmin($company))
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Livewire::test(Integrations::class)
+            ->set('data.ai_messaging_api_format', 'anthropic')
+            ->set('data.ai_messaging_provider', 'Anthropic (Claude)')
+            ->set('data.ai_messaging_model', 'claude-haiku-4-5-20251001')
+            ->set('data.ai_messaging_api_key', 'messaging-key')
+            ->set('data.ai_messaging_vision_enabled', true)
+            ->set('data.ai_messaging_image_model_enabled', true)
+            ->set('data.ai_messaging_image_api_format', 'openai')
+            ->set('data.ai_messaging_image_provider', 'OpenRouter')
+            ->set('data.ai_messaging_image_model', 'google/gemini-3-flash-preview')
+            ->set('data.ai_messaging_image_api_key', 'image-key')
+            ->set('data.ai_messaging_voice_enabled', true)
+            ->set('data.ai_messaging_voice_provider', 'Groq')
+            ->set('data.ai_messaging_voice_base_url', 'https://api.groq.com/openai/v1/audio/transcriptions')
+            ->set('data.ai_messaging_voice_model', 'whisper-large-v3')
+            ->set('data.ai_messaging_voice_api_key', 'voice-key')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        Livewire::test(Integrations::class)
+            ->assertSet('data.ai_messaging_image_model_enabled', true)
+            ->assertSet('data.ai_messaging_image_model', 'google/gemini-3-flash-preview')
+            ->assertSet('data.ai_messaging_image_has_api_key', true)
+            ->assertSet('data.ai_messaging_voice_enabled', true)
+            ->assertSet('data.ai_messaging_voice_model', 'whisper-large-v3')
+            ->assertSet('data.ai_messaging_voice_has_api_key', true);
+
+        $settings = app(AiSettingsService::class)->all($company->fresh(), 'messaging');
+        $this->assertSame('image-key', $settings['image_api_key']);
+        $this->assertSame('voice-key', $settings['voice_api_key']);
+    }
+
     public function test_super_admin_can_save_every_tab_in_one_go_for_a_brand_new_company(): void
     {
         $company = $this->makeCompany();

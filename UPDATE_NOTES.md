@@ -2,6 +2,34 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-15 - CRM: separate image-reading and voice-transcription models for Auto Messaging
+
+Reason — owner: "এজেন্ট যেন ইমেজ পড়তে পারে তার জন্য আলাদা ইমেজ মডেল এবং ভয়েস পড়ার জন্য ভয়েস ট্রান্সক্রাইব মডেল এড করার অপশন যুক্ত কর" (add an option for a separate image model so the agent can read images, and a voice transcribe model for voice). Follow-up to explaining two Inbox issues: Messenger profile-lookup errors (Meta platform limitation, no fix needed) and the "ছবিটি পড়তে পারছি না" reply the AI gives on customer photos (vision was simply off/using the main model, and voice notes had no AI handling at all).
+
+What was built:
+
+- **Auto Messaging → two new optional sub-models**, both off by default:
+  - **Separate image model** (`image_model_enabled` + its own `image_api_format`/`image_provider`/`image_base_url`/`image_model`/`image_api_key`, same free-provider shape as the main model). New `AiVisionDescriber` service calls it once per photo and writes a plain-text description onto the message's own `body`; `AiReplyService::conversationContext()` only attaches the raw image bytes inline when this is off (unchanged legacy behavior — main model must be vision-capable).
+  - **Voice transcription** (`voice_enabled` + `voice_provider`/`voice_base_url`/`voice_model`/`voice_api_key`, fixed to the OpenAI-Whisper-compatible `/audio/transcriptions` wire shape — the one nearly every STT provider speaks). New `AiVoiceTranscriber` service transcribes the note and writes the transcript onto the message's `body`, *before* the handoff-keyword and FAQ checks run, so a spoken complaint or question is caught the same as a typed one.
+  - Both fall back to a graceful, deterministic Bengali reply ("ছবিটি পড়তে পারছি না...", "ভয়েস মেসেজটি শুনতে পারছি না...") when off or when the call fails — never a silent drop, never blocks the rest of the conversation.
+- **`DownloadConversationMediaJob`** now also queues `AiAutoReplyJob` for incoming `audio` messages once the media download completes (previously only `image`) — without this, a voice note's AI job would never fire at all.
+- **Integrations page:** extracted the main tool's credential-field block into a reusable `providerConnectionFields($prefix, $requiredWhen = true)` so the new image sub-model reuses the exact same quick-setup-provider/model-picker UI; `$requiredWhen` matters because Filament does **not** skip validation on a merely-hidden field here (confirmed via the existing `CloudStorageSettings`/`SystemEmailSettings` conditional-`required()` pattern already used throughout this codebase) — without it, turning on "Read customer images" alone (separate model still off) would have permanently blocked saving the form.
+
+Important changed/new files:
+
+- `app/Services/Crm/AiVisionDescriber.php`, `app/Services/Crm/AiVoiceTranscriber.php` (new)
+- `app/Services/Crm/AiSettingsService.php` — new `image_*`/`voice_*` defaults, encrypted sub-keys, save mapping.
+- `app/Services/Crm/AiReplyService.php` — audio transcription + image-description branches in `processReply()`, `image_model_enabled` guard in `conversationContext()`.
+- `app/Jobs/DownloadConversationMediaJob.php` — dispatch `AiAutoReplyJob` for `audio` too.
+- `app/Filament/Pages/Integrations.php` — `providerConnectionFields()` extraction, new toggles/fields for both sub-models, `aiToolFillState()`/`save()` wiring.
+- `tests/Feature/AiSettingsServiceTest.php`, `tests/Feature/IntegrationsPageTest.php`, `tests/Feature/CrmSalesAutomationTest.php` — new coverage (5 new tests).
+
+Known simplification, flagged for the owner rather than silently built in: the separate image/voice model calls' token usage is **not** included in the per-run cost/budget tracking (`daily_budget_usd`, `input_cost_per_million`, etc.) — those only account for the main model's own calls, same as before this change. Fine for now since both sub-models are opt-in and typically cheap/low-volume (one call per photo or voice note), but worth a follow-up if usage grows.
+
+Verification: `php artisan test tests/Feature/AiSettingsServiceTest.php tests/Feature/IntegrationsPageTest.php tests/Feature/CrmSalesAutomationTest.php tests/Feature/AiAutoReplyTest.php tests/Feature/MetaMessagingReliabilityTest.php` — 99 passed (413 assertions). Full `php artisan test` (plain, no `--env`) — **1300 passed, 0 failed** (6650 assertions, ~568s). `npm run build` not run — no frontend asset changed (Filament/Livewire only).
+
+Commit status: Not committed — awaiting owner approval.
+
 ## 2026-09-13 - Investor / Mudarabah module v3 — Sprint 3 (P3)
 
 Reason — owner: "p3 এর কাজ শুরু কর" (start the P3 work) — closing out `01_INVESTOR_MODULE_v3_GAP_ANALYSIS.md`'s final sprint after Sprint 1 (`b3ed2063`) and Sprint 2 (`3d91be3e`).

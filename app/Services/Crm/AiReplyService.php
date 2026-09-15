@@ -36,6 +36,10 @@ class AiReplyService
         'মানুষ', 'এজেন্ট', 'refund', 'complaint', 'discount', 'negotiat', 'human', 'agent',
     ];
 
+    protected const IMAGE_UNAVAILABLE_REPLY = 'ছবিটি পড়তে পারছি না। প্রোডাক্টের নামটি লিখে দিন।';
+
+    protected const VOICE_UNAVAILABLE_REPLY = 'ভয়েস মেসেজটি শুনতে পারছি না। লিখে জানান।';
+
     /** Money amounts collected from tool results during the current run. */
     protected array $groundedAmounts = [];
 
@@ -123,9 +127,24 @@ class AiReplyService
         if (! $incoming
             || (int) $incoming->conversation_id !== (int) $conversation->getKey()
             || $incoming->direction !== 'incoming'
-            || (blank($incoming->body) && $incoming->type !== 'image')
+            || (blank($incoming->body) && ! in_array($incoming->type, ['image', 'audio'], true))
             || $this->hasReplyForSource($conversation, $incoming)) {
             return;
+        }
+
+        // A voice note carries no body yet - transcribe it into one before the
+        // handoff-keyword/FAQ checks below, which both read $incoming->body,
+        // so a spoken complaint or question is caught the same as a typed one.
+        if ($incoming->type === 'audio') {
+            $transcript = $settings['voice_enabled'] ? app(AiVoiceTranscriber::class)->transcribe($incoming, $settings) : null;
+
+            if (! $transcript) {
+                $this->sendAiReply($conversation, $incoming, self::VOICE_UNAVAILABLE_REPLY, 1.0, ['source' => 'voice_unavailable']);
+
+                return;
+            }
+
+            $incoming->forceFill(['body' => $transcript])->save();
         }
 
         // Complaints, price negotiation, and explicit human requests are never
@@ -136,7 +155,30 @@ class AiReplyService
             return;
         }
 
-        if ($incoming->type === 'image' && (! $settings['vision_enabled'] || ! app(AiImageInput::class)->block($incoming))) {
+        if ($incoming->type === 'image' && ! $settings['vision_enabled']) {
+            $this->sendAiReply($conversation, $incoming, self::IMAGE_UNAVAILABLE_REPLY, 1.0, ['source' => 'image_unavailable']);
+
+            return;
+        }
+
+        if ($incoming->type === 'image' && $settings['image_model_enabled']) {
+            // A separate model describes the photo in plain text; that
+            // description becomes this message's body, so the raw image
+            // never has to reach (or be supported by) the main model below.
+            $description = app(AiVisionDescriber::class)->describe($incoming, $settings);
+
+            if (! $description) {
+                $this->sendAiReply($conversation, $incoming, self::IMAGE_UNAVAILABLE_REPLY, 1.0, ['source' => 'image_unavailable']);
+
+                return;
+            }
+
+            $incoming->forceFill(['body' => trim((string) $incoming->body) !== ''
+                ? trim($incoming->body).' ['.$description.']'
+                : $description])->save();
+        }
+
+        if ($incoming->type === 'image' && ! $settings['image_model_enabled'] && ! app(AiImageInput::class)->block($incoming)) {
             $this->sendAiReply($conversation, $incoming, 'ছবিটি পড়তে পারছি না। প্রোডাক্টের নামটি লিখে দিন।', 1.0, ['source' => 'image_unavailable']);
 
             return;
@@ -432,8 +474,13 @@ class AiReplyService
 
     protected function conversationContext(Conversation $conversation): array
     {
-        $vision = $this->settings->all($conversation->company, AiSettingsService::TOOL_MESSAGING)['vision_enabled'];
-        $imageId = $vision ? $conversation->messages()->where('direction', 'incoming')->where('type', 'image')->latest('id')->value('id') : null;
+        $settings = $this->settings->all($conversation->company, AiSettingsService::TOOL_MESSAGING);
+        // Only attach the raw image bytes inline when there is no separate
+        // image model — that path already replaced the image message's body
+        // with a plain-text description (see processReply), so it needs no
+        // special handling here at all.
+        $inlineVision = $settings['vision_enabled'] && ! $settings['image_model_enabled'];
+        $imageId = $inlineVision ? $conversation->messages()->where('direction', 'incoming')->where('type', 'image')->latest('id')->value('id') : null;
 
         return $conversation->messages()
             ->where('type', '!=', 'note')

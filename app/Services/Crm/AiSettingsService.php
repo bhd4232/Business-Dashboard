@@ -58,6 +58,25 @@ class AiSettingsService
         'brand_voice' => '',
         'review_mode' => false,
         'vision_enabled' => false,
+        // A separate model just for reading customer photos (messaging tool
+        // only). Off by default: vision_enabled alone keeps sending the raw
+        // image inline to the main chat model above, which must itself be
+        // vision-capable. Turning this on instead describes the photo with
+        // its own model/provider first, and only that plain-text description
+        // (never the image bytes) reaches the main tool-calling model.
+        'image_model_enabled' => false,
+        'image_api_format' => 'anthropic',
+        'image_provider' => 'Anthropic (Claude)',
+        'image_base_url' => '',
+        'image_model' => 'claude-haiku-4-5-20251001',
+        // Voice-note transcription (messaging tool only). Only the
+        // OpenAI-compatible /audio/transcriptions (Whisper) shape is
+        // supported — the one wire format nearly every STT provider
+        // (OpenAI, Groq, a self-hosted whisper.cpp server, ...) speaks.
+        'voice_enabled' => false,
+        'voice_provider' => 'OpenAI (Whisper)',
+        'voice_base_url' => '',
+        'voice_model' => 'whisper-1',
         'daily_run_limit' => 300,
         'max_run_tokens' => 20000,
         'daily_budget_usd' => 0,
@@ -80,6 +99,8 @@ class AiSettingsService
         $settings = array_merge(self::DEFAULTS, $stored);
         $settings['sales_guidelines'] = $stored['sales_guidelines'] ?? ($tool === self::TOOL_MESSAGING ? $this->defaultSalesGuidelines() : '');
         $settings['api_key'] = $this->decrypt($stored['api_key'] ?? null);
+        $settings['image_api_key'] = $this->decrypt($stored['image_api_key'] ?? null);
+        $settings['voice_api_key'] = $this->decrypt($stored['voice_api_key'] ?? null);
 
         return $settings;
     }
@@ -103,6 +124,23 @@ class AiSettingsService
             'sales_guidelines' => mb_substr(trim((string) ($data['sales_guidelines'] ?? $existing['sales_guidelines'] ?? ($tool === self::TOOL_MESSAGING ? $this->defaultSalesGuidelines() : ''))), 0, 16000),
             'review_mode' => (bool) ($data['review_mode'] ?? $existing['review_mode'] ?? false),
             'vision_enabled' => (bool) ($data['vision_enabled'] ?? $existing['vision_enabled'] ?? false),
+            'image_model_enabled' => (bool) ($data['image_model_enabled'] ?? $existing['image_model_enabled'] ?? false),
+            'image_api_format' => in_array($data['image_api_format'] ?? '', ['anthropic', 'openai'], true)
+                ? $data['image_api_format']
+                : self::DEFAULTS['image_api_format'],
+            'image_provider' => trim((string) ($data['image_provider'] ?? '')) ?: self::DEFAULTS['image_provider'],
+            'image_base_url' => trim((string) ($data['image_base_url'] ?? '')),
+            'image_model' => trim((string) ($data['image_model'] ?? self::DEFAULTS['image_model'])) ?: self::DEFAULTS['image_model'],
+            'image_api_key' => filled($data['image_api_key'] ?? null)
+                ? Crypt::encryptString(trim((string) $data['image_api_key']))
+                : ($existing['image_api_key'] ?? null),
+            'voice_enabled' => (bool) ($data['voice_enabled'] ?? $existing['voice_enabled'] ?? false),
+            'voice_provider' => trim((string) ($data['voice_provider'] ?? '')) ?: self::DEFAULTS['voice_provider'],
+            'voice_base_url' => trim((string) ($data['voice_base_url'] ?? '')),
+            'voice_model' => trim((string) ($data['voice_model'] ?? self::DEFAULTS['voice_model'])) ?: self::DEFAULTS['voice_model'],
+            'voice_api_key' => filled($data['voice_api_key'] ?? null)
+                ? Crypt::encryptString(trim((string) $data['voice_api_key']))
+                : ($existing['voice_api_key'] ?? null),
             'daily_run_limit' => max(1, min(10000, (int) ($data['daily_run_limit'] ?? $existing['daily_run_limit'] ?? 300))),
             'max_run_tokens' => max(3000, min(50000, (int) ($data['max_run_tokens'] ?? $existing['max_run_tokens'] ?? 20000))),
             'daily_budget_usd' => max(0, (float) ($data['daily_budget_usd'] ?? $existing['daily_budget_usd'] ?? 0)),

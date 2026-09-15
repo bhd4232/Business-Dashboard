@@ -6,6 +6,13 @@ All notable production changes to Business Dashboard are documented here.
 
 ### Added
 
+- **CRM Auto Messaging can now use a separate model just for reading customer photos, and a separate model to transcribe voice notes.** Previously, "Read customer images (vision)" required the main chat model itself to be vision-capable, and a voice note got no AI reply at all. Two new options on the Integrations page (Auto Messaging tab):
+  - **"Use a separate model for images"** — turn this on to pick its own provider/model/API key (any Anthropic or OpenAI-compatible vision model) just for reading photos. That model describes the photo in plain text first; only the description (never the photo itself) reaches the main chat model — useful when the main model has no vision support, or a cheaper/better model should handle photos specifically.
+  - **"Transcribe voice messages"** — turn this on and add a Whisper-compatible transcription provider (OpenAI, Groq, or a self-hosted Whisper server) to have voice notes transcribed and answered exactly like a typed message (FAQ matching, handoff keywords, and the sales agent all apply to the transcript). Left off, a voice note now gets a graceful "please type it" reply instead of silently going unanswered.
+  - Both are optional and off by default — existing configurations (main model handles images inline, voice notes unanswered) are unchanged unless explicitly turned on.
+
+  **Technical Notes:** new `AiVisionDescriber` and `AiVoiceTranscriber` services; new encrypted `image_api_key`/`voice_api_key` settings alongside the existing per-tool credential shape in `AiSettingsService`. `DownloadConversationMediaJob` now also queues the AI reply job for incoming voice notes (previously only images), and `AiReplyService` writes the transcript/description onto the source message's own `body` so it flows through the existing text-based reply pipeline unchanged.
+
 - **Investor / Mudarabah module, Sprint 3 (P3 — polish, PII, test coverage):** NID/passport numbers are now encrypted at rest, the settlement view shows gross profit, an investment's cheque number is visible without an extra click, and three genuine bugs from the audit are fixed.
   - **PII encryption:** an investor's NID/passport, their nominee's NID/passport, and a security instrument's guarantor NID/passport are now encrypted at rest (the same `encrypted` Eloquent cast this app already uses for stored access tokens and storefront checkout details) instead of sitting in plaintext columns.
   - **Gross profit** (Selling − Landed Cost) now shows on a settlement's own admin page, not only on the printable per-investor report.
