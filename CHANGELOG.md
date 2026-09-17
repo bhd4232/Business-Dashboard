@@ -4,6 +4,12 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Orders: auto shipping-cost zone detection now reads a customer's address in Bangla too, and a manually typed shipping fee is no longer wiped out when auto-detection fails.** Previously the zone matcher only recognized a district's official English spelling (e.g. "Chattogram"), so an address written in Bangla script (ঢাকা, চট্টগ্রাম, …) or an older/informal English spelling (Chittagong, Comilla, Bogra, Barisal, Jessore, …) always fell through to "Could not detect a zone from the customer address" — and on top of that, if staff then typed the shipping fee in by hand, saving the order silently reset it back to ৳0.
+
+  **Technical Notes:** `ShippingFeeService::determineZone()` now also matches each configured zone keyword against `BangladeshDistricts::aliasesFor()` (the Bengali name and any older English spelling for that district/suburb). `Order`'s `creating` hook now only auto-computes `shipping_fee` when one hasn't already been set to a real amount, so a manual entry survives even when `shipping_zone` stays null.
+
 ## [2.18.0] - 2026-09-15
 
 **Release type:** Minor Feature Update

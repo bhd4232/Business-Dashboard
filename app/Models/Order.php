@@ -202,7 +202,14 @@ class Order extends Model
                 $order->courier_provider_id = CourierProvider::defaultForCompany($order->company_id)?->getKey();
             }
 
-            if ($order->shipping_zone === null && $order->company) {
+            // Only auto-fill when nobody has already put a real shipping fee
+            // on the order. The admin order form always submits a
+            // `shipping_zone` of null when it couldn't auto-detect a zone
+            // from the customer's address (see ShippingFeeService), even if
+            // staff then typed the fee in manually — without the extra
+            // shipping_fee check here, that manual entry was silently
+            // discarded and replaced with the same failed 0 fee.
+            if ($order->shipping_zone === null && (float) ($order->shipping_fee ?? 0) <= 0 && $order->company) {
                 $fee = app(ShippingFeeService::class)->feeFor($order->customer?->address, $order->company);
                 $order->shipping_zone = $fee['zone'];
                 $order->shipping_fee = $fee['fee'];

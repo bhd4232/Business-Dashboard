@@ -29,6 +29,32 @@ class ShippingFeeServiceTest extends TestCase
         $this->assertNull($service->determineZone(null, $company));
     }
 
+    public function test_determine_zone_matches_bengali_and_alternate_spellings(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'Zone Company '.uniqid(),
+            'slug' => 'zone-company-'.uniqid(),
+            'invoice_prefix' => 'ZC'.rand(100, 999),
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+            'settings' => [
+                'shipping_zones' => [
+                    'inside' => ['Dhaka'],
+                    'outside' => ['Chattogram', 'Cumilla'],
+                    'suburb' => ['Savar'],
+                ],
+            ],
+        ]);
+        $service = app(ShippingFeeService::class);
+
+        $this->assertSame('inside', $service->determineZone('বাড়ি ১২, রোড ৫, গুলশান, ঢাকা', $company));
+        $this->assertSame('outside', $service->determineZone('Agrabad, Chittagong', $company));
+        $this->assertSame('outside', $service->determineZone('আগ্রাবাদ, চট্টগ্রাম', $company));
+        $this->assertSame('outside', $service->determineZone('Comilla Sadar', $company));
+        $this->assertSame('suburb', $service->determineZone('সেক্টর ৩, সাভার', $company));
+    }
+
     public function test_fee_for_uses_first_active_courier_providers_delivery_fees(): void
     {
         $company = $this->companyWithZones();
@@ -124,6 +150,59 @@ class ShippingFeeServiceTest extends TestCase
         $this->assertSame('inside', $order->shipping_zone);
         $this->assertSame('60.00', $order->shipping_fee);
         $this->assertSame('560.00', $order->total_amount);
+    }
+
+    public function test_manually_entered_shipping_fee_survives_when_zone_cannot_be_detected(): void
+    {
+        $company = $this->companyWithZones();
+        app(CompanyContext::class)->set($company);
+
+        $customer = Customer::query()->create([
+            'name' => 'No Zone Customer',
+            'phone' => '+8801711113333',
+            'address' => 'Somewhere unlisted',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
+
+        $product = Product::query()->create([
+            'name' => 'Manual Shipping Fee Product',
+            'sku' => 'SHIP-FEE-MANUAL-SKU',
+            'price' => 500,
+            'sale_price' => 500,
+            'cost_price' => 300,
+            'stock' => 5,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'company_id' => $company->getKey(),
+            'is_active' => true,
+        ]);
+
+        $order = Order::query()->create([
+            'company_id' => $company->getKey(),
+            'customer_id' => $customer->getKey(),
+            'discount' => 0,
+            'vat' => 0,
+            'shipping_zone' => null,
+            'shipping_fee' => 150,
+            'paid_amount' => 0,
+            'status' => 'draft',
+        ]);
+
+        OrderItem::query()->create([
+            'order_id' => $order->getKey(),
+            'product_id' => $product->getKey(),
+            'quantity' => 1,
+            'unit_price' => 500,
+            'unit_cost' => 300,
+        ]);
+
+        $order->refresh();
+
+        $this->assertNull($order->shipping_zone);
+        $this->assertSame('150.00', $order->shipping_fee);
+        $this->assertSame('650.00', $order->total_amount);
     }
 
     protected function companyWithZones(): Company

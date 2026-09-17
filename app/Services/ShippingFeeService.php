@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Company;
 use App\Models\CourierProvider;
+use App\Support\BangladeshDistricts;
 
 class ShippingFeeService
 {
@@ -11,10 +12,14 @@ class ShippingFeeService
 
     /**
      * Matches a free-text address against the company's admin-configured
-     * area keyword lists (ERP Settings > Shipping Zones). The first zone
-     * whose keyword list contains a match wins; returns null if nothing
-     * matches so callers can fall back to no shipping fee rather than
-     * guessing a zone.
+     * area keyword lists (ERP Settings > Shipping Zones). The keyword lists
+     * are always the canonical English district/area names, but a customer
+     * writes their address in whatever spelling or script they use — so
+     * each keyword is also matched against its Bengali name and any older
+     * English spelling (BangladeshDistricts::aliasesFor()), not just its own
+     * text. The first zone whose keyword list contains a match wins; returns
+     * null if nothing matches so callers can fall back to no shipping fee
+     * rather than guessing a zone.
      */
     public function determineZone(?string $address, Company $company): ?string
     {
@@ -28,10 +33,18 @@ class ShippingFeeService
 
         foreach (self::ZONES as $zone) {
             foreach ((array) ($areas[$zone] ?? []) as $keyword) {
-                $keyword = mb_strtolower(trim((string) $keyword));
+                $keyword = trim((string) $keyword);
 
-                if ($keyword !== '' && str_contains($address, $keyword)) {
-                    return $zone;
+                if ($keyword === '') {
+                    continue;
+                }
+
+                $candidates = [$keyword, ...BangladeshDistricts::aliasesFor($keyword)];
+
+                foreach ($candidates as $candidate) {
+                    if (str_contains($address, mb_strtolower(trim($candidate)))) {
+                        return $zone;
+                    }
                 }
             }
         }

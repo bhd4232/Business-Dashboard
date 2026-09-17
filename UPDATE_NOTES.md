@@ -2,6 +2,27 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-17 - Orders: shipping-zone detection now reads Bangla addresses, manual shipping fee no longer wiped out
+
+Reason — owner: "কাস্টমার এর এড্রেস বাংলাতে বা ইংলিশে লিখলে অটো শিপিং কস্ট যুক্ত হয় লেখা আসে 'Could not detect a zone from the customer address — set manually if needed.'। কিন্তু ম্যানুয়ালি শিপিং কস্ট যুক্ত করলে সেটা যুক্ত হয়না। কাস্টমার এড্রেস যেন বাংলায় বা ইংরেজিতে লিখলে সেটা পড়তে পারে সেই সিস্টেম করে দেও।" (Whether a customer's address is in Bangla or English, auto shipping cost doesn't get added — it shows "Could not detect a zone…". Manually adding a shipping cost also doesn't get added. Make the system able to read the address in either Bangla or English.)
+
+Root cause — two separate bugs, both on the order create form's shipping fee:
+
+1. **Zone keyword matching was English-only, and only the current official spelling.** `ShippingFeeService::determineZone()` matches the customer's address against the company's Shipping Zones settings, but those keyword lists are always the canonical English district/area name (`BangladeshDistricts::options()`, e.g. "Chattogram", "Cumilla", "Bogura"). An address written in Bangla script (ঢাকা, চট্টগ্রাম, …) never matched at all, and neither did the older/informal English spelling most people actually still type (Chittagong, Comilla, Bogra, Barisal, Jessore, …) — so real customer addresses routinely fell through to "Could not detect a zone."
+2. **A manually-typed shipping fee was discarded on save whenever auto-detection failed.** `Order`'s `creating` hook re-runs the zone/fee lookup and overwrites `shipping_fee` whenever `shipping_zone` is null — which is exactly the state left behind by a failed auto-detection, regardless of whether staff had since typed a real amount into the Shipping Fee field. The hook has no way to tell "auto-detect never ran" apart from "auto-detect ran, failed, and a human already fixed it by hand" — it treated both the same and clobbered the manual entry back to ৳0.
+
+What changed:
+
+- `app/Support/BangladeshDistricts.php` — new `ALIASES` map (Bengali name + known older English spelling for every district and suburb area) and `aliasesFor()` lookup.
+- `app/Services/ShippingFeeService.php` — `determineZone()` also checks each configured keyword's aliases, not just its own text, so a Bangla or old-spelling address now matches the same zone an English/new-spelling address would.
+- `app/Models/Order.php` — the `creating` hook's auto-fill now also requires `shipping_fee` to still be at zero/unset (`(float) ($order->shipping_fee ?? 0) <= 0`), so a manually-entered non-zero fee always survives, even when the zone genuinely can't be detected.
+
+Important changed files: `app/Support/BangladeshDistricts.php`, `app/Services/ShippingFeeService.php`, `app/Models/Order.php`, `tests/Feature/ShippingFeeServiceTest.php`.
+
+Verification: `php artisan test tests/Feature/ShippingFeeServiceTest.php tests/Feature/SalesOrderTest.php tests/Feature/OrderStatusWorkflowTest.php tests/Feature/OrderFormTest.php tests/Feature/CourierIntegrationTest.php tests/Feature/StorefrontCheckoutPolicyTest.php tests/Feature/CompanySettingsTest.php` — 76 passed (420 assertions). Full `php artisan test` (plain, no `--env`) — **1302 passed, 0 failed** (6658 assertions, ~595s). `npm run build` not run — no frontend asset changed (PHP only).
+
+Commit status: NOT committed. Awaiting owner approval.
+
 ## 2026-09-15 - CRM: separate image-reading and voice-transcription models for Auto Messaging
 
 Reason — owner: "এজেন্ট যেন ইমেজ পড়তে পারে তার জন্য আলাদা ইমেজ মডেল এবং ভয়েস পড়ার জন্য ভয়েস ট্রান্সক্রাইব মডেল এড করার অপশন যুক্ত কর" (add an option for a separate image model so the agent can read images, and a voice transcribe model for voice). Follow-up to explaining two Inbox issues: Messenger profile-lookup errors (Meta platform limitation, no fix needed) and the "ছবিটি পড়তে পারছি না" reply the AI gives on customer photos (vision was simply off/using the main model, and voice notes had no AI handling at all).
