@@ -2,6 +2,20 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-17 - Orders: auto shipping fee ignored the real default courier when a company has more than one
+
+Reason — owner: after the previous shipping-zone fix (`4cef5b8a`) deployed, reported it was still broken live: "এখনো তো ম্যানুয়ালি শিপিং কস্ট যুক্ত করে সেভ করলাম কিন্তু সেইভ হচ্ছেনা, আর এড্রেস অনুযায়ী অটো কোন শিপিং চার্জ বসছেনা।" Checked the two obvious explanations first — deployment lag and unconfigured Shipping Zones — and the owner's screenshots ruled both out: commit `4cef5b8a` was live and healthy in Coolify, and ZamZam Gadget's Shipping Zones (Inside/Outside/Suburb) plus Steadfast's delivery fees (৳70/110/90) were already properly configured.
+
+Root cause: `ShippingFeeService::defaultCourierProvider()` picked "the company's first active courier provider" by lowest database id — a different, ad-hoc definition of "default courier" from the one used everywhere else in the app (`CourierProvider::defaultForCompany()`, which honors the "Set as default courier" toggle). A company with more than one active courier provider — where the fees-configured, marked-default one isn't the lowest-id row — got ৳0 shipping on every order no matter how correctly the zone was detected, because the fee lookup silently read a *different* provider's (usually empty) `delivery_fees`. The same wrong lookup fed the CRM sales bot's delivery-fee quote (`AiReplyService`, `SalesReplyRenderer`).
+
+What changed: `ShippingFeeService::defaultCourierProvider()` now delegates to `CourierProvider::defaultForCompany()` instead of its own `orderBy('id')->first()` query — one single, consistent notion of "default courier" across order pre-assignment, shipping fee pricing, and the CRM bot's fee quote.
+
+Important changed files: `app/Services/ShippingFeeService.php`, `tests/Feature/ShippingFeeServiceTest.php`, `tests/Feature/OrderFormTest.php` (added a Livewire-form-level regression test for the earlier manual-fee fix too, to cover the actual `CreateOrder` schema rather than only the Eloquent layer).
+
+Verification: `php artisan test tests/Feature/ShippingFeeServiceTest.php tests/Feature/OrderFormTest.php tests/Feature/CourierIntegrationTest.php` — 41 passed (191 assertions). Full `php artisan test` (plain, no `--env`) — **1304 passed, 0 failed** (6665 assertions, ~1504s). `npm run build` not run — no frontend asset changed (PHP only).
+
+Commit status: NOT committed. Awaiting owner approval.
+
 ## 2026-09-17 - Orders: shipping-zone detection now reads Bangla addresses, manual shipping fee no longer wiped out
 
 Reason — owner: "কাস্টমার এর এড্রেস বাংলাতে বা ইংলিশে লিখলে অটো শিপিং কস্ট যুক্ত হয় লেখা আসে 'Could not detect a zone from the customer address — set manually if needed.'। কিন্তু ম্যানুয়ালি শিপিং কস্ট যুক্ত করলে সেটা যুক্ত হয়না। কাস্টমার এড্রেস যেন বাংলায় বা ইংরেজিতে লিখলে সেটা পড়তে পারে সেই সিস্টেম করে দেও।" (Whether a customer's address is in Bangla or English, auto shipping cost doesn't get added — it shows "Could not detect a zone…". Manually adding a shipping cost also doesn't get added. Make the system able to read the address in either Bangla or English.)

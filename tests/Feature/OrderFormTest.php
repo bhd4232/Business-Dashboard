@@ -141,6 +141,72 @@ class OrderFormTest extends TestCase
     }
 
     /**
+     * Regression test for the real owner report: on the live Create Order
+     * form (not just at the Eloquent layer), selecting a customer whose
+     * address doesn't match any configured shipping zone first drives
+     * shipping_fee to 0 via customer_id's afterStateUpdated hook — typing a
+     * real amount into Shipping Fee afterwards must still win at save time.
+     */
+    public function test_manually_typed_shipping_fee_on_the_live_form_is_not_reset_to_zero(): void
+    {
+        $company = Company::query()->create([
+            'name' => 'No Zone Co',
+            'slug' => 'no-zone-co',
+            'invoice_prefix' => 'NZC',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($company);
+
+        $customer = Customer::query()->create([
+            'name' => 'No Zone Buyer',
+            'phone' => '01788888888',
+            'address' => 'Somewhere not in any configured zone',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
+        $product = Product::query()->create([
+            'name' => 'No Zone Product',
+            'sku' => 'NZC-PROD-001',
+            'price' => 100,
+            'sale_price' => 100,
+            'cost_price' => 60,
+            'stock' => 10,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+
+        $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $this->actingAs($user)->withSession(['current_company_id' => $company->id]);
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                // customer_id first: its afterStateUpdated runs setShippingFee(),
+                // which fails to detect a zone and drives shipping_fee to 0 —
+                // exactly like real browser use, before the manual edit below.
+                'customer_id' => $customer->id,
+                'order_date' => now()->toDateString(),
+                'status' => 'draft',
+                'delivery_status' => CourierBooking::STATUS_NOT_BOOKED,
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 100],
+                ],
+                'shipping_fee' => 250,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $order = Order::query()->where('customer_id', $customer->id)->firstOrFail();
+
+        $this->assertSame('250.00', $order->shipping_fee);
+        $this->assertSame('350.00', $order->total_amount);
+    }
+
+    /**
      * Regression test for a real production bug: paid_amount/due_amount on
      * the edit form are readOnly (see OrderForm) but that alone doesn't stop
      * them being submitted — before dehydrated(false) was added, saving the

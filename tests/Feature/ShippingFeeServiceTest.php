@@ -78,6 +78,50 @@ class ShippingFeeServiceTest extends TestCase
         $this->assertNotNull($result['courier_provider_id']);
     }
 
+    /**
+     * Regression test: a company with more than one active courier provider
+     * must price a zone using the one explicitly marked "Set as default
+     * courier" (the same courier CourierProvider::defaultForCompany() picks
+     * for new orders) — not whichever active provider happens to have the
+     * lowest id. Before this fix, feeFor() always used the lowest-id active
+     * provider regardless of which one was actually marked default, so a
+     * zone could be correctly detected and still price at ৳0 if fees were
+     * only configured on the real default courier.
+     */
+    public function test_fee_for_uses_the_courier_marked_as_default_not_the_lowest_id_one(): void
+    {
+        $company = $this->companyWithZones();
+
+        CourierProvider::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => 'No Fees Courier',
+            'slug' => 'no-fees-courier',
+            'driver' => CourierProvider::DRIVER_MANUAL,
+            'credentials' => [],
+            'settings' => [],
+            'is_active' => true,
+            'is_default' => false,
+        ]);
+
+        CourierProvider::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => 'Steadfast',
+            'slug' => 'steadfast',
+            'driver' => CourierProvider::DRIVER_MANUAL,
+            'credentials' => [],
+            'settings' => [
+                'delivery_fees' => ['inside' => 70, 'outside' => 110, 'suburb' => 90],
+            ],
+            'is_active' => true,
+            'is_default' => true,
+        ]);
+
+        $result = app(ShippingFeeService::class)->feeFor('Gulshan, Dhaka', $company);
+
+        $this->assertSame('inside', $result['zone']);
+        $this->assertSame(70.0, $result['fee']);
+    }
+
     public function test_fee_for_returns_zero_when_no_active_courier_provider_exists(): void
     {
         $company = $this->companyWithZones();

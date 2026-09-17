@@ -54,15 +54,17 @@ class ShippingFeeService
 
     /**
      * The courier whose "Set Delivery Fees" apply before an order has an
-     * actual booking: the company's first active courier provider.
+     * actual booking: the company's explicitly marked default courier
+     * (Courier Providers > "Set as default courier"), the same one
+     * CourierProvider::defaultForCompany() pre-assigns to new orders — not
+     * just whichever active provider happens to have the lowest id. A
+     * company with more than one active courier but no default marked (or
+     * fees only configured on the non-default one) would otherwise silently
+     * price every zone at ৳0 regardless of a correctly detected zone.
      */
     public function defaultCourierProvider(Company $company): ?CourierProvider
     {
-        return CourierProvider::query()
-            ->where('company_id', $company->getKey())
-            ->where('is_active', true)
-            ->orderBy('id')
-            ->first();
+        return CourierProvider::defaultForCompany($company->getKey());
     }
 
     /**

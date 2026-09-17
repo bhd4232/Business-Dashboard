@@ -4,6 +4,12 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Orders: auto shipping fee could stay ৳0 even with a correctly detected zone, when a company has more than one courier provider.** `ShippingFeeService` priced a detected zone using whichever active courier provider happened to have the lowest database id — not necessarily the one actually marked "Set as default courier." A company with a second courier added later (or fees only configured on the real default) would silently get ৳0 shipping on every order regardless of the customer's address, and the CRM sales bot's delivery-fee quote had the same problem.
+
+  **Technical Notes:** `ShippingFeeService::defaultCourierProvider()` now delegates to `CourierProvider::defaultForCompany()` — the same "is_default, falling back to the sole active provider" lookup already used to pre-assign `courier_provider_id` on new orders — instead of its own inconsistent `orderBy('id')->first()` query.
+
 ## [2.18.1] - 2026-09-17
 
 **Release type:** Patch/Fix Update
