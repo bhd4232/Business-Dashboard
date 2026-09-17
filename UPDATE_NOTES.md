@@ -21,7 +21,7 @@ Important changed files: `app/Support/BangladeshDistricts.php`, `app/Services/Sh
 
 Verification: `php artisan test tests/Feature/ShippingFeeServiceTest.php tests/Feature/SalesOrderTest.php tests/Feature/OrderStatusWorkflowTest.php tests/Feature/OrderFormTest.php tests/Feature/CourierIntegrationTest.php tests/Feature/StorefrontCheckoutPolicyTest.php tests/Feature/CompanySettingsTest.php` — 76 passed (420 assertions). Full `php artisan test` (plain, no `--env`) — **1302 passed, 0 failed** (6658 assertions, ~595s). `npm run build` not run — no frontend asset changed (PHP only).
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: Committed (`4cef5b8a`) and pushed to `origin/main` (owner approved: "কমিট এবং পুশ কর").
 
 ## 2026-09-15 - CRM: separate image-reading and voice-transcription models for Auto Messaging
 
