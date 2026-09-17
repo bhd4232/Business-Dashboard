@@ -14,7 +14,7 @@ Important changed files: `app/Services/ShippingFeeService.php`, `tests/Feature/S
 
 Verification: `php artisan test tests/Feature/ShippingFeeServiceTest.php tests/Feature/OrderFormTest.php tests/Feature/CourierIntegrationTest.php` — 41 passed (191 assertions). Full `php artisan test` (plain, no `--env`) — **1304 passed, 0 failed** (6665 assertions, ~1504s). `npm run build` not run — no frontend asset changed (PHP only).
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: Committed (`6780d04b`) and pushed to `origin/main` (owner approved: "কমিট এবং পুশ কর").
 
 ## 2026-09-17 - Orders: shipping-zone detection now reads Bangla addresses, manual shipping fee no longer wiped out
 
