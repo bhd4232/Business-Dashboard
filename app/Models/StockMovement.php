@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Services\StockMovementService;
+use App\Services\WebsiteWebhookDispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -78,6 +79,14 @@ class StockMovement extends Model
             app(StockMovementService::class)->syncProductStock($movement->product_id);
 
             app(StockMovementService::class)->maybeCreatePoolTransfer($movement);
+
+            // The website API's own stock-sync request is the one case that
+            // must NOT echo a webhook straight back to the company that just
+            // caused it — every other movement (admin edits, purchases,
+            // sales, WooCommerce sync, ...) does need to reach the website.
+            if ($movement->reference_type !== CompanyApiKey::class && $movement->product) {
+                app(WebsiteWebhookDispatcher::class)->dispatchProductUpdated($movement->product);
+            }
         });
 
         static::deleted(function (StockMovement $movement): void {

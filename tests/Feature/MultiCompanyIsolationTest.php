@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\ChannelPartnerPayout;
 use App\Models\ChatOrderLink;
 use App\Models\Company;
+use App\Models\CompanyApiKey;
 use App\Models\CompanyFaq;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Container;
@@ -111,6 +112,7 @@ class MultiCompanyIsolationTest extends TestCase
             Lead::class, Quotation::class, QuotationItem::class,
             Conversation::class, ConversationChannel::class,
             ChatOrderLink::class, CompanyFaq::class, QuickReply::class,
+            CompanyApiKey::class,
             InvestmentProject::class, Investor::class,
             Investment::class, ProjectCostItem::class,
             InvestorSecurityInstrument::class, InvestmentWitness::class, InvestmentDocument::class,

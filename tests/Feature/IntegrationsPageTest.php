@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\Integrations;
+use App\Jobs\DispatchWebsiteWebhookJob;
 use App\Jobs\RetryStorefrontMetaEventJob;
 use App\Livewire\MetaEventLogTable;
+use App\Livewire\WebsiteApiKeysTable;
 use App\Models\Company;
+use App\Models\CompanyApiKey;
 use App\Models\CourierProvider;
 use App\Models\MetaAdAccount;
 use App\Models\StorefrontMetaEvent;
@@ -457,6 +460,90 @@ class IntegrationsPageTest extends TestCase
         Livewire::test(Integrations::class)
             ->call('testWoocommerceWebhook')
             ->assertNotified('Webhook test failed: HTTP 403');
+    }
+
+    public function test_website_api_credentials_save_and_reload(): void
+    {
+        $company = $this->makeCompany();
+        $this->actingAs($this->makeSuperAdmin($company))
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Livewire::test(Integrations::class)
+            ->set('data.website_api_credentials.webhook_url', 'https://website.example.com/webhooks/zamzam')
+            ->set('data.website_api_credentials.webhook_secret', 'a-generated-secret')
+            ->set('data.website_api_credentials.is_enabled', true)
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->first();
+        $this->assertSame('https://website.example.com/webhooks/zamzam', $setting->website_api_credentials['webhook_url']);
+        $this->assertTrue($setting->website_api_credentials['is_enabled']);
+    }
+
+    public function test_website_api_test_webhook_warns_when_not_saved_yet(): void
+    {
+        $company = $this->makeCompany();
+        $this->actingAs($this->makeSuperAdmin($company))
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Queue::fake();
+
+        Livewire::test(Integrations::class)
+            ->call('testWebsiteWebhook')
+            ->assertNotified('Webhook URL or secret not saved yet');
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_website_api_test_webhook_queues_a_signed_ping(): void
+    {
+        $company = $this->makeCompany();
+        $this->actingAs($this->makeSuperAdmin($company))
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        StorefrontSetting::query()->create([
+            'company_id' => $company->getKey(),
+            'website_api_credentials' => [
+                'webhook_url' => 'https://website.example.com/webhooks/zamzam',
+                'webhook_secret' => 'a-generated-secret',
+                'is_enabled' => false,
+            ],
+        ]);
+
+        Queue::fake();
+
+        Livewire::test(Integrations::class)
+            ->call('testWebsiteWebhook')
+            ->assertNotified('Test webhook queued');
+
+        Queue::assertPushed(DispatchWebsiteWebhookJob::class, fn (DispatchWebsiteWebhookJob $job): bool => $job->event === 'ping'
+            && $job->url === 'https://website.example.com/webhooks/zamzam');
+    }
+
+    public function test_website_api_keys_table_generates_and_revokes_a_key(): void
+    {
+        $company = $this->makeCompany();
+        $this->actingAs($this->makeSuperAdmin($company))
+            ->withSession(['current_company_id' => $company->getKey(), 'current_company_selection_explicit' => true]);
+
+        Livewire::test(WebsiteApiKeysTable::class)
+            ->mountTableAction('generateApiKey')
+            ->setTableActionData(['label' => 'Tasneem Knitting website'])
+            ->callMountedTableAction()
+            ->assertHasNoTableActionErrors()
+            ->assertNotified('API key generated — copy it now');
+
+        $key = CompanyApiKey::withoutGlobalScopes()->where('company_id', $company->getKey())->sole();
+        $this->assertSame('Tasneem Knitting website', $key->label);
+        $this->assertFalse($key->isRevoked());
+
+        Livewire::test(WebsiteApiKeysTable::class)
+            ->mountTableAction('revoke', $key)
+            ->callMountedTableAction()
+            ->assertHasNoTableActionErrors()
+            ->assertNotified('API key revoked');
+
+        $this->assertTrue($key->fresh()->isRevoked());
     }
 
     public function test_sync_order_action_warns_when_site_url_or_api_keys_are_not_saved(): void

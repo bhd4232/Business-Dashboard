@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Services\WebsiteWebhookDispatcher;
 use App\Support\StorefrontListingCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -10,6 +11,14 @@ use Illuminate\Support\Str;
 class Product extends Model
 {
     use BelongsToCompany;
+
+    /**
+     * Set by the website API's PATCH /products/{sku} controller right
+     * before saving a change it just made, so the outbound webhook doesn't
+     * immediately echo that same change back to the website that sent it —
+     * same pattern as Order::$suppressWooCommercePush.
+     */
+    public bool $suppressWebsiteWebhook = false;
 
     public const STATUS_AVAILABLE = 'available';
 
@@ -80,7 +89,18 @@ class Product extends Model
             $product->slug = static::uniqueSlug($product);
         });
 
-        static::saved(fn (Product $product) => StorefrontListingCache::forgetCompany($product->company_id));
+        static::saved(function (Product $product): void {
+            StorefrontListingCache::forgetCompany($product->company_id);
+
+            // Stock is deliberately excluded here: it only ever changes via
+            // a StockMovement (StockMovementService::syncProductStock()
+            // writes the derived total through a query-builder mass update,
+            // which never fires this hook anyway) — StockMovement::booted()
+            // is the single dispatch point for stock-driven webhooks.
+            if (! $product->suppressWebsiteWebhook && $product->wasChanged(['price', 'sale_price'])) {
+                app(WebsiteWebhookDispatcher::class)->dispatchProductUpdated($product);
+            }
+        });
         static::deleted(fn (Product $product) => StorefrontListingCache::forgetCompany($product->company_id));
     }
 
@@ -239,8 +259,21 @@ class Product extends Model
         return $slug;
     }
 
-    public function setStockFromProductForm(int $targetStock): void
-    {
+    /**
+     * $referenceType/$referenceId/$reason/$note let a caller other than the
+     * admin product form (currently: the website API's stock-sync endpoint,
+     * see App\Http\Controllers\Api\V1\ProductController) stamp the resulting
+     * StockMovement with its own origin instead of `self::class` — this is
+     * how StockMovement::booted()'s webhook dispatch trigger tells an
+     * API-originated adjustment apart from an admin-made one.
+     */
+    public function setStockFromProductForm(
+        int $targetStock,
+        ?string $referenceType = null,
+        ?int $referenceId = null,
+        ?string $reason = null,
+        ?string $note = null,
+    ): void {
         $this->refresh();
 
         $currentStock = (int) $this->stock;
@@ -254,10 +287,10 @@ class Product extends Model
                 'product_id' => $this->getKey(),
                 'type' => 'opening',
                 'quantity' => $targetStock,
-                'reference_type' => self::class,
-                'reference_id' => $this->getKey(),
-                'reason' => 'Opening stock setup',
-                'note' => 'Opening stock from product form',
+                'reference_type' => $referenceType ?? self::class,
+                'reference_id' => $referenceId ?? $this->getKey(),
+                'reason' => $reason ?? 'Opening stock setup',
+                'note' => $note ?? 'Opening stock from product form',
             ]);
 
             return;
@@ -267,10 +300,10 @@ class Product extends Model
             'product_id' => $this->getKey(),
             'type' => 'adjustment',
             'quantity' => $targetStock - $currentStock,
-            'reference_type' => self::class,
-            'reference_id' => $this->getKey(),
-            'reason' => 'Product form stock correction',
-            'note' => 'Stock adjustment from product form',
+            'reference_type' => $referenceType ?? self::class,
+            'reference_id' => $referenceId ?? $this->getKey(),
+            'reason' => $reason ?? 'Product form stock correction',
+            'note' => $note ?? 'Stock adjustment from product form',
         ]);
     }
 

@@ -8,6 +8,7 @@ use App\Models\Concerns\GeneratesSequentialNumber;
 use App\Services\CustomerRiskService;
 use App\Services\OrderWorkflowService;
 use App\Services\ShippingFeeService;
+use App\Services\WebsiteWebhookDispatcher;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -138,6 +139,8 @@ class Order extends Model
 
     public const SOURCE_WOOCOMMERCE = 'woocommerce';
 
+    public const SOURCE_API = 'website_api';
+
     public const SOURCES = [
         self::SOURCE_ADMIN => 'Admin',
         self::SOURCE_STOREFRONT => 'Storefront',
@@ -145,6 +148,7 @@ class Order extends Model
         self::SOURCE_CHAT => 'Chat',
         self::SOURCE_OFFER => 'Offer',
         self::SOURCE_WOOCOMMERCE => 'WooCommerce',
+        self::SOURCE_API => 'Website (API)',
     ];
 
     protected $fillable = [
@@ -248,6 +252,14 @@ class Order extends Model
                 && ! $order->suppressWooCommercePush
             ) {
                 PushWooCommerceOrderStatusJob::dispatch($order->getKey());
+            }
+
+            // One-way ERP -> website status tracking (the owner's answer:
+            // the website only ever displays status, it never pushes one
+            // back), so no suppress flag is needed here unlike the
+            // WooCommerce push above.
+            if ($order->wasChanged(['status', 'delivery_status'])) {
+                app(WebsiteWebhookDispatcher::class)->dispatchOrderStatusUpdated($order);
             }
 
             if (

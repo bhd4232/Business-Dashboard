@@ -3,7 +3,9 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Clusters\Settings;
+use App\Jobs\DispatchWebsiteWebhookJob;
 use App\Livewire\MetaEventLogTable;
+use App\Livewire\WebsiteApiKeysTable;
 use App\Models\Company;
 use App\Models\Order;
 use App\Models\StorefrontSetting;
@@ -107,6 +109,7 @@ class Integrations extends Page
             ...$this->aiToolFillState($aiSettings, $company),
             'woocommerce_base_url' => $setting?->woocommerce_base_url,
             'woocommerce_credentials' => $setting?->woocommerce_credentials ?? [],
+            'website_api_credentials' => $setting?->website_api_credentials ?? [],
             'online_payment_enabled' => $setting?->online_payment_enabled ?? false,
             'online_payment_gateway' => $setting?->online_payment_gateway ?? 'zinipay',
             'payment_credentials' => $setting?->payment_credentials ?? [],
@@ -556,6 +559,53 @@ class Integrations extends Page
             ->visible(fn (): bool => $this->hasSelectedCompany());
     }
 
+    /**
+     * Sends a real, signed 'ping' event to this company's own saved
+     * webhook_url using the secret actually saved in the database — same
+     * "test against what's really persisted, not the unsaved form" idea as
+     * testWoocommerceWebhook() above, just in the outbound direction.
+     */
+    protected function testWebsiteWebhookAction(): Action
+    {
+        return Action::make('testWebsiteWebhook')
+            ->label('Send test webhook')
+            ->icon(Heroicon::OutlinedPaperAirplane)
+            ->color('gray')
+            ->action('testWebsiteWebhook')
+            ->visible(fn (): bool => $this->hasSelectedCompany());
+    }
+
+    public function testWebsiteWebhook(): void
+    {
+        $company = $this->selectedCompany();
+        $setting = StorefrontSetting::withoutGlobalScopes()->where('company_id', $company->getKey())->first();
+        $credentials = $setting?->website_api_credentials ?? [];
+
+        $url = (string) ($credentials['webhook_url'] ?? '');
+        $secret = (string) ($credentials['webhook_secret'] ?? '');
+
+        if ($url === '' || $secret === '') {
+            Notification::make()
+                ->title('Webhook URL or secret not saved yet')
+                ->body('Fill in both fields below and save changes first.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        // Dispatched directly (not via WebsiteWebhookDispatcher::dispatch()),
+        // which deliberately skips delivery while "Send webhooks" is off —
+        // a connectivity test needs to work before the integration goes live.
+        DispatchWebsiteWebhookJob::dispatch($url, $secret, 'ping', []);
+
+        Notification::make()
+            ->title('Test webhook queued')
+            ->body('Check your website\'s webhook endpoint logs for a "ping" event.')
+            ->success()
+            ->send();
+    }
+
     protected function syncWooOrderAction(): Action
     {
         return Action::make('syncWooOrder')
@@ -907,6 +957,42 @@ class Integrations extends Page
                             ])
                             ->columns(2),
 
+                        Tab::make('Website API')
+                            ->icon(Heroicon::OutlinedGlobeAlt)
+                            ->schema([
+                                Placeholder::make('website_api_note')
+                                    ->hiddenLabel()
+                                    ->content('Lets an external company website sync products/stock, submit orders and inquiries, and read order status. See docs/api/website-integration.md for the full contract.')
+                                    ->columnSpanFull(),
+                                SchemaLivewire::make(WebsiteApiKeysTable::class)
+                                    ->key('websiteApiKeysTable')
+                                    ->columnSpanFull(),
+                                TextInput::make('website_api_credentials.webhook_url')
+                                    ->label('Webhook delivery URL')
+                                    ->url()
+                                    ->maxLength(255)
+                                    ->helperText('Where ZamZam ERP sends order status and stock/price change notifications.')
+                                    ->columnSpanFull(),
+                                TextInput::make('website_api_credentials.webhook_secret')
+                                    ->label('Webhook signing secret')
+                                    ->password()
+                                    ->revealable()
+                                    ->maxLength(255)
+                                    ->suffixAction(
+                                        Action::make('generateWebsiteWebhookSecret')
+                                            ->icon(Heroicon::ArrowPath)
+                                            ->action(fn (Set $set) => $set('website_api_credentials.webhook_secret', Str::random(40))),
+                                    )
+                                    ->helperText('Give this to your website developer to verify the X-ZamZam-Signature header.')
+                                    ->columnSpanFull(),
+                                Toggle::make('website_api_credentials.is_enabled')
+                                    ->label('Send webhooks')
+                                    ->helperText('Off by default — turn on once the webhook URL and secret above are saved and your website is ready to receive them.')
+                                    ->columnSpanFull(),
+                                SchemaActions::make([$this->testWebsiteWebhookAction()])
+                                    ->columnSpanFull(),
+                            ]),
+
                         Tab::make('Payment Gateway')
                             ->icon(Heroicon::OutlinedCreditCard)
                             ->schema([
@@ -1226,6 +1312,7 @@ class Integrations extends Page
             Arr::only($state, [
                 'woocommerce_base_url',
                 'woocommerce_credentials',
+                'website_api_credentials',
                 'online_payment_enabled',
                 'online_payment_gateway',
                 'payment_credentials',
