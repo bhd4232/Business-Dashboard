@@ -4,12 +4,15 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-09-20
+
+**Release type:** Minor Feature Update
+
 ### Added
 
 - **New external Website Integration API** (Settings → Integrations → Website API), so a company's own customer-facing website can sync with ZamZam ERP: two-way product price/stock sync, website → ERP order and inquiry submission, and one-way ERP → website order status tracking. Real-time in both directions — inbound via a REST API, outbound via signed webhooks. Generate a per-company API key and (optionally) a webhook URL/secret from the new tab; full contract, auth, and webhook signature verification are documented in `docs/api/website-integration.md` and `docs/api/website-integration.openapi.yaml` (importable straight into Postman), with a staging setup walkthrough in `docs/api/staging-setup.md`.
 
   **Technical Notes:** new `routes/api.php` (registered in `bootstrap/app.php`), authenticated by a new per-company `CompanyApiKey` model (SHA-256-hashed bearer token, looked up before company context exists — same `withoutGlobalScopes()` precedent as `ChatOrderLink`) via the new `ResolveCompanyFromApiKey` middleware, which sets `CompanyContext` for the request. New endpoints under `/api/v1`: `GET/PATCH products/{sku}`, `GET products`, `POST orders` (idempotent on `external_reference`, new `Order::SOURCE_API`), `GET orders/{order_number}`, `POST leads` (reuses the existing `Lead::SOURCES['website']`, no model change needed). A `PATCH products/{sku}` stock update is never a raw column overwrite — `Product::setStockFromProductForm()` (already used by the admin Product form) now accepts an optional reference/reason override so the resulting `StockMovement` is stamped as API-originated, ledger-safe like every other stock change. Outbound webhooks (`order.status_updated`, `product.updated`) go through a new `WebsiteWebhookDispatcher` service + queued `DispatchWebsiteWebhookJob` (HMAC-SHA256-signed, `X-ZamZam-Signature` header), configured per company on a new encrypted `storefront_settings.website_api_credentials` column (same pattern as `woocommerce_credentials`); an API-originated stock change is deliberately not echoed back as a webhook to the same company that made it (checked via the `StockMovement.reference_type` it was stamped with), while every other stock/price/order-status change still notifies normally. New `CompanyApiKey` is added to `MultiCompanyIsolationTest`'s company-scope contract test.
-
 ## [2.18.2] - 2026-09-17
 
 **Release type:** Patch/Fix Update
