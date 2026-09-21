@@ -51,6 +51,8 @@ class Customer extends Model implements AuthenticatableContract
         'business_name',
         'reseller_note',
         'reseller_slug',
+        'reseller_payout_method',
+        'reseller_payout_details',
         'opening_balance',
         'current_balance',
         'is_active',
@@ -75,6 +77,7 @@ class Customer extends Model implements AuthenticatableContract
         'opening_balance' => 'decimal:2',
         'current_balance' => 'decimal:2',
         'is_active' => 'boolean',
+        'reseller_payout_details' => 'encrypted:array',
         'password_reset_expires_at' => 'datetime',
         'login_otp_expires_at' => 'datetime',
         'login_otp_sent_at' => 'datetime',
@@ -131,8 +134,13 @@ class Customer extends Model implements AuthenticatableContract
     public function resellerCatalog(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'reseller_products')
-            ->withPivot(['is_active'])
+            ->withPivot(['is_active', 'wholesale_rate'])
             ->withTimestamps();
+    }
+
+    public function resellerCommissions(): HasMany
+    {
+        return $this->hasMany(ResellerCommission::class, 'reseller_customer_id');
     }
 
     public function isApprovedReseller(): bool

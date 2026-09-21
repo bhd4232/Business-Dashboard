@@ -10,6 +10,7 @@ use App\Models\ChannelPartnerPayout;
 use App\Models\ChatOrderLink;
 use App\Models\Company;
 use App\Models\CompanyFaq;
+use App\Models\CompanyPayoutSetting;
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Container;
 use App\Models\Conversation;
@@ -40,14 +41,16 @@ use App\Models\MetaAd;
 use App\Models\MetaAdAccount;
 use App\Models\MetaAdCampaign;
 use App\Models\MetaAdProposal;
-use App\Models\MetaAudience;
 use App\Models\MetaAdSet;
+use App\Models\MetaAudience;
 use App\Models\Offer;
 use App\Models\OfferItem;
 use App\Models\Order;
 use App\Models\OrderCost;
 use App\Models\OrderItem;
 use App\Models\OrderPayment;
+use App\Models\PayoutBatch;
+use App\Models\PayoutItem;
 use App\Models\Product;
 use App\Models\ProductCarousel;
 use App\Models\ProductReview;
@@ -55,9 +58,10 @@ use App\Models\ProjectCostItem;
 use App\Models\ProjectSettlement;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\QuickReply;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
-use App\Models\QuickReply;
+use App\Models\ResellerCommission;
 use App\Models\SettlementPayout;
 use App\Models\Shipment;
 use App\Models\StockMovement;
@@ -111,6 +115,7 @@ class MultiCompanyIsolationTest extends TestCase
             Investment::class, ProjectCostItem::class,
             InvestorSecurityInstrument::class, ProjectSettlement::class,
             SettlementPayout::class, ChannelPartnerPayout::class,
+            CompanyPayoutSetting::class, PayoutBatch::class, PayoutItem::class, ResellerCommission::class,
             MetaAdAccount::class, MetaAdCampaign::class, MetaAdSet::class, MetaAd::class, MetaAdProposal::class, MetaAudience::class,
             Offer::class, OfferItem::class, ProductReview::class,
             Broadcast::class, Media::class, GeneratedImage::class,

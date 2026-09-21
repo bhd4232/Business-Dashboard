@@ -1263,6 +1263,76 @@ Focused verification:
 php artisan test --compact tests/Feature/InvestmentSettlementTest.php tests/Feature/MultiCompanyIsolationTest.php tests/Feature/PhaseSixPermissionsTest.php tests/Feature/AdminNavigationClustersTest.php
 ```
 
+### Payout Batch Engine (BEFTN bank payouts)
+
+Shared bank-disbursement engine under **Investments → Payout Batches**, built per `10_INVESTOR_RESELLER_AUTO_PAYOUT_PLAN.md` — Phase 1 covers only Investor/Channel-Partner payouts; a Reseller commission source is planned but not built.
+
+- **Payout Batches → Generate New Batch** pulls every pending `SettlementPayout`/`ChannelPartnerPayout` company-wide that has complete bank details (bank name, branch, routing number, account number) and isn't already sitting in another active batch. Payouts missing bank details are silently skipped, not blocked — they show an "Incomplete" bank-details badge on their own resource instead.
+- State machine (`App\Services\Payouts\PayoutBatchService`): `draft → approved → file_generated → submitted_to_bank → completed | partially_completed | failed`, plus `draft → cancelled` (releases items back to the pending pool). Every transition is a separate, deliberate action — nothing is ever submitted to a bank automatically.
+- **Generate Export File** (approved batches only) writes a CSV via `App\Contracts\BeftnFileFormatter` — `GenericBeftnCsvFormatter` is the only implementation, since no bank's exact BEFTN file format has been confirmed yet; the owner hand-uploads/re-keys it into their bank's own corporate/bulk-payment portal. **Reconcile** (per item, once a batch is marked submitted) syncs a "Paid" item's underlying payout to `paid` with the bank's transaction reference; "Failed" leaves it `pending` for correction and re-batching.
+- The company's disbursing bank account (source of BEFTN batches) is configured once on **Payout Bank Account** (`CompanyPayoutSetting`, encrypted, strictly super-admin — not the general `settings.manage` permission).
+- No new permission was added — every payout-batch action reuses `investments.settle` (today, Super Admin only via the wildcard permission), matching a single-approver flow.
+- `ChannelPartnerPayout` gained recipient bank fields (`recipient_name`, `recipient_bank_name`, `recipient_branch`, `recipient_routing_number`, `recipient_account_number`) for the first time; `SettlementPayout` gained `recipient_routing_number`.
+
+Important files:
+
+```text
+database/migrations/2026_09_17_100000_create_company_payout_settings_table.php
+database/migrations/2026_09_17_100100_create_payout_batches_table.php
+database/migrations/2026_09_17_100200_create_payout_items_table.php
+app/Models/CompanyPayoutSetting.php
+app/Models/PayoutBatch.php
+app/Models/PayoutItem.php
+app/Contracts/BeftnFileFormatter.php
+app/Services/Payouts/GenericBeftnCsvFormatter.php
+app/Services/Payouts/PayoutBatchService.php
+app/Filament/Pages/CompanyPayoutSettings.php
+app/Filament/Resources/PayoutBatches/
+app/Http/Controllers/Admin/PayoutBatchFileDownloadController.php
+tests/Feature/PayoutBatchTest.php
+tests/Feature/PayoutBatchPagesSmokeTest.php
+```
+
+Focused verification:
+
+```bash
+php artisan test --compact tests/Feature/PayoutBatchTest.php tests/Feature/PayoutBatchPagesSmokeTest.php tests/Feature/InvestmentSettlementTest.php tests/Feature/MultiCompanyIsolationTest.php
+```
+
+### Reseller Commission Engine
+
+Pays a reseller a commission on every delivered order through their store, using the same Payout Batch engine above (`App\Models\ResellerCommission` is a third `payable` type alongside `SettlementPayout`/`ChannelPartnerPayout`). Per `10_INVESTOR_RESELLER_AUTO_PAYOUT_PLAN.md` — commission is calculated off the order's actual sale price (today, the same public/tier price every customer sees); a reseller setting their own retail price is a deferred follow-up, not part of this.
+
+- Staff set a **wholesale rate per reseller-per-product** (`reseller_products.wholesale_rate`, Resellers → a reseller → **Store Products → Set Wholesale Rate** — the one staff-editable exception to that tab's otherwise reseller-self-service-only design). A commission is `(order item's unit_price − that reseller's wholesale rate for that product) × quantity`, summed across the order's items; an item whose product has no wholesale rate set yet contributes nothing rather than guessing one.
+- `App\Observers\ResellerCommissionObserver` (on `Order`, alongside `OrderNotificationObserver`) creates the commission in `holding` the moment an order reaches the same `status`+`delivery_status` pair `OrderStatusWorkflowService::transition(..., Order::STAGE_DELIVERED)` always sets together — covers manual staff actions, courier webhooks, and Steadfast sync alike. `holding_until` is `company_payout_settings.reseller_commission_hold_days` (default 3) days out; the `reseller-commissions:promote` scheduled command (daily 01:00, per company) promotes it to `payable` once that passes.
+- Staff can itemize deductions (packaging, return handling, courier/delivery charge, or anything else — a generic `[{label, amount}]` list, not fixed categories) on the **Commissions** tab's "Adjust Costs" action any time while `holding`/`payable`; they reduce `commission_amount`.
+- A commission returned/refunded while still `holding`/`payable` is reversed automatically (`App\Services\Reseller\ResellerCommissionService::reverseForOrder()`); one already `in_batch`/`paid` is left untouched and the return is only written to the audit log for manual follow-up — clawing back money already sent needs an owner-confirmed recovery rule that doesn't exist yet.
+- The reseller picks bank or an MFS method (bKash/Nagad/Rocket) on their own **Commission Payout** section (`customers.reseller_payout_method`/`reseller_payout_details`, encrypted). **Payout Batches → Generate New Batch** offers a Reseller-commissions source with that method as a picker, running the identical Approve → Generate Export File → Mark Submitted → Reconcile flow as an Investor batch — `App\Services\Payouts\PayoutFormatterResolver` picks the BEFTN CSV formatter for `bank` or `App\Services\Payouts\GenericMfsListFormatter` (a plain name/MFS-number/amount CSV — no MFS provider's disbursement API is connected yet) for an `mfs_*` method. An Investor batch and a Reseller batch due the same day stay two separate batches; they're never combined into one this round.
+- No new permission — gated by the same `Customer`-update permission (`canPerformModelAbility('update', Customer::class)`) the Reseller resource itself already uses.
+
+Important files:
+
+```text
+database/migrations/2026_09_17_100400_add_wholesale_rate_to_reseller_products_table.php
+database/migrations/2026_09_17_100500_add_reseller_payout_fields_to_customers_table.php
+database/migrations/2026_09_17_100600_create_reseller_commissions_table.php
+app/Models/ResellerCommission.php
+app/Services/Reseller/ResellerCommissionService.php
+app/Observers/ResellerCommissionObserver.php
+app/Console/Commands/PromoteResellerCommissions.php
+app/Services/Payouts/PayoutFormatterResolver.php
+app/Services/Payouts/GenericMfsListFormatter.php
+app/Filament/Resources/Resellers/RelationManagers/CommissionsRelationManager.php
+tests/Feature/ResellerCommissionTest.php
+tests/Feature/ResellerCommissionPayoutBatchTest.php
+```
+
+Focused verification:
+
+```bash
+php artisan test --compact tests/Feature/ResellerCommissionTest.php tests/Feature/ResellerCommissionPayoutBatchTest.php tests/Feature/PayoutBatchTest.php tests/Feature/ResellerResourceTest.php tests/Feature/ResellerSelfServiceTest.php tests/Feature/MultiCompanyIsolationTest.php
+```
+
 AI auto-reply (grounded-only assistant):
 
 - `AiReplyService` (`app/Services/Crm/`) — tool-calling agent (Anthropic or OpenAI via `AiLlmClient`, per-company encrypted settings in `companies.settings['ai']` via `AiSettingsService`, admin page "AI Assistant"). Dispatched by `AiAutoReplyJob` after every incoming text message.

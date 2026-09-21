@@ -12,6 +12,7 @@ use App\Models\Account;
 use App\Models\Category;
 use App\Models\ChannelPartnerPayout;
 use App\Models\Company;
+use App\Models\CompanyPayoutSetting;
 use App\Models\Customer;
 use App\Models\CustomerBlacklist;
 use App\Models\CustomerPayment;
@@ -25,11 +26,14 @@ use App\Models\Order;
 use App\Models\OrderCost;
 use App\Models\OrderItem;
 use App\Models\OrderPayment;
+use App\Models\PayoutBatch;
+use App\Models\PayoutItem;
 use App\Models\Product;
 use App\Models\ProjectCostItem;
 use App\Models\ProjectSettlement;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\ResellerCommission;
 use App\Models\SettlementPayout;
 use App\Models\StockMovement;
 use App\Models\StorefrontPage;
@@ -41,6 +45,7 @@ use App\Models\User;
 use App\Observers\AuditObserver;
 use App\Observers\CompanyNotificationObserver;
 use App\Observers\OrderNotificationObserver;
+use App\Observers\ResellerCommissionObserver;
 use App\Services\CompanyContext;
 use App\Services\CompanyStorageService;
 use App\Services\StorageSettingsService;
@@ -219,6 +224,10 @@ class AppServiceProvider extends ServiceProvider
             ProjectSettlement::class,
             SettlementPayout::class,
             ChannelPartnerPayout::class,
+            CompanyPayoutSetting::class,
+            PayoutBatch::class,
+            PayoutItem::class,
+            ResellerCommission::class,
             Order::class,
             OrderItem::class,
             OrderPayment::class,
@@ -238,6 +247,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Order::observe(OrderNotificationObserver::class);
+        Order::observe(ResellerCommissionObserver::class);
         Company::observe(CompanyNotificationObserver::class);
 
         Livewire::component('app.filament.resources.products.pages.list-products', ListProducts::class);

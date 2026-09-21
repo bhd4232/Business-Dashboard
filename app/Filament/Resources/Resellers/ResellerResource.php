@@ -6,6 +6,7 @@ use App\Filament\Clusters\Resellers;
 use App\Filament\Resources\Resellers\Pages\EditReseller;
 use App\Filament\Resources\Resellers\Pages\ListResellers;
 use App\Filament\Resources\Resellers\Pages\ViewReseller;
+use App\Filament\Resources\Resellers\RelationManagers\CommissionsRelationManager;
 use App\Filament\Resources\Resellers\RelationManagers\OrdersRelationManager;
 use App\Filament\Resources\Resellers\RelationManagers\ProductsRelationManager;
 use App\Filament\Resources\Resellers\Schemas\ResellerForm;
@@ -66,6 +67,7 @@ class ResellerResource extends Resource
         return [
             OrdersRelationManager::class,
             ProductsRelationManager::class,
+            CommissionsRelationManager::class,
         ];
     }
 

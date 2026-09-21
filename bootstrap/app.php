@@ -43,6 +43,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ->dailyAt('00:30')
             ->withoutOverlapping()
             ->onOneServer();
+        $schedule->command('reseller-commissions:promote')
+            ->dailyAt('01:00')
+            ->withoutOverlapping()
+            ->onOneServer();
         $schedule->command('release:notify-deploy')
             ->everyFiveMinutes()
             ->withoutOverlapping()
@@ -75,7 +79,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // server's real .env is wrong. Admin panel, Livewire, and API/webhook
         // requests are left completely alone — Filament and Laravel's own
         // JSON error handling for those must not be touched.
-        $exceptions->render(function (\Throwable $e, Request $request) {
+        $exceptions->render(function (Throwable $e, Request $request) {
             if (app()->environment('local', 'testing')) {
                 return null;
             }

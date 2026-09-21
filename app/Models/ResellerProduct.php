@@ -18,12 +18,14 @@ class ResellerProduct extends Model
         'customer_id',
         'product_id',
         'is_active',
+        'wholesale_rate',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'wholesale_rate' => 'decimal:2',
         ];
     }
 

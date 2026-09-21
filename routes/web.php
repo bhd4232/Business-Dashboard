@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CustomerCsvController;
 use App\Http\Controllers\Admin\InvestorContractDownloadController;
 use App\Http\Controllers\Admin\LegacyAdminClusterRedirectController;
 use App\Http\Controllers\Admin\OrderPdfController;
+use App\Http\Controllers\Admin\PayoutBatchFileDownloadController;
 use App\Http\Controllers\Admin\ProductCsvController;
 use App\Http\Controllers\Admin\PushDeviceController;
 use App\Http\Controllers\Admin\ReportExportController;
@@ -17,9 +18,9 @@ use App\Http\Controllers\Admin\VoucherAttachmentDownloadController;
 use App\Http\Controllers\Admin\VoucherReceiptController;
 use App\Http\Controllers\ChatOrderController;
 use App\Http\Controllers\CourierWebhookController;
+use App\Http\Controllers\FirebaseServiceWorkerController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\MetaWebhookController;
-use App\Http\Controllers\FirebaseServiceWorkerController;
 use App\Http\Controllers\MobileCrashReportController;
 use App\Http\Controllers\PayStationWebhookController;
 use App\Http\Controllers\QuotationPublicController;
@@ -610,6 +611,10 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/admin/investor-security-instruments/{instrument}/contract', InvestorContractDownloadController::class)
         ->whereNumber('instrument')
         ->name('investor-security-instruments.contract');
+
+    Route::get('/admin/payout-batches/{batch}/export', PayoutBatchFileDownloadController::class)
+        ->whereNumber('batch')
+        ->name('payout-batches.export');
 
     Route::get('/admin/finance/{legacy}/{path?}', LegacyAdminClusterRedirectController::class)
         ->whereIn('legacy', ['fund-sources', 'fund-transfers'])

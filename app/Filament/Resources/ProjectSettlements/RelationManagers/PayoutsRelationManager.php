@@ -24,6 +24,7 @@ class PayoutsRelationManager extends RelationManager
             TextInput::make('recipient_name')->required(),
             TextInput::make('recipient_bank_name'),
             TextInput::make('recipient_branch'),
+            TextInput::make('recipient_routing_number')->label('Routing Number')->helperText('Needed to include this payout in a BEFTN payout batch.'),
             TextInput::make('recipient_account_number'),
             Select::make('payment_method')->options(['cash' => 'Cash', 'bkash' => 'bKash', 'bank' => 'Bank', 'other' => 'Other']),
             TextInput::make('payment_reference'),
@@ -39,11 +40,22 @@ class PayoutsRelationManager extends RelationManager
             TextColumn::make('total_payout')->moneyWithoutTrailingZeroes('BDT'),
             TextColumn::make('recipient_name'),
             TextColumn::make('payment_status')->badge(),
+            TextColumn::make('bank_details')
+                ->label('Bank Details')
+                ->state(fn ($record): string => $record->hasCompleteBankDetails() ? 'Complete' : 'Incomplete')
+                ->badge()
+                ->color(fn ($record): string => $record->hasCompleteBankDetails() ? 'success' : 'gray')
+                ->tooltip('A payout needs a bank name, routing number, and account number before it can be included in a BEFTN batch.'),
+            TextColumn::make('bank_batch')
+                ->label('Bank Batch')
+                ->state(fn ($record): string => $record->hasActivePayoutItem() ? 'In a batch' : '-')
+                ->badge(fn ($record): bool => $record->hasActivePayoutItem())
+                ->color('warning'),
             TextColumn::make('paid_at')->date()->placeholder('-'),
         ])->recordActions([
-            EditAction::make()->visible(fn ($record): bool => $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false)),
+            EditAction::make()->visible(fn ($record): bool => $record->payment_status === 'pending' && ! $record->hasActivePayoutItem() && (auth()->user()?->hasPermission('investments.settle') ?? false)),
             Action::make('markPaid')->label('Mark as Paid')->icon('heroicon-o-check-circle')->color('success')
-                ->visible(fn ($record): bool => $record->payment_status === 'pending' && (auth()->user()?->hasPermission('investments.settle') ?? false))
+                ->visible(fn ($record): bool => $record->payment_status === 'pending' && ! $record->hasActivePayoutItem() && (auth()->user()?->hasPermission('investments.settle') ?? false))
                 ->requiresConfirmation()->action(function ($record): void {
                     $record->update(['payment_status' => 'paid', 'paid_at' => now()->toDateString()]);
                     $this->syncSettlementStatus();

@@ -4,6 +4,7 @@ namespace App\Services\Investment;
 
 use App\Models\ChannelPartnerPayout;
 use App\Models\InvestmentProject;
+use App\Models\Investor;
 use App\Models\ProjectSettlement;
 use App\Models\SettlementPayout;
 use App\Services\AuditLogService;
@@ -103,6 +104,7 @@ class SettlementService
                     'settlement_id' => $settlement->id,
                     'investor_id' => $partnerId,
                     'amount' => $channelPayout,
+                    'recipient_name' => Investor::query()->find($partnerId)?->name,
                 ]);
             }
 

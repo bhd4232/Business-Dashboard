@@ -1,9 +1,118 @@
 # Investor Profit ও Reseller Commission — Auto Bank/MFS Payout Plan
 
-> **Status:** Draft — কোডিং শুরুর আগে owner-এর কনফার্মেশন লাগবে (নিচে "❗ Owner Decision লাগবে" চিহ্নিত প্রতিটা জায়গায়)
-> **Created:** ২০২৬-০৯-১১
+> **Status:** Investor side (Phase 1) এবং Reseller commission side — দুটোই **কোড করা হয়েছে** ✅ (নিচে দুই সেকশন দেখুন)। এখনো বাকি: bank BEFTN connectivity mode (owner ব্যাংকের সাথে কথা বলে জানাবেন), reseller-এর storefront pricing override (deliberately deferred — দেখুন Reseller সেকশনে), MFS প্রোভাইডারের সাথে আসল disbursement API agreement।
+> **Created:** ২০২৬-০৯-১১ · **Investor side built:** ২০২৬-০৯-১৭ · **Reseller side built:** ২০২৬-০৯-১৭
 > **স্কোপ:** বিদ্যমান Investor/Mudarabah module (`01_INVESTOR_MUDARABAH_MODULE_PLAN.md`, কোড already আছে) এবং Reseller module-এর জন্য একটা **শেয়ার্ড ব্যাংক/MFS auto-payout ইঞ্জিন** — settlement/commission ক্যালকুলেশন থেকে শুরু করে ব্যাংক অ্যাকাউন্টে/MFS-এ প্রকৃত টাকা পাঠানো পর্যন্ত পুরো চেইন।
-> **এই সেশনে যা হয়েছে:** ব্যবহারকারীর নিশ্চিতকরণ অনুযায়ী **শুধু এই plan ডকুমেন্ট** — কোনো migration/model/code লেখা হয়নি।
+
+## Phase 1 — কী বানানো হয়েছে (Investor side, ২০২৬-০৯-১৭)
+
+owner-এর সিদ্ধান্ত অনুযায়ী ("Shared payout engine + শুধু Investor side") প্রথম দফায় শুধু Investor/Channel-Partner পে-আউট অংশটা বাস্তবায়িত হয়েছিল।
+
+```txt
+নতুন টেবিল: company_payout_settings, payout_batches, payout_items
+রেট্রোফিট: settlement_payouts + channel_partner_payouts-এ recipient_routing_number
+           (channel_partner_payouts আগে কোনো recipient/bank ফিল্ডই রাখেনি — এখন
+           settlement_payouts-এর মতোই পূর্ণ recipient_* সেট পেয়েছে)
+নতুন মডেল: CompanyPayoutSetting, PayoutBatch, PayoutItem
+নতুন সার্ভিস: App\Contracts\BeftnFileFormatter (interface) +
+             App\Services\Payouts\GenericBeftnCsvFormatter (Phase 1-এর একমাত্র
+             adapter — plain CSV, কোনো নির্দিষ্ট ব্যাংকের format guarantee করে না)
+             App\Services\Payouts\PayoutBatchService — state machine:
+             draft → approved → file_generated → submitted_to_bank →
+             completed | partially_completed | failed; draft → cancelled
+             ("pending_approval"-কে আলাদা status হিসেবে রাখা হয়নি — draft
+             মানেই "এখনো approve হয়নি", তাই আলাদা করার দরকার ছিল না)
+Filament UI: Investments cluster-এ নতুন "Payout Batches" resource
+             (List-এ "Generate New Batch" হেডার অ্যাকশন, View-এ Approve/
+             Cancel/Generate Export File/Mark Submitted অ্যাকশন, একটা
+             ItemsRelationManager-এ প্রতি-আইটেম Reconcile) + নতুন
+             "Payout Bank Account" page (company payout settings,
+             super-admin-only — সাধারণ settings.manage permission দিয়েও না)
+পারমিশন: নতুন কোনো permission constant যোগ হয়নি — বিদ্যমান
+          `investments.settle` (এখন পর্যন্ত শুধু super_admin-এর কাছে) পুরো
+          payout batch flow-কেও গার্ড করে — maker-checker আলাদা করে
+          চাইলে ভবিষ্যতে আলাদা permission split করা যাবে
+সেফটি: bank/mfs details incomplete থাকলে সংশ্লিষ্ট payout batch থেকে
+       silently skip হয় (ব্যাচ ব্যর্থ হয় না); একই payout দুইটা active
+       batch-এ যেতে পারে না (PayoutItem::ACTIVE_STATUSES গার্ড);
+       batch-এর ভেতরে থাকা SettlementPayout/ChannelPartnerPayout-এ পুরনো
+       ম্যানুয়াল "Mark as Paid" বাটন লুকানো থাকে যাতে ডাবল-পেমেন্ট না হয়
+টেস্ট: tests/Feature/PayoutBatchTest.php (৮টা কেস — eligibility filter,
+       double-batch guard, পুরো lifecycle draft→completed, failed
+       reconcile, cancel+rebatch, channel-partner অন্তর্ভুক্তি)
+       MultiCompanyIsolationTest-এ CompanyPayoutSetting/PayoutBatch/
+       PayoutItem যোগ হয়েছে
+বাদ পড়েছে (ইচ্ছাকৃতভাবে, এখনো দরকার নেই): mfs_bkash/nagad/rocket
+       credential ফিল্ড, beftn_integration_mode-এর UI toggle (এখন
+       hardcoded 'file_export_manual', কলাম আছে future-proofing-এর জন্য
+       কিন্তু কোনো UI/adapter এখনো এটা পড়ে না)
+```
+
+---
+
+## Phase 2 — Reseller Commission Side, কী বানানো হয়েছে (২০২৬-০৯-১৭)
+
+owner-এর confirm করা সিদ্ধান্ত (নিচে ধাপ ০-এ ✅ চিহ্নিত) অনুযায়ী কোড হয়েছে। **স্কোপ ইচ্ছাকৃতভাবে সীমিত রাখা হয়েছে:** storefront checkout pricing অপরিবর্তিত — কমিশন হিসাব হয় অর্ডারে **যে দামে আসলে বিক্রি হয়েছে** তা থেকে, reseller-এর নিজের selling price সেট করার storefront ফিচার একটা আলাদা follow-up (owner: "শুধু Commission + Payout এন্জিন — বর্তমান order price দিয়েই")।
+
+```txt
+নতুন টেবিল: reseller_commissions; retrofit — reseller_products-এ
+       wholesale_rate (প্রতি reseller+product আলাদা, staff-set);
+       customers-এ reseller_payout_method + reseller_payout_details
+       (encrypted); company_payout_settings-এ reseller_commission_hold_days
+       (ডিফল্ট ৩ দিন); payout_items-এ recipient_mfs_number
+নতুন মডেল: ResellerCommission (polymorphic payable, PayoutBatch engine-এর
+       সাথে শেয়ার করা — Investor payout-এর মতোই hasActivePayoutItem()/
+       hasCompletePayoutDetails() প্যাটার্ন)
+কমিশন সূত্র (owner, ২০২৬-০৯-১৭): প্রতি OrderItem-এ (unit_price − সেই
+       reseller+product-এর wholesale_rate) × quantity, যোগফল =
+       gross_margin_amount; wholesale_rate সেট না থাকা প্রোডাক্ট শূন্য
+       যোগ করে (guess করে না); তারপর staff-entered cost_breakdown
+       (packaging/return/courier/"other" — [{label, amount}] জেনেরিক
+       লিস্ট, কোনো নির্দিষ্ট ক্যাটাগরি hardcode করা হয়নি) বিয়োগ করে
+       commission_amount
+ট্রিগার: App\Observers\ResellerCommissionObserver — Order::updated()-এ
+       status===completed && delivery_status===delivered (App\Services\
+       OrderStatusWorkflowService::transition()-এর STAGE_DELIVERED সবসময়
+       এই দুটো একসাথে সেট করে, manual/webhook/courier-sync — সব পথই এর
+       মধ্য দিয়ে যায়) → status='holding', holding_until = আজ +
+       company_payout_settings.reseller_commission_hold_days (ডিফল্ট ৩)
+প্রোমোশন: App\Console\Commands\PromoteResellerCommissions
+       (`reseller-commissions:promote`, দৈনিক ০১:০০, company-loop) —
+       holding_until পার হলে payable
+রিভার্সাল: status===returned/refunded হলে reverseForOrder() — কিন্তু
+       commission ইতিমধ্যে in_batch/paid হয়ে গেলে **claw-back করা হয় না**
+       (owner-confirmed recovery rule এখনো নেই), শুধু audit log-এ
+       'reseller_commission_return_after_payout' flag হয় manual
+       review-এর জন্য — নিচের "❗" আইটেম দেখুন, এখনো unresolved
+Payout: App\Services\Payouts\PayoutBatchService::
+       createBatchFromPendingResellerCommissions(company, method, user) —
+       Investor batch থেকে **আলাদা** (একই বাচে mix হয় না, এই রাউন্ডের
+       সরলীকরণ — দেখুন সার্ভিস ক্লাসের doc-block); method='bank' হলে
+       BEFTN CSV formatter, 'mfs_bkash/nagad/rocket' হলে নতুন
+       App\Services\Payouts\GenericMfsListFormatter (name+msisdn+amount
+       CSV, কোনো MFS API নেই — manual send + reconcile, ঠিক BEFTN-এর
+       মতোই Phase 1 pattern)
+Filament UI: Resellers → reseller-এর Edit ফর্মে "Commission Payout"
+       সেকশন (payout method + bank/mfs details, encrypted); Store
+       Products ট্যাবে "Set Wholesale Rate" অ্যাকশন (staff-only, reseller
+       নিজে সেট করতে পারে না — শুধু এই একটা ফিল্ডে exception, বাকি সব
+       এখনো reseller self-service-only আগের কমেন্ট অনুযায়ী); নতুন
+       Commissions ট্যাব (cost_breakdown এডিট করার "Adjust Costs"
+       অ্যাকশন, শুধু holding/payable অবস্থায়); Payout Batches → "Generate
+       New Batch"-এ Source (Investor/Reseller) + Method সিলেক্টর যুক্ত
+পারমিশন: এখানেও নতুন কোনো constant যোগ হয়নি — wholesale rate/cost
+       adjustment gate হয় `canPerformModelAbility('update', Customer::class)`
+       দিয়ে (Reseller resource যেই permission দিয়ে edit হয়, একই)
+টেস্ট: tests/Feature/ResellerCommissionTest.php (১০টা কেস — calculation,
+       skip-without-rate, promote timing, reversal window, paid-is-untouched,
+       cost breakdown, admin page render) +
+       tests/Feature/ResellerCommissionPayoutBatchTest.php (৪টা — method
+       filter, complete-details filter, পুরো lifecycle, MFS formatter)
+বাদ পড়েছে (ইচ্ছাকৃতভাবে): storefront pricing override (reseller নিজের
+       selling price সেট/দেখানো — আলাদা follow-up), MFS-এর real
+       disbursement API (ধাপ ০-এর "❗" আইটেম, এখনো owner confirm করেননি),
+       Investor+Reseller batch একসাথে mix করা (দুটো আলাদা batch থাকে)
+```
 
 ---
 
@@ -20,41 +129,74 @@
     আটকে না থাকে। ব্যাংক থেকে উত্তর এলে শুধু একটা নতুন adapter class
     যুক্ত হবে — বাকি সিস্টেম অপরিবর্তিত থাকবে।
 
-[❓] Reseller commission ডেলিভারির পর ঠিক কতদিন hold থাকবে (return
+[✅] Reseller commission ডেলিভারির পর ঠিক কতদিন hold থাকবে (return
     window)?
-    → owner: "কিছুদিন hold রেখে (রিটার্ন উইন্ডো শেষে)" — নির্দিষ্ট দিন
-    সংখ্যা এখনো দেননি। এই plan-এ hold period **company-level configurable
-    সেটিংস (দিন সংখ্যা)** হিসেবে ডিজাইন করা হয়েছে, hardcode না — কোডিং
-    শুরুর ঠিক আগে exact সংখ্যা (৩ দিন? ৭ দিন?) confirm করতে হবে।
+    → owner (২০২৬-০৯-১৭): **৩ দিন।** company-level configurable সেটিংস
+    হিসেবেই রাখা হবে (hardcode না) — Reseller phase কোড হওয়ার সময়
+    `company_payout_settings.reseller_commission_hold_days` ডিফল্ট ৩
+    দিয়ে বসবে।
 
-[❓] Reseller commission-এর রেট/সূত্র কী — অর্ডার ভ্যালুর flat %,
-    প্রোডাক্ট-ভিত্তিক আলাদা %, নাকি ভলিউম-ভিত্তিক tier?
-    → এখনো জিজ্ঞেস করা হয়নি। কোড শুরুর আগে বাধ্যতামূলক — CLAUDE.md
-    নিয়ম অনুযায়ী "Never invent demo/placeholder business rules"।
+[✅] Reseller commission-এর রেট/সূত্র কী?
+    → owner (২০২৬-০৯-১৭): ফ্ল্যাট রেট। ফলো-আপ প্রশ্নে স্পষ্ট হয়েছে:
+    wholesale rate **প্রতি reseller+product আলাদা**, staff নির্ধারণ করে
+    (`reseller_products.wholesale_rate`); reseller-এর নিজের বিক্রয়মূল্য
+    সেট করার storefront ফিচারটা **এই রাউন্ডে বানানো হয়নি** (owner:
+    "শুধু Commission + Payout এন্জিন — বর্তমান order price দিয়েই") — তাই
+    কমিশন = **অর্ডারে actual sale price** (আজকের public/tier price) −
+    wholesale rate, প্রতি OrderItem-এ। "অন্যান্য খরচ" নির্দিষ্ট হয়েছে:
+    **প্যাকেজিং কস্ট, রিটার্ন কস্ট, Courier/ডেলিভারি চার্জ** — এই তিনটা
+    ছাড়া owner আর কিছু লেখেননি ("অন্য কিছু" অপশন সিলেক্ট করলেও নির্দিষ্ট
+    কিছু টাইপ করেননি) — তাই কোড generic `cost_breakdown` [{label, amount}]
+    লিস্ট হিসেবে বানানো হয়েছে, নির্দিষ্ট তিনটা ক্যাটাগরি hardcode না
+    করে, যাতে ভবিষ্যতে নতুন কোনো খরচ টাইপ এলে UI বদলাতে না হয়।
+
+[✅] Reseller payout batch কে approve করবে?
+    → owner (২০২৬-০৯-১৭): **একজন Super Admin (single approval)** —
+    maker-checker না। Investor side-এও একই নীতি অনুসরণ করা হয়েছে (দেখুন
+    উপরের Phase 1 সারাংশ — `investments.settle` permission, বর্তমানে শুধু
+    super_admin-এর কাছে)।
 
 [❓] Reseller payout কোন MFS প্রোভাইডার(গুলো) সাপোর্ট করতে হবে —
     bKash/Nagad/Rocket, একটা নাকি একাধিক? আর owner-এর কি bKash/Nagad-এর
     সাথে ইতিমধ্যে merchant "Disbursement/B2C Payout" চুক্তি আছে, নাকি
     সেটাও নতুন করে করতে হবে (এটাও bank BEFTN-এর মতোই আলাদা business
-    approval লাগে, কোড দিয়ে বাইপাস করা যায় না)?
+    approval লাগে, কোড দিয়ে বাইপাস করা যায় না)? — এখনো জিজ্ঞেস করা হয়নি।
+    **এটা কোডিং শুরুর ব্লকার ছিল না** — bank BEFTN-এর মতোই একটা
+    manual-export মোড (`GenericMfsListFormatter`, name+msisdn+amount CSV,
+    staff নিজে bKash/Nagad app থেকে পাঠিয়ে reconcile করেন) তিনটা
+    প্রোভাইডারের (mfs_bkash/mfs_nagad/mfs_rocket) জন্যই ইতিমধ্যে তৈরি —
+    কোনো একটা প্রোভাইডার বাছাই না করেই কাজ করে। প্রকৃত disbursement API
+    ইন্টিগ্রেশন (Phase 3) এখনো এই প্রশ্নের উত্তরের অপেক্ষায়।
 
-[❓] পে-আউট ব্যাচ কে approve করবে — একজন super admin, নাকি maker-checker
-    (একজন batch generate করবে, আলাদা একজন approve করে bank-এ পাঠাবে)?
-    টাকা সরাসরি নড়ে এই workflow-তে, তাই সুপারিশ হলো কমপক্ষে একটা মানুষের
-    approval ধাপ **কখনোই বাদ দেওয়া যাবে না**, পুরোপুরি unattended
-    auto-transfer না করা।
-
-[❓] Investor/Reseller-এর প্রকৃত bank routing number সংগ্রহ আছে কি না —
-    বর্তমান `settlement_payouts` টেবিলে bank name/branch/account number
-    আছে কিন্তু ১৩-ডিজিট BEFTN routing number নেই, retrofit করতে হবে।
+[✅] Investor-এর bank routing number সংগ্রহের ফিল্ড আছে কি না?
+    → Phase 1-এ retrofit করা হয়ে গেছে (`settlement_payouts` +
+    `channel_partner_payouts`-এ `recipient_routing_number`)। কিন্তু
+    বিদ্যমান investor-দের জন্য এই ফিল্ড এখনো ফাঁকা — বাস্তবে batch
+    তৈরির আগে প্রতিটা investor-এর routing number Filament থেকে হাতে
+    বসাতে হবে (উপরে "Bank Details: Incomplete" ব্যাজ দেখাবে কোনগুলো
+    বাকি)।
 
 [❓] Commission পাঠানোর পরে অর্ডার return/refund হলে (hold window পার
     হয়ে যাওয়ার পরেও, যেমন warranty return) — সেই টাকা কীভাবে রিকভার
-    হবে (পরের payout থেকে কেটে নেওয়া, নাকি আলাদা receivable)?
+    হবে (পরের payout থেকে কেটে নেওয়া, নাকি আলাদা receivable)? —
+    এখনো জিজ্ঞেস করা হয়নি। **কোড কোনো ধরে নেওয়া auto-deduction করে না** —
+    `ResellerCommissionService::reverseForOrder()` কমিশন এখনো
+    holding/payable থাকলে reverse করে, কিন্তু in_batch/paid হয়ে গেলে
+    কিছুই বদলায় না, শুধু audit log-এ
+    'reseller_commission_return_after_payout' এন্ট্রি লেখে manual
+    follow-up-এর জন্য। এই প্রশ্নের উত্তর এলে recovery logic যুক্ত করা
+    যাবে।
 
 [❓] Investor profit / Reseller commission পেমেন্টে কোনো TDS/উৎসে কর
     কাটতে হয় কিনা — এটা accountant/owner-এর কাছ থেকে নিশ্চিত হওয়া
     দরকার, ভুল হলে আইনি সমস্যা হতে পারে।
+
+[📌 আলাদা follow-up, ব্লকার না] Reseller-এর নিজের বিক্রয়মূল্য storefront-এ
+    দেখানো/charge করা (আজ resellers সবার মতোই public/tier price-এ বিক্রি
+    করে) — owner (২০২৬-০৯-১৭): "শুধু Commission + Payout এন্জিন — বর্তমান
+    order price দিয়েই" বেছে নিয়েছেন এই রাউন্ডে, কারণ এটা storefront
+    checkout pricing/offer-combo/WooCommerce sync পর্যন্ত ছড়িয়ে পড়ে —
+    ঝুঁকিপূর্ণ আলাদা কাজ। চাইলে ভবিষ্যতে আলাদা প্ল্যান হিসেবে করা যাবে।
 ```
 
 উপরের প্রতিটা প্রশ্নের জবাব ছাড়া কোডিং শুরু করা উচিত নয় — নিচের ডিজাইন এই অনিশ্চয়তাগুলো মাথায় রেখে **যত বেশি সম্ভব configurable/swappable** রাখা হয়েছে, যাতে answer আসার পর পুরো re-design না লাগে।

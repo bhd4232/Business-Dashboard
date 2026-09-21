@@ -108,6 +108,11 @@ class Company extends Model
         return $this->hasOne(StorefrontSetting::class);
     }
 
+    public function payoutSetting(): HasOne
+    {
+        return $this->hasOne(CompanyPayoutSetting::class);
+    }
+
     public function storageRoot(): string
     {
         if (blank($this->storage_key)) {
