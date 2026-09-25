@@ -2,6 +2,48 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-25 - Order management: payment method from Accounts, courier note, call/WhatsApp icons, order summary card, remember last company
+
+Reason — owner asked for five things (in Bangla):
+1. When a customer pays, the payment method is picked from Accounts so finance is calculated automatically.
+2. Every courier booking automatically carries the note "Order placed from {company name}" in the courier's note field.
+3. Call and WhatsApp icons under the phone number in the order list. Call opens the dialer with the number; WhatsApp opens WhatsApp directly.
+4. An "order summary card" button on the order view page that builds a card that can be sent to WhatsApp, WeChat, Messenger and Telegram.
+5. After logout, closing the app or an app update, open the company that was last selected, not the default company.
+
+What changed:
+1. **Payment method = account.**
+   - The new-order form has a **Payment Method** account select next to Paid Amount. It is required when something is paid and the company has accounts.
+   - Payments History and Customer Payments both use the same account select.
+   - `OrderPayment` gets an `account_id` and posts a ledger row into that account (like `CustomerPayment` already did), so account balances and "Customer Payments" reports update automatically.
+2. **Courier note.** `CourierService::courierNote()` builds "Order placed from {company name}" plus any staff note, never duplicated. It is prefilled in every booking form and applied in every driver's own note field: Steadfast `note`, Pathao `special_instruction`, RedX `instruction`, E-Courier `comments`, and the Manual booking note. Bulk booking gets it too.
+3. **Phone icons.** The Orders table phone column shows a Call (`tel:`) and a WhatsApp (`wa.me/880…`) icon under the number. The row click is disabled on that cell so the icons open directly.
+4. **Order summary card.** A header action on the order view page opens a modal with the card and buttons for WhatsApp (customer's chat), WeChat, Messenger, Telegram, Share as image (phone share sheet), Download image and Copy text. Messenger and WeChat have no "send text" link, so the text is copied and then the app opens.
+5. **Remember last company.** `users.last_company_selection` is saved on every company switch and used when a new session starts.
+
+Needs Bangla review: the 33 new `lang/bn.json` keys (Payment Method helper texts, order summary card labels and buttons, Call/WhatsApp, WeChat/Messenger/Telegram).
+
+Not verified: the WeChat/Messenger app-opening links (`weixin://`, `fb-messenger://`) and "Share as image" were not tried on a real phone. In the Android app, the image share button only shows if the WebView supports sharing files. Otherwise use Download image.
+
+Important changed/new files:
+- `database/migrations/2026_09_25_120000_add_account_id_to_order_payments_table.php`, `database/migrations/2026_09_25_120100_add_last_company_selection_to_users_table.php`
+- `app/Models/{OrderPayment,Order,User}.php`
+- `app/Services/CourierService.php`, `app/Services/OrderSummaryCardService.php`, `app/Support/PhoneLinks.php`
+- `app/Filament/Resources/Orders/{Pages/CreateOrder,Pages/ViewOrder,Schemas/OrderForm,Schemas/OrderInfolist,Tables/OrdersTable,RelationManagers/PaymentsRelationManager}.php`
+- `app/Filament/Resources/CustomerPayments/Schemas/CustomerPaymentForm.php`, `app/Filament/Resources/Users/Pages/EditUser.php`
+- `app/Http/Controllers/Admin/CompanySwitchController.php`, `app/Http/Middleware/SetCurrentCompany.php`
+- `resources/views/filament/orders/summary-card.blade.php`, `resources/views/filament/tables/columns/phone-contact-links.blade.php`
+- `lang/en.json`, `lang/bn.json`
+- tests: `tests/Feature/OrderManagementFeaturesTest.php`, `CourierIntegrationTest.php`, `CompanySelectionPersistenceTest.php`
+
+Verification:
+- `php artisan test --filter=OrderManagementFeaturesTest`: 11 passed.
+- Affected suites (courier, company selection, order form/ledgers, accounts & payments, permissions, translation parity, multi-company isolation): 106 passed.
+- Full `php artisan test` (plain, no `--env`): **1354 passed, 0 failed** (7369 assertions).
+- `npm run build` succeeded, and Pint passes.
+
+Commit status: Not committed — waiting for owner approval.
+
 ## 2026-09-25 - AI Expense Scan: paste expenses as text
 
 Reason — owner: "টেক্সটবক্স যুক্ত করো যেখানে মাল্টিপল এক্সপেন্স গুলো টেক্সট আকারে পেস্ট করব এই সেটা এক্সপেন্স হিসেবে ট্র্যাক করবে।" (add a text box where several expenses can be pasted as text and tracked as expenses).

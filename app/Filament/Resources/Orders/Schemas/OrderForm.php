@@ -9,6 +9,7 @@ use App\Filament\Forms\Components\PhoneInput;
 use App\Models\CourierProvider;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\OrderPayment;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Services\CompanyContext;
@@ -416,6 +417,20 @@ class OrderForm
                             ->helperText(fn (string $operation): ?string => $operation === 'edit'
                                 ? 'Managed from Payments History below — add, edit, or delete a payment there.'
                                 : null),
+
+                        // Which account the customer paid into (Cash, bKash,
+                        // bank…). Not an order column: CreateOrder hands it to
+                        // the first Payments History row, which posts the money
+                        // into that account's ledger so finance updates itself.
+                        Select::make('payment_account_id')
+                            ->label(__('Payment Method'))
+                            ->options(fn (): array => OrderPayment::accountOptions())
+                            ->searchable()
+                            ->native(false)
+                            ->dehydrated(false)
+                            ->visible(fn (string $operation): bool => $operation === 'create')
+                            ->required(fn (Get $get): bool => (float) ($get('paid_amount') ?? 0) > 0 && OrderPayment::accountOptions() !== [])
+                            ->helperText(__('The account the paid amount was received into. Its balance updates automatically.')),
 
                         TextInput::make('due_amount')
                             ->numeric()

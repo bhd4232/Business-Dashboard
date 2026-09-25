@@ -12,6 +12,7 @@ use App\Services\AuditLogService;
 use App\Services\CompanyContext;
 use App\Services\CourierService;
 use App\Services\CustomerRiskService;
+use App\Services\OrderSummaryCardService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Placeholder;
@@ -116,6 +117,17 @@ class ViewOrder extends ViewRecord
                     app(CourierService::class)->updateStatus($this->record->latestCourierBooking, CourierBooking::STATUS_RETURNED, 'Marked returned from order detail.');
                     $this->record->refresh();
                 }),
+            Action::make('orderSummaryCard')
+                ->label(__('Order summary card'))
+                ->icon('heroicon-o-share')
+                ->color('gray')
+                ->modalHeading(__('Order summary card'))
+                ->modalWidth('lg')
+                ->modalContent(fn () => view('filament.orders.summary-card', [
+                    'card' => app(OrderSummaryCardService::class)->build($this->record),
+                ]))
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel(__('Close')),
             Action::make('print')
                 ->url(fn () => route('orders.print', ['order' => $this->record, 'print' => 1]))
                 ->openUrlInNewTab(),

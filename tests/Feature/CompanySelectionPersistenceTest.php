@@ -47,6 +47,66 @@ class CompanySelectionPersistenceTest extends TestCase
         $this->assertTrue(app(CompanyContext::class)->isAllCompanies());
     }
 
+    public function test_last_switched_company_is_reopened_in_a_new_session(): void
+    {
+        [$user, $firstCompany, $defaultCompany] = $this->superAdminWithTwoCompanies();
+
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $defaultCompany->getKey()])
+            ->post(route('admin.company.switch'), ['company_id' => $firstCompany->getKey()])
+            ->assertRedirect();
+
+        $this->assertSame((string) $firstCompany->getKey(), $user->fresh()->last_company_selection);
+
+        // Logout / closing the app / an app update: the session is gone.
+        $this->flushSession();
+
+        $this->actingAs($user->fresh())
+            ->get('/admin')
+            ->assertOk()
+            ->assertSessionHas('current_company_id', $firstCompany->getKey());
+
+        $this->assertSame($firstCompany->getKey(), app(CompanyContext::class)->id());
+    }
+
+    public function test_last_all_companies_selection_is_reopened_in_a_new_session(): void
+    {
+        [$user, , $defaultCompany] = $this->superAdminWithTwoCompanies();
+
+        $this->actingAs($user)
+            ->withSession(['current_company_id' => $defaultCompany->getKey()])
+            ->post(route('admin.company.switch'), ['company_id' => 'all'])
+            ->assertRedirect();
+
+        $this->flushSession();
+
+        $this->actingAs($user->fresh())
+            ->get('/admin')
+            ->assertOk()
+            ->assertSessionHas('current_company_id', 'all');
+
+        $this->assertTrue(app(CompanyContext::class)->isAllCompanies());
+    }
+
+    public function test_remembered_company_the_user_lost_access_to_falls_back_to_the_default(): void
+    {
+        $firstCompany = Company::query()->create([
+            'name' => 'Lost Access Company', 'slug' => 'lost-access-company',
+            'invoice_prefix' => 'LAC', 'currency' => 'BDT', 'timezone' => 'Asia/Dhaka', 'is_active' => true,
+        ]);
+        $defaultCompany = Company::query()->create([
+            'name' => 'Kept Access Company', 'slug' => 'kept-access-company',
+            'invoice_prefix' => 'KAC', 'currency' => 'BDT', 'timezone' => 'Asia/Dhaka', 'is_active' => true,
+        ]);
+        $user = User::factory()->create(['role' => 'manager', 'is_active' => true]);
+        $user->companies()->sync([$defaultCompany->getKey() => ['role' => 'manager', 'is_default' => true]]);
+        $user->rememberCompanySelection($firstCompany->getKey());
+
+        $this->actingAs($user->fresh())
+            ->get('/admin')
+            ->assertSessionHas('current_company_id', $defaultCompany->getKey());
+    }
+
     public function test_saving_own_default_company_updates_the_active_session(): void
     {
         [$user, $firstCompany, $defaultCompany] = $this->superAdminWithTwoCompanies();

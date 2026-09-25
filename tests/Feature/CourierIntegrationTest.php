@@ -415,6 +415,46 @@ class CourierIntegrationTest extends TestCase
         });
     }
 
+    public function test_every_courier_booking_note_says_which_company_the_order_came_from(): void
+    {
+        $company = $this->company('Zam Zam Gadget', 'zam-zam-gadget-courier', 'ZZG');
+        $order = $this->orderForCompany($company);
+        $service = app(CourierService::class);
+
+        $this->assertSame('Order placed from Zam Zam Gadget', $service->bookingFormDefaults($order)['note']);
+        $this->assertSame('Order placed from Zam Zam Gadget', $service->courierNote($order));
+        $this->assertSame('Order placed from Zam Zam Gadget | Call before delivery', $service->courierNote($order, 'Call before delivery'));
+        // Staff kept the prefilled line and added to it: never duplicated.
+        $this->assertSame('Order placed from Zam Zam Gadget - fragile', $service->courierNote($order, 'Order placed from Zam Zam Gadget - fragile'));
+
+        $booking = $service->createManualBooking($order, ['tracking_id' => 'NOTE-001']);
+
+        $this->assertSame('Order placed from Zam Zam Gadget', $booking->note);
+    }
+
+    public function test_steadfast_booking_sends_the_company_note_in_the_note_field(): void
+    {
+        $company = $this->company('Zam Zam Gadget', 'zam-zam-gadget-steadfast', 'ZZS');
+        $order = $this->orderForCompany($company);
+        $provider = $this->steadfastProvider($company);
+
+        Http::fake([
+            SteadfastCourierClient::DEFAULT_BASE_URL.'/create_order' => Http::response([
+                'status' => 200,
+                'consignment' => [
+                    'consignment_id' => 555,
+                    'tracking_code' => 'ZZ555',
+                    'status' => 'in_review',
+                ],
+            ]),
+        ]);
+
+        $booking = app(CourierService::class)->createSteadfastBooking($order, $provider);
+
+        Http::assertSent(fn ($request): bool => $request['note'] === 'Order placed from Zam Zam Gadget');
+        $this->assertSame('Order placed from Zam Zam Gadget', $booking->note);
+    }
+
     public function test_steadfast_status_sync_maps_delivery_status(): void
     {
         $company = $this->company('Steadfast Sync Company', 'steadfast-sync-company', 'STS');

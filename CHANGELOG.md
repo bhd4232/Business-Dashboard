@@ -4,6 +4,35 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+**Release type:** Minor Feature Update
+
+### Added
+
+- **Order payments now use your Accounts as the payment method, so finance updates automatically.** When a customer pays, you pick the **Payment Method** from your own active money accounts (Accounts page: Cash, bKash, Nagad, bank, and so on). The money is posted into that account straight away, so the account balance, the ledger and the "Customer Payments" figures on the dashboard and reports update by themselves. This applies in three places:
+  - the **Paid Amount** on the new-order form. A payment method is required when something was paid.
+  - **Payments History** on an order.
+  - **Customer Payments**. The old "Receive To Account" and "Method" fields are now one **Payment Method** field.
+
+  Editing a payment's amount or account moves the money. Deleting the payment removes it. A company with no money accounts yet still sees the old generic method list.
+- **Courier bookings carry an automatic note: "Order placed from {company name}".** It is filled into the note field of every courier booking: single, bulk, Manual, Steadfast, Pathao (special instruction), RedX (instruction) and E-Courier (comments). The company name comes from Company Settings. Anything staff type in the note is added after it, and the line is never added twice.
+- **Call and WhatsApp icons under the customer's phone number in the Orders list.** Tap **Call** to open the phone's dialer with the number filled in. Tap the **WhatsApp** icon to open a WhatsApp chat with that customer directly. Local numbers (01…) get the 880 country code automatically.
+- **Order summary card on the order page.** A new **Order summary card** button shows a summary: invoice, date, customer, phone, address, status, courier and tracking, the items, and the totals with paid and due. From there you can send it to:
+  - **WhatsApp:** opens the customer's own chat with the summary.
+  - **Telegram**
+  - **Messenger** and **WeChat:** the summary is copied first, because these apps can't take text from a link, then the app opens so you can paste it.
+  - **Share as image:** a PNG of the card, on phones that support sharing.
+  - **Download image** or **Copy text**
+
+### Fixed
+
+- **The app now reopens the company you were last working in.** Before, after logging out, closing and reopening the app, or an app update, the dashboard always went back to your default company. It now remembers the last company you switched to, or All Companies for Super Admins, and opens there. If you have since lost access to that company, you get your default company as before.
+
+**Technical Notes:**
+- Migration `2026_09_25_120000_add_account_id_to_order_payments_table` adds a nullable `order_payments.account_id` (FK to `accounts`, null on delete). `OrderPayment` now syncs a `transaction_ledgers` row (`type = customer_payment`, `direction = in`, `reference_type = OrderPayment`) on save and delete, and derives `method` from the account type. Payments without an account post nothing, so older rows and storefront/gateway payments are unchanged. `Order::forceDeleting` removes these postings, because the DB cascade skips model events.
+- Migration `2026_09_25_120100_add_last_company_selection_to_users_table` adds nullable `users.last_company_selection` (company id or `all`). `CompanySwitchController` writes it. `SetCurrentCompany` uses it only when the session has no company yet, and still checks access.
+- New `App\Support\PhoneLinks`, `App\Services\OrderSummaryCardService`, `CourierService::courierNote()`. The courier note text is always English because the courier reads it. It is not UI text.
+- New tests: `OrderManagementFeaturesTest`, plus new cases in `CourierIntegrationTest` and `CompanySelectionPersistenceTest`.
+
 ## [2.22.0] - 2026-09-25
 
 **Release type:** Minor Feature Update

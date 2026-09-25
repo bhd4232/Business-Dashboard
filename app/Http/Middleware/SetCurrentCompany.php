@@ -41,6 +41,15 @@ class SetCurrentCompany
         $selectedCompany = $request->session()->get('current_company_id');
         $selectionIsExplicit = (bool) $request->session()->get('current_company_selection_explicit', false);
 
+        // A brand-new session (after logout, closing the app, or an app
+        // update) has no company yet: reopen the one the user last switched
+        // to instead of falling back to their default company.
+        if ($selectedCompany === null && filled($user->last_company_selection)) {
+            $selectedCompany = $user->last_company_selection;
+            $selectionIsExplicit = true;
+            $request->session()->put('current_company_selection_explicit', true);
+        }
+
         if ($user->isSuperAdmin() && $selectedCompany === 'all' && $selectionIsExplicit) {
             $request->session()->put('current_company_id', 'all');
             $context->all();

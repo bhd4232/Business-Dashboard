@@ -1,0 +1,327 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Filament\Resources\Orders\Pages\CreateOrder;
+use App\Filament\Resources\Orders\Pages\EditOrder;
+use App\Filament\Resources\Orders\Pages\ListOrders;
+use App\Filament\Resources\Orders\Pages\ViewOrder;
+use App\Filament\Resources\Orders\RelationManagers\PaymentsRelationManager;
+use App\Models\Account;
+use App\Models\Company;
+use App\Models\CourierBooking;
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\OrderPayment;
+use App\Models\Product;
+use App\Models\TransactionLedger;
+use App\Models\User;
+use App\Services\CompanyContext;
+use App\Services\OrderSummaryCardService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+/**
+ * Owner's order-management requests: payment method picked from Accounts
+ * (posts to the account ledger), call/WhatsApp icons in the order list, and
+ * the shareable order summary card on the order view page.
+ */
+class OrderManagementFeaturesTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_an_order_payment_with_an_account_posts_money_into_that_account(): void
+    {
+        [$company] = $this->signIn();
+        $bkash = $this->account($company, 'bKash', 'mobile_banking');
+        $order = $this->order($company);
+
+        $payment = $order->payments()->create([
+            'type' => OrderPayment::TYPE_PARTIAL,
+            'account_id' => $bkash->getKey(),
+            'amount' => 300,
+            'paid_at' => now()->toDateString(),
+        ]);
+
+        $this->assertSame('mobile_banking', $payment->method);
+        $this->assertDatabaseHas('transaction_ledgers', [
+            'reference_type' => OrderPayment::class,
+            'reference_id' => $payment->getKey(),
+            'account_id' => $bkash->getKey(),
+            'type' => 'customer_payment',
+            'direction' => 'in',
+            'amount' => 300,
+        ]);
+        $this->assertEquals(300, (float) $bkash->fresh()->current_balance);
+        $this->assertEquals(300, (float) $order->fresh()->paid_amount);
+
+        $payment->update(['amount' => 450]);
+        $this->assertEquals(450, (float) $bkash->fresh()->current_balance);
+
+        $payment->delete();
+        $this->assertEquals(0, (float) $bkash->fresh()->current_balance);
+        $this->assertDatabaseMissing('transaction_ledgers', ['reference_type' => OrderPayment::class]);
+    }
+
+    public function test_moving_a_payment_to_another_account_moves_the_money(): void
+    {
+        [$company] = $this->signIn();
+        $cash = $this->account($company, 'Cash', 'cash');
+        $bank = $this->account($company, 'City Bank', 'bank');
+        $order = $this->order($company);
+
+        $payment = $order->payments()->create([
+            'account_id' => $cash->getKey(),
+            'amount' => 200,
+            'paid_at' => now()->toDateString(),
+        ]);
+        $payment->update(['account_id' => $bank->getKey()]);
+
+        $this->assertSame('bank', $payment->fresh()->method);
+        $this->assertEquals(0, (float) $cash->fresh()->current_balance);
+        $this->assertEquals(200, (float) $bank->fresh()->current_balance);
+    }
+
+    public function test_a_payment_without_an_account_posts_nothing(): void
+    {
+        [$company] = $this->signIn();
+        $order = $this->order($company);
+
+        $order->payments()->create([
+            'method' => 'cash',
+            'amount' => 100,
+            'paid_at' => now()->toDateString(),
+        ]);
+
+        $this->assertSame(0, TransactionLedger::query()->count());
+        $this->assertEquals(100, (float) $order->fresh()->paid_amount);
+    }
+
+    public function test_permanently_deleting_an_order_removes_its_payment_postings(): void
+    {
+        [$company] = $this->signIn();
+        $cash = $this->account($company, 'Cash', 'cash');
+        $order = $this->order($company);
+        $order->payments()->create([
+            'account_id' => $cash->getKey(),
+            'amount' => 250,
+            'paid_at' => now()->toDateString(),
+        ]);
+        $this->assertEquals(250, (float) $cash->fresh()->current_balance);
+
+        $order->forceDelete();
+
+        $this->assertSame(0, TransactionLedger::query()->count());
+        $this->assertEquals(0, (float) $cash->fresh()->current_balance);
+    }
+
+    public function test_payment_method_options_are_the_active_money_accounts_only(): void
+    {
+        [$company] = $this->signIn();
+        Account::ensureSystemAccountsForCompany($company);
+        $cash = $this->account($company, 'Cash', 'cash');
+        $inactive = $this->account($company, 'Old Nagad', 'mobile_banking');
+        $inactive->update(['is_active' => false]);
+
+        $this->assertSame([$cash->getKey() => 'Cash'], OrderPayment::accountOptions());
+    }
+
+    public function test_create_order_form_posts_the_paid_amount_into_the_chosen_account(): void
+    {
+        [$company] = $this->signIn();
+        $bkash = $this->account($company, 'bKash', 'mobile_banking');
+        $customer = $this->customer();
+        $product = $this->product();
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $customer->getKey(),
+                'order_date' => now()->toDateString(),
+                'status' => 'draft',
+                'delivery_status' => CourierBooking::STATUS_NOT_BOOKED,
+                'items' => [
+                    ['product_id' => $product->getKey(), 'quantity' => 1, 'unit_price' => 500],
+                ],
+                'paid_amount' => 200,
+                'payment_account_id' => $bkash->getKey(),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $payment = OrderPayment::query()->sole();
+        $this->assertSame($bkash->getKey(), $payment->account_id);
+        $this->assertSame('mobile_banking', $payment->method);
+        $this->assertEquals(200, (float) $bkash->fresh()->current_balance);
+    }
+
+    public function test_create_order_form_requires_a_payment_method_when_something_was_paid(): void
+    {
+        [$company] = $this->signIn();
+        $this->account($company, 'Cash', 'cash');
+        $customer = $this->customer();
+        $product = $this->product();
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $customer->getKey(),
+                'order_date' => now()->toDateString(),
+                'status' => 'draft',
+                'delivery_status' => CourierBooking::STATUS_NOT_BOOKED,
+                'items' => [
+                    ['product_id' => $product->getKey(), 'quantity' => 1, 'unit_price' => 500],
+                ],
+                'paid_amount' => 200,
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['payment_account_id' => 'required']);
+    }
+
+    public function test_payments_history_records_a_payment_into_the_chosen_account(): void
+    {
+        [$company] = $this->signIn();
+        $cash = $this->account($company, 'Cash', 'cash');
+        $order = $this->order($company);
+
+        Livewire::test(PaymentsRelationManager::class, [
+            'ownerRecord' => $order,
+            'pageClass' => EditOrder::class,
+        ])
+            ->callTableAction('create', data: [
+                'type' => OrderPayment::TYPE_PARTIAL,
+                'account_id' => $cash->getKey(),
+                'amount' => 150,
+                'paid_at' => now()->toDateString(),
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $this->assertEquals(150, (float) $cash->fresh()->current_balance);
+        $this->assertEquals(150, (float) $order->fresh()->paid_amount);
+    }
+
+    public function test_order_list_shows_call_and_whatsapp_links_under_the_phone(): void
+    {
+        [$company] = $this->signIn();
+        $this->order($company);
+
+        Livewire::test(ListOrders::class)
+            ->assertSeeHtml('href="tel:01711111111"')
+            ->assertSeeHtml('href="https://wa.me/8801711111111"');
+    }
+
+    public function test_order_summary_card_has_order_details_and_share_links(): void
+    {
+        [$company] = $this->signIn();
+        $order = $this->order($company);
+
+        $card = app(OrderSummaryCardService::class)->build($order);
+
+        $this->assertSame('Zam Zam Gadget', $card['company']);
+        $this->assertStringContainsString($order->order_number, $card['text']);
+        $this->assertStringContainsString('Summary Product × 1', $card['text']);
+        $this->assertStringStartsWith('https://wa.me/8801711111111?text=', $card['whatsapp_url']);
+        $this->assertStringStartsWith('https://t.me/share/url?url=', $card['telegram_url']);
+    }
+
+    public function test_order_view_page_opens_the_order_summary_card(): void
+    {
+        [$company] = $this->signIn();
+        $order = $this->order($company);
+
+        Livewire::test(ViewOrder::class, ['record' => $order->getKey()])
+            ->assertActionVisible('orderSummaryCard')
+            ->mountAction('orderSummaryCard')
+            ->assertActionMounted('orderSummaryCard');
+
+        $html = view('filament.orders.summary-card', [
+            'card' => app(OrderSummaryCardService::class)->build($order),
+        ])->render();
+
+        foreach (['WhatsApp', 'WeChat', 'Messenger', 'Telegram', 'Share as image', 'Download image'] as $label) {
+            $this->assertStringContainsString($label, $html);
+        }
+    }
+
+    /**
+     * @return array{0: Company, 1: User}
+     */
+    protected function signIn(): array
+    {
+        $company = Company::query()->create([
+            'name' => 'Zam Zam Gadget',
+            'slug' => 'zam-zam-gadget',
+            'invoice_prefix' => 'ZZG',
+            'currency' => 'BDT',
+            'timezone' => 'Asia/Dhaka',
+            'is_active' => true,
+        ]);
+        app(CompanyContext::class)->set($company);
+
+        $user = User::factory()->create(['role' => 'super_admin', 'is_active' => true]);
+        $this->actingAs($user)->withSession(['current_company_id' => $company->getKey()]);
+
+        return [$company, $user];
+    }
+
+    protected function account(Company $company, string $name, string $type): Account
+    {
+        return Account::query()->create([
+            'company_id' => $company->getKey(),
+            'name' => $name,
+            'type' => $type,
+            'opening_balance' => 0,
+            'current_balance' => 0,
+            'is_active' => true,
+        ]);
+    }
+
+    protected function customer(): Customer
+    {
+        return Customer::query()->create([
+            'name' => 'Summary Customer',
+            'phone' => '01711111111',
+            'address' => 'Mirpur, Dhaka',
+            'opening_balance' => 0,
+            'is_active' => true,
+        ]);
+    }
+
+    protected function product(): Product
+    {
+        return Product::query()->create([
+            'name' => 'Summary Product',
+            'sku' => 'SUM-'.uniqid(),
+            'price' => 500,
+            'sale_price' => 500,
+            'cost_price' => 300,
+            'stock' => 10,
+            'unit' => 'pcs',
+            'reorder_level' => 1,
+            'vat_rate' => 0,
+            'is_active' => true,
+            'status' => Product::STATUS_AVAILABLE,
+        ]);
+    }
+
+    protected function order(Company $company): Order
+    {
+        $order = Order::query()->create([
+            'company_id' => $company->getKey(),
+            'customer_id' => $this->customer()->getKey(),
+            'order_date' => now()->toDateString(),
+            'discount' => 0,
+            'vat' => 0,
+            'paid_amount' => 0,
+            'status' => 'draft',
+        ]);
+        OrderItem::query()->create([
+            'order_id' => $order->getKey(),
+            'product_id' => $this->product()->getKey(),
+            'quantity' => 1,
+            'unit_price' => 500,
+        ]);
+
+        return $order->refresh();
+    }
+}

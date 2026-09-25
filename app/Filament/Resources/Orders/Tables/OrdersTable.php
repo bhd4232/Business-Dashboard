@@ -13,6 +13,7 @@ use App\Services\CompanyContext;
 use App\Services\CourierService;
 use App\Services\CustomerRiskService;
 use App\Services\OrderStatusWorkflowService;
+use App\Support\PhoneLinks;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -34,6 +35,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
 class OrdersTable
@@ -53,11 +55,16 @@ class OrdersTable
                     ->searchable()
                     ->sortable(),
 
+                // Call and WhatsApp icons under the number: tapping them opens
+                // the phone's dialer / WhatsApp chat directly. disabledClick()
+                // stops the row's "open order" link wrapping the icons.
                 TextColumn::make('customer.phone')
                     ->label('Phone')
                     ->placeholder('-')
                     ->searchable()
                     ->copyable()
+                    ->description(fn (Order $record): ?HtmlString => self::phoneContactLinks($record->customer?->phone))
+                    ->disabledClick()
                     ->toggleable(),
 
                 TextColumn::make('latestCourierBooking.tracking_id')
@@ -744,6 +751,20 @@ class OrdersTable
             ],
             default => $common, // Manual
         };
+    }
+
+    protected static function phoneContactLinks(?string $phone): ?HtmlString
+    {
+        $telUrl = PhoneLinks::telUrl($phone);
+
+        if ($telUrl === null) {
+            return null;
+        }
+
+        return new HtmlString(view('filament.tables.columns.phone-contact-links', [
+            'telUrl' => $telUrl,
+            'whatsappUrl' => PhoneLinks::whatsappUrl($phone),
+        ])->render());
     }
 
     protected static function canBookCourier(Order $record): bool

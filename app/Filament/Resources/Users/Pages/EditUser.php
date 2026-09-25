@@ -75,6 +75,7 @@ class EditUser extends EditRecord
         if ($defaultCompany) {
             session()->put('current_company_id', $defaultCompany->getKey());
             session()->put('current_company_selection_explicit', false);
+            $record->rememberCompanySelection($defaultCompany->getKey());
             app(CompanyContext::class)->set($defaultCompany);
 
             return;
@@ -83,6 +84,7 @@ class EditUser extends EditRecord
         if ($record->isSuperAdmin()) {
             session()->put('current_company_id', 'all');
             session()->put('current_company_selection_explicit', false);
+            $record->rememberCompanySelection(null);
             app(CompanyContext::class)->all();
         }
     }

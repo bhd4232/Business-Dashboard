@@ -9,6 +9,7 @@ use App\Models\CustomerRiskReview;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Services\OrderActivityFeedService;
+use App\Support\PhoneLinks;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -36,20 +37,8 @@ class OrderInfolist
                             ->placeholder('-')
                             ->icon('heroicon-o-chat-bubble-left-right')
                             // wa.me needs a leading country code, not the local
-                            // 0-prefixed format phone numbers are stored in —
-                            // same normalization QuotationsTable's "Share on
-                            // WhatsApp" action already uses.
-                            ->url(function (Order $record): ?string {
-                                $phone = preg_replace('/\D/', '', $record->customer?->phone ?? '');
-
-                                if (blank($phone)) {
-                                    return null;
-                                }
-
-                                $phone = str_starts_with($phone, '0') ? '88'.$phone : $phone;
-
-                                return "https://wa.me/{$phone}";
-                            })
+                            // 0-prefixed format phone numbers are stored in.
+                            ->url(fn (Order $record): ?string => PhoneLinks::whatsappUrl($record->customer?->phone))
                             ->openUrlInNewTab(),
                         TextEntry::make('order_date')->date(),
                         TextEntry::make('source')

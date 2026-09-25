@@ -522,6 +522,20 @@ class User extends Authenticatable implements FilamentUser
             ->first();
     }
 
+    /**
+     * Persists the header company switcher's choice (a company id, or
+     * "all" for Super Admins) so SetCurrentCompany can restore it when a
+     * new session starts — after logout, closing the app or an app update.
+     */
+    public function rememberCompanySelection(int|string|null $selection): void
+    {
+        $selection = $selection === null ? null : (string) $selection;
+
+        if ($this->last_company_selection !== $selection) {
+            $this->forceFill(['last_company_selection' => $selection])->saveQuietly();
+        }
+    }
+
     public function canAccessCompany(int $companyId): bool
     {
         if ($this->isSuperAdmin()) {

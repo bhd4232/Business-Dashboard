@@ -61,6 +61,7 @@ class CourierService
             'recipient_phone' => $order->customer?->phone,
             'recipient_address' => $order->customer?->address,
             'cod_amount' => $order->courierCodAmount(),
+            'note' => $this->courierNote($order),
         ];
 
         return match ($shape) {
@@ -125,7 +126,7 @@ class CourierService
             'cod_amount' => $data['cod_amount'] ?? $order->courierCodAmount(),
             'status' => $status,
             'booked_at' => now(),
-            'note' => $data['note'] ?? null,
+            'note' => $this->courierNote($order, $data['note'] ?? null),
         ]);
 
         $this->logStatus($booking, null, $status, $data['note'] ?? 'Manual courier booking created.');
@@ -233,6 +234,7 @@ class CourierService
             'item_weight' => (float) ($data['item_weight'] ?? 0.5),
             'amount_to_collect' => (float) ($data['cod_amount'] ?? $order->courierCodAmount()),
             'item_description' => $data['item_description'] ?? $this->itemDescription($order),
+            'special_instruction' => $this->courierNote($order, $data['note'] ?? null),
         ], fn ($value): bool => $value !== null && $value !== '');
 
         $response = app(PathaoCourierClient::class)->createOrder($provider, $payload);
@@ -253,7 +255,7 @@ class CourierService
             'recipient_phone' => $payload['recipient_phone'] ?? null,
             'recipient_address' => $payload['recipient_address'] ?? null,
             'cod_amount' => $payload['amount_to_collect'],
-            'note' => $data['note'] ?? null,
+            'note' => $payload['special_instruction'] ?? null,
         ], $status, $response['message'] ?? 'Pathao consignment created.');
     }
 
@@ -314,7 +316,7 @@ class CourierService
             'merchant_invoice_id' => $order->order_number,
             'cash_collection_amount' => (string) (float) ($data['cod_amount'] ?? $order->courierCodAmount()),
             'parcel_weight' => (int) ($data['parcel_weight'] ?? 500),
-            'instruction' => $data['note'] ?? null,
+            'instruction' => $this->courierNote($order, $data['note'] ?? null),
             'value' => (string) (float) ($order->total_amount ?? 0),
         ], fn ($value): bool => $value !== null && $value !== '');
 
@@ -334,7 +336,7 @@ class CourierService
             'recipient_phone' => $payload['customer_phone'] ?? null,
             'recipient_address' => $payload['customer_address'] ?? null,
             'cod_amount' => (float) $payload['cash_collection_amount'],
-            'note' => $data['note'] ?? null,
+            'note' => $payload['instruction'] ?? null,
         ], CourierBooking::STATUS_BOOKED, 'RedX parcel created.');
     }
 
@@ -400,7 +402,7 @@ class CourierService
             'payment_method' => $data['payment_method'] ?? 'COD',
             'number_of_item' => (int) ($data['item_quantity'] ?? max(1, (int) $order->items->sum('quantity'))),
             'product_id' => $order->order_number,
-            'comments' => $data['note'] ?? $this->itemDescription($order),
+            'comments' => $this->courierNote($order, $data['note'] ?? $this->itemDescription($order)),
         ], fn ($value): bool => $value !== null && $value !== '');
 
         $response = app(ECourierClient::class)->placeOrder($provider, $payload);
@@ -419,7 +421,7 @@ class CourierService
             'recipient_phone' => $payload['recipient_mobile'] ?? null,
             'recipient_address' => $payload['recipient_address'] ?? null,
             'cod_amount' => (float) $payload['product_price'],
-            'note' => $data['note'] ?? null,
+            'note' => $this->courierNote($order, $data['note'] ?? null),
         ], CourierBooking::STATUS_BOOKED, $response['message'] ?? 'E-Courier order placed.');
     }
 
@@ -535,6 +537,31 @@ class CourierService
             'cod_charge_amount' => $codChargeAmount,
             'margin' => $margin,
         ])->save();
+    }
+
+    /**
+     * The note every courier booking carries in the courier's own note
+     * field (owner's rule): "Order placed from {company name}", followed by
+     * any note staff typed. Never duplicated when staff kept the prefilled
+     * line. Always English — it is read by the courier, not shown in the UI.
+     */
+    public function courierNote(Order $order, ?string $note = null): ?string
+    {
+        $order->loadMissing('company');
+        $note = trim((string) $note);
+        $companyName = trim((string) $order->company?->name);
+
+        if ($companyName === '') {
+            return $note === '' ? null : $note;
+        }
+
+        $line = "Order placed from {$companyName}";
+
+        if ($note === '') {
+            return $line;
+        }
+
+        return str_contains(mb_strtolower($note), mb_strtolower($line)) ? $note : "{$line} | {$note}";
     }
 
     protected function itemDescription(Order $order): string
@@ -673,7 +700,7 @@ class CourierService
             'recipient_email' => $data['recipient_email'] ?? $order->customer?->email,
             'recipient_address' => $data['recipient_address'] ?? $order->customer?->address,
             'cod_amount' => $data['cod_amount'] ?? $order->courierCodAmount(),
-            'note' => $data['note'] ?? $order->note,
+            'note' => $this->courierNote($order, $data['note'] ?? $order->note),
             'item_description' => $itemDescription,
             'total_lot' => $data['total_lot'] ?? $order->items->sum('quantity'),
             'delivery_type' => $data['delivery_type'] ?? 0,

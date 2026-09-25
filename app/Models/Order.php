@@ -114,6 +114,13 @@ class Order extends Model
      */
     public bool $suppressWooCommercePush = false;
 
+    /**
+     * The account (Cash, bKash, bank…) the "Paid Amount" typed on the
+     * create form was received into — set by CreateOrder and used by the
+     * `created` hook for the first Payments History row. Not a column.
+     */
+    public ?int $initialPaymentAccountId = null;
+
     public const DELIVERY_STATUSES = [
         CourierBooking::STATUS_NOT_BOOKED => 'Not Booked',
         CourierBooking::STATUS_BOOKING_PENDING => 'Booking Pending',
@@ -237,6 +244,7 @@ class Order extends Model
                     'company_id' => $order->company_id,
                     'type' => OrderPayment::TYPE_ADVANCE,
                     'method' => 'cash',
+                    'account_id' => $order->initialPaymentAccountId,
                     'amount' => $order->paid_amount,
                     'note' => 'Recorded at order creation.',
                     'paid_at' => $order->order_date ?? now()->toDateString(),
@@ -310,6 +318,17 @@ class Order extends Model
             $order->courierBookings()
                 ->withoutGlobalScopes()
                 ->eachById(fn (CourierBooking $booking): bool => $booking->delete());
+
+            // Order payments go with the order through the database cascade,
+            // which skips their model events — take their account-ledger
+            // postings out here so the account balances stay correct.
+            TransactionLedger::query()
+                ->withoutGlobalScopes()
+                ->where('reference_type', OrderPayment::class)
+                ->whereIn('reference_id', $order->payments()->withoutGlobalScopes()->select('id'))
+                ->get()
+                ->each
+                ->delete();
         });
     }
 

@@ -43,6 +43,7 @@ class OrderPayment extends Model
         'order_id',
         'type',
         'method',
+        'account_id',
         'amount',
         'note',
         'received_by',
@@ -64,6 +65,15 @@ class OrderPayment extends Model
             $payment->received_by ??= Auth::id();
         });
 
+        // The account the money was received into decides the method, so
+        // the two can never disagree (e.g. "bKash" account => Mobile Banking).
+        static::saving(function (OrderPayment $payment): void {
+            if ($payment->account_id && $payment->isDirty('account_id')) {
+                $type = Account::query()->whereKey($payment->account_id)->value('type');
+                $payment->method = array_key_exists((string) $type, self::METHODS) ? $type : 'other';
+            }
+        });
+
         static::saving(function (OrderPayment $payment): void {
             if ((float) $payment->amount <= 0) {
                 throw ValidationException::withMessages([
@@ -73,17 +83,84 @@ class OrderPayment extends Model
         });
 
         static::saved(function (OrderPayment $payment): void {
+            $payment->syncLedger();
             $payment->order?->recalculatePaidAmount();
         });
 
         static::deleted(function (OrderPayment $payment): void {
+            $payment->deleteLedger();
             $payment->order?->recalculatePaidAmount();
         });
+    }
+
+    /**
+     * Posts the payment into the chosen account's ledger (money in), so
+     * that account's balance and the finance reports update by themselves
+     * — the same way CustomerPayment::syncLedger() does. A payment with no
+     * account (older rows, gateway payments) posts nothing.
+     */
+    public function syncLedger(): void
+    {
+        if (! $this->account_id) {
+            $this->deleteLedger();
+
+            return;
+        }
+
+        $orderNumber = $this->order?->order_number;
+
+        TransactionLedger::query()->updateOrCreate(
+            [
+                'reference_type' => self::class,
+                'reference_id' => $this->getKey(),
+            ],
+            [
+                'account_id' => $this->account_id,
+                'company_id' => $this->company_id,
+                'type' => 'customer_payment',
+                'direction' => 'in',
+                'amount' => $this->amount,
+                'transaction_date' => $this->paid_at,
+                'note' => trim("Order payment {$orderNumber}"),
+            ],
+        );
+    }
+
+    protected function deleteLedger(): void
+    {
+        TransactionLedger::query()
+            ->where('reference_type', self::class)
+            ->where('reference_id', $this->getKey())
+            ->get()
+            ->each
+            ->delete();
     }
 
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * "Payment Method" choices for recording a customer payment: the
+     * company's own active money accounts (Accounts page — Cash, bKash,
+     * bank…), never the system accounts like Inventory Value.
+     *
+     * @return array<int, string>
+     */
+    public static function accountOptions(): array
+    {
+        return Account::query()
+            ->manual()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
     }
 
     public function receivedBy(): BelongsTo

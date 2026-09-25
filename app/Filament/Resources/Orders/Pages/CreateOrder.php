@@ -4,7 +4,9 @@ namespace App\Filament\Resources\Orders\Pages;
 
 use App\Filament\Concerns\HasStickyHeaderFormActions;
 use App\Filament\Resources\Orders\OrderResource;
+use App\Models\Order;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class CreateOrder extends CreateRecord
 {
@@ -17,6 +19,22 @@ class CreateOrder extends CreateRecord
         return [
             $this->getStickySaveFormAction(),
         ];
+    }
+
+    /**
+     * The "Payment Method" account picked next to Paid Amount is not an
+     * order column; hand it to the order so its first Payments History row
+     * posts into that account (see Order::booted()'s `created` hook).
+     */
+    protected function handleRecordCreation(array $data): Model
+    {
+        /** @var Order $record */
+        $record = new ($this->getModel())($data);
+        $accountId = $this->data['payment_account_id'] ?? null;
+        $record->initialPaymentAccountId = filled($accountId) ? (int) $accountId : null;
+        $record->save();
+
+        return $record;
     }
 
     /**
