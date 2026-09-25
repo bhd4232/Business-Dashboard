@@ -42,7 +42,7 @@ Verification:
 - Full `php artisan test` (plain, no `--env`): **1354 passed, 0 failed** (7369 assertions).
 - `npm run build` succeeded, and Pint passes.
 
-Commit status: Not committed — waiting for owner approval.
+Commit status: Committed and pushed to `claude/order-management-features-nafks7` and `main` (owner approved: "মেইন এ পুশ কর").
 
 ## 2026-09-25 - AI Expense Scan: paste expenses as text
 
