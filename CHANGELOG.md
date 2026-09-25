@@ -4,6 +4,8 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-09-25
+
 **Release type:** Minor Feature Update
 
 ### Added
@@ -32,7 +34,6 @@ All notable production changes to Business Dashboard are documented here.
 - Migration `2026_09_25_120100_add_last_company_selection_to_users_table` adds nullable `users.last_company_selection` (company id or `all`). `CompanySwitchController` writes it. `SetCurrentCompany` uses it only when the session has no company yet, and still checks access.
 - New `App\Support\PhoneLinks`, `App\Services\OrderSummaryCardService`, `CourierService::courierNote()`. The courier note text is always English because the courier reads it. It is not UI text.
 - New tests: `OrderManagementFeaturesTest`, plus new cases in `CourierIntegrationTest` and `CompanySelectionPersistenceTest`.
-
 ## [2.22.0] - 2026-09-25
 
 **Release type:** Minor Feature Update
