@@ -30,6 +30,7 @@ class AiLlmClient
         protected string $model,
         protected ?string $baseUrl = null,
         protected int $timeoutSeconds = 60,
+        protected int $maxTokens = 1024,
     ) {}
 
     /**
@@ -50,7 +51,7 @@ class AiLlmClient
             'anthropic-version' => '2023-06-01',
         ])->timeout($this->timeoutSeconds)->connectTimeout(min(10, $this->timeoutSeconds))->post($url, [
             'model' => $this->model,
-            'max_tokens' => 1024,
+            'max_tokens' => $this->maxTokens,
             'system' => $system,
             'messages' => $messages,
             'tools' => $tools,
@@ -100,7 +101,7 @@ class AiLlmClient
             ->connectTimeout(min(10, $this->timeoutSeconds))
             ->post($url, [
                 'model' => $this->model,
-                'max_tokens' => 1024,
+                'max_tokens' => $this->maxTokens,
                 'messages' => $openAiMessages,
                 'tools' => array_map(fn (array $tool): array => [
                     'type' => 'function',

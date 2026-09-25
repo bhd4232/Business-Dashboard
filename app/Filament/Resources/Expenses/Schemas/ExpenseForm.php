@@ -9,7 +9,6 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Str;
 
 class ExpenseForm
 {
@@ -32,23 +31,10 @@ class ExpenseForm
                                 ->rows(3)
                                 ->columnSpanFull(),
                         ])
-                        ->createOptionUsing(function (array $data): int {
-                            $slug = Str::slug($data['name']);
-                            $originalSlug = $slug;
-                            $suffix = 2;
-
-                            while (ExpenseCategory::query()->where('slug', $slug)->exists()) {
-                                $slug = "{$originalSlug}-{$suffix}";
-                                $suffix++;
-                            }
-
-                            return ExpenseCategory::query()->create([
-                                'name' => $data['name'],
-                                'slug' => $slug,
-                                'description' => $data['description'] ?? null,
-                                'is_active' => true,
-                            ])->getKey();
-                        })
+                        ->createOptionUsing(fn (array $data): int => ExpenseCategory::createWithUniqueSlug(
+                            $data['name'],
+                            $data['description'] ?? null,
+                        )->getKey())
                         ->required(),
                     Select::make('account_id')
                         ->label('Pay From Account')

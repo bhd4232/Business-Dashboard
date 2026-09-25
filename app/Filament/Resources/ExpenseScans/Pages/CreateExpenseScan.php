@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Filament\Resources\ExpenseScans\Pages;
+
+use App\Filament\Concerns\HasStickyHeaderFormActions;
+use App\Filament\Resources\ExpenseScans\ExpenseScanResource;
+use App\Filament\Resources\ExpenseScans\Schemas\ExpenseScanForm;
+use App\Jobs\ProcessExpenseScanJob;
+use App\Models\ExpenseScan;
+use App\Services\CompanyContext;
+use App\Services\ExpenseScan\ExpenseScanConfigService;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
+use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Auth;
+
+class CreateExpenseScan extends CreateRecord
+{
+    use HasStickyHeaderFormActions;
+
+    protected static string $resource = ExpenseScanResource::class;
+
+    protected static ?string $title = 'Scan expenses from a photo';
+
+    public function form(Schema $schema): Schema
+    {
+        return ExpenseScanForm::upload($schema);
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [$this->getStickySaveFormAction()->label('Upload & read')];
+    }
+
+    protected function beforeCreate(): void
+    {
+        $company = app(CompanyContext::class)->company();
+
+        if (! $company || ! app(ExpenseScanConfigService::class)->isConfigured($company)) {
+            Notification::make()
+                ->title('AI Expense Scan is not set up yet')
+                ->body('A super admin needs to add the AI model and API key on AI Tools → Expense Scan first.')
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        return [
+            ...$data,
+            'image_paths' => array_values((array) ($data['image_paths'] ?? [])),
+            'user_id' => Auth::id(),
+            'status' => ExpenseScan::STATUS_PENDING,
+        ];
+    }
+
+    protected function afterCreate(): void
+    {
+        ProcessExpenseScanJob::dispatch($this->record->getKey());
+    }
+
+    protected function getCreatedNotificationTitle(): ?string
+    {
+        return 'Photo uploaded — the AI is reading it';
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return static::getResource()::getUrl('edit', ['record' => $this->record]);
+    }
+}

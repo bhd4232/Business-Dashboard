@@ -246,6 +246,7 @@ class User extends Authenticatable implements FilamentUser
         'accounts.create' => 'Accounts: Create',
         'accounts.update' => 'Accounts: Update',
         'accounts.delete' => 'Accounts: Delete',
+        'expenses.ai_scan' => 'Expenses: AI Scan (upload photo, review and publish)',
         'reports.view' => 'Reports: View',
         'reports.export' => 'Reports: Export',
         'crm.view' => 'CRM Inbox: View',
@@ -406,6 +407,11 @@ class User extends Authenticatable implements FilamentUser
     public function canEditExpenses(): bool
     {
         return $this->isSuperAdmin() || $this->effectiveRole() === 'accountant';
+    }
+
+    public function canUseExpenseScan(): bool
+    {
+        return $this->hasPermission('expenses.ai_scan');
     }
 
     public function canDeleteSensitiveRecords(): bool

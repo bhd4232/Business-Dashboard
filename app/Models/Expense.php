@@ -22,6 +22,7 @@ class Expense extends Model
         'expense_date',
         'reference',
         'note',
+        'expense_scan_id',
     ];
 
     protected $casts = [
@@ -84,6 +85,12 @@ class Expense extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
+    }
+
+    /** The AI Expense Scan whose photo is this expense's proof, if it came from one. */
+    public function scan(): BelongsTo
+    {
+        return $this->belongsTo(ExpenseScan::class, 'expense_scan_id');
     }
 
     public static function nextExpenseNumber(): string

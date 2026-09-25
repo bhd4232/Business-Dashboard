@@ -2,6 +2,40 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-24 - AI Expense Scan: photograph an expense note, AI drafts the expenses, owner reviews and publishes
+
+Reason — owner: "ছবি থেকে বিশ্লেষণ করে এক্সপেন্স অটো যুক্ত করা … এন্ট্রি গুলো পাবলিশ হবে না আমি দেখব এরপর কনফার্ম হয়ে পাবলিশ করব। এটা হতে পারে হাতের লেখা অথবা যে কোন নোট" (upload a photo of any handwritten/printed expense note; AI reads it into expense entries with dates; nothing publishes until the owner reviews, corrects, and confirms). The owner answered the design questions as follows:
+1. Pay-from account is editable per line, and the AI suggests one when the note names a payment method.
+2. When no existing category fits, the AI suggests a new category, created only on publish.
+3. A line with no date on the note stays blank.
+4. The original photo is kept as proof on each expense.
+5. This feature gets its own separate API key and model settings.
+6. Only roles granted access can use it.
+7. Possible duplicates are warned about.
+
+**What was built:**
+
+- **Drafts are kept out of `expenses`,** because `Expense` posts to the ledger in its `saved` hook. There are two new company-owned tables, `expense_scans` and `expense_scan_items`, plus a nullable `expenses.expense_scan_id` FK linking a published expense back to its photo.
+- **Upload** (Finance → Expense Scans → Scan a photo, or **Scan with AI** on the Expenses list): up to 5 photos, stored privately via `CompanyStorageService`, with an optional default pay-from account. Upload is refused, with a clear message, until a super admin configures the model.
+- **Reading:** the queued `ProcessExpenseScanJob` → `ExpenseScanReader` sends the photos to the configured vision model through the existing `AiLlmClient` (Anthropic or OpenAI-compatible). Photos are resized to 1568px and EXIF-rotated. The model is given the company's real categories and accounts and answers through a `record_expenses` tool. Every id, amount (Bangla digits, ৳, /- handled) and date it returns is re-validated.
+- **Review page:** the photo beside an editable repeater of lines. Low-confidence lines and possible duplicates (same date and amount as an existing expense) are flagged. The page polls while the AI is reading. There are also **Save draft**, **Read again with AI** and **Delete** actions.
+- **Publish:** `ExpenseScanPublisher` runs in one transaction and is all-or-nothing. It requires a date, amount, category and account on every line, and names the line to fix, including when an account would go negative. It reuses same-name categories and blocks double-publishing.
+- **Access:** the new permission `expenses.ai_scan` is Super Admin by default and can be granted to any custom role. It is not added to any built-in role. The model config page is AI Tools → Expense Scan (super-admin only). Its settings are at `settings->ai_tools->expense_scan`, with the key encrypted and default model `claude-opus-5`.
+- Small refactors: `AiLlmClient` has an optional `$maxTokens` argument (default unchanged at 1024). `ExpenseCategory::createWithUniqueSlug()` now holds the slug logic that was inline in `ExpenseForm`.
+
+**Deployment note:** run `php artisan migrate --force`, and make sure a queue worker is running. With `QUEUE_CONNECTION=sync` the scan still works, but the upload request waits for the AI (up to ~3 minutes).
+
+Important changed/new files: `database/migrations/2026_09_24_100000_create_expense_scans_tables.php`, `app/Models/{ExpenseScan,ExpenseScanItem,Expense,ExpenseCategory,User}.php`, `app/Services/ExpenseScan/{ExpenseScanConfigService,ExpenseScanReader,ExpenseScanPublisher}.php`, `app/Jobs/ProcessExpenseScanJob.php`, `app/Filament/Resources/ExpenseScans/**`, `app/Filament/Pages/ExpenseScanSettings.php`, `app/Http/Controllers/Admin/ExpenseScanImageController.php`, `routes/web.php`, `resources/views/filament/expense-scans/images.blade.php`, `resources/views/filament/pages/expense-scan-settings.blade.php`, `app/Filament/Resources/Expenses/{Pages/ListExpenses,Schemas/ExpenseForm,Schemas/ExpenseInfolist}.php`, `app/Services/Crm/AiLlmClient.php`, `tests/Feature/ExpenseScanTest.php`, `tests/Feature/MultiCompanyIsolationTest.php`.
+
+Verification:
+- `php artisan test --filter=ExpenseScanTest`: 16 passed (91 assertions). The AI is always `Http::fake()`d, so there are no live calls.
+- `MultiCompanyIsolationTest`, `PromptEnhancerSettingsPageTest`, `AccountsAndPaymentsTest`, and `ReleaseNotesTest` pass.
+- Full `php artisan test` (plain, no `--env`): 1319 passed and 1 failed. The failure was `ReleaseNotesTest`, because the CHANGELOG entry was first written under a new `[2.20.0]` header. It was moved under `[Unreleased]` to match the repo's release-cut convention, and `ReleaseNotesTest` then passed. One more `ExpenseScanTest` test was added after the full run and passes.
+- `npm run build` succeeded (new Blade view uses Tailwind classes).
+- Not tested live against a real AI provider. That needs the owner's API key.
+
+Commit status: Committed and pushed to `claude/expense-auto-entry-ocr-57kalg` (owner approved: "কমিট এবং পুশ কর").
+
 ## 2026-09-20 - New external Website Integration API (Tasneem Knitting Industry's ERP API Documentation requirements)
 
 Reason — owner: shared "ERP API Documetation.docx" (a requirements doc from Tasneem Knitting Industry's website development team, asking how their existing website will integrate with this ERP) and asked how to answer the remaining unanswered questions in it: (1) share REST API/webhook documentation, (2) firewall/IP-whitelisting on the VPS, (3) a staging/sandbox environment with credentials for their team to test against. The owner had already answered the business-requirement questions in the doc: two-way real-time product/stock sync, website→ERP orders and inquiries, and one-way ERP→website order status tracking (managed only from inside the ERP). Decision: build the real API first, then answer the doc from what was actually built, rather than inventing placeholder answers for something that didn't exist yet. A Coolify Application for staging was already created (empty shell) — this only covers the app-level work; provisioning/wiring that Application up is the owner's own infra step, documented as a walkthrough.

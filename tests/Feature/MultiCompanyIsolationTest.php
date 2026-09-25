@@ -27,6 +27,8 @@ use App\Models\CustomerRiskProfile;
 use App\Models\CustomerRiskReview;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\ExpenseScan;
+use App\Models\ExpenseScanItem;
 use App\Models\FraudCheck;
 use App\Models\FundSource;
 use App\Models\FundTransfer;
@@ -121,6 +123,7 @@ class MultiCompanyIsolationTest extends TestCase
             MetaAdAccount::class, MetaAdCampaign::class, MetaAdSet::class, MetaAd::class, MetaAdProposal::class, MetaAudience::class,
             Offer::class, OfferItem::class, ProductReview::class,
             Broadcast::class, Media::class, GeneratedImage::class,
+            ExpenseScan::class, ExpenseScanItem::class,
         ];
 
         foreach ($models as $modelClass) {

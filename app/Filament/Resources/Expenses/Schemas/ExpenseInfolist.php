@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\Expenses\Schemas;
 
+use App\Models\Expense;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 
 class ExpenseInfolist
@@ -20,6 +22,15 @@ class ExpenseInfolist
                 TextEntry::make('reference'),
             ])->columns(2),
             TextEntry::make('note')->columnSpanFull(),
+            Section::make('Scanned photo')
+                ->description('This expense was read by AI Expense Scan from the photo below.')
+                ->columnSpanFull()
+                ->collapsible()
+                ->visible(fn (Expense $record): bool => $record->expense_scan_id !== null)
+                ->schema([
+                    View::make('filament.expense-scans.images')
+                        ->viewData(fn (Expense $record): array => ['scan' => $record->scan]),
+                ]),
         ]);
     }
 }

@@ -4,6 +4,20 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **AI Expense Scan (Finance → Expense Scans): photograph an expense note and let AI enter the expenses for you.** Take or upload a photo of any expense list (a handwritten notebook page, a receipt, a whiteboard, a screenshot), in Bangla, English, or both. An AI vision model reads every line into a draft: date, description, amount, a suggested category, and a suggested pay-from account. **Nothing is published automatically.** A review page shows the photo beside the draft lines. Correct anything the AI misread, add or remove lines, then press **Publish** to turn them into real expenses. Also reachable from a new **Scan with AI** button on the Expenses list.
+  - **Dates:** a date written as a heading applies to the lines under it. A line with no date on the note is left **blank** for you to fill in and cannot be published until you do.
+  - **Categories:** the AI picks one of your existing expense categories. When none fits, it suggests a new category name, which is only created when you publish.
+  - **Pay-from account:** optionally pick a default account when uploading. If the note says how a line was paid (e.g. bKash, Cash) and that matches one of your accounts, the AI suggests that account instead. Every line's account can be changed during review.
+  - **Warnings on the review page:** a line the AI was unsure about, and a line with the same date and amount as an expense already recorded (possible duplicate), are both flagged.
+  - **Publishing is all-or-nothing:** if any line is incomplete, or would take an account below zero, nothing is posted and you are told which line to fix.
+  - **Proof kept:** each published expense's page shows the original photo it was read from.
+  - **Who can use it:** only users whose role has the new **"Expenses: AI Scan (upload photo, review and publish)"** permission (Super Admins always can). Grant it to a custom role under Settings → User Roles.
+  - **Setup:** a Super Admin sets the AI model and API key on the new **AI Tools → Expense Scan** page. Any Anthropic (Claude) or OpenAI-compatible vision model works. This key is separate from the CRM and Prompt Enhancer keys, so its cost can be tracked on its own.
+
+  **Technical Notes:** migration `2026_09_24_100000_create_expense_scans_tables` adds `expense_scans` and `expense_scan_items` (both company-owned: `BelongsToCompany` + `CompanyScope`, added to `MultiCompanyIsolationTest`) and a nullable `expenses.expense_scan_id` FK (`nullOnDelete`). Drafts are deliberately kept out of `expenses`, because an `Expense` posts to the ledger in its `saved` hook. Photos are stored privately through `CompanyStorageService` (`private/expense-scans/`) and served by the new permission-checked `expense-scans.image` route. The vision call runs in the new queued `ProcessExpenseScanJob` (`tries=1`, `timeout=240`). It sets `CompanyContext` explicitly and restores it afterwards, so it also works under `QUEUE_CONNECTION=sync`. **Production needs a running queue worker for scans to be read off the request.** New services `ExpenseScanConfigService` (encrypted per-company settings at `settings->ai_tools->expense_scan`), `ExpenseScanReader` (vision prompt + `record_expenses` tool; re-validates every category/account id, amount and date the model returns), and `ExpenseScanPublisher` (transactional publish, category de-duplication, duplicate hint). `AiLlmClient` gained an optional `$maxTokens` constructor argument (default unchanged at 1024). `ExpenseCategory::createWithUniqueSlug()` now holds the unique-slug logic previously inlined in `ExpenseForm`. New permission key `expenses.ai_scan` is not added to any built-in role.
+
 ## [2.19.0] - 2026-09-20
 
 **Release type:** Minor Feature Update

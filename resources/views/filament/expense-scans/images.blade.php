@@ -1,0 +1,27 @@
+@php
+    /** @var \App\Models\ExpenseScan|null $scan */
+    $paths = $scan?->imagePaths() ?? [];
+@endphp
+
+<div class="space-y-3">
+    @if ($scan?->isBusy())
+        <div wire:poll.5s="refreshScan" class="flex items-center gap-2 text-sm font-medium text-primary-600 dark:text-primary-400">
+            <x-filament::loading-indicator class="h-5 w-5" />
+            The AI is reading your photo — the lines below will appear in a moment.
+        </div>
+    @endif
+
+    @if ($paths === [])
+        <p class="text-sm text-gray-500 dark:text-gray-400">No photo.</p>
+    @else
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            @foreach ($paths as $index => $path)
+                @php($url = route('expense-scans.image', ['scan' => $scan->getKey(), 'index' => $index]))
+                <a href="{{ $url }}" target="_blank" rel="noopener" class="block overflow-hidden rounded-lg border border-gray-200 dark:border-white/10">
+                    <img src="{{ $url }}" alt="Expense photo {{ $index + 1 }}" loading="lazy" class="max-h-[32rem] w-full object-contain bg-gray-50 dark:bg-white/5">
+                </a>
+            @endforeach
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Tap a photo to open it full size.</p>
+    @endif
+</div>
