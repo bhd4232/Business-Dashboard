@@ -4,6 +4,12 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **AI Expense Scan can now read expenses pasted as text, not just photos.** The scan page (Finance → Expense Scans → Scan photo or text, or **Scan with AI** on the Expenses list) has a new **"Or paste expenses as text"** box. Paste several expenses at once, one per line in any format (for example a WhatsApp message or a notes-app list, in Bangla or English). They are read into draft lines exactly like a photo: dates, amounts, suggested category and suggested pay-from account, with the same review and **Publish** step before anything is posted. A scan can have photos, pasted text, or both. The pasted text is shown on the review page and on each published expense as its source.
+
+  **Technical Notes:** migration `2026_09_25_110000_add_source_text_to_expense_scans_table` adds a nullable `expense_scans.source_text` column. `ExpenseScanReader` sends the pasted text to the model as a delimited text block alongside any photos, and a scan needs at least one of the two.
+
 ## [2.21.0] - 2026-09-25
 
 **Release type:** Minor Feature Update

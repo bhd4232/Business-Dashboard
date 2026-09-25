@@ -32,7 +32,7 @@ class ExpenseScanInfolist
                     TextEntry::make('error_message')->label('Message')->columnSpanFull()
                         ->visible(fn (ExpenseScan $record): bool => filled($record->error_message)),
                 ]),
-            Section::make('Photo')
+            Section::make(__('Source (photo / pasted text)'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->schema([

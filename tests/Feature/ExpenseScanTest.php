@@ -316,6 +316,59 @@ class ExpenseScanTest extends TestCase
         Queue::assertPushed(ProcessExpenseScanJob::class, fn (ProcessExpenseScanJob $job): bool => $job->expenseScanId === $scan->getKey());
     }
 
+    public function test_pasted_text_alone_creates_a_scan_and_is_sent_to_the_ai(): void
+    {
+        Queue::fake();
+        $company = $this->company();
+        $this->configure($company);
+        $admin = $this->user($company, 'super_admin');
+        $cash = Account::query()->create(['name' => 'Cash', 'opening_balance' => 5000]);
+        $pasted = "২০/০৯/২০২৬\nরিকশা ভাড়া ১২০\nচা নাস্তা ৮০";
+
+        Livewire::actingAs($admin)
+            ->test(CreateExpenseScan::class)
+            ->fillForm(['source_text' => $pasted, 'default_account_id' => $cash->getKey()])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $scan = ExpenseScan::query()->sole();
+        $this->assertSame([], $scan->imagePaths());
+        $this->assertSame($pasted, $scan->source_text);
+        Queue::assertPushed(ProcessExpenseScanJob::class);
+
+        $this->fakeClaude([
+            ['date' => '2026-09-20', 'description' => 'রিকশা ভাড়া', 'amount' => 120, 'category_id' => null, 'new_category_name' => 'যাতায়াত', 'account_id' => null, 'confidence' => 0.95],
+            ['date' => '2026-09-20', 'description' => 'চা নাস্তা', 'amount' => 80, 'category_id' => null, 'new_category_name' => 'আপ্যায়ন', 'account_id' => null, 'confidence' => 0.95],
+        ]);
+
+        (new ProcessExpenseScanJob($scan->getKey()))->handle(app(CompanyContext::class), app(ExpenseScanReader::class));
+
+        $this->assertSame(ExpenseScan::STATUS_READY, $scan->refresh()->status);
+        $this->assertCount(2, $scan->items()->get());
+        Http::assertSent(function (Request $request) use ($pasted): bool {
+            $content = $request['messages'][0]['content'];
+
+            return $content[0]['type'] === 'text'
+                && str_contains($content[0]['text'], $pasted)
+                && collect($content)->doesntContain('type', 'image');
+        });
+    }
+
+    public function test_upload_needs_a_photo_or_pasted_text(): void
+    {
+        Queue::fake();
+        $company = $this->company();
+        $this->configure($company);
+
+        Livewire::actingAs($this->user($company, 'super_admin'))
+            ->test(CreateExpenseScan::class)
+            ->fillForm(['source_text' => '', 'image_paths' => []])
+            ->call('create')
+            ->assertHasFormErrors(['image_paths' => 'required', 'source_text' => 'required']);
+
+        $this->assertSame(0, ExpenseScan::query()->count());
+    }
+
     public function test_upload_is_blocked_until_the_ai_is_configured(): void
     {
         Queue::fake();
@@ -382,7 +435,7 @@ class ExpenseScanTest extends TestCase
 
         $page = Livewire::actingAs($admin)
             ->test(ReviewExpenseScan::class, ['record' => $scan->getKey()])
-            ->assertSee('The AI is reading your photo');
+            ->assertSee(__('The AI is reading your expenses — the lines below will appear in a moment.'));
 
         $scan->items()->create(['company_id' => $company->getKey(), 'description' => 'Tea', 'amount' => 20]);
         $scan->forceFill(['status' => ExpenseScan::STATUS_READY])->save();
@@ -391,7 +444,7 @@ class ExpenseScanTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(ReviewExpenseScan::class, ['record' => $scan->getKey()])
-            ->assertDontSee('The AI is reading your photo')
+            ->assertDontSee(__('The AI is reading your expenses — the lines below will appear in a moment.'))
             ->assertSee('Tea');
     }
 

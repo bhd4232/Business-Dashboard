@@ -57,5 +57,21 @@
     "Track an order": "Track an order",
     "Track order": "Track order",
     "View all": "View all",
-    "View all products": "View all products"
+    "View all products": "View all products",
+    "Scanned source": "Scanned source",
+    "This expense was read by AI Expense Scan from the photo or pasted text below.": "This expense was read by AI Expense Scan from the photo or pasted text below.",
+    "Scan photo or text": "Scan photo or text",
+    "Read with AI": "Read with AI",
+    "Uploaded — the AI is reading your expenses": "Uploaded — the AI is reading your expenses",
+    "Scan expenses from a photo or text": "Scan expenses from a photo or text",
+    "Source (photo / pasted text)": "Source (photo / pasted text)",
+    "Nothing to read: this scan has no photo and no pasted text.": "Nothing to read: this scan has no photo and no pasted text.",
+    "The AI is reading your expenses — the lines below will appear in a moment.": "The AI is reading your expenses — the lines below will appear in a moment.",
+    "Pasted text": "Pasted text",
+    "Your expenses": "Your expenses",
+    "Upload a clear photo of a handwritten note, receipt, or any expense list, and/or paste expenses as text (Bangla or English). The AI reads them into draft lines for you to review. Nothing is posted until you publish.": "Upload a clear photo of a handwritten note, receipt, or any expense list, and/or paste expenses as text (Bangla or English). The AI reads them into draft lines for you to review. Nothing is posted until you publish.",
+    "Upload a photo or paste your expenses as text.": "Upload a photo or paste your expenses as text.",
+    "Or paste expenses as text": "Or paste expenses as text",
+    "20/09/2026\nRickshaw fare 120\nTea and snacks 80 (bKash)\n21/09 Office rent 15000": "20/09/2026\nRickshaw fare 120\nTea and snacks 80 (bKash)\n21/09 Office rent 15000",
+    "Paste several expenses at once: one per line, in any format. Dates, amounts and payment methods are read the same way as from a photo.": "Paste several expenses at once: one per line, in any format. Dates, amounts and payment methods are read the same way as from a photo."
 }

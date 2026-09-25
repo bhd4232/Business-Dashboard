@@ -57,5 +57,21 @@
     "Track an order": "অর্ডার ট্র্যাক করুন",
     "Track order": "অর্ডার ট্র্যাক",
     "View all": "সব দেখুন",
-    "View all products": "সব পণ্য দেখুন"
+    "View all products": "সব পণ্য দেখুন",
+    "Scanned source": "স্ক্যান করা উৎস",
+    "This expense was read by AI Expense Scan from the photo or pasted text below.": "এই খরচটি AI এক্সপেন্স স্ক্যান নিচের ছবি বা পেস্ট করা লেখা থেকে পড়েছে।",
+    "Scan photo or text": "ছবি বা লেখা স্ক্যান করুন",
+    "Read with AI": "AI দিয়ে পড়ুন",
+    "Uploaded — the AI is reading your expenses": "আপলোড হয়েছে — AI আপনার খরচগুলো পড়ছে",
+    "Scan expenses from a photo or text": "ছবি বা লেখা থেকে খরচ স্ক্যান করুন",
+    "Source (photo / pasted text)": "উৎস (ছবি / পেস্ট করা লেখা)",
+    "Nothing to read: this scan has no photo and no pasted text.": "পড়ার মতো কিছু নেই: এই স্ক্যানে কোনো ছবি বা পেস্ট করা লেখা নেই।",
+    "The AI is reading your expenses — the lines below will appear in a moment.": "AI আপনার খরচগুলো পড়ছে — নিচের লাইনগুলো একটু পরেই দেখা যাবে।",
+    "Pasted text": "পেস্ট করা লেখা",
+    "Your expenses": "আপনার খরচ",
+    "Upload a clear photo of a handwritten note, receipt, or any expense list, and/or paste expenses as text (Bangla or English). The AI reads them into draft lines for you to review. Nothing is posted until you publish.": "হাতে লেখা নোট, রসিদ বা যেকোনো খরচের তালিকার পরিষ্কার ছবি আপলোড করুন, এবং/অথবা খরচগুলো লেখা আকারে পেস্ট করুন (বাংলা বা ইংরেজি)। AI এগুলো পড়ে খসড়া লাইন তৈরি করবে, আপনি রিভিউ করবেন। পাবলিশ না করা পর্যন্ত কিছুই পোস্ট হবে না।",
+    "Upload a photo or paste your expenses as text.": "একটি ছবি আপলোড করুন অথবা খরচগুলো লেখা আকারে পেস্ট করুন।",
+    "Or paste expenses as text": "অথবা খরচগুলো লেখা আকারে পেস্ট করুন",
+    "20/09/2026\nRickshaw fare 120\nTea and snacks 80 (bKash)\n21/09 Office rent 15000": "২০/০৯/২০২৬\nরিকশা ভাড়া ১২০\nচা নাস্তা ৮০ (বিকাশ)\n২১/০৯ অফিস ভাড়া ১৫০০০",
+    "Paste several expenses at once: one per line, in any format. Dates, amounts and payment methods are read the same way as from a photo.": "একসাথে অনেকগুলো খরচ পেস্ট করুন: প্রতি লাইনে একটি, যেকোনো ফরম্যাটে। তারিখ, টাকার পরিমাণ ও পেমেন্ট মাধ্যম ছবির মতোই পড়া হবে।"
 }

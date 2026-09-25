@@ -15,6 +15,7 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -31,7 +32,7 @@ class ExpenseScanForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
-            Section::make('Photo')
+            Section::make(__('Source (photo / pasted text)'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->schema([
@@ -64,8 +65,8 @@ class ExpenseScanForm
     public static function upload(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
-            Section::make('Photo of your expenses')
-                ->description('Take or upload a clear photo of a handwritten note, receipt, or any expense list (Bangla or English). The AI reads it into draft lines for you to review. Nothing is posted until you publish.')
+            Section::make(__('Your expenses'))
+                ->description(__('Upload a clear photo of a handwritten note, receipt, or any expense list, and/or paste expenses as text (Bangla or English). The AI reads them into draft lines for you to review. Nothing is posted until you publish.'))
                 ->columnSpanFull()
                 ->schema([
                     FileUpload::make('image_paths')
@@ -79,7 +80,16 @@ class ExpenseScanForm
                         ->visibility('private')
                         ->saveUploadedFileUsing(fn (TemporaryUploadedFile $file): string => static::storeImage($file))
                         ->helperText('Up to '.ExpenseScan::MAX_IMAGES.' photos (JPG, PNG or WebP, 10 MB each). Pages of the same note can go in one scan.')
-                        ->required(),
+                        ->required(fn (Get $get): bool => blank($get('source_text')))
+                        ->validationMessages(['required' => __('Upload a photo or paste your expenses as text.')]),
+                    Textarea::make('source_text')
+                        ->label(__('Or paste expenses as text'))
+                        ->rows(8)
+                        ->maxLength(ExpenseScan::MAX_TEXT_LENGTH)
+                        ->placeholder(__("20/09/2026\nRickshaw fare 120\nTea and snacks 80 (bKash)\n21/09 Office rent 15000"))
+                        ->helperText(__('Paste several expenses at once: one per line, in any format. Dates, amounts and payment methods are read the same way as from a photo.'))
+                        ->required(fn (Get $get): bool => blank($get('image_paths')))
+                        ->validationMessages(['required' => __('Upload a photo or paste your expenses as text.')]),
                     Select::make('default_account_id')
                         ->label('Pay from account (when the note does not say)')
                         ->options(fn (): array => static::accountOptions())

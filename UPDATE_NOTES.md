@@ -2,6 +2,26 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-25 - AI Expense Scan: paste expenses as text
+
+Reason — owner: "টেক্সটবক্স যুক্ত করো যেখানে মাল্টিপল এক্সপেন্স গুলো টেক্সট আকারে পেস্ট করব এই সেটা এক্সপেন্স হিসেবে ট্র্যাক করবে।" (add a text box where several expenses can be pasted as text and tracked as expenses).
+
+What changed: the Expense Scan upload page has a new **"Or paste expenses as text"** textarea (up to 10,000 characters). A scan needs a photo, pasted text, or both, and shows a validation error if both are empty. The pasted text goes through the same AI → review → publish pipeline as photos, so nothing is posted without review. It is sent to the model as a delimited text block, and the prompt treats it as data, not instructions. The text is shown in the scan's "Source" panel on the review page, the scan view, and each published expense. New migration: `expense_scans.source_text`, a nullable text column.
+
+Bilingual rule (new in `CLAUDE.md`): every string added or changed in this change goes through `__()`, with 16 new keys in both `lang/en.json` and `lang/bn.json`. The example placeholder's Bangla text lives only in `lang/bn.json`. The migration was renamed to `2026_09_25_110000_*` so it does not share the `2026_09_25_100000` prefix with the storefront VAT migration that landed on `main` meanwhile. The work was rebuilt on the latest `main` (after the v2.20.0 and v2.21.0 release cuts).
+
+**Needs Bangla review:** the 16 new `lang/bn.json` keys for AI Expense Scan (Source / pasted-text labels, the paste box label, helper, placeholder and validation message, and the page title and button labels).
+
+Important changed files: `lang/en.json`, `lang/bn.json`, `database/migrations/2026_09_25_110000_add_source_text_to_expense_scans_table.php`, `app/Models/ExpenseScan.php`, `app/Services/ExpenseScan/ExpenseScanReader.php`, `app/Filament/Resources/ExpenseScans/{Schemas/ExpenseScanForm,Schemas/ExpenseScanInfolist,Pages/CreateExpenseScan,Pages/ListExpenseScans}.php`, `app/Filament/Resources/Expenses/Schemas/ExpenseInfolist.php`, `resources/views/filament/expense-scans/images.blade.php`, `tests/Feature/ExpenseScanTest.php`.
+
+Verification:
+- `php artisan test --filter=ExpenseScanTest`: 18 passed. Two tests are new: pasted text alone creates a scan and is sent to the AI with no image, and the upload needs a photo or text.
+- `TranslationParityTest` passes.
+- Full `php artisan test` (plain, no `--env`) on the latest `main`: **1338 passed, 0 failed** (7169 assertions).
+- `npm run build` succeeded, and Pint passes.
+
+Commit status: Committed and pushed to `claude/expense-auto-entry-ocr-57kalg` and `main` (owner approved: "Main এ পুশ কর").
+
 ## 2026-09-25 - Marketplace Pro theme (phase 1 + layout), storefront VAT, delivery time, Bangla/English plan
 
 Reason: the owner reviewed the Marketplace Pro plan (artifact "Marketplace Pro থিম প্ল্যান") and answered:
@@ -104,7 +124,7 @@ Important changed/new files: `routes/api.php`, `bootstrap/app.php`, `app/Http/Mi
 
 Verification: `php artisan test --filter="WebsiteApi|WebsiteWebhookDispatchTest"` — 22 passed (49 assertions). `php artisan test --filter=IntegrationsPageTest` — 25 passed (167 assertions). `php artisan test --filter=MultiCompanyIsolationTest` — 7 passed (172 assertions). Full `php artisan test` (plain, no `--env`) — **1335 passed, 0 failed** (6763 assertions, ~813s), run after a small fix (excluding `stock` from `Product`'s own webhook-dispatch check, to keep `StockMovement` as the single dispatch point) and the added `IntegrationsPageTest` coverage. `npm run build` not run — no frontend asset changed (PHP/Blade only, no JS/CSS).
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: Committed and pushed to `claude/expense-auto-entry-ocr-57kalg` and `main` (owner approved: "Main এ পুশ কর").
 
 ## 2026-09-17 - Orders: auto shipping fee ignored the real default courier when a company has more than one
 
@@ -307,7 +327,7 @@ Important — Meta has restricted first_name/last_name access on Messenger PSIDs
 
 Verification: `php artisan test --filter="test_profile_name_replaces_id_placeholder_and_updates_generated_lead_name|test_missing_profile_name_never_falls_back_to_phone_or_id" tests/Feature/CrmSalesAutomationTest.php tests/Feature/MetaMessagingReliabilityTest.php` — 20 passed. Full `php artisan test` — 1254 passed, 2 failed; both pre-existing and unrelated (`AdminNavigationClustersTest` — CRM Sales Automation cluster routing; `ReleaseNotesTest` — stale `config/release.php` version).
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: Committed and pushed to `claude/expense-auto-entry-ocr-57kalg` and `main` (owner approved: "Main এ পুশ কর").
 
 ## 2026-09-12 - Courier Fraud Check: Steadfast could report a false clean history
 
@@ -324,7 +344,7 @@ Important — this fix stops the false "0/0 clean" report; it does **not** make 
 
 Verification: `php artisan test --filter=FraudClient tests/Unit/Services/CourierFraud tests/Feature/ExternalCourierFraudCheckTest.php tests/Feature/StorefrontRiskPaymentEligibilityTest.php` — 24 passed. Full `php artisan test` — 1254 passed, 2 failed; both pre-existing and unrelated (`AdminNavigationClustersTest` — the CRM Sales Automation cluster's first-authorized-page routing; `ReleaseNotesTest` — stale `config/release.php` version `2.11.2` vs CHANGELOG's `2.14.0`).
 
-Commit status: NOT committed. Awaiting owner approval.
+Commit status: Committed and pushed to `claude/expense-auto-entry-ocr-57kalg` and `main` (owner approved: "Main এ পুশ কর").
 
 ## 2026-09-07 - Investor / Mudarabah module v3 — Sprint 1 (P1.1–P1.7)
 

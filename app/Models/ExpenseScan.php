@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * One AI Expense Scan upload: the photographed note(s) plus the draft lines
- * the AI read out of them. Nothing here touches the ledger — lines only
+ * One AI Expense Scan upload: the photographed note(s) and/or pasted text,
+ * plus the draft lines the AI read out of them. Nothing here touches the ledger — lines only
  * become real Expenses when a reviewer publishes the scan
  * (ExpenseScanPublisher).
  */
@@ -37,11 +37,14 @@ class ExpenseScan extends Model
 
     public const MAX_IMAGES = 5;
 
+    public const MAX_TEXT_LENGTH = 10000;
+
     protected $fillable = [
         'company_id',
         'user_id',
         'default_account_id',
         'image_paths',
+        'source_text',
         'status',
         'error_message',
         'api_format',

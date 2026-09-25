@@ -22,8 +22,8 @@ class ExpenseInfolist
                 TextEntry::make('reference'),
             ])->columns(2),
             TextEntry::make('note')->columnSpanFull(),
-            Section::make('Scanned photo')
-                ->description('This expense was read by AI Expense Scan from the photo below.')
+            Section::make(__('Scanned source'))
+                ->description(__('This expense was read by AI Expense Scan from the photo or pasted text below.'))
                 ->columnSpanFull()
                 ->collapsible()
                 ->visible(fn (Expense $record): bool => $record->expense_scan_id !== null)

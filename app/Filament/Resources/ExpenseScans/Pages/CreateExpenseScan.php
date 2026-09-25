@@ -20,7 +20,10 @@ class CreateExpenseScan extends CreateRecord
 
     protected static string $resource = ExpenseScanResource::class;
 
-    protected static ?string $title = 'Scan expenses from a photo';
+    public function getTitle(): string
+    {
+        return __('Scan expenses from a photo or text');
+    }
 
     public function form(Schema $schema): Schema
     {
@@ -29,7 +32,7 @@ class CreateExpenseScan extends CreateRecord
 
     protected function getHeaderActions(): array
     {
-        return [$this->getStickySaveFormAction()->label('Upload & read')];
+        return [$this->getStickySaveFormAction()->label(__('Read with AI'))];
     }
 
     protected function beforeCreate(): void
@@ -57,6 +60,7 @@ class CreateExpenseScan extends CreateRecord
         return [
             ...$data,
             'image_paths' => array_values((array) ($data['image_paths'] ?? [])),
+            'source_text' => filled($data['source_text'] ?? null) ? trim((string) $data['source_text']) : null,
             'user_id' => Auth::id(),
             'status' => ExpenseScan::STATUS_PENDING,
         ];
@@ -69,7 +73,7 @@ class CreateExpenseScan extends CreateRecord
 
     protected function getCreatedNotificationTitle(): ?string
     {
-        return 'Photo uploaded — the AI is reading it';
+        return __('Uploaded — the AI is reading your expenses');
     }
 
     protected function getRedirectUrl(): string

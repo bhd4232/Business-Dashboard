@@ -13,6 +13,6 @@ class ListExpenseScans extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Scan a photo')->icon(Heroicon::OutlinedCamera)];
+        return [CreateAction::make()->label(__('Scan photo or text'))->icon(Heroicon::OutlinedCamera)];
     }
 }
