@@ -4,6 +4,8 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-09-25
+
 **Release type:** Minor Feature Update
 
 ### Added
@@ -53,7 +55,6 @@ All notable production changes to Business Dashboard are documented here.
 - `axios` was removed. It was unused (`resources/js/bootstrap.js` deleted), which drops ~14 KB gzip from the storefront bundle.
 - New tests: `StorefrontVatAndDeliveryTimeTest`, `tests/Unit/TranslationParityTest`. `StorefrontThemeTest` was updated for the owner's new hero, copy and utility-bar rules.
 - New agent rule in `CLAUDE.md` / `AGENTS.md`: every new user-visible string goes into both `lang/en.json` and `lang/bn.json`.
-
 ## [2.20.0] - 2026-09-25
 
 **Release type:** Minor Feature Update
