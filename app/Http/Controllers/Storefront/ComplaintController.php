@@ -9,6 +9,7 @@ use App\Models\StorefrontComplaint;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\TelegramComplaintService;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -104,7 +105,7 @@ class ComplaintController extends Controller
 
     protected function view(Company $company, StorefrontSetting $setting, ?string $previewSlug = null): View
     {
-        return view('storefront.complaints.show', compact('company', 'setting', 'previewSlug'));
+        return StorefrontThemeRegistry::page('complaints.show', compact('company', 'setting', 'previewSlug'));
     }
 
     protected function domainStorefront(Request $request): array

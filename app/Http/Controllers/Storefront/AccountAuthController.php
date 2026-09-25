@@ -10,6 +10,7 @@ use App\Services\CustomerAccountService;
 use App\Services\StorefrontCustomerActivityService;
 use App\Services\StorefrontMetaTrackingService;
 use App\Services\StorefrontNotificationService;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -125,7 +126,7 @@ class AccountAuthController extends Controller
             return redirect()->to($this->accountRoute($request, 'profile'));
         }
 
-        return view('storefront.account.login', [
+        return StorefrontThemeRegistry::page('account.login', [
             'company' => $company,
             'setting' => $setting,
             'activeTab' => 'login',
@@ -173,7 +174,7 @@ class AccountAuthController extends Controller
             return redirect()->to($this->accountRoute($request, 'profile'));
         }
 
-        return view('storefront.account.otp-request', [
+        return StorefrontThemeRegistry::page('account.otp-request', [
             'company' => $company,
             'setting' => $setting,
             'smsAvailable' => $this->notifications->smsConfigured($setting),
@@ -233,7 +234,7 @@ class AccountAuthController extends Controller
                 ->with('storefront_status', 'Enter your phone number or email to request a login code.');
         }
 
-        return view('storefront.account.otp-verify', [
+        return StorefrontThemeRegistry::page('account.otp-verify', [
             'company' => $company,
             'setting' => $setting,
             'maskedIdentifier' => $this->maskIdentifier($identifier),
@@ -283,7 +284,7 @@ class AccountAuthController extends Controller
             return redirect()->to($this->accountRoute($request, 'profile'));
         }
 
-        return view('storefront.account.login', [
+        return StorefrontThemeRegistry::page('account.login', [
             'company' => $company,
             'setting' => $setting,
             'activeTab' => 'register',
@@ -345,7 +346,7 @@ class AccountAuthController extends Controller
         [$company, $setting] = $this->domainStorefront($request);
         abort_if(! $setting->customer_accounts_enabled, 404);
 
-        return view('storefront.account.forgot-password', [
+        return StorefrontThemeRegistry::page('account.forgot-password', [
             'company' => $company,
             'setting' => $setting,
             'smsAvailable' => $this->notifications->smsConfigured($setting),
@@ -384,7 +385,7 @@ class AccountAuthController extends Controller
         [$company, $setting] = $this->domainStorefront($request);
         abort_if(! $setting->customer_accounts_enabled, 404);
 
-        return view('storefront.account.reset-password', [
+        return StorefrontThemeRegistry::page('account.reset-password', [
             'company' => $company,
             'setting' => $setting,
             'phone' => (string) $request->query('phone', ''),

@@ -64,6 +64,24 @@ class StorefrontSetting extends Model
     ];
 
     public const THEME_PALETTE_PRESETS = [
+        // Colours from the ERP Frontend Design System handoff
+        // (design_handoff_storefront_themes/README.md, Theme 1).
+        'marketplace_pro' => [
+            'label' => 'Marketplace Pro',
+            'theme_color' => '#0A6CFF',
+            'theme_secondary_color' => '#0F2A43',
+            'theme_accent_color' => '#FF6A00',
+            'theme_background_color' => '#F5F6F8',
+            'theme_surface_color' => '#FFFFFF',
+            'theme_text_color' => '#14181F',
+            'theme_muted_text_color' => '#5C6672',
+            'theme_border_color' => '#DDE2E9',
+            'theme_dark_background_color' => '#0B1219',
+            'theme_dark_surface_color' => '#121C26',
+            'theme_dark_text_color' => '#E6EBF0',
+            'theme_dark_muted_text_color' => '#9AA7B4',
+            'theme_dark_border_color' => '#243241',
+        ],
         'noor_solar' => [
             'label' => 'Noor Solar Energy',
             'theme_color' => '#064C38',
@@ -308,6 +326,13 @@ class StorefrontSetting extends Model
         'marketplace_campaign_heading',
         'marketplace_campaign_subheading',
         'marketplace_campaign_cta_label',
+        'marketplace_trust_items',
+        'marketplace_bulk_pricing_rows',
+        'marketplace_business_heading',
+        'marketplace_business_text',
+        'marketplace_helpline',
+        'marketplace_utility_bar_enabled',
+        'marketplace_utility_bar_text',
         'theme_color',
         'theme_foreground_mode',
         'theme_palette_preset',
@@ -383,6 +408,13 @@ class StorefrontSetting extends Model
         'delivery_first_kg_inside',
         'delivery_first_kg_outside',
         'delivery_additional_per_kg',
+        'vat_enabled',
+        'vat_rate',
+        'vat_mode',
+        'vat_label',
+        'vat_use_product_rate',
+        'delivery_time_inside',
+        'delivery_time_outside',
         'inside_dhaka_keywords',
         'new_customer_delivery_advance_enabled',
         'new_customer_advance_message',
@@ -443,6 +475,9 @@ class StorefrontSetting extends Model
         'marketplace_bulk_pricing_enabled' => 'boolean',
         'marketplace_sidebar_enabled' => 'boolean',
         'marketplace_product_limit' => 'integer',
+        'marketplace_trust_items' => 'array',
+        'marketplace_bulk_pricing_rows' => 'array',
+        'marketplace_utility_bar_enabled' => 'boolean',
         'offer_discount_percent' => 'integer',
         'offer_ends_at' => 'datetime',
         'woocommerce_credentials' => 'encrypted:array',
@@ -466,6 +501,9 @@ class StorefrontSetting extends Model
         'delivery_first_kg_inside' => 'decimal:2',
         'delivery_first_kg_outside' => 'decimal:2',
         'delivery_additional_per_kg' => 'decimal:2',
+        'vat_enabled' => 'boolean',
+        'vat_rate' => 'decimal:2',
+        'vat_use_product_rate' => 'boolean',
         'new_customer_delivery_advance_enabled' => 'boolean',
         'complaint_telegram_enabled' => 'boolean',
         'telegram_credentials' => 'encrypted:array',
@@ -659,6 +697,57 @@ class StorefrontSetting extends Model
         return max(5, min(20, (int) ($this->marketplace_product_limit ?: 10)));
     }
 
+    public const MARKETPLACE_TRUST_ICONS = [
+        'truck' => 'Delivery truck',
+        'refresh' => 'Return / replacement',
+        'briefcase' => 'Business',
+        'lock' => 'Secure payment',
+        'shield' => 'Warranty / genuine',
+        'phone' => 'Support / helpline',
+    ];
+
+    /**
+     * Marketplace Pro trust strip items, admin-entered only. Falls back to
+     * the shared Trust Strip fields (titles only) for stores configured
+     * before the dedicated repeater existed; never invents copy.
+     *
+     * @return list<array{icon: string, title: string, subtitle: ?string}>
+     */
+    public function marketplaceTrustItems(): array
+    {
+        $items = collect($this->marketplace_trust_items ?? [])
+            ->map(fn ($item): array => [
+                'icon' => array_key_exists($item['icon'] ?? '', self::MARKETPLACE_TRUST_ICONS) ? $item['icon'] : 'shield',
+                'title' => trim((string) ($item['title'] ?? '')),
+                'subtitle' => filled($item['subtitle'] ?? null) ? trim((string) $item['subtitle']) : null,
+            ])
+            ->filter(fn (array $item): bool => $item['title'] !== '')
+            ->values();
+
+        if ($items->isEmpty()) {
+            $items = collect([
+                ['icon' => 'truck', 'title' => trim((string) $this->trust_strip_delivery), 'subtitle' => null],
+                ['icon' => 'refresh', 'title' => trim((string) $this->trust_strip_return), 'subtitle' => null],
+                ['icon' => 'lock', 'title' => trim((string) $this->trust_strip_payment), 'subtitle' => null],
+            ])->filter(fn (array $item): bool => $item['title'] !== '')->values();
+        }
+
+        return $items->take(6)->all();
+    }
+
+    /** @return list<array{label: string, value: string}> */
+    public function marketplaceBulkPricingRows(): array
+    {
+        return collect($this->marketplace_bulk_pricing_rows ?? [])
+            ->map(fn ($row): array => [
+                'label' => trim((string) ($row['label'] ?? '')),
+                'value' => trim((string) ($row['value'] ?? '')),
+            ])
+            ->filter(fn (array $row): bool => $row['label'] !== '' && $row['value'] !== '')
+            ->values()
+            ->all();
+    }
+
     public function normalizedThemeColor(): string
     {
         return $this->normalizedColor('theme_color', '#0F766E');
@@ -768,6 +857,95 @@ class StorefrontSetting extends Model
     public function bodyFontFamily(): string
     {
         return self::FONT_OPTIONS[$this->typography_body_font]['family'] ?? self::FONT_OPTIONS['system']['family'];
+    }
+
+    public const VAT_MODE_EXCLUSIVE = 'exclusive';
+
+    public const VAT_MODE_INCLUSIVE = 'inclusive';
+
+    public function vatActive(): bool
+    {
+        return (bool) $this->vat_enabled
+            && ((float) $this->vat_rate > 0 || (bool) $this->vat_use_product_rate);
+    }
+
+    public function vatInclusive(): bool
+    {
+        return $this->vat_mode === self::VAT_MODE_INCLUSIVE;
+    }
+
+    public function vatLabel(): string
+    {
+        return filled($this->vat_label) ? trim((string) $this->vat_label) : 'VAT';
+    }
+
+    /** "VAT (7.5%)" for a single store-wide rate; just "VAT" when per-product rates may differ. */
+    public function vatDisplayLabel(): string
+    {
+        if ($this->vat_use_product_rate) {
+            return $this->vatLabel();
+        }
+
+        return $this->vatLabel().' ('.rtrim(rtrim(number_format((float) $this->vat_rate, 2), '0'), '.').'%)';
+    }
+
+    /** The VAT rate for one product line: its own ERP rate when enabled and set, else the store rate. */
+    public function vatRateFor(?Product $product): float
+    {
+        if ($this->vat_use_product_rate && $product && (float) $product->vat_rate > 0) {
+            return (float) $product->vat_rate;
+        }
+
+        return max(0, (float) $this->vat_rate);
+    }
+
+    /**
+     * VAT added on top of the product lines (delivery is not taxed). Only
+     * exclusive mode adds anything: the result goes into orders.vat and the
+     * order total. Inclusive mode returns 0 because product prices already
+     * contain VAT — see vatIncludedInItems() for the display-only share.
+     *
+     * @param  iterable<array{subtotal: float|int|string, product?: ?Product}>  $items
+     */
+    public function vatAmountForItems(iterable $items): float
+    {
+        if (! $this->vatActive() || $this->vatInclusive()) {
+            return 0.0;
+        }
+
+        return round(collect($items)->sum(
+            fn (array $item): float => max(0, (float) $item['subtotal']) * $this->vatRateFor($item['product'] ?? null) / 100
+        ), 2);
+    }
+
+    /**
+     * The VAT share already contained in inclusive-priced product lines.
+     *
+     * @param  iterable<array{subtotal: float|int|string, product?: ?Product}>  $items
+     */
+    public function vatIncludedInItems(iterable $items): float
+    {
+        if (! $this->vatActive() || ! $this->vatInclusive()) {
+            return 0.0;
+        }
+
+        return round(collect($items)->sum(function (array $item): float {
+            $rate = $this->vatRateFor($item['product'] ?? null);
+
+            return max(0, (float) $item['subtotal']) * $rate / (100 + $rate);
+        }), 2);
+    }
+
+    /** Admin-entered delivery time for an area ('inside' / 'outside'), or null when not set. */
+    public function deliveryTimeFor(?string $area): ?string
+    {
+        $value = match ($area) {
+            'inside' => $this->delivery_time_inside,
+            'outside' => $this->delivery_time_outside,
+            default => null,
+        };
+
+        return filled($value) ? trim((string) $value) : null;
     }
 
     public function googleFontsUrl(): ?string

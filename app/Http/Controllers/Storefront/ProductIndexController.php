@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ResellerProduct;
 use App\Support\StorefrontListingCache;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -78,7 +79,7 @@ class ProductIndexController extends Controller
             fn () => Category::query()->where('is_active', true)->orderBy('name')->get(),
         );
 
-        return view('storefront.products.index', [
+        return StorefrontThemeRegistry::page('products.index', [
             'company' => $company,
             'setting' => $company->storefrontSetting,
             'category' => $category,

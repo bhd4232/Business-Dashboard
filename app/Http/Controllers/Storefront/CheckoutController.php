@@ -24,6 +24,7 @@ use App\Services\StorefrontMetaDispatchService;
 use App\Services\StorefrontMetaTrackingService;
 use App\Services\StorefrontPaymentEligibilityService;
 use App\Services\StorefrontPaymentService;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -88,7 +89,8 @@ class CheckoutController extends Controller
         $data['meta_tracking_context'] = $this->metaTracking->requestContext($request, $setting);
         $data['delivery_area'] = $this->deliveryAreas->resolve($data['address'], $setting);
         $quote = $this->delivery->quote($items, $data['delivery_area'], $setting);
-        $totalAmount = $this->cart->subtotal($company) + (float) $quote['fee'];
+        $data['vat'] = $setting->vatAmountForItems($items);
+        $totalAmount = $this->cart->subtotal($company) + (float) $quote['fee'] + $data['vat'];
         $this->cart->startCheckout($company, $totalAmount, $data);
         [$data, $checkoutAttempt] = $this->checkoutPolicies->evaluate(
             $request,
@@ -163,7 +165,8 @@ class CheckoutController extends Controller
         $data = $this->validatedCheckout($request, $setting);
         $data['delivery_area'] = $this->deliveryAreas->resolve($data['address'], $setting);
         $quote = $this->delivery->quote($items, $data['delivery_area'], $setting);
-        $totalAmount = $this->cart->subtotal($company) + (float) $quote['fee'];
+        $data['vat'] = $setting->vatAmountForItems($items);
+        $totalAmount = $this->cart->subtotal($company) + (float) $quote['fee'] + $data['vat'];
         $this->cart->startCheckout($company, $totalAmount, $data);
         [$data, $checkoutAttempt] = $this->checkoutPolicies->evaluate(
             $request,
@@ -295,6 +298,7 @@ class CheckoutController extends Controller
             'checkout_data' => [
                 ...$data,
                 'shipping_fee' => (float) $quote['fee'],
+                'vat' => (float) ($data['vat'] ?? 0),
                 'total_weight' => (float) $quote['weight'],
                 'billed_weight' => (int) $quote['billed_weight'],
                 'checkout_attempt_id' => $checkoutAttempt?->getKey(),
@@ -375,7 +379,7 @@ class CheckoutController extends Controller
 
         abort_unless($request->hasValidSignature() || $customerOwnsOrder, 404);
 
-        return view('storefront.checkout.success', [
+        return StorefrontThemeRegistry::page('checkout.success', [
             'company' => $company,
             'setting' => $setting,
             'order' => $order->load('items.product', 'customer'),
@@ -397,7 +401,7 @@ class CheckoutController extends Controller
 
         abort_unless($order->company_id === $company->getKey() && $order->source === Order::SOURCE_STOREFRONT, 404);
 
-        return view('storefront.checkout.success', [
+        return StorefrontThemeRegistry::page('checkout.success', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $company->slug,
@@ -501,12 +505,14 @@ class CheckoutController extends Controller
             ]);
         }
 
-        return view('storefront.checkout.show', [
+        return StorefrontThemeRegistry::page('checkout.show', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,
             'items' => $items,
             'subtotal' => $this->cart->subtotal($company),
+            'vatAmount' => $setting->vatAmountForItems($items),
+            'vatIncluded' => $setting->vatIncludedInItems($items),
             'advanceDue' => self::advanceDue($items),
             'onlinePaymentAvailable' => $this->gateways->isConfigured($setting),
             'paymentMethods' => $this->activePaymentMethods($setting),
@@ -597,7 +603,7 @@ class CheckoutController extends Controller
                 'customer_name' => $customer->name,
                 'order_date' => now()->toDateString(),
                 'discount' => 0,
-                'vat' => 0,
+                'vat' => (float) ($data['vat'] ?? 0),
                 'shipping_zone' => $data['delivery_area'],
                 'shipping_fee' => $deliveryCharge,
                 'paid_amount' => 0,

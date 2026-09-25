@@ -24,7 +24,7 @@
     <section
         id="offer-checkout"
         class="mx-auto grid w-full max-w-7xl gap-5 border-t border-gray-200 px-4 py-10 sm:px-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:px-6 dark:border-white/10"
-        x-data="{ quantity: {{ (int) old('quantity', 1) }}, unitPrice: {{ (float) $finalPrice }}, method: {{ Illuminate\Support\Js::from($defaultPaymentMethod) }}, get total() { return this.unitPrice * Math.max(1, this.quantity) } }"
+        x-data="{ quantity: {{ (int) old('quantity', 1) }}, unitPrice: {{ (float) $finalPrice }}, method: {{ Illuminate\Support\Js::from($defaultPaymentMethod) }}, vatPerBundle: {{ (float) ($vatPerBundle ?? 0) }}, get vat() { return Math.round(this.vatPerBundle * Math.max(1, this.quantity) * 100) / 100 }, get total() { return this.unitPrice * Math.max(1, this.quantity) + this.vat } }"
     >
         <form id="offer-checkout-form" class="rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900" method="POST" action="{{ $checkoutUrl }}">
             @csrf
@@ -151,6 +151,16 @@
                     <span>Offer price</span>
                     <span>BDT {{ \App\Support\MoneyFormatter::number((float) $finalPrice) }}</span>
                 </div>
+                @if ($setting->vatActive())
+                    <div class="flex justify-between text-gray-600 dark:text-gray-300" data-offer-vat>
+                        @if ($setting->vatInclusive())
+                            <span class="text-xs">{{ __('Price includes :vat', ['vat' => $setting->vatDisplayLabel()]) }}</span>
+                        @else
+                            <span>{{ $setting->vatDisplayLabel() }}</span>
+                            <span x-text="'BDT ' + vat.toFixed(2)"></span>
+                        @endif
+                    </div>
+                @endif
                 <div class="flex justify-between border-t border-gray-200 pt-2 text-lg font-semibold text-gray-950 dark:border-white/10 dark:text-white">
                     <span>Total (&times; <span x-text="Math.max(1, quantity)"></span>)</span>
                     <span x-text="'BDT ' + total.toFixed(2)"></span>

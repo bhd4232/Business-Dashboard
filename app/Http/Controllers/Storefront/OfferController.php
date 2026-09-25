@@ -8,6 +8,7 @@ use App\Models\Offer;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\OfferPricingService;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -61,7 +62,7 @@ class OfferController extends Controller
             ->latest()
             ->get();
 
-        return view('storefront.offers.index', [
+        return StorefrontThemeRegistry::page('offers.index', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,
@@ -75,13 +76,19 @@ class OfferController extends Controller
     {
         $offer->load(['items.product', 'items.productVariant']);
 
-        return view('storefront.offers.show', [
+        return StorefrontThemeRegistry::page('offers.show', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,
             'offer' => $offer,
             'componentsSubtotal' => $this->pricing->componentsSubtotal($offer),
             'finalPrice' => $this->pricing->finalPrice($offer),
+            // VAT for ONE bundle, from the same per-line split the checkout
+            // stores; the page multiplies it by the chosen quantity.
+            'vatPerBundle' => $setting->vatAmountForItems(collect($this->pricing->explodeToOrderLines($offer, 1))->map(fn (array $line): array => [
+                'subtotal' => (float) $line['unit_price'] * (int) $line['quantity'],
+                'product' => $offer->items->firstWhere('product_id', $line['product_id'])?->product,
+            ])),
             'reviews' => $this->reviewsForBlocks($offer),
         ]);
     }

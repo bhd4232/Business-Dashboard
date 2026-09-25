@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\CompanyFaq;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -35,7 +36,7 @@ class ContactController extends Controller
             ->orderBy('question')
             ->get();
 
-        return view('storefront.contact.show', [
+        return StorefrontThemeRegistry::page('contact.show', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,

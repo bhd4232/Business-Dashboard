@@ -813,6 +813,16 @@ Test note:
 
 - `StorefrontFoundationTest` disables Vite and Laravel's `ValidateCsrfToken` middleware inside the test case so CI can verify storefront routing, rendering, carts, checkout, tracking, and public pages without requiring a prebuilt Vite manifest or browser-generated CSRF tokens.
 
+### Storefront themes: page resolver, Marketplace Pro layout, VAT, delivery time (2026-09-25)
+
+- **Theme page resolver:** `StorefrontThemeRegistry::view($theme, 'products.show')` returns `storefront.themes.{directory}.products.show` when that file exists, else `storefront.products.show`. Controllers call `StorefrontThemeRegistry::page('products.show', [...])`, which reads the theme from the `setting` entry. To redesign a page for one theme, add the same relative file under `resources/views/storefront/themes/{directory}/`. Nothing else changes.
+- **Layout parts:** `storefront.layout` includes `partials.layout.header`, `partials.layout.footer` and `partials.layout.mobile-nav` through the same resolver. Marketplace Pro overrides all three in `resources/views/storefront/themes/marketplace-pro/partials/layout/`. Form names, routes and account actions stay identical to the default partials.
+- **Marketplace Pro content fields** (Storefront Settings → Marketplace Pro Content): utility bar message, helpline, trust strip items, bulk pricing rows and business callout heading/text. Empty fields are hidden, and no copy is invented. The hero is the Hero Slides banner; when there is no slide, it falls back to the owner's campaign heading.
+- **VAT:** `vat_enabled`, `vat_rate`, `vat_mode` (exclusive/inclusive), `vat_label` and `vat_use_product_rate` live on `storefront_settings`. `StorefrontSetting::vatAmountForItems()` (exclusive, stored in `orders.vat`) and `vatIncludedInItems()` (display only) are used by `CheckoutController`, `StorefrontOrderPlacementService` and `OfferCheckoutController`. Delivery is never taxed.
+- **Delivery time:** `delivery_time_inside` / `delivery_time_outside` hold free text shown on the product page and live at checkout. Charges still come from `delivery_first_kg_*` / `delivery_additional_per_kg`.
+- **Bangla/English:** follow `docs/i18n-bangla-english-plan.md`. Every new visible string goes through `__()` with keys in both `lang/en.json` and `lang/bn.json`. `TranslationParityTest` enforces this.
+- **Verify:** `php artisan test --filter='StorefrontThemeTest|StorefrontVatAndDeliveryTimeTest|TranslationParityTest'`.
+
 ## 2. Important Folders
 
 ```text

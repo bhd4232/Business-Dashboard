@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ResellerProduct;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,7 +67,7 @@ class ResellerStoreController extends Controller
 
         $pickedProductIds = $reseller->resellerCatalog()->pluck('products.id')->all();
 
-        return view('storefront.account.reseller', [
+        return StorefrontThemeRegistry::page('account.reseller', [
             'company' => $company,
             'setting' => $company->storefrontSetting,
             'customer' => $reseller,

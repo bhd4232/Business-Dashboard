@@ -86,7 +86,7 @@ class StorefrontOrderPlacementService
                 'customer_name' => $customer->name,
                 'order_date' => now()->toDateString(),
                 'discount' => 0,
-                'vat' => 0,
+                'vat' => (float) ($data['vat'] ?? 0),
                 'shipping_zone' => $data['delivery_area'],
                 'shipping_fee' => (float) $data['shipping_fee'],
                 'paid_amount' => 0,

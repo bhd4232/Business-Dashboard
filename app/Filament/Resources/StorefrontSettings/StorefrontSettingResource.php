@@ -133,6 +133,13 @@ class StorefrontSettingResource extends Resource
                         ->afterStateUpdated(function (Set $set, ?string $state): void {
                             $set('homepage_template', array_key_first(StorefrontThemeRegistry::templateOptions($state)));
 
+                            if ($state === StorefrontThemeRegistry::MARKETPLACE_PRO) {
+                                $set('theme_palette_preset', 'marketplace_pro');
+                                foreach (StorefrontSetting::themePalettePresetFields('marketplace_pro') as $field => $color) {
+                                    $set($field, $color);
+                                }
+                            }
+
                             if ($state === StorefrontThemeRegistry::NOOR_SOLAR) {
                                 $set('theme_palette_preset', 'noor_solar');
                                 foreach (StorefrontSetting::themePalettePresetFields('noor_solar') as $field => $color) {
@@ -170,7 +177,7 @@ class StorefrontSettingResource extends Resource
                     Toggle::make('marketplace_business_strip_enabled')
                         ->label('Wholesale buyers banner')
                         ->default(false)
-                        ->helperText('The "Built for repeat and wholesale buyers" banner with the Open business account button, shown near the bottom of the hero homepage.')
+                        ->helperText('The business account banner (heading/text from Marketplace Pro Content) with the Open business account button, shown near the bottom of the hero homepage.')
                         ->visible(fn (Get $get): bool => $get('homepage_template') === StorefrontThemeRegistry::MARKETPLACE_HERO),
                     Toggle::make('marketplace_trust_strip_enabled')
                         ->label('Trust and service strip')
@@ -200,7 +207,7 @@ class StorefrontSettingResource extends Resource
 
             Section::make('Marketplace Pro Content')
                 ->columnSpanFull()
-                ->description('Theme-specific campaign copy. Empty campaign fields fall back to professional defaults using the company name.')
+                ->description('Theme-specific campaign copy. The hero shows your Hero Slides banner; the campaign text below is used only when no hero slide exists. Empty fields are hidden on the storefront — nothing is filled in automatically.')
                 ->visible(fn (Get $get): bool => $get('storefront_theme') === StorefrontThemeRegistry::MARKETPLACE_PRO)
                 ->schema([
                     TextInput::make('marketplace_campaign_badge')
@@ -222,6 +229,60 @@ class StorefrontSettingResource extends Resource
                         ->label('Campaign action label')
                         ->maxLength(40)
                         ->placeholder('Shop wholesale'),
+                    Toggle::make('marketplace_utility_bar_enabled')
+                        ->label('Show top utility bar message')
+                        ->default(false)
+                        ->live(),
+                    TextInput::make('marketplace_utility_bar_text')
+                        ->label('Utility bar message')
+                        ->maxLength(160)
+                        ->visible(fn (Get $get): bool => (bool) $get('marketplace_utility_bar_enabled'))
+                        ->required(fn (Get $get): bool => (bool) $get('marketplace_utility_bar_enabled')),
+                    TextInput::make('marketplace_helpline')
+                        ->label('Helpline number (header & checkout)')
+                        ->tel()
+                        ->maxLength(40)
+                        ->placeholder('01XXXXXXXXX'),
+                    Repeater::make('marketplace_trust_items')
+                        ->label('Trust strip items')
+                        ->helperText('Up to 6 short reassurance items shown under the hero. Leave empty to reuse the Trust Strip messages.')
+                        ->schema([
+                            Select::make('icon')
+                                ->options(StorefrontSetting::MARKETPLACE_TRUST_ICONS)
+                                ->default('shield')
+                                ->required(),
+                            TextInput::make('title')
+                                ->required()
+                                ->maxLength(60),
+                            TextInput::make('subtitle')
+                                ->maxLength(80),
+                        ])
+                        ->columns(3)
+                        ->maxItems(6)
+                        ->reorderable()
+                        ->defaultItems(0)
+                        ->columnSpanFull(),
+                    Repeater::make('marketplace_bulk_pricing_rows')
+                        ->label('Bulk pricing panel rows (Campaign-driven template)')
+                        ->helperText('Each row is shown as label → value, e.g. your real volume pricing terms. The panel is hidden when empty.')
+                        ->schema([
+                            TextInput::make('label')->required()->maxLength(60),
+                            TextInput::make('value')->required()->maxLength(60),
+                        ])
+                        ->columns(2)
+                        ->maxItems(8)
+                        ->reorderable()
+                        ->defaultItems(0)
+                        ->columnSpanFull(),
+                    TextInput::make('marketplace_business_heading')
+                        ->label('Business account callout heading')
+                        ->maxLength(140)
+                        ->placeholder('Open a business account'),
+                    Textarea::make('marketplace_business_text')
+                        ->label('Business account callout text')
+                        ->rows(2)
+                        ->maxLength(280)
+                        ->columnSpanFull(),
                 ])
                 ->columns(2)
                 ->collapsible(),
@@ -699,6 +760,49 @@ class StorefrontSettingResource extends Resource
                         ->minValue(0)
                         ->required()
                         ->helperText('The total product weight is rounded up to the next whole kilogram.'),
+                    TextInput::make('delivery_time_inside')
+                        ->label('Delivery time — inside Dhaka')
+                        ->maxLength(120)
+                        ->placeholder('e.g. 1–2 days')
+                        ->helperText('Shown at checkout and on product pages. Leave empty to show no delivery time.'),
+                    TextInput::make('delivery_time_outside')
+                        ->label('Delivery time — outside Dhaka')
+                        ->maxLength(120)
+                        ->placeholder('e.g. 3–5 days')
+                        ->helperText('Shown at checkout and on product pages. Leave empty to show no delivery time.'),
+                    Toggle::make('vat_enabled')
+                        ->label('Charge VAT on storefront orders')
+                        ->default(false)
+                        ->live()
+                        ->helperText('Off by default. VAT is calculated on the product subtotal only (delivery is not taxed).')
+                        ->columnSpanFull(),
+                    TextInput::make('vat_rate')
+                        ->label('VAT rate')
+                        ->numeric()
+                        ->suffix('%')
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->default(0)
+                        ->required(fn (Get $get): bool => (bool) $get('vat_enabled'))
+                        ->visible(fn (Get $get): bool => (bool) $get('vat_enabled')),
+                    Select::make('vat_mode')
+                        ->label('Product prices are')
+                        ->options([
+                            StorefrontSetting::VAT_MODE_EXCLUSIVE => 'Excluding VAT — add VAT on top at checkout',
+                            StorefrontSetting::VAT_MODE_INCLUSIVE => 'Including VAT — show the VAT share only',
+                        ])
+                        ->default(StorefrontSetting::VAT_MODE_EXCLUSIVE)
+                        ->required(fn (Get $get): bool => (bool) $get('vat_enabled'))
+                        ->visible(fn (Get $get): bool => (bool) $get('vat_enabled')),
+                    Toggle::make('vat_use_product_rate')
+                        ->label('Use each product\'s own VAT rate')
+                        ->helperText('When on, a product\'s VAT rate from Products → VAT rate is used for that item; products without one use the store rate above.')
+                        ->visible(fn (Get $get): bool => (bool) $get('vat_enabled')),
+                    TextInput::make('vat_label')
+                        ->label('VAT label')
+                        ->maxLength(40)
+                        ->placeholder('VAT')
+                        ->visible(fn (Get $get): bool => (bool) $get('vat_enabled')),
                     Textarea::make('inside_dhaka_keywords')
                         ->label('Inside-Dhaka address keywords')
                         ->rows(4)

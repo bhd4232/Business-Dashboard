@@ -48,10 +48,12 @@ class StorefrontThemeTest extends TestCase
     {
         [$company, $setting] = $this->createMarketplaceStore();
 
+        // Campaign copy is owner-entered only; with none set the templates
+        // still render their catalog sections without any invented text.
         $templates = [
-            StorefrontThemeRegistry::MARKETPLACE_HERO => 'Better value on dependable products for your business',
-            StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN => 'Wholesale savings across essential business supplies',
-            StorefrontThemeRegistry::MARKETPLACE_COMPACT => 'All available products',
+            StorefrontThemeRegistry::MARKETPLACE_HERO => 'Recommended for you',
+            StorefrontThemeRegistry::MARKETPLACE_CAMPAIGN => 'Flash deals',
+            StorefrontThemeRegistry::MARKETPLACE_COMPACT => 'All products',
         ];
 
         foreach ($templates as $template => $expectedCopy) {
@@ -62,8 +64,33 @@ class StorefrontThemeTest extends TestCase
                 ->assertSee('data-storefront-theme="marketplace_pro"', false)
                 ->assertSee('data-homepage-template="'.$template.'"', false)
                 ->assertSee($expectedCopy)
-                ->assertSee('Wholesale Router');
+                ->assertSee('Wholesale Router')
+                ->assertDontSee('Better value on dependable products for your business')
+                ->assertDontSee('Wholesale savings across essential business supplies')
+                ->assertDontSee('Up to 30%')
+                ->assertDontSee('24–48h');
         }
+    }
+
+    public function test_marketplace_hero_shows_only_the_owner_campaign_text_when_no_hero_slide_exists(): void
+    {
+        [, $setting] = $this->createMarketplaceStore();
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertDontSee('marketplace-hero-banner', false);
+
+        $setting->forceFill([
+            'marketplace_campaign_heading' => 'Owner campaign heading',
+            'marketplace_campaign_subheading' => 'Owner campaign description',
+        ])->save();
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertSee('marketplace-hero-banner', false)
+            ->assertSee('Owner campaign heading')
+            ->assertSee('Owner campaign description')
+            ->assertDontSee('marketplace-stat', false);
     }
 
     public function test_marketplace_feature_controls_hide_disabled_sections(): void
@@ -83,7 +110,7 @@ class StorefrontThemeTest extends TestCase
             ->assertDontSee('Verified business accounts get flexible payment terms')
             ->assertDontSee('Shop by category')
             ->assertDontSee('Flash deals')
-            ->assertDontSee('Bulk pricing benefits')
+            ->assertDontSee('Bulk pricing')
             ->assertDontSee('Open a business account');
     }
 
@@ -92,19 +119,24 @@ class StorefrontThemeTest extends TestCase
         [, $setting] = $this->createMarketplaceStore();
 
         // Default (marketplace_business_strip_enabled = false): the bottom
-        // "Built for repeat and wholesale buyers" banner is not rendered.
+        // business account banner is not rendered.
         $this->get('http://marketplace.example.test/')
             ->assertOk()
             ->assertSee('data-homepage-template="'.StorefrontThemeRegistry::MARKETPLACE_HERO.'"', false)
-            ->assertDontSee('Built for repeat and wholesale buyers')
             ->assertDontSee('marketplace-business-strip', false);
 
-        // Turning the dedicated toggle on brings the banner back.
-        $setting->forceFill(['marketplace_business_strip_enabled' => true])->save();
+        // Turning the dedicated toggle on brings the banner back, with the
+        // owner's own heading/text when set.
+        $setting->forceFill([
+            'marketplace_business_strip_enabled' => true,
+            'marketplace_business_heading' => 'Built for repeat and wholesale buyers',
+            'marketplace_business_text' => 'Owner business account text',
+        ])->save();
 
         $this->get('http://marketplace.example.test/')
             ->assertOk()
             ->assertSee('Built for repeat and wholesale buyers')
+            ->assertSee('Owner business account text')
             ->assertSee('Open business account')
             ->assertSee('marketplace-business-strip', false);
 
@@ -159,12 +191,26 @@ class StorefrontThemeTest extends TestCase
 
     public function test_marketplace_trust_strip_scrolls_horizontally_on_mobile(): void
     {
-        $this->createMarketplaceStore();
+        [, $setting] = $this->createMarketplaceStore();
+
+        // No admin items → no strip (nothing invented).
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertDontSee('marketplace-trust-grid', false)
+            ->assertDontSee('Business pricing');
+
+        $setting->forceFill(['marketplace_trust_items' => [
+            ['icon' => 'truck', 'title' => 'Nationwide dispatch', 'subtitle' => 'Owner delivery note'],
+            ['icon' => 'refresh', 'title' => 'Easy replacement', 'subtitle' => null],
+            ['icon' => 'briefcase', 'title' => 'Business pricing', 'subtitle' => null],
+            ['icon' => 'lock', 'title' => 'Secure payment', 'subtitle' => null],
+        ]])->save();
 
         $this->get('http://marketplace.example.test/')
             ->assertOk()
             ->assertSee('marketplace-trust-grid', false)
             ->assertSee('Nationwide dispatch')
+            ->assertSee('Owner delivery note')
             ->assertSee('Easy replacement')
             ->assertSee('Business pricing')
             ->assertSee('Secure payment');
@@ -175,19 +221,94 @@ class StorefrontThemeTest extends TestCase
         // CSS to apply to.
     }
 
-    public function test_marketplace_announcement_bar_is_not_rendered(): void
+    public function test_marketplace_trust_strip_falls_back_to_the_shared_trust_strip_titles(): void
     {
         [, $setting] = $this->createMarketplaceStore();
 
+        $setting->forceFill(['trust_strip_delivery' => 'Owner delivery promise'])->save();
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertSee('marketplace-trust-grid', false)
+            ->assertSee('Owner delivery promise');
+    }
+
+    public function test_marketplace_utility_bar_shows_the_owner_message_only_when_enabled(): void
+    {
+        [, $setting] = $this->createMarketplaceStore();
+
+        // The legacy announcement columns (default enabled) never render.
         $setting->forceFill([
             'marketplace_announcement_enabled' => true,
             'marketplace_announcement_text' => 'Legacy announcement must stay hidden',
+            'marketplace_utility_bar_enabled' => false,
+            'marketplace_utility_bar_text' => 'Owner utility message',
         ])->save();
 
         $this->get('http://marketplace.example.test/')
             ->assertOk()
             ->assertDontSee('Legacy announcement must stay hidden')
-            ->assertDontSee('marketplace-announcement', false);
+            ->assertDontSee('Owner utility message');
+
+        $setting->forceFill([
+            'marketplace_utility_bar_enabled' => true,
+            'marketplace_helpline' => '01700000999',
+        ])->save();
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertSee('data-mp-utility-bar', false)
+            ->assertSee('Owner utility message')
+            ->assertSee('tel:01700000999', false);
+    }
+
+    public function test_marketplace_pro_uses_its_own_header_footer_and_mobile_nav_on_every_page(): void
+    {
+        $this->createMarketplaceStore();
+
+        foreach (['/', '/products', '/cart', '/track'] as $path) {
+            $this->get('http://marketplace.example.test'.$path)
+                ->assertOk()
+                ->assertSee('mp-header', false)
+                ->assertSee('mp-footer', false)
+                ->assertSee('mp-mobile-nav', false)
+                ->assertSee('id="mp-category-drawer"', false);
+        }
+    }
+
+    public function test_other_themes_keep_the_default_header(): void
+    {
+        [, $setting] = $this->createMarketplaceStore();
+        $setting->forceFill(['storefront_theme' => StorefrontThemeRegistry::BUILT_IN])->save();
+
+        $this->get('http://marketplace.example.test/products')
+            ->assertOk()
+            ->assertDontSee('mp-header', false)
+            ->assertSee('storefront-header', false);
+    }
+
+    public function test_theme_page_views_fall_back_to_the_default_view(): void
+    {
+        $this->assertSame('storefront.products.show', StorefrontThemeRegistry::view(StorefrontThemeRegistry::BUILT_IN, 'products.show'));
+        $this->assertSame('storefront.products.show', StorefrontThemeRegistry::view(StorefrontThemeRegistry::MARKETPLACE_PRO, 'products.show'));
+        $this->assertSame(
+            'storefront.themes.marketplace-pro.partials.layout.header',
+            StorefrontThemeRegistry::view(StorefrontThemeRegistry::MARKETPLACE_PRO, 'partials.layout.header')
+        );
+        $this->assertSame('storefront.partials.layout.header', StorefrontThemeRegistry::view('missing-theme', 'partials.layout.header'));
+    }
+
+    public function test_preview_pages_are_never_indexed(): void
+    {
+        [$company] = $this->createMarketplaceStore();
+
+        $this->get('http://127.0.0.1/storefront/'.$company->slug)
+            ->assertOk()
+            ->assertSee('<meta name="robots" content="noindex, nofollow">', false);
+
+        $this->get('http://marketplace.example.test/')
+            ->assertOk()
+            ->assertDontSee('<meta name="robots" content="noindex, nofollow">', false);
     }
 
     public function test_noor_solar_theme_is_registered_with_its_brand_presets(): void

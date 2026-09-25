@@ -150,6 +150,26 @@
                 </div>
             </dl>
 
+            @php
+                $deliveryTimeInside = $setting->deliveryTimeFor('inside');
+                $deliveryTimeOutside = $setting->deliveryTimeFor('outside');
+            @endphp
+            @if ($deliveryTimeInside || $deliveryTimeOutside || $setting->vatActive())
+                <ul class="mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-300" data-product-delivery-info>
+                    @if ($deliveryTimeInside)
+                        <li><span class="font-medium text-gray-900 dark:text-white">{{ __('Delivery inside Dhaka:') }}</span> {{ $deliveryTimeInside }}</li>
+                    @endif
+                    @if ($deliveryTimeOutside)
+                        <li><span class="font-medium text-gray-900 dark:text-white">{{ __('Delivery outside Dhaka:') }}</span> {{ $deliveryTimeOutside }}</li>
+                    @endif
+                    @if ($setting->vatActive())
+                        <li class="text-xs text-gray-500 dark:text-gray-400" data-product-vat-note>
+                            {{ $setting->vatInclusive() ? __('Price includes :vat', ['vat' => $setting->vatDisplayLabel()]) : __('Price excludes :vat', ['vat' => $setting->vatDisplayLabel()]) }}
+                        </li>
+                    @endif
+                </ul>
+            @endif
+
             <form id="product-purchase-form" class="mt-4" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.cart.add', [$previewSlug, $product->slug]) : route('storefront.cart.add', $product->slug) }}" data-purchase-form>
                 @csrf
 

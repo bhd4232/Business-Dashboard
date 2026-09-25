@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -74,7 +75,7 @@ class ResellerController extends Controller
 
     protected function applyView(Company $company, StorefrontSetting $setting, ?string $previewSlug = null): View
     {
-        return view('storefront.reseller.apply', [
+        return StorefrontThemeRegistry::page('reseller.apply', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,

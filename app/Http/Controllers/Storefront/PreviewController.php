@@ -10,6 +10,7 @@ use App\Models\ProductCarousel;
 use App\Models\StorefrontSetting;
 use App\Models\StorefrontSlide;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -55,7 +56,7 @@ class PreviewController extends Controller
         $sort = $request->string('sort')->value();
         $search = trim((string) $request->string('q'));
 
-        return view('storefront.products.index', [
+        return StorefrontThemeRegistry::page('products.index', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $company->slug,
@@ -101,7 +102,7 @@ class PreviewController extends Controller
             ->limit(4)
             ->get();
 
-        return view('storefront.products.show', [
+        return StorefrontThemeRegistry::page('products.show', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $company->slug,

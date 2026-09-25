@@ -4,6 +4,56 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+**Release type:** Minor Feature Update
+
+### Added
+
+- **VAT on storefront orders (Storefront Settings → Checkout & Delivery).** VAT is **off by default**, so existing totals do not change until you turn it on. Once on, you can set:
+  - **Rate:** one store-wide rate, or **Use each product's own VAT rate**, which applies the rate from Products → VAT rate to that product. Products with no rate of their own use the store rate.
+  - **Price mode:** *Excluding VAT* adds VAT on top at checkout; *Including VAT* only shows the VAT share already in the price.
+  - **Label:** the name shown to customers, e.g. "VAT" or "Mushak".
+
+  VAT is calculated on products only, never on delivery. It appears on the checkout summary, the Offer landing checkout and the product page ("Price includes / excludes VAT"), and is saved on the order's VAT field.
+- **Delivery time per area (Storefront Settings → Checkout & Delivery).** You can now enter a delivery time for inside Dhaka and for outside Dhaka (e.g. "1–2 days"). It is shown on product pages. At checkout it updates live for the area detected from the customer's address. It stays hidden when left empty. The area-based delivery charges (first kg + each additional kg, inside/outside Dhaka) already existed and are unchanged.
+- **Marketplace Pro: its own header, footer and mobile navigation on every storefront page.**
+  - **Top bar:** an optional utility bar (off until you turn it on) with your message, helpline and Track order link.
+  - **Header:** navy header with logo, a large search box with an orange button, Account / Returns & Orders / Cart with item count.
+  - **Category strip:** a category row under the header.
+  - **Category drawer:** slides in from the left.
+  - **Mobile:** a 5-item bottom bar (Home · Categories · Search · Cart · Account).
+  - **Footer:** navy, built from your existing Footer Builder blocks.
+
+  Other themes are unchanged.
+- **Marketplace Pro: new admin-managed homepage content (Storefront Settings → Marketplace Pro Content):**
+  - utility bar message and helpline
+  - trust strip items (icon, title, subtitle; up to 6)
+  - bulk pricing rows
+  - business account heading and text
+- **Marketplace Pro headline font: Unbounded** (owner's choice, similar to the Nura style). It is used only for the hero heading, section titles, business callouts and the store name/logo mark. Product names, prices, buttons and body text keep your Typography settings so the catalogue stays easy to read. Bangla text uses your heading font. The font is served from our own server (no Google Fonts request) and is downloaded only on Marketplace Pro pages (~51 KB).
+- **Marketplace Pro text font: Nunito** (owner's choice). It is a rounded font that pairs with the Unbounded headlines and is used for product names, prices, menus, buttons and body text. It is served from our own server and is ~39 KB. Bangla text uses your Typography font.
+- **Marketplace Pro colour preset** from the design handoff (navy #0F2A43, orange #FF6A00). It is applied automatically when you switch a store to Marketplace Pro and can still be edited under Theme Color Palette.
+- **Bangla + English groundwork.** The i18n plan is in `docs/i18n-bangla-english-plan.md`, and `lang/en.json` and `lang/bn.json` are added. All new storefront text in this release is translatable. Bangla is not switched on yet; the plan covers how, including a per-country default language.
+
+### Changed
+
+- **Marketplace Pro homepage hero is now your hero banner only** (Storefront → Hero Slides). The promo cards and the built-in sample statistics ("Up to 30%", "24–48h dispatch", "products ready") are removed. When no hero slide exists, the campaign heading you entered is shown instead; if that is also empty, no hero is shown.
+- **Marketplace Pro no longer shows built-in default copy.** Campaign headings, trust strip subtitles, bulk pricing rows and business account text now come only from your settings. Anything left empty is hidden. Stores that already set the shared Trust Strip messages keep them as trust strip titles.
+
+### Fixed
+
+- **Preview URLs (`/storefront/{slug}/…`) now tell search engines not to index them,** so they can no longer compete with the live store domain in search results.
+
+**Technical Notes:**
+- Migration `2026_09_25_100000_add_vat_and_delivery_time_to_storefront_settings_table` adds `vat_enabled`, `vat_rate`, `vat_mode`, `vat_label`, `vat_use_product_rate`, `delivery_time_inside` and `delivery_time_outside`.
+- Migration `2026_09_25_100100_add_marketplace_pro_content_fields_to_storefront_settings_table` adds `marketplace_trust_items` (json), `marketplace_bulk_pricing_rows` (json), `marketplace_business_heading`, `marketplace_business_text`, `marketplace_helpline`, `marketplace_utility_bar_enabled` (default off) and `marketplace_utility_bar_text`. All columns are nullable or have defaults. The legacy `marketplace_announcement_*` columns default to enabled and stay unused, so an old hidden announcement never reappears.
+- VAT is computed by `StorefrontSetting::vatAmountForItems()` and flows through `CheckoutController` into both paths: the direct order and `checkout_data` for gateway-verified orders (`StorefrontOrderPlacementService`). `OfferCheckoutController` uses the same method. The existing `OrderWorkflowService` total formula already adds `orders.vat`.
+- New `StorefrontThemeRegistry::view()` / `page()` resolve `storefront.themes.{directory}.{page}` and fall back to `storefront.{page}`. All 30 storefront controller `view('storefront.…')` calls now go through it.
+- The default header, footer and mobile nav moved unchanged into `storefront/partials/layout/*`, which lets a theme override them.
+- Unbounded and Nunito font files (SIL Open Font License 1.1; licences kept at `resources/fonts/{unbounded,nunito}/OFL.txt`) are latin and latin-ext WOFF2 subsets in `resources/fonts/`, bundled by Vite through `@font-face` in `resources/css/app.css` and applied only under `body[data-storefront-theme='marketplace_pro']`.
+- `axios` was removed. It was unused (`resources/js/bootstrap.js` deleted), which drops ~14 KB gzip from the storefront bundle.
+- New tests: `StorefrontVatAndDeliveryTimeTest`, `tests/Unit/TranslationParityTest`. `StorefrontThemeTest` was updated for the owner's new hero, copy and utility-bar rules.
+- New agent rule in `CLAUDE.md` / `AGENTS.md`: every new user-visible string goes into both `lang/en.json` and `lang/bn.json`.
+
 ## [2.20.0] - 2026-09-25
 
 **Release type:** Minor Feature Update

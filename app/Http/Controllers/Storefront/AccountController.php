@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\StorefrontCustomerActivity;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class AccountController extends Controller
 
         $orders = $this->ordersQuery($company, $customer);
 
-        return view('storefront.account.index', [
+        return StorefrontThemeRegistry::page('account.index', [
             'company' => $company,
             'setting' => $setting,
             'customer' => $customer,
@@ -66,7 +67,7 @@ class AccountController extends Controller
             return $this->loginRedirect($request, 'Log in to view your account activity.');
         }
 
-        return view('storefront.account.activity', [
+        return StorefrontThemeRegistry::page('account.activity', [
             'company' => $company,
             'setting' => $setting,
             'customer' => $customer,

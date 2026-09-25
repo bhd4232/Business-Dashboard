@@ -17,6 +17,13 @@ These rules are mandatory for any AI agent working in this repository.
 - Never invent demo/placeholder business rules — real rules only, gathered from the owner. External credentials (payment, SMS, WhatsApp, WooCommerce) are always admin-configurable encrypted settings fields; the owner plugs in keys.
 - Storefront-visible content must be manageable from the Filament admin panel, never hardcoded in views.
 
+## Bilingual (Bangla + English) rule
+
+- Follow `docs/i18n-bangla-english-plan.md` (section 0 applies to every task, not only i18n work).
+- Every new or changed user-visible string goes through `__('English text')` and is added to **both** `lang/en.json` and `lang/bn.json` in the same commit, with identical `:placeholders`. `TranslationParityTest` enforces this.
+- Never hardcode Bangla in Blade/PHP (only in `lang/bn.json`); admin-entered content stays admin-managed and is translated per the plan's Phase 4, not in lang files.
+- If a correct Bangla translation is uncertain, still add the key (English text as the value) and list it under "Needs Bangla review" in `UPDATE_NOTES.md`.
+
 ## Multi-company isolation
 
 - Every new company-owned model must use `BelongsToCompany` + `CompanyScope` and be added to `MultiCompanyIsolationTest::test_every_company_owned_model_uses_the_company_scope_contract`.

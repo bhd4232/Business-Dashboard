@@ -16,6 +16,7 @@ use App\Services\CustomerAccountService;
 use App\Services\OfferPricingService;
 use App\Services\StorefrontDeliveryAreaResolver;
 use App\Services\StorefrontDeliveryService;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -94,7 +95,12 @@ class OfferCheckoutController extends Controller
         ]);
         $quote = $this->delivery->quote($deliveryItems, $deliveryArea, $setting);
 
-        [$order, $generatedPassword] = DB::transaction(function () use ($company, $offer, $data, $lines, $quote, $deliveryArea): array {
+        $vat = $setting->vatAmountForItems(collect($lines)->map(fn (array $line): array => [
+            'subtotal' => (float) $line['unit_price'] * (int) $line['quantity'],
+            'product' => $offer->items->firstWhere('product_id', $line['product_id'])?->product,
+        ]));
+
+        [$order, $generatedPassword] = DB::transaction(function () use ($company, $offer, $data, $lines, $quote, $deliveryArea, $vat): array {
             $customer = Customer::query()
                 ->where('company_id', $company->getKey())
                 ->where('phone', $data['phone'])
@@ -119,7 +125,7 @@ class OfferCheckoutController extends Controller
                 'customer_name' => $customer->name,
                 'order_date' => now()->toDateString(),
                 'discount' => 0,
-                'vat' => 0,
+                'vat' => $vat,
                 'shipping_zone' => $deliveryArea,
                 'shipping_fee' => $quote['fee'],
                 'paid_amount' => 0,
@@ -166,7 +172,7 @@ class OfferCheckoutController extends Controller
     {
         $offer = Offer::query()->where('slug', trim($slug))->first();
 
-        return view('storefront.offers.thank-you', [
+        return StorefrontThemeRegistry::page('offers.thank-you', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,

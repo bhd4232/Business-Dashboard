@@ -68,6 +68,9 @@
             outsideDhakaMarkers: {{ Illuminate\Support\Js::from($outsideDhakaMarkers) }},
             method: {{ Illuminate\Support\Js::from($defaultPaymentMethod) }},
             subtotal: {{ $subtotal }},
+            vat: {{ $vatAmount ?? 0 }},
+            insideDeliveryTime: {{ Illuminate\Support\Js::from($setting->deliveryTimeFor('inside')) }},
+            outsideDeliveryTime: {{ Illuminate\Support\Js::from($setting->deliveryTimeFor('outside')) }},
             insideCharge: {{ $insideCharge }},
             outsideCharge: {{ $outsideCharge }},
             get area() {
@@ -77,7 +80,8 @@
                 return this.insideDhakaKeywords.some((keyword) => normalized.includes(String(keyword).toLocaleLowerCase())) ? 'inside' : 'outside';
             },
             get deliveryCharge() { return this.area === null ? 0 : (this.area === 'inside' ? this.insideCharge : this.outsideCharge); },
-            get total() { return this.subtotal + this.deliveryCharge; }
+            get deliveryTime() { return this.area === null ? null : (this.area === 'inside' ? this.insideDeliveryTime : this.outsideDeliveryTime); },
+            get total() { return this.subtotal + this.vat + this.deliveryCharge; }
         }"
     >
         <form id="checkout-form" class="rounded-lg border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900" method="POST" action="{{ isset($previewSlug) ? route('storefront.preview.checkout.store', $previewSlug) : route('storefront.checkout.store') }}" @if ($errors->any()) aria-describedby="checkout-errors" @endif>
@@ -238,6 +242,17 @@
                     <span>Subtotal</span>
                     <span>BDT {{ \App\Support\MoneyFormatter::number($subtotal) }}</span>
                 </div>
+                @if (($vatAmount ?? 0) > 0)
+                    <div class="flex justify-between text-gray-600 dark:text-gray-300" data-checkout-vat>
+                        <span>{{ $setting->vatDisplayLabel() }}</span>
+                        <span>BDT {{ \App\Support\MoneyFormatter::number($vatAmount) }}</span>
+                    </div>
+                @elseif (($vatIncluded ?? 0) > 0)
+                    <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400" data-checkout-vat-included>
+                        <span>{{ __('Includes :vat', ['vat' => $setting->vatDisplayLabel()]) }}</span>
+                        <span>BDT {{ \App\Support\MoneyFormatter::number($vatIncluded) }}</span>
+                    </div>
+                @endif
                 <div class="flex justify-between text-gray-600 dark:text-gray-300">
                     <span>Parcel weight</span>
                     <span>{{ number_format($actualWeight, 3) }} kg (charged as {{ $billedWeight }} kg)</span>
@@ -245,6 +260,10 @@
                 <div class="flex justify-between text-gray-600 dark:text-gray-300">
                     <span>Delivery charge</span>
                     <span x-text="area === null ? 'Enter address' : 'BDT ' + deliveryCharge.toFixed(2)" aria-live="polite"></span>
+                </div>
+                <div class="flex justify-between text-gray-600 dark:text-gray-300" x-show="deliveryTime" x-cloak data-checkout-delivery-time>
+                    <span>{{ __('Delivery time') }}</span>
+                    <span x-text="deliveryTime" aria-live="polite"></span>
                 </div>
                 <div class="flex justify-between border-t border-gray-200 pt-2 text-lg font-semibold text-gray-950 dark:border-white/10 dark:text-white">
                     <span>Total</span>

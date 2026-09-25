@@ -13,6 +13,7 @@ use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
 use App\Services\StorefrontMetaTrackingService;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -262,7 +263,7 @@ class CartController extends Controller
 
     protected function cartView(Company $company, StorefrontSetting $setting, ?string $previewSlug = null): View
     {
-        return view('storefront.cart.show', [
+        return StorefrontThemeRegistry::page('cart.show', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,

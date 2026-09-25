@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\ProductReview;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -59,7 +60,7 @@ class ProductReviewController extends Controller
             ->where('order_id', $order->getKey())
             ->pluck('product_id');
 
-        return view('storefront.account.reviews.create', [
+        return StorefrontThemeRegistry::page('account.reviews.create', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,

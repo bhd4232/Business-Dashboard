@@ -2,6 +2,54 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-25 - Marketplace Pro theme (phase 1 + layout), storefront VAT, delivery time, Bangla/English plan
+
+Reason: the owner reviewed the Marketplace Pro plan (artifact "Marketplace Pro থিম প্ল্যান") and answered:
+1. Build it as the plan says. The utility bar stays. The hero shows only the hero banner, with no promo cards.
+2. VAT must be settable from admin. Delivery time and area-based delivery charges must be settable from the dashboard. Charges already existed; delivery time was added.
+3. Fonts will be theme-owned. The owner then chose **Unbounded** for headlines (done).
+4. Write a step-by-step Bangla + English plan that future agents follow bilingually, including a country-based default language.
+6. Recommendation on where the code should live: this ERP repo.
+
+**What was built:**
+- **VAT:** off by default. Store rate or per-product ERP rate, exclusive or inclusive, custom label. Applied at checkout, gateway-verified orders and Offer checkout. Shown on checkout, Offer and product pages. Delivery is not taxed.
+- **Delivery time** per area (inside/outside Dhaka). Shown on the product page, and live at checkout for the detected area.
+- **Theme resolver:** `StorefrontThemeRegistry::view()` / `page()`. All 30 storefront controller views go through it. The default header, footer and mobile nav moved into `storefront/partials/layout/*` with no markup change.
+- **Marketplace Pro layout:**
+  - utility bar (owner message, helpline, track order)
+  - navy header with search, account, returns & orders, cart count
+  - category strip and left category drawer
+  - navy footer from the Footer Builder
+  - 5-item mobile bottom nav
+- **Marketplace Pro home:** the hero is the banner only. Invented copy is removed ("Up to 30%", "24–48h", default headings, trust subtitles, bulk pricing rows). New admin fields cover trust items, bulk pricing rows, business callout, helpline and the utility bar.
+- **Marketplace Pro palette preset** from the handoff. It is auto-applied when a store switches to the theme.
+- **Headline font:** the owner asked for Unbounded (Nura-style) as the Marketplace Pro headline font. It is self-hosted in `resources/fonts/unbounded/` (OFL licence included) and used only for the hero, section titles, callouts and brand. Body text and prices keep the admin typography. The owner's other suggestions (Maggle, Fodia, Swoon, Sogea, Bogale, Quorele, Artific, Affinik, Monare, Craos, Nura) are paid fonts that are not on Google Fonts, so they need a purchased webfont licence before use.
+- **Text font:** the owner then chose Nunito as the Marketplace Pro text font. It is self-hosted in `resources/fonts/nunito/` (OFL licence included) and applied to the body and h1–h6. The Unbounded display selectors still take priority.
+- **Preview routes** now output `noindex, nofollow`.
+- **axios removed** (unused).
+- **i18n:** `docs/i18n-bangla-english-plan.md`, `lang/en.json` + `lang/bn.json`, `TranslationParityTest`, and a bilingual rule in `CLAUDE.md` / `AGENTS.md`.
+
+**Not done yet (next phases of the plan):**
+- Marketplace Pro page designs for listing, product detail, cart, checkout and track. These pages already get the new header and footer, and their bodies are still the shared design.
+- AJAX mini-cart, multi-size images, self-hosting the Bangla font (Hind Siliguri), caching/SEO and Lighthouse CI.
+
+**Needs Bangla review:** every Bangla value added to `lang/bn.json` in this change (59 keys). Bangla is not switched on for visitors yet.
+
+Important changed/new files:
+- `database/migrations/2026_09_25_100000_*`, `2026_09_25_100100_*`
+- `app/Models/StorefrontSetting.php`, `app/Support/StorefrontThemeRegistry.php`
+- `app/Http/Controllers/Storefront/*.php` (view resolver; VAT in `CheckoutController`, `OfferCheckoutController`, `OfferController`), `app/Services/StorefrontOrderPlacementService.php`
+- `app/Filament/Resources/StorefrontSettings/StorefrontSettingResource.php`
+- `resources/views/storefront/layout.blade.php`, `resources/views/storefront/partials/layout/*`, `resources/views/storefront/themes/marketplace-pro/**`
+- `resources/views/storefront/{checkout/show,offers/show,products/show}.blade.php`
+- `resources/css/app.css`, `resources/js/app.js`, `package.json`, `package-lock.json`
+- `lang/*.json`, `docs/i18n-bangla-english-plan.md`, `CLAUDE.md`, `AGENTS.md`
+- `tests/Feature/{StorefrontThemeTest,StorefrontVatAndDeliveryTimeTest}.php`, `tests/Unit/TranslationParityTest.php`
+
+Verification: full `php artisan test` (plain, no `--env`) passed, 1336 tests (7088 assertions). `npm run build` succeeded. Pint passed on the changed PHP files. Playwright at 360px and 1366px showed no horizontal overflow on home, listing and product pages. Screenshots came from a disposable scratchpad SQLite database; the demo DB was never touched.
+
+Commit status: Committed and pushed to `claude/erpf-marketplace-pro-customization-5m95cn` (owner approved: "কমিট এবং পুশ কর").
+
 ## 2026-09-24 - AI Expense Scan: photograph an expense note, AI drafts the expenses, owner reviews and publishes
 
 Reason — owner: "ছবি থেকে বিশ্লেষণ করে এক্সপেন্স অটো যুক্ত করা … এন্ট্রি গুলো পাবলিশ হবে না আমি দেখব এরপর কনফার্ম হয়ে পাবলিশ করব। এটা হতে পারে হাতের লেখা অথবা যে কোন নোট" (upload a photo of any handwritten/printed expense note; AI reads it into expense entries with dates; nothing publishes until the owner reviews, corrects, and confirms). The owner answered the design questions as follows:

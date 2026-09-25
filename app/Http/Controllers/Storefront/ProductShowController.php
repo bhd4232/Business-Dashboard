@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ResellerProduct;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -57,7 +58,7 @@ class ProductShowController extends Controller
             ->limit(4)
             ->get();
 
-        return view('storefront.products.show', [
+        return StorefrontThemeRegistry::page('products.show', [
             'company' => $company,
             'setting' => $company->storefrontSetting,
             'product' => $product,

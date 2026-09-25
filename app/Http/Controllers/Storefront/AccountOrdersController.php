@@ -13,6 +13,7 @@ use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
 use App\Services\StorefrontCart;
 use App\Services\StorefrontCustomerActivityService;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -50,7 +51,7 @@ class AccountOrdersController extends Controller
                 ->latest('id')
                 ->get();
 
-            return view('storefront.account.orders', [
+            return StorefrontThemeRegistry::page('account.orders', [
                 'company' => $company,
                 'setting' => $setting,
                 'customer' => $customer,
@@ -211,7 +212,7 @@ class AccountOrdersController extends Controller
                 ->latest('id')
                 ->get();
 
-            return view('storefront.account.orders', [
+            return StorefrontThemeRegistry::page('account.orders', [
                 'company' => $company,
                 'setting' => $setting,
                 'customer' => $customer,
@@ -225,7 +226,7 @@ class AccountOrdersController extends Controller
         $phone = trim((string) $request->string('phone'));
         $orders = $phone === '' ? collect() : $this->ordersForPhone($company, $phone);
 
-        return view('storefront.account.orders', [
+        return StorefrontThemeRegistry::page('account.orders', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,

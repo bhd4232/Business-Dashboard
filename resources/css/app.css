@@ -89,6 +89,342 @@ body[data-storefront-theme='marketplace_pro'] {
     }
 }
 
+/*
+ * Marketplace Pro display font: Unbounded (SIL OFL 1.1, see
+ * resources/fonts/unbounded/OFL.txt), self-hosted so no third-party font
+ * request blocks rendering. Variable weight 500–800, latin + latin-ext only;
+ * Bangla glyphs fall through to the admin heading font. Browsers only
+ * download it on pages that actually use it (Marketplace Pro headings).
+ */
+@font-face {
+    font-family: 'Unbounded';
+    font-style: normal;
+    font-weight: 500 800;
+    font-display: swap;
+    src: url('../fonts/unbounded/unbounded-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Unbounded';
+    font-style: normal;
+    font-weight: 500 800;
+    font-display: swap;
+    src: url('../fonts/unbounded/unbounded-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/*
+ * Marketplace Pro text font: Nunito (SIL OFL 1.1, see
+ * resources/fonts/nunito/OFL.txt), self-hosted, variable weight 400–800,
+ * latin + latin-ext only. Rounded like the Unbounded headlines; Bangla
+ * glyphs fall through to the admin body/heading font.
+ */
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url('../fonts/nunito/nunito-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: 'Nunito';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url('../fonts/nunito/nunito-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+body[data-storefront-theme='marketplace_pro'].storefront-shell {
+    font-family: 'Nunito', var(--storefront-body-font);
+}
+
+/* Product names, page titles and other headings: Nunito bold. The display
+   rules below (Unbounded) are more specific and still win for hero and
+   section titles. */
+body[data-storefront-theme='marketplace_pro'] :where(h1, h2, h3, h4, h5, h6) {
+    font-family: 'Nunito', var(--storefront-heading-font);
+}
+
+/*
+ * Display headings only (hero, section titles, brand). Product names,
+ * prices, buttons and body text keep the admin typography so dense
+ * catalog text stays readable. Unbounded is wide, so these sit a touch
+ * smaller and tighter than the default heading scale.
+ */
+body[data-storefront-theme='marketplace_pro'] {
+    --mp-display-font: 'Unbounded', var(--storefront-heading-font);
+}
+
+body[data-storefront-theme='marketplace_pro'] .mp-brand-name,
+body[data-storefront-theme='marketplace_pro'] .mp-logo-mark,
+body[data-storefront-theme='marketplace_pro'] .marketplace-hero-banner h1,
+body[data-storefront-theme='marketplace_pro'] .marketplace-section-heading h2,
+body[data-storefront-theme='marketplace_pro'] .marketplace-dense-banner p.font-bold,
+body[data-storefront-theme='marketplace_pro'] #dense-products-title,
+body[data-storefront-theme='marketplace_pro'] .marketplace-info-card h2,
+body[data-storefront-theme='marketplace_pro'] .marketplace-business-card h2,
+body[data-storefront-theme='marketplace_pro'] .marketplace-business-strip h2 {
+    font-family: var(--mp-display-font);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+body[data-storefront-theme='marketplace_pro'] .marketplace-hero-banner h1 {
+    font-size: clamp(1.6rem, 4.2vw, 2.6rem);
+    line-height: 1.15;
+}
+
+body[data-storefront-theme='marketplace_pro'] .marketplace-section-heading h2 {
+    font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+}
+
+body[data-storefront-theme='marketplace_pro'] .mp-brand-name {
+    font-size: 1.05rem;
+}
+
+/*
+ * Marketplace Pro layout (header, utility bar, category strip, drawer,
+ * footer, mobile bottom nav). Colours come from the admin palette:
+ * --storefront-secondary is the navy header/footer surface and
+ * --storefront-accent the orange action colour (Marketplace Pro preset).
+ */
+.mp-shell {
+    width: min(100%, 1360px);
+    margin-inline: auto;
+    padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+    .mp-shell {
+        padding-inline: 1.25rem;
+    }
+}
+
+.mp-utility-bar {
+    background: color-mix(in srgb, var(--storefront-secondary) 72%, black);
+    color: rgb(255 255 255 / 0.72);
+}
+
+.mp-header {
+    background: var(--storefront-secondary);
+    color: var(--storefront-secondary-contrast);
+}
+
+.mp-logo-mark {
+    display: grid;
+    width: 2.375rem;
+    height: 2.375rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 0.5rem;
+    background: var(--storefront-accent);
+    color: var(--storefront-accent-contrast);
+    font-family: var(--storefront-heading-font);
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+
+.mp-brand-name {
+    min-width: 0;
+    max-width: 14rem;
+    font-family: var(--storefront-heading-font);
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.mp-search {
+    min-width: 0;
+    flex: 1 1 auto;
+    max-width: 44rem;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    background: white;
+}
+
+.mp-search input {
+    min-width: 0;
+    flex: 1 1 auto;
+    min-height: 2.75rem;
+    border: 0;
+    background: transparent;
+    padding: 0 0.9rem;
+    color: #14181f;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.mp-search button {
+    display: grid;
+    width: 3rem;
+    flex-shrink: 0;
+    place-items: center;
+    background: var(--storefront-accent);
+    color: var(--storefront-accent-contrast);
+}
+
+.mp-search:focus-within {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--storefront-accent) 55%, transparent);
+}
+
+.mp-icon-button {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 0.5rem;
+}
+
+.mp-icon-button:hover,
+.mp-header-link:hover,
+.mp-cart-link:hover {
+    background: rgb(255 255 255 / 0.08);
+}
+
+.mp-header-link {
+    border-radius: 0.375rem;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.mp-cart-link {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: flex-end;
+    gap: 0.25rem;
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.mp-cart-count {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.45rem;
+    display: grid;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--storefront-accent);
+    padding-inline: 0.25rem;
+    color: var(--storefront-accent-contrast);
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.mp-category-strip {
+    background: color-mix(in srgb, var(--storefront-secondary) 86%, white);
+    color: rgb(255 255 255 / 0.82);
+}
+
+.mp-category-strip a:hover,
+.mp-category-strip button:hover {
+    color: white;
+}
+
+.mp-category-strip .mp-shell {
+    scrollbar-width: none;
+}
+
+.mp-drawer-panel {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    display: flex;
+    width: min(20rem, 86vw);
+    flex-direction: column;
+    background: var(--storefront-surface);
+    color: var(--storefront-text);
+}
+
+.dark .mp-drawer-panel {
+    background: var(--storefront-dark-surface);
+    color: var(--storefront-dark-text);
+}
+
+.mp-menu-item {
+    display: block;
+    min-height: 2.75rem;
+    border-radius: 0.5rem;
+    padding: 0.7rem 0.75rem;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+.mp-menu-item:hover,
+.mp-menu-item[aria-current='page'] {
+    background: color-mix(in srgb, var(--storefront-accent) 10%, transparent);
+}
+
+.mp-footer {
+    background: color-mix(in srgb, var(--storefront-secondary) 72%, black);
+    color: rgb(255 255 255 / 0.82);
+}
+
+.mp-mobile-nav {
+    border-top: 1px solid var(--storefront-border);
+    background: color-mix(in srgb, var(--storefront-surface) 96%, transparent);
+    backdrop-filter: blur(8px);
+}
+
+.dark .mp-mobile-nav {
+    border-top-color: var(--storefront-dark-border);
+    background: color-mix(in srgb, var(--storefront-dark-surface) 96%, transparent);
+}
+
+.mp-mobile-nav .mp-mobile-nav-item {
+    position: relative;
+    font-family: inherit;
+    line-height: 1.2;
+    display: flex;
+    min-height: 3.5rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    color: var(--storefront-muted-text);
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+.dark .mp-mobile-nav-item {
+    color: var(--storefront-dark-muted-text);
+}
+
+.mp-mobile-nav-item.is-active {
+    color: var(--storefront-accent);
+}
+
+.mp-mobile-nav-badge {
+    position: absolute;
+    top: 0.3rem;
+    left: calc(50% + 0.35rem);
+    display: grid;
+    min-width: 1rem;
+    height: 1rem;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--storefront-accent);
+    padding-inline: 0.2rem;
+    color: var(--storefront-accent-contrast);
+    font-size: 0.6rem;
+    font-weight: 800;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mp-drawer-panel {
+        transition: none !important;
+    }
+}
+
 .marketplace-container,
 .marketplace-section {
     width: min(100%, var(--storefront-content-width));
@@ -100,16 +436,16 @@ body[data-storefront-theme='marketplace_pro'] {
     margin-top: clamp(1.5rem, 3vw, 2.75rem);
 }
 
-.marketplace-hero-card {
+.marketplace-hero-banner {
     position: relative;
     min-width: 0;
     overflow: hidden;
     border-radius: var(--radius-2xl);
-    background: var(--storefront-secondary);
+    background: linear-gradient(115deg, var(--storefront-secondary) 0 62%, color-mix(in srgb, var(--storefront-secondary) 70%, var(--storefront-accent)) 100%);
 }
 
-.marketplace-hero-card h1,
-.marketplace-hero-card p,
+.marketplace-hero-banner h1,
+.marketplace-hero-banner p,
 .marketplace-dense-banner p {
     overflow-wrap: anywhere;
 }
@@ -184,33 +520,6 @@ body[data-storefront-theme='marketplace_pro'] {
 .marketplace-button-ghost {
     border: 1px solid rgb(255 255 255 / 0.45);
     color: white;
-}
-
-.marketplace-campaign {
-    background: linear-gradient(115deg, var(--storefront-secondary) 0 58%, var(--storefront-accent) 58% 100%);
-}
-
-.marketplace-stat {
-    border-radius: var(--radius-lg);
-    background: rgb(255 255 255 / 0.14);
-    padding: 0.75rem 0.5rem;
-    color: white;
-}
-
-.marketplace-stat strong,
-.marketplace-stat span {
-    display: block;
-}
-
-.marketplace-stat strong {
-    font-family: var(--storefront-heading-font);
-    font-size: clamp(0.9rem, 2.4vw, 1.2rem);
-}
-
-.marketplace-stat span {
-    margin-top: 0.2rem;
-    color: rgb(255 255 255 / 0.75);
-    font-size: 0.65rem;
 }
 
 /*
@@ -2014,6 +2323,17 @@ body[data-storefront-theme='noor_solar'] .storefront-footer a:hover {
 
 .dark .storefront-shell .storefront-mobile-nav {
     background-color: color-mix(in srgb, var(--storefront-dark-background) 95%, transparent);
+}
+
+/* Marketplace Pro keeps its navy header/footer in both colour modes. */
+.storefront-shell .storefront-header.mp-header,
+.dark .storefront-shell .storefront-header.mp-header {
+    background-color: var(--storefront-secondary);
+}
+
+.storefront-shell .storefront-footer.mp-footer,
+.dark .storefront-shell .storefront-footer.mp-footer {
+    background-color: color-mix(in srgb, var(--storefront-secondary) 72%, black);
 }
 
 .storefront-shell :where(h1, h2, h3, h4, h5, h6) {

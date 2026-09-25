@@ -9,6 +9,7 @@ use App\Models\StorefrontCustomerActivity;
 use App\Services\CompanyContext;
 use App\Services\CustomerAccountService;
 use App\Services\StorefrontCustomerActivityService;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -54,7 +55,7 @@ class AccountProfileController extends Controller
             return redirect()->to($this->accountRoute($request, 'login'));
         }
 
-        return view('storefront.account.profile', [
+        return StorefrontThemeRegistry::page('account.profile', [
             'company' => $company,
             'setting' => $setting,
             'customer' => $customer,

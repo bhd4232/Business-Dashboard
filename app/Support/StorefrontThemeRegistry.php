@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Illuminate\Contracts\View\View;
+
 final class StorefrontThemeRegistry
 {
     public const BUILT_IN = 'builtin';
@@ -85,6 +87,7 @@ final class StorefrontThemeRegistry
                     self::BUILT_IN_DEFAULT => 'storefront.home',
                 ],
                 'layout' => 'storefront.layout',
+                'directory' => null,
             ],
             self::MARKETPLACE_PRO => [
                 'label' => 'Marketplace Pro',
@@ -107,6 +110,10 @@ final class StorefrontThemeRegistry
                 // once one is designed; every storefront page will pick it up
                 // automatically via layoutView(), no other file needs to change.
                 'layout' => 'storefront.layout',
+                // Any page view placed under this folder (same relative
+                // name as the default, e.g. products/show.blade.php)
+                // replaces the default page for this theme — see view().
+                'directory' => 'marketplace-pro',
             ],
             self::NOOR_SOLAR => [
                 'label' => 'Noor Solar Energy',
@@ -119,6 +126,7 @@ final class StorefrontThemeRegistry
                     self::NOOR_SOLAR_ENGINEERED => 'storefront.themes.noor-solar.home',
                 ],
                 'layout' => 'storefront.layout',
+                'directory' => 'noor-solar',
             ],
         ];
     }
@@ -174,5 +182,49 @@ final class StorefrontThemeRegistry
     public static function layoutView(?string $theme): string
     {
         return self::themes()[self::normalizeTheme($theme)]['layout'] ?? 'storefront.layout';
+    }
+
+    /** @var array<string, bool> */
+    private static array $viewExists = [];
+
+    /**
+     * Resolve a storefront page view for a theme: the theme's own
+     * `storefront.themes.{directory}.{page}` when that file exists,
+     * otherwise the shared default `storefront.{page}`. Themes only
+     * override the pages they actually redesign; everything else keeps
+     * working unchanged.
+     */
+    public static function view(?string $theme, string $page): string
+    {
+        $page = ltrim($page, '.');
+        $default = 'storefront.'.$page;
+        $directory = self::themes()[self::normalizeTheme($theme)]['directory'] ?? null;
+
+        if (! $directory) {
+            return $default;
+        }
+
+        $themed = 'storefront.themes.'.$directory.'.'.$page;
+
+        return (self::$viewExists[$themed] ??= view()->exists($themed)) ? $themed : $default;
+    }
+
+    /**
+     * Render a storefront page through the active theme (read from the
+     * `setting` entry every storefront controller already passes).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function page(string $page, array $data = []): View
+    {
+        $setting = $data['setting'] ?? null;
+
+        return view(self::view($setting?->storefrontTheme(), $page), $data);
+    }
+
+    /** Test helper: forget cached view-existence lookups. */
+    public static function flushViewCache(): void
+    {
+        self::$viewExists = [];
     }
 }

@@ -10,6 +10,7 @@ use App\Models\CourierBooking;
 use App\Models\Order;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -92,7 +93,7 @@ class OrderTrackController extends Controller
     ): View {
         $order?->load(['customer', 'items.product', 'latestCourierBooking.provider', 'latestCourierBooking.statusLogs']);
 
-        return view('storefront.track.show', [
+        return StorefrontThemeRegistry::page('track.show', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,

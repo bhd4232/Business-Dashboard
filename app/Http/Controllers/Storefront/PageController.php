@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\StorefrontPage;
 use App\Models\StorefrontSetting;
 use App\Services\CompanyContext;
+use App\Support\StorefrontThemeRegistry;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -40,7 +41,7 @@ class PageController extends Controller
             ->published()
             ->firstOrFail();
 
-        return view('storefront.pages.show', [
+        return StorefrontThemeRegistry::page('pages.show', [
             'company' => $company,
             'setting' => $setting,
             'previewSlug' => $previewSlug,
