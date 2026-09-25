@@ -124,7 +124,7 @@ Important changed/new files: `routes/api.php`, `bootstrap/app.php`, `app/Http/Mi
 
 Verification: `php artisan test --filter="WebsiteApi|WebsiteWebhookDispatchTest"` — 22 passed (49 assertions). `php artisan test --filter=IntegrationsPageTest` — 25 passed (167 assertions). `php artisan test --filter=MultiCompanyIsolationTest` — 7 passed (172 assertions). Full `php artisan test` (plain, no `--env`) — **1335 passed, 0 failed** (6763 assertions, ~813s), run after a small fix (excluding `stock` from `Product`'s own webhook-dispatch check, to keep `StockMovement` as the single dispatch point) and the added `IntegrationsPageTest` coverage. `npm run build` not run — no frontend asset changed (PHP/Blade only, no JS/CSS).
 
-Commit status: Committed and pushed to `claude/expense-auto-entry-ocr-57kalg` and `main` (owner approved: "Main এ পুশ কর").
+Commit status: NOT committed. Awaiting owner approval.
 
 ## 2026-09-17 - Orders: auto shipping fee ignored the real default courier when a company has more than one
 
@@ -327,7 +327,7 @@ Important — Meta has restricted first_name/last_name access on Messenger PSIDs
 
 Verification: `php artisan test --filter="test_profile_name_replaces_id_placeholder_and_updates_generated_lead_name|test_missing_profile_name_never_falls_back_to_phone_or_id" tests/Feature/CrmSalesAutomationTest.php tests/Feature/MetaMessagingReliabilityTest.php` — 20 passed. Full `php artisan test` — 1254 passed, 2 failed; both pre-existing and unrelated (`AdminNavigationClustersTest` — CRM Sales Automation cluster routing; `ReleaseNotesTest` — stale `config/release.php` version).
 
-Commit status: Committed and pushed to `claude/expense-auto-entry-ocr-57kalg` and `main` (owner approved: "Main এ পুশ কর").
+Commit status: NOT committed. Awaiting owner approval.
 
 ## 2026-09-12 - Courier Fraud Check: Steadfast could report a false clean history
 
@@ -344,7 +344,7 @@ Important — this fix stops the false "0/0 clean" report; it does **not** make 
 
 Verification: `php artisan test --filter=FraudClient tests/Unit/Services/CourierFraud tests/Feature/ExternalCourierFraudCheckTest.php tests/Feature/StorefrontRiskPaymentEligibilityTest.php` — 24 passed. Full `php artisan test` — 1254 passed, 2 failed; both pre-existing and unrelated (`AdminNavigationClustersTest` — the CRM Sales Automation cluster's first-authorized-page routing; `ReleaseNotesTest` — stale `config/release.php` version `2.11.2` vs CHANGELOG's `2.14.0`).
 
-Commit status: Committed and pushed to `claude/expense-auto-entry-ocr-57kalg` and `main` (owner approved: "Main এ পুশ কর").
+Commit status: NOT committed. Awaiting owner approval.
 
 ## 2026-09-07 - Investor / Mudarabah module v3 — Sprint 1 (P1.1–P1.7)
 
