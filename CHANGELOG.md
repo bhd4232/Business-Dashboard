@@ -4,6 +4,8 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+## [2.23.1] - 2026-09-26
+
 **Release type:** Patch/Fix Update
 
 ### Changed
@@ -30,7 +32,6 @@ On other devices:
   - `saveImage()` writes to MediaStore on Android 10+.
   - `AndroidManifest.xml` gains a `<queries>` block for the seven messenger package names, needed for Android 11+ package visibility.
 - `OrderSummaryCardService` drops the text share links. It adds `customer_phone` (international digits), per-row `key` on totals, and card `labels`.
-
 ## [2.23.0] - 2026-09-25
 
 **Release type:** Minor Feature Update
