@@ -4,6 +4,33 @@ All notable production changes to Business Dashboard are documented here.
 
 ## [Unreleased]
 
+**Release type:** Patch/Fix Update
+
+### Changed
+
+- **The order summary card is now sent as an image.** On the order page, **Order summary card** now shows the card as a picture: company header, customer and order details, an items table, and totals with the due amount highlighted. Each app button sends that picture instead of text:
+  - **WhatsApp** opens the customer's own chat with the image attached. If both WhatsApp and WhatsApp Business are installed, you choose which one.
+  - **WeChat**, **Messenger** and **Telegram** open that app with the image attached, and you pick the chat.
+
+  **Copy text** still copies the summary as text.
+
+### Fixed
+
+- **Download image now works in the Android app.** The image is saved to the phone's gallery under Pictures/ZamZam. On Android 9 and older, the share menu opens instead, where you can save it.
+
+**Needs a new Android app (APK).** Sending the image and saving it in the app both use new native code. Install the new APK that CI builds from this push (Actions → CI → `business-dashboard-debug-apk`). Until then, the old app shows a message asking you to update it.
+
+On other devices:
+- **Phone browser:** each button opens the phone's share menu with the image. Pick the app there.
+- **Computer:** the image is downloaded and the app's web version opens, so you can attach the image there.
+
+**Technical Notes:**
+- New `android/app/src/main/java/com/zamzamint/erp/ShareBridge.java`, exposed as `window.ZzShareBridge` from `MainActivity`:
+  - `shareImage()` writes the PNG to the cache and sends an `ACTION_SEND` intent through the existing FileProvider, targeted by package name. WhatsApp also gets the `jid` extra for the customer's chat.
+  - `saveImage()` writes to MediaStore on Android 10+.
+  - `AndroidManifest.xml` gains a `<queries>` block for the seven messenger package names, needed for Android 11+ package visibility.
+- `OrderSummaryCardService` drops the text share links. It adds `customer_phone` (international digits), per-row `key` on totals, and card `labels`.
+
 ## [2.23.0] - 2026-09-25
 
 **Release type:** Minor Feature Update

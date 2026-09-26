@@ -2,6 +2,38 @@
 
 This file is a working update log for changes that may become commits. Use it to decide what a pending commit contains before approving any `git commit` or push.
 
+## 2026-09-26 - Order summary card is sent as an image; Download image works in the app
+
+Reason — owner (with a screenshot of the text message that WhatsApp received): "এরকম অর্ডার কার্ড চাইনি, আমি চেয়েছি whatsapp, wechat, messenger, telegram বাটনে চাপলে অর্ডার ডিটেইল কার্ড ইমেজ সেন্ড হবে। আর … ডাউনলোড ইমেজ বাটন … চাপলে ইমেজ ডাউনলোড হয় না। কপি টেক্সট বাটন কাজ করে।" In short: the buttons should send the card as an image, not text; Download image did nothing; Copy text works.
+
+Why both failed: the Android app is a WebView. A web link can only hand text to WhatsApp and the other apps, never an image. The WebView also supports neither `navigator.share` nor blob downloads. Both need native Android code.
+
+What changed:
+- **Native `ShareBridge`** (`window.ZzShareBridge`):
+  - sends the PNG with `ACTION_SEND` to WhatsApp / WhatsApp Business (straight into the customer's chat via the `jid` extra), WeChat, Messenger / Messenger Lite, or Telegram.
+  - saves the image to Pictures/ZamZam on Android 10+. Android 9 and older get the share sheet instead.
+  - is registered in `MainActivity`. `<queries>` in the manifest lets Android 11+ see the installed apps.
+- **Card:**
+  - the modal preview is now the actual PNG that gets sent (drawn on a canvas).
+  - redesigned: navy header with the company name, detail rows, an items table with Qty/Amount, a totals box with the due amount in orange, and a thank-you footer with the company phone.
+- **Fallbacks:**
+  - old APK: a message asking the user to install the latest app.
+  - phone browser: the system share sheet with the image.
+  - computer: the image downloads and the app's web version opens.
+- Copy text is unchanged.
+
+**Owner action needed:** install the new APK. The CI "build-android" job builds it on this push: Actions → CI run → artifact `business-dashboard-debug-apk`. The web part is live as soon as it is deployed, but sending the image and Download image in the app only work after the new APK is installed.
+
+**Needs Bangla review:** the 9 new `lang/bn.json` keys (app-not-installed / update-app / saved / downloaded / failed messages, "Creating the image…", Qty, Amount, and the thank-you line). 3 unused keys were removed from both files.
+
+Verification:
+- `ShareBridge.java` was compiled with `javac` against the Android API classes (Robolectric android-all jar, with a FileProvider stub). There is no Android SDK here, so the full APK build is left to CI.
+- The card view was rendered in headless Chromium. The image was checked visually, including a Bangla product name. With a simulated bridge, WhatsApp sends the image with the customer's number, Telegram sends with no number, and Download calls `saveImage`. There were no JS errors.
+- `OrderManagementFeaturesTest` and `TranslationParityTest` pass. Full `php artisan test`: **1354 passed, 0 failed**. `npm run build` and Pint pass.
+- Not verified: the real hand-off to each app on a physical phone.
+
+Commit status: Committed and pushed to `claude/order-management-features-nafks7` and `main` (owner approved: "মেইন এ পুশ কর").
+
 ## 2026-09-25 - Order management: payment method from Accounts, courier note, call/WhatsApp icons, order summary card, remember last company
 
 Reason — owner asked for five things (in Bangla):

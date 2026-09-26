@@ -1,13 +1,27 @@
 {{--
-    Order summary card (ViewOrder → "Order summary card"). Shows the card,
-    then shares it as text (WhatsApp, Telegram links; Messenger and WeChat
-    get the text copied first because they have no "send this text" link)
-    or as a PNG image drawn on a canvas (phone share sheet / download).
+    Order summary card (ViewOrder → "Order summary card"). The card is drawn
+    as a PNG on a canvas; the preview below IS that image, and the app
+    buttons send the image itself:
+    - Android app: window.ZzShareBridge (android/.../ShareBridge.java) hands
+      the PNG to WhatsApp (straight into the customer's chat), WeChat,
+      Messenger or Telegram, and saves it to the gallery.
+    - Phone browser: the system share sheet with the image attached.
+    - Computer: the image is downloaded and the app's web version opens so
+      it can be attached there.
 --}}
 <div
     x-data="{
         card: @js($card),
+        messages: @js([
+            'notInstalled' => __('That app is not installed on this phone.'),
+            'updateApp' => __('Install the latest version of the app to send and save images.'),
+            'saved' => __('Image saved to your gallery (Pictures/ZamZam).'),
+            'downloaded' => __('The image was downloaded — attach it in the chat.'),
+            'failed' => __('Could not create the image. Please try again.'),
+            'copied' => __('Summary copied.'),
+        ]),
         notice: '',
+        previewUrl: '',
         canShareFiles: false,
         init() {
             try {
@@ -16,11 +30,86 @@
             } catch (e) {
                 this.canShareFiles = false;
             }
+            this.$nextTick(() => {
+                try {
+                    this.previewUrl = this.draw().toDataURL('image/png');
+                } catch (e) {
+                    this.say(this.messages.failed);
+                }
+            });
         },
-        isMobile() {
-            return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        bridge() {
+            const bridge = window.ZzShareBridge;
+            return bridge && typeof bridge.shareImage === 'function' ? bridge : null;
         },
-        async copyText(message) {
+        inOldApp() {
+            return ! this.bridge() && !! (window.ZzNativeBridge || window.ZzPrintBridge
+                || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()));
+        },
+        say(message) {
+            this.notice = message;
+            clearTimeout(this.noticeTimer);
+            this.noticeTimer = setTimeout(() => this.notice = '', 6000);
+        },
+        base64() {
+            return (this.previewUrl || this.draw().toDataURL('image/png')).split(',')[1];
+        },
+        async file() {
+            const blob = await (await fetch(this.previewUrl || this.draw().toDataURL('image/png'))).blob();
+            return new File([blob], this.card.file_name, { type: 'image/png' });
+        },
+        async send(target) {
+            const bridge = this.bridge();
+            if (bridge) {
+                const phone = target === 'whatsapp' ? (this.card.customer_phone || '') : '';
+                const result = bridge.shareImage(this.base64(), this.card.file_name, target, phone);
+                if (result === 'not_installed') this.say(this.messages.notInstalled);
+                if (result === 'error') this.say(this.messages.failed);
+                return;
+            }
+            if (this.inOldApp()) {
+                this.say(this.messages.updateApp);
+                return;
+            }
+            if (this.canShareFiles) {
+                try {
+                    await navigator.share({ files: [await this.file()] });
+                } catch (e) {}
+                return;
+            }
+            const webApps = {
+                whatsapp: this.card.customer_phone ? 'https://wa.me/' + this.card.customer_phone : 'https://web.whatsapp.com/',
+                wechat: 'https://web.wechat.com/',
+                messenger: 'https://www.messenger.com/',
+                telegram: 'https://web.telegram.org/',
+            };
+            this.browserDownload();
+            window.open(webApps[target], '_blank', 'noopener');
+            this.say(this.messages.downloaded);
+        },
+        download() {
+            const bridge = this.bridge();
+            if (bridge) {
+                const result = bridge.saveImage(this.base64(), this.card.file_name);
+                if (result === 'saved') this.say(this.messages.saved);
+                if (result === 'error') this.say(this.messages.failed);
+                return;
+            }
+            if (this.inOldApp()) {
+                this.say(this.messages.updateApp);
+                return;
+            }
+            this.browserDownload();
+        },
+        browserDownload() {
+            const link = document.createElement('a');
+            link.href = this.previewUrl || this.draw().toDataURL('image/png');
+            link.download = this.card.file_name;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        },
+        async copyText() {
             try {
                 await navigator.clipboard.writeText(this.card.text);
             } catch (e) {
@@ -31,24 +120,12 @@
                 document.execCommand('copy');
                 area.remove();
             }
-            this.notice = message;
-            setTimeout(() => this.notice = '', 5000);
-        },
-        async openAfterCopy(url) {
-            await this.copyText(@js(__('Summary copied — paste it in the chat.')));
-            window.location.href = url;
-        },
-        messenger() {
-            this.openAfterCopy(this.isMobile() ? 'fb-messenger://' : 'https://www.messenger.com/');
-        },
-        wechat() {
-            this.openAfterCopy('weixin://');
+            this.say(this.messages.copied);
         },
         wrap(ctx, text, maxWidth) {
-            const words = String(text).split(' ');
             const lines = [];
             let line = '';
-            for (const word of words) {
+            for (const word of String(text).split(' ')) {
                 const test = line ? line + ' ' + word : word;
                 if (ctx.measureText(test).width > maxWidth && line) {
                     lines.push(line);
@@ -58,65 +135,96 @@
                 }
             }
             if (line) lines.push(line);
-            return lines;
+            return lines.length ? lines : [''];
         },
         draw() {
-            const width = 1080, pad = 64, inner = width - pad * 2;
-            const font = (size, weight = 400) => weight + ' ' + size + 'px system-ui, -apple-system, \'Segoe UI\', Roboto, \'Noto Sans Bengali\', sans-serif';
-            const measure = document.createElement('canvas').getContext('2d');
+            const W = 1080, pad = 64, inner = W - pad * 2;
+            const navy = '#0f2a43', accent = '#ff6a00', ink = '#0f172a', muted = '#64748b', line = '#e2e8f0', soft = '#f1f5f9';
+            const font = (size, weight) => (weight || 400) + ' ' + size + 'px system-ui, -apple-system, Roboto, \'Segoe UI\', \'Noto Sans Bengali\', sans-serif';
+            const ctx0 = document.createElement('canvas').getContext('2d');
             const ops = [];
-            let y = pad;
-            const text = (value, size, weight, color, x, align = 'left', maxWidth = inner) => {
-                measure.font = font(size, weight);
-                const lines = this.wrap(measure, value, maxWidth);
-                lines.forEach((line, i) => ops.push({ t: 'text', value: line, size, weight, color, x, y: y + size + i * size * 1.35, align }));
-                return lines.length * size * 1.35;
+            const put = (value, size, weight, color, x, y, align) => ops.push({ t: 'text', value, size, weight, color, x, y, align: align || 'left' });
+            const block = (value, size, weight, color, x, y, maxWidth, gap) => {
+                ctx0.font = font(size, weight);
+                const lines = this.wrap(ctx0, value, maxWidth);
+                lines.forEach((l, i) => put(l, size, weight, color, x, y + size + i * (size + (gap || 10)), 'left'));
+                return lines.length * (size + (gap || 10));
             };
-            const rule = () => { ops.push({ t: 'rule', y: y }); y += 28; };
 
-            y += text(this.card.company, 44, 700, '#0f172a', pad) + 6;
-            y += text(this.card.title, 28, 500, '#475569', pad) + 24;
-            rule();
+            // Header band: company name + title.
+            const headerH = 200;
+            ops.push({ t: 'rect', x: 0, y: 0, w: W, h: headerH, color: navy });
+            ops.push({ t: 'rect', x: 0, y: headerH, w: W, h: 10, color: accent });
+            ctx0.font = font(52, 800);
+            put(this.wrap(ctx0, this.card.company, inner)[0], 52, 800, '#ffffff', pad, 104);
+            put(this.card.title, 30, 500, '#cbd5e1', pad, 156);
+
+            // Details: label / value rows.
+            let y = headerH + 10 + 44;
+            const labelW = 250;
             for (const row of this.card.meta) {
-                measure.font = font(28, 600);
-                const labelWidth = 230;
-                ops.push({ t: 'text', value: row.label, size: 28, weight: 600, color: '#64748b', x: pad, y: y + 28, align: 'left' });
-                y += text(row.value, 28, 500, '#0f172a', pad + labelWidth, 'left', inner - labelWidth) + 10;
+                put(row.label, 28, 600, muted, pad, y + 28);
+                y += block(row.value, 30, 600, ink, pad + labelW, y - 1, inner - labelW, 10) + 14;
             }
+
+            // Items table.
             if (this.card.items.length) {
-                y += 8; rule();
-                for (const item of this.card.items) {
-                    const h = text(item.name + '  × ' + item.quantity, 28, 500, '#0f172a', pad, 'left', inner - 260);
-                    ops.push({ t: 'text', value: item.amount, size: 28, weight: 600, color: '#0f172a', x: width - pad, y: y + 28, align: 'right' });
-                    y += h + 10;
-                }
+                y += 18;
+                ops.push({ t: 'rect', x: pad, y: y, w: inner, h: 62, color: soft, r: 12 });
+                put(this.card.labels.items, 26, 700, muted, pad + 24, y + 41);
+                put(this.card.labels.quantity, 26, 700, muted, W - pad - 280, y + 41, 'center');
+                put(this.card.labels.amount, 26, 700, muted, W - pad - 24, y + 41, 'right');
+                y += 62 + 18;
+                this.card.items.forEach((item, i) => {
+                    const h = block((i + 1) + '. ' + item.name, 30, 500, ink, pad + 24, y, inner - 400, 10);
+                    put(String(item.quantity), 30, 600, ink, W - pad - 280, y + 30, 'center');
+                    put(item.amount, 30, 700, ink, W - pad - 24, y + 30, 'right');
+                    y += h + 12;
+                    ops.push({ t: 'rect', x: pad, y: y, w: inner, h: 2, color: line });
+                    y += 16;
+                });
             }
-            y += 8; rule();
-            for (const row of this.card.totals) {
-                const size = row.strong ? 32 : 28, weight = row.strong ? 700 : 500;
-                ops.push({ t: 'text', value: row.label, size, weight, color: '#334155', x: pad, y: y + size, align: 'left' });
-                ops.push({ t: 'text', value: row.value, size, weight, color: '#0f172a', x: width - pad, y: y + size, align: 'right' });
-                y += size * 1.35 + 8;
+
+            // Totals box.
+            y += 18;
+            const rows = this.card.totals;
+            const boxH = rows.reduce((h, r) => h + (r.strong ? 60 : 50), 0) + 36;
+            ops.push({ t: 'rect', x: pad, y: y, w: inner, h: boxH, color: soft, r: 18 });
+            let ty = y + 18;
+            for (const r of rows) {
+                const size = r.strong ? 36 : 29;
+                const color = r.key === 'due' ? accent : ink;
+                put(r.label, size, r.strong ? 800 : 500, r.strong ? ink : muted, pad + 32, ty + size + 6);
+                put(r.value, size, r.strong ? 800 : 600, color, W - pad - 32, ty + size + 6, 'right');
+                ty += r.strong ? 60 : 50;
             }
+            y += boxH + 44;
+
+            // Footer.
+            put(this.card.labels.thanks, 30, 700, navy, W / 2, y + 30, 'center');
+            y += 46;
             if (this.card.company_phone) {
-                y += 16;
-                y += text(this.card.company_phone, 24, 500, '#64748b', pad);
+                put(this.card.company + ' · ' + this.card.company_phone, 26, 500, muted, W / 2, y + 26, 'center');
+                y += 40;
             }
-            y += pad;
+            y += pad - 10;
 
             const canvas = document.createElement('canvas');
-            const scale = 1;
-            canvas.width = width * scale;
-            canvas.height = Math.ceil(y) * scale;
+            canvas.width = W;
+            canvas.height = Math.ceil(y);
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#f59e0b';
-            ctx.fillRect(0, 0, canvas.width, 12);
             for (const op of ops) {
-                if (op.t === 'rule') {
-                    ctx.fillStyle = '#e2e8f0';
-                    ctx.fillRect(pad, op.y, inner, 2);
+                if (op.t === 'rect') {
+                    ctx.fillStyle = op.color;
+                    ctx.beginPath();
+                    if (op.r && ctx.roundRect) {
+                        ctx.roundRect(op.x, op.y, op.w, op.h, op.r);
+                    } else {
+                        ctx.rect(op.x, op.y, op.w, op.h);
+                    }
+                    ctx.fill();
                     continue;
                 }
                 ctx.font = font(op.size, op.weight);
@@ -126,106 +234,43 @@
             }
             return canvas;
         },
-        imageBlob() {
-            return new Promise((resolve) => this.draw().toBlob(resolve, 'image/png'));
-        },
-        async shareImage() {
-            const blob = await this.imageBlob();
-            const file = new File([blob], this.card.file_name, { type: 'image/png' });
-            try {
-                await navigator.share({ files: [file], text: this.card.text });
-            } catch (e) {
-                if (e && e.name !== 'AbortError') this.downloadImage();
-            }
-        },
-        async downloadImage() {
-            const blob = await this.imageBlob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = this.card.file_name;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 2000);
-        },
     }"
     class="space-y-4"
 >
-    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-900 shadow-sm dark:border-white/10 dark:bg-gray-900 dark:text-white">
-        <div class="h-1.5 bg-amber-500"></div>
-        <div class="space-y-4 p-4 sm:p-5">
-            <div>
-                <p class="text-lg font-bold" x-text="card.company"></p>
-                <p class="text-sm text-gray-500 dark:text-gray-400" x-text="card.title"></p>
-            </div>
-
-            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-t border-gray-100 pt-3 text-sm dark:border-white/10">
-                <template x-for="row in card.meta" :key="row.label">
-                    <div class="contents">
-                        <dt class="font-medium text-gray-500 dark:text-gray-400" x-text="row.label"></dt>
-                        <dd class="break-words" x-text="row.value"></dd>
-                    </div>
-                </template>
-            </dl>
-
-            <ul class="space-y-1 border-t border-gray-100 pt-3 text-sm dark:border-white/10" x-show="card.items.length">
-                <template x-for="(item, index) in card.items" :key="index">
-                    <li class="flex justify-between gap-4">
-                        <span><span x-text="item.name"></span> × <span x-text="item.quantity"></span></span>
-                        <span class="whitespace-nowrap font-medium" x-text="item.amount"></span>
-                    </li>
-                </template>
-            </ul>
-
-            <dl class="space-y-1 border-t border-gray-100 pt-3 text-sm dark:border-white/10">
-                <template x-for="row in card.totals" :key="row.label">
-                    <div class="flex justify-between gap-4" :class="row.strong ? 'font-bold text-base' : ''">
-                        <dt x-text="row.label"></dt>
-                        <dd class="whitespace-nowrap" x-text="row.value"></dd>
-                    </div>
-                </template>
-            </dl>
-        </div>
+    <div class="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5">
+        <img x-show="previewUrl" :src="previewUrl" alt="{{ __('Order summary card') }}" class="block w-full">
+        <p x-show="! previewUrl" class="p-6 text-center text-sm text-gray-500">{{ __('Creating the image…') }}</p>
     </div>
 
     <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <a :href="card.whatsapp_url" target="_blank" rel="noopener"
-           class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#25D366] px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
+        <button type="button" x-on:click="send('whatsapp')"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#25D366] px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90">
             {{ __('WhatsApp') }}
-        </a>
-        <button type="button" x-on:click="wechat()"
-           class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#07C160] px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
+        </button>
+        <button type="button" x-on:click="send('wechat')"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#07C160] px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90">
             {{ __('WeChat') }}
         </button>
-        <button type="button" x-on:click="messenger()"
-           class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0866FF] px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
+        <button type="button" x-on:click="send('messenger')"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#0866FF] px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90">
             {{ __('Messenger') }}
         </button>
-        <a :href="card.telegram_url" target="_blank" rel="noopener"
-           class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#229ED9] px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
+        <button type="button" x-on:click="send('telegram')"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#229ED9] px-3 py-2.5 text-sm font-semibold text-white hover:opacity-90">
             {{ __('Telegram') }}
-        </a>
+        </button>
     </div>
 
     <div class="flex flex-wrap gap-2">
-        <button type="button" x-show="canShareFiles" x-on:click="shareImage()"
-            class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/5">
-            {{ __('Share as image') }}
-        </button>
-        <button type="button" x-on:click="copyText(@js(__('Summary copied.')))"
-            class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/5">
-            {{ __('Copy text') }}
-        </button>
-        <button type="button" x-on:click="downloadImage()"
+        <button type="button" x-on:click="download()"
             class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/5">
             {{ __('Download image') }}
         </button>
+        <button type="button" x-on:click="copyText()"
+            class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/5">
+            {{ __('Copy text') }}
+        </button>
     </div>
-
-    <p class="text-xs text-gray-500 dark:text-gray-400">
-        {{ __('Messenger and WeChat cannot receive text from a link, so the summary is copied first — paste it in the chat. To send the card as a picture, use Share as image or Download image.') }}
-    </p>
 
     <p x-show="notice" x-transition class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300" x-text="notice"></p>
 </div>

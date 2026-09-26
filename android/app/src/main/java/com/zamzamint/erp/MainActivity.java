@@ -39,6 +39,12 @@ public class MainActivity extends BridgeActivity {
         // (it works fine in a real mobile browser). See PrintBridge.
         webView.addJavascriptInterface(new PrintBridge(this, webView), "ZzPrintBridge");
 
+        // Lets the order summary card be sent as an image straight to
+        // WhatsApp / WeChat / Messenger / Telegram and saved to the gallery
+        // -- the WebView supports neither navigator.share nor blob
+        // downloads. See ShareBridge.
+        webView.addJavascriptInterface(new ShareBridge(this), "ZzShareBridge");
+
         networkMonitor = new NetworkMonitor(this, this::onNetworkAvailable);
         networkMonitor.register();
 

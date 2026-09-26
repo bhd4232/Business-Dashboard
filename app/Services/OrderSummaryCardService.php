@@ -8,9 +8,10 @@ use App\Support\MoneyFormatter;
 use App\Support\PhoneLinks;
 
 /**
- * Builds the shareable "order summary card" shown from the order view page:
- * the same content as a card (for the image) and as plain text (for
- * WhatsApp, WeChat, Messenger and Telegram).
+ * Builds the shareable "order summary card" shown from the order view page.
+ * The card is drawn as a PNG image in the browser and sent as that image to
+ * WhatsApp, WeChat, Messenger or Telegram; the plain text version is only
+ * for the "Copy text" button.
  */
 class OrderSummaryCardService
 {
@@ -21,10 +22,10 @@ class OrderSummaryCardService
      *     title: string,
      *     meta: list<array{label: string, value: string}>,
      *     items: list<array{name: string, quantity: int, amount: string}>,
-     *     totals: list<array{label: string, value: string, strong: bool}>,
+     *     totals: list<array{key: string, label: string, value: string, strong: bool}>,
+     *     labels: array<string, string>,
      *     text: string,
-     *     whatsapp_url: string,
-     *     telegram_url: string,
+     *     customer_phone: ?string,
      *     file_name: string,
      * }
      */
@@ -56,16 +57,17 @@ class OrderSummaryCardService
             ->all();
 
         $totals = array_values(array_filter([
-            ['label' => __('Subtotal'), 'value' => (float) $order->subtotal, 'strong' => false, 'always' => true, 'minus' => false],
-            ['label' => __('Delivery charge'), 'value' => (float) $order->shipping_fee, 'strong' => false, 'always' => false, 'minus' => false],
-            ['label' => __('Discount'), 'value' => (float) $order->discount, 'strong' => false, 'always' => false, 'minus' => true],
-            ['label' => __('VAT'), 'value' => (float) $order->vat, 'strong' => false, 'always' => false, 'minus' => false],
-            ['label' => __('Total'), 'value' => (float) $order->total_amount, 'strong' => true, 'always' => true, 'minus' => false],
-            ['label' => __('Paid'), 'value' => (float) $order->paid_amount, 'strong' => false, 'always' => false, 'minus' => false],
-            ['label' => __('Due'), 'value' => (float) $order->due_amount, 'strong' => true, 'always' => true, 'minus' => false],
+            ['key' => 'subtotal', 'label' => __('Subtotal'), 'value' => (float) $order->subtotal, 'strong' => false, 'always' => true, 'minus' => false],
+            ['key' => 'delivery', 'label' => __('Delivery charge'), 'value' => (float) $order->shipping_fee, 'strong' => false, 'always' => false, 'minus' => false],
+            ['key' => 'discount', 'label' => __('Discount'), 'value' => (float) $order->discount, 'strong' => false, 'always' => false, 'minus' => true],
+            ['key' => 'vat', 'label' => __('VAT'), 'value' => (float) $order->vat, 'strong' => false, 'always' => false, 'minus' => false],
+            ['key' => 'total', 'label' => __('Total'), 'value' => (float) $order->total_amount, 'strong' => true, 'always' => true, 'minus' => false],
+            ['key' => 'paid', 'label' => __('Paid'), 'value' => (float) $order->paid_amount, 'strong' => false, 'always' => false, 'minus' => false],
+            ['key' => 'due', 'label' => __('Due'), 'value' => (float) $order->due_amount, 'strong' => true, 'always' => true, 'minus' => false],
         ], fn (array $row): bool => $row['always'] || $row['value'] > 0));
 
         $totals = array_map(fn (array $row): array => [
+            'key' => $row['key'],
             'label' => $row['label'],
             'value' => ($row['minus'] ? '- ' : '').$money($row['value']),
             'strong' => $row['strong'],
@@ -82,14 +84,17 @@ class OrderSummaryCardService
             'meta' => $meta,
             'items' => $items,
             'totals' => $totals,
+            'labels' => [
+                'items' => __('Items'),
+                'quantity' => __('Qty'),
+                'amount' => __('Amount'),
+                'thanks' => __('Thank you for your order!'),
+            ],
             'text' => $text,
-            // Straight to the customer's own chat when the order has a phone
-            // number; otherwise WhatsApp asks which chat to send it to.
-            'whatsapp_url' => PhoneLinks::whatsappUrl($order->customer?->phone, $text)
-                ?? 'https://wa.me/?text='.rawurlencode($text),
-            // Telegram's share link needs a `url`; the whole summary goes
-            // there so it arrives as one message.
-            'telegram_url' => 'https://t.me/share/url?url='.rawurlencode($text),
+            // Customer's number with the country code (8801…): the Android
+            // app opens WhatsApp straight in this customer's chat with the
+            // card image attached.
+            'customer_phone' => PhoneLinks::internationalDigits($order->customer?->phone),
             'file_name' => 'order-'.str($order->order_number)->slug().'.png',
         ];
     }

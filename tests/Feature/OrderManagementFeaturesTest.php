@@ -220,8 +220,7 @@ class OrderManagementFeaturesTest extends TestCase
         $this->assertSame('Zam Zam Gadget', $card['company']);
         $this->assertStringContainsString($order->order_number, $card['text']);
         $this->assertStringContainsString('Summary Product × 1', $card['text']);
-        $this->assertStringStartsWith('https://wa.me/8801711111111?text=', $card['whatsapp_url']);
-        $this->assertStringStartsWith('https://t.me/share/url?url=', $card['telegram_url']);
+        $this->assertSame('8801711111111', $card['customer_phone']);
     }
 
     public function test_order_view_page_opens_the_order_summary_card(): void
@@ -238,7 +237,7 @@ class OrderManagementFeaturesTest extends TestCase
             'card' => app(OrderSummaryCardService::class)->build($order),
         ])->render();
 
-        foreach (['WhatsApp', 'WeChat', 'Messenger', 'Telegram', 'Share as image', 'Download image'] as $label) {
+        foreach (['WhatsApp', 'WeChat', 'Messenger', 'Telegram', 'Download image', 'Copy text', 'send(\'whatsapp\')', 'ZzShareBridge'] as $label) {
             $this->assertStringContainsString($label, $html);
         }
     }
